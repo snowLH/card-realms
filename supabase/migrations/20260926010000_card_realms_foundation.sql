@@ -363,6 +363,9 @@ values
    '[{"id":"pedrassu-1","name":"Rolamento Azul","cost":1,"damage":23,"minRoll":2},{"id":"pedrassu-2","name":"Couraça Serrana","cost":2,"damage":52,"minRoll":3},{"id":"pedrassu-3","name":"Falha Geológica","cost":3,"damage":90,"minRoll":4}]',
    'Trilhas rochosas da Floresta das Raízes Antigas', null, null, null, 6);
 
+-- Resolve the deferred self-reference checks before later ALTER TABLE statements.
+set constraints all immediate;
+
 insert into public.missions (id, title, description, objective, rewards, repeatable) values
   ('roots-guardian', 'Vozes da mata', 'Vença a Guardiã Aya na Provação das Raízes.', '{"type":"win_battle","region":"roots","count":1}', '{"coins":120,"xp":80}', 'once'),
   ('daily-explore', 'Passos do cartógrafo', 'Explore duas regiões de Aurória.', '{"type":"explore","count":2}', '{"coins":60,"xp":30}', 'daily'),
