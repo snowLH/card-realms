@@ -54,6 +54,18 @@ describe("motor de combate Card Realms", () => {
     expect(() => switchActiveCreature(state, "player-one", 1, "a1")).toThrow(GameRuleError);
   });
 
+  it("faz a troca consumir a ação e passar o turno ao oponente", () => {
+    const state = createDemoBattle("switch-ends-turn");
+    const result = switchActiveCreature(state, "player-one", 1, "switch-1");
+
+    expect(getSide(result.state, "player-one").activeIndex).toBe(1);
+    expect(result.state.currentSideId).toBe("warden-aya");
+    expect(result.events[0].kind).toBe("creature_switched");
+    expect(() =>
+      switchActiveCreature(result.state, "player-one", 2, "switch-2"),
+    ).toThrow("Aguarde o seu turno.");
+  });
+
   it("rejeita uma ação idempotente já processada", () => {
     const state = createDemoBattle("idempotency");
     const result = attachEnergy(state, "player-one", 0, "fire", "same-action");

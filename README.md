@@ -18,19 +18,25 @@ Características como luz, magia, espírito, tempestade ou terra aparecem em tra
 
 ## O que já funciona
 
-- mapa-múndi ilustrado em pixel art, com cinco destinos clicáveis e atividades regionais;
+- mapa top-down em pixel art, com sete regiões clicáveis, vilas, trilhas, santuários, ruínas e portais;
 - coleção filtrável com 25 criaturas completas nesta etapa e estrutura pronta para a meta de 405;
 - equipe de exatamente seis criaturas: uma ativa e cinco substitutas;
-- combate contra NPC com vida, troca, sete energias separadas das criaturas, até duas compras e dois vínculos por turno;
+- combate contra NPC com vida, troca confirmada que consome a ação e encerra o turno, sete energias separadas das criaturas, até duas compras e dois vínculos por turno;
 - três ataques por criatura, custos de 1–3 energias, D6 sorteado no servidor, falha que consome energia e crítico;
 - vantagens elementais, derrotas, troca forçada, histórico e IA básica do guardião;
 - arena, mapa, criaturas e refúgio em 2D/pixel art; menus, cartas e efeitos em alta definição;
 - layout responsivo para celular, tablet e desktop, áreas de toque grandes, safe areas e manifesto instalável;
 - refúgio pessoal visual, coleção, equipe e perfil;
-- login por Google e link de e-mail pronto para ser ativado com Supabase;
+- login por link de e-mail conectado ao Supabase e interface preparada para Google quando as credenciais OAuth forem cadastradas;
 - progresso demonstrativo persistente no dispositivo e esquema Supabase para progresso permanente;
 - motor de combate autoritativo com token assinado, dados criptograficamente seguros e proteção contra reenvio;
-- testes automatizados do motor e validações de TypeScript/ESLint.
+- sete testes automatizados do motor e validações de TypeScript/ESLint.
+
+## Versão publicada
+
+- Jogo: https://card-realms.vercel.app
+- Código: https://github.com/snowLH/card-realms
+- Banco conectado: Supabase em São Paulo, com autenticação por e-mail, RLS e catálogo inicial.
 
 ## Escopo preservado para as próximas etapas
 
@@ -60,7 +66,7 @@ npm run build
 
 1. Crie um projeto Supabase.
 2. Copie `.env.example` para `.env.local` e informe a URL, a chave publicável e uma chave aleatória longa em `GAME_ACTION_SECRET`.
-3. Aplique `supabase/migrations/20260926010000_card_realms_foundation.sql` com a CLI do Supabase ou pelo editor SQL do projeto.
+3. Aplique, em ordem, as migrações de `supabase/migrations/` com a CLI do Supabase ou pelo editor SQL do projeto.
 4. Em Authentication, habilite Google e/ou e-mail e cadastre `http://localhost:3000/auth/callback` durante o desenvolvimento.
 5. Na publicação, troque `NEXT_PUBLIC_SITE_URL` pelo domínio da Vercel e adicione o callback de produção no Supabase.
 
@@ -83,4 +89,3 @@ O projeto não depende de fontes externas no build e usa Geist empacotada localm
 - `src/components/game/`: mapa, coleção, equipe, arena e refúgio.
 - `supabase/migrations/`: banco, segurança, dados iniciais e Realtime.
 - `public/art/`: mapas, arenas, criaturas e refúgio em pixel art.
-

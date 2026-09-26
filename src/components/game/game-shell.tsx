@@ -153,7 +153,7 @@ export function GameShell() {
           <div><span style={{ width: `${Math.min(100, (xp / 1800) * 100)}%` }} /></div>
           <small>{xp}/1.800 XP</small>
         </div>
-        <Badge className="side-build">Versão fundação · progresso local</Badge>
+        <Badge className="side-build">Online · visitante salva neste aparelho</Badge>
       </aside>
 
       <div className="app-content">
@@ -209,7 +209,7 @@ function ProfileView({ coins, xp }: { coins: number; xp: number }) {
         <article><Album /><strong>25</strong><span>Seres catalogados</span></article>
         <article><Trophy /><strong>0</strong><span>Selos de santuário</span></article>
       </div>
-      <div className="profile-note"><strong>Persistência transparente</strong><p>Nesta fundação, recompensas visuais ficam no dispositivo. Quando o projeto Supabase for autorizado, o mesmo fluxo passará a registrar tudo na conta com proteção contra duplicação.</p></div>
+      <div className="profile-note"><strong>Persistência transparente</strong><p>O projeto Supabase já está ativo e cria a identidade, a casa e a equipe inicial da conta. Nesta fundação, recompensas rápidas do modo visitante ainda ficam no dispositivo; a sincronização completa será ligada por etapas, sem fingir que já existe.</p></div>
     </section>
   );
 }

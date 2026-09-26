@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ArrowRightLeft,
   ChevronRight,
   Dice5,
   Flame,
@@ -60,6 +61,7 @@ export function BattleArena({
   const [error, setError] = useState("");
   const [die, setDie] = useState<number | null>(null);
   const [effect, setEffect] = useState<string | null>(null);
+  const [pendingSwitchIndex, setPendingSwitchIndex] = useState<number | null>(null);
   const npcQueuedToken = useRef<string | null>(null);
   const victoryReported = useRef(false);
 
@@ -70,6 +72,7 @@ export function BattleArena({
       const response = await callBattleApi({ action: "start" });
       setBattle(response.state);
       setToken(response.token);
+      setPendingSwitchIndex(null);
       victoryReported.current = false;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível iniciar a batalha.");
@@ -94,6 +97,7 @@ export function BattleArena({
       if (!token || busy) return;
       setBusy(true);
       setError("");
+      setPendingSwitchIndex(null);
       try {
         const response = await callBattleApi({ ...payload, token });
         const rollEvent = response.events.find((entry) => typeof entry.die === "number");
@@ -167,6 +171,10 @@ export function BattleArena({
   }
 
   const playerTurn = battle.currentSideId === data.player.id && battle.status === "active";
+  const pendingSwitch = pendingSwitchIndex === null ? null : data.player.team[pendingSwitchIndex];
+  const pendingSwitchDefinition = pendingSwitch
+    ? CREATURE_BY_ID.get(pendingSwitch.catalogId) ?? null
+    : null;
   return (
     <div className="battle-screen">
       <header className="battle-topbar">
@@ -260,7 +268,7 @@ export function BattleArena({
       <section className="battle-hand" aria-label="Suas seis cartas de criaturas">
         <div className="battle-hand__label">
           <span>Suas seis cartas</span>
-          <small>1 ativa · 5 para substituição</small>
+          <small>1 ativa · trocar consome a ação e encerra o turno</small>
         </div>
         <div className="battle-hand__rail">
           {data.player.team.map((card, index) => {
@@ -275,13 +283,54 @@ export function BattleArena({
                 disabled={!playerTurn || busy || card.defeated}
                 onClick={() => {
                   if (index !== data.player.activeIndex && !card.defeated) {
-                    void perform({ action: "switch", creatureIndex: index, actionId: actionId("switch") });
+                    setPendingSwitchIndex(index);
                   }
                 }}
               />
             );
           })}
         </div>
+        <AnimatePresence>
+          {pendingSwitchDefinition && pendingSwitchIndex !== null ? (
+            <motion.div
+              className="switch-confirmation"
+              role="status"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+            >
+              <ArrowRightLeft />
+              <div>
+                <strong>Colocar {pendingSwitchDefinition.name} em campo?</strong>
+                <span>A troca usa sua única ação e passa o turno para {data.opponent.name}.</span>
+              </div>
+              <Button
+                type="button"
+                variant="game"
+                size="sm"
+                disabled={!playerTurn || busy}
+                onClick={() =>
+                  void perform({
+                    action: "switch",
+                    creatureIndex: pendingSwitchIndex,
+                    actionId: actionId("switch"),
+                  })
+                }
+              >
+                Confirmar troca
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={busy}
+                onClick={() => setPendingSwitchIndex(null)}
+              >
+                Cancelar
+              </Button>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </section>
 
       <section className="battle-controls">

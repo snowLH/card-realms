@@ -42,8 +42,8 @@ export function WorldMap({
     <section className="world-map-shell" aria-label="Mapa de Aurória">
       <div className="world-map">
         <Image
-          src="/art/world-map-pixel.png"
-          alt="Mapa em pixel art do mundo de Aurória, com florestas, ilhas, montanhas, ruínas e cavernas"
+          src="/art/world-map-pixel-v2.png"
+          alt="Mapa top-down em pixel art de Aurória, com sete regiões, vilas, trilhas, santuários, ruínas e portais"
           fill
           priority
           sizes="(max-width: 768px) 100vw, calc(100vw - 320px)"
@@ -56,7 +56,7 @@ export function WorldMap({
             Atlas vivo
           </span>
           <h1>Terras de Aurória</h1>
-          <p>Toque em uma região para escolher sua próxima jornada.</p>
+          <p>Toque em uma região. A exploração acontece por encontros, sem deslocamento livre.</p>
         </div>
 
         {REGIONS.map((region) => {
@@ -88,7 +88,7 @@ export function WorldMap({
         <button
           type="button"
           className="village-marker"
-          style={{ left: "48%", top: "62%" }}
+          style={{ left: "49%", top: "57%" }}
           onClick={() => onSelect(null)}
         >
           <TentTree />
