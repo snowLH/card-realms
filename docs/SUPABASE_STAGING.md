@@ -8,6 +8,8 @@ Em 27 de setembro de 2026, a estratégia foi corrigida: o projeto antigo chamado
 
 O staging está em `us-east-1`, conectado ao repositório `snowLH/card-realms`, e foi verificado vazio: nenhuma tabela pública, usuário, bucket ou migration remota. A diferença para a região de produção (`sa-east-1`) deve permanecer registrada como limitação de paridade de latência; ela não autoriza reutilizar o projeto `cryohive` nem executar testes em produção.
 
+A integração GitHub desse projeto aponta para a branch dedicada `staging`, criada a partir do estado atual de `main`. A fundação online deve entrar nela por um PR separado. Isso permite que o Supabase aplique migrations no projeto de staging sem mesclar o mesmo código em `main` e sem promover o deploy público do Vercel antes da homologação.
+
 O inventário e o procedimento de transferência estão em `docs/SUPABASE_TRANSFER.md`. O Owner da origem ainda não é membro de `cryo`, e o backup lógico restarável da produção continua bloqueado pela ausência da senha do banco. Produção não receberá migrations ou testes enquanto esses pré-requisitos não forem resolvidos.
 
 ## Secrets e configuração
@@ -33,6 +35,16 @@ No painel do Supabase:
 5. use e-mails/contas de teste independentes e nunca compartilhe a mesma sessão/cookie entre A e B.
 
 ## Aplicar migrations
+
+Fluxo preferencial deste staging:
+
+1. manter `staging` como **Production branch name** apenas no projeto Supabase `ywawwhnsvpfeppfcuwzg`;
+2. abrir PR de `codex/recover-online-foundation` para `staging`;
+3. confirmar que os checks do PR passaram;
+4. mesclar esse PR e acompanhar o deploy da integração Supabase;
+5. conferir no painel que as seis migrations foram registradas antes de iniciar as contas A/B.
+
+O PR separado para `main` não deve ser mesclado durante esta etapa. Ele permanece como revisão da futura promoção, depois da matriz real de staging.
 
 As migrations devem ser aplicadas, sem saltos, pela ordem lexical em `supabase/migrations/`:
 

@@ -181,3 +181,9 @@ O plano de ambientes foi reorganizado sem mutar recursos remotos. O projeto `Car
 O banco legado tem 20 tabelas públicas com RLS, 34 índices, 96 constraints, 36 policies e 10 eventos de trigger, mas não possui histórico no painel de migrations. O Advisor ainda detecta `EXECUTE` amplo sobre duas funções públicas `SECURITY DEFINER`; a migration local de hardening corrige a fronteira, porém não foi aplicada em produção durante esta etapa.
 
 A transferência não foi executada. A organização de destino agora está identificada como `cryo` (`vdxeeviukkxoztfvmaoe`), mas ainda possui somente `cryohive11@gmail.com`; o operador da origem precisa primeiro ser convidado para o destino. O plano Free também não possui backup do provedor, e o dump lógico oficial exige a senha do banco. Essa senha não será solicitada em chat nem substituída silenciosamente. O procedimento, o snapshot sanitizado e os critérios de pós-transferência estão em `docs/SUPABASE_TRANSFER.md`.
+
+## Quinta intervenção — isolamento do deploy de staging
+
+O repositório recebeu a branch remota `staging`, inicialmente idêntica a `main`. No projeto Supabase vazio `ywawwhnsvpfeppfcuwzg`, a GitHub Integration continua com deploy habilitado, mas a **Production branch name** passou de `main` para `staging`.
+
+Essa separação evita usar o merge de produção como mecanismo de homologação: o PR de revisão para `main` permanece aberto, enquanto um PR específico para `staging` pode aplicar as seis migrations sem promover o site público do Vercel. Neste ponto a configuração está pronta, mas nenhum merge de staging ocorreu e nenhuma migration remota foi marcada PASS.

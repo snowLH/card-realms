@@ -81,5 +81,6 @@ Essa arquitetura está implementada, mas não homologada: ainda requer migration
 - `henrysoldan@gmail.com` participa da organização de destino somente pelo tempo necessário à transferência e à passagem de controle; depois deve ser removido ou rebaixado.
 - O projeto antigo chamado `cryohive` pertence a outro produto e não é recurso, fallback ou capacidade de staging do Folklard. A semelhança com o nome da conta `cryohive11` não altera essa separação.
 - Toda mudança de schema segue `staging -> migrations -> testes reais -> homologação -> produção`.
+- O projeto Supabase de staging `ywawwhnsvpfeppfcuwzg` acompanha a branch GitHub dedicada `staging`. A branch `main` não é usada para aplicar migrations de homologação, porque ela também promove o deploy público do Vercel.
 - Vercel Production continua apontando para produção; Preview deve receber as credenciais de staging somente depois que o novo projeto isolado existir. As variáveis públicas e secretas não podem misturar referências entre ambientes.
 - A transferência de organização não é migração regional e não deve alterar a project ref. Mesmo assim, URLs, providers, chaves, RLS, Realtime e deploy são revalidados após o movimento antes de qualquer evolução funcional.

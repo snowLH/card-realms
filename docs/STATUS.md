@@ -50,13 +50,15 @@ Nenhum marco futuro deve ser apresentado ao jogador como concluído antes de fun
 
 A origem continua sendo o projeto `Card Realms` (`lfmbvqixixbhffdpmvhp`) em `sa-east-1`, sem alterações nesta intervenção. O destino foi validado na conta `cryohive11@gmail.com`: organização Free `cryo` (`vdxeeviukkxoztfvmaoe`) e projeto vazio `Card Realms` (`ywawwhnsvpfeppfcuwzg`), em `us-east-1`, conectado ao repositório `snowLH/card-realms`. Esse projeto existente será o staging. O projeto antigo chamado `cryohive` continua fora de escopo e não foi alterado.
 
+A branch remota `staging` foi criada a partir de `main`, e a integração Supabase foi configurada para aplicá-la somente no projeto de staging. O PR para `main` permanece aberto e não deve ser mesclado antes da homologação real.
+
 O preflight somente de leitura está registrado em `docs/SUPABASE_TRANSFER.md`. A origem passou nos checks de saúde, integrações e Log Drains, mas a transferência de produção continua **BLOCKED** até que `henrysoldan@gmail.com` seja convidado para `cryo` e até que o backup lógico restarável seja gerado. O staging já existe e está vazio: sem tabelas públicas, sem usuários, sem buckets, sem migrations remotas e com uso de banco reportado como zero. As migrations e o PvP ainda não foram executados.
 
 Até existir um projeto isolado, a matriz real permanece reprovada por ausência de execução — não por inferência a partir dos testes locais:
 
 | Sistema | Resultado | Evidência atual |
 | --- | --- | --- |
-| Migrations staging | NOT TESTED | staging identificado e vazio; envio da branch e aplicação remota ainda pendentes |
+| Migrations staging | NOT TESTED | projeto e branch `staging` isolados; merge de implantação e aplicação remota ainda pendentes |
 | RLS | NOT TESTED | pgTAP criado, ainda não executado contra o schema migrado |
 | Login A/B | NOT TESTED | duas sessões reais ainda não executadas |
 | Convite PvP | NOT TESTED | ainda não executado em staging |
