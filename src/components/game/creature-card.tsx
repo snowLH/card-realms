@@ -24,6 +24,7 @@ export function CreatureCard({
   compact = false,
   active = false,
   disabled = false,
+  owned,
   onClick,
   className,
 }: {
@@ -32,6 +33,7 @@ export function CreatureCard({
   compact?: boolean;
   active?: boolean;
   disabled?: boolean;
+  owned?: boolean;
   onClick?: MouseEventHandler<HTMLButtonElement>;
   className?: string;
 }) {
@@ -52,12 +54,13 @@ export function CreatureCard({
         <span className="ml-auto font-mono text-[11px] font-bold">{currentHp} PV</span>
       </div>
       <div className="creature-card__art">
-        <PixelCreature slot={creature.artSlot} label={creature.name} />
+        <PixelCreature sprite={creature.sprite} label={creature.name} />
         {active ? <span className="creature-card__active">ATIVA</span> : null}
         {battle?.defeated ? <span className="creature-card__defeated">INDISPONÍVEL</span> : null}
       </div>
       <Progress
         value={hpPercent}
+        label={`Vida de ${creature.name}: ${currentHp} de ${battle?.maxHp ?? creature.hp}`}
         className="mt-2 h-2"
         indicatorClassName={hpPercent <= 30 ? "bg-red-400" : "bg-[var(--element)]"}
       />
@@ -68,7 +71,7 @@ export function CreatureCard({
           </Badge>
           <span className="text-[10px] font-bold text-muted-foreground">
             {battle
-              ? Object.values(battle.attachedEnergy).reduce((sum, value) => sum + value, 0)
+              ? battle.attachedEnergy.length
               : creature.attacks.length}{" "}
             EN
           </span>
@@ -80,8 +83,9 @@ export function CreatureCard({
           </p>
           <p className="creature-card__source">
             <span>Raiz folclórica</span>
-            {creature.inspiration}
+            {creature.folklore.tradition} · {creature.folklore.origin}
           </p>
+          {owned === false ? <span className="creature-card__unowned">Ainda não vinculada</span> : null}
           <div className="mt-3 flex items-center justify-between gap-2 text-[11px] font-bold text-muted-foreground">
             <span className="inline-flex items-center gap-1"><Swords className="size-3.5" /> {creature.attacks[0].damage}</span>
             <span className="inline-flex items-center gap-1"><Shield className="size-3.5" /> {creature.defense}</span>

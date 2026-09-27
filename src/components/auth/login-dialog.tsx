@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LogIn, LogOut, Mail, UserRound } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 
 export function LoginDialog() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -29,7 +31,7 @@ export function LoginDialog() {
       if (!data.user) return;
       setIdentity({
         email: data.user.email ?? "Conta conectada",
-        name: data.user.user_metadata.full_name ?? data.user.email?.split("@")[0] ?? "Viajante",
+        name: data.user.email?.split("@")[0] ?? "Viajante",
       });
     });
 
@@ -37,7 +39,7 @@ export function LoginDialog() {
       const user = session?.user;
       setIdentity(user ? {
         email: user.email ?? "Conta conectada",
-        name: user.user_metadata.full_name ?? user.email?.split("@")[0] ?? "Viajante",
+        name: user.email?.split("@")[0] ?? "Viajante",
       } : null);
     });
     return () => data.subscription.unsubscribe();
@@ -78,6 +80,7 @@ export function LoginDialog() {
     const { error } = await supabase.auth.signOut();
     setMessage(error?.message ?? "Sessão encerrada neste dispositivo.");
     setBusy(false);
+    if (!error) router.refresh();
   }
 
   return (

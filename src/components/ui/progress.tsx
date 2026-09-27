@@ -3,10 +3,12 @@ import { cn } from "@/lib/utils";
 
 export function Progress({
   value,
+  label,
   className,
   indicatorClassName,
 }: {
   value: number;
+  label: string;
   className?: string;
   indicatorClassName?: string;
 }) {
@@ -14,6 +16,7 @@ export function Progress({
   return (
     <div
       role="progressbar"
+      aria-label={label}
       aria-valuenow={normalized}
       aria-valuemin={0}
       aria-valuemax={100}

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { CreatureCard } from "./creature-card";
 
-export function CollectionView() {
+export function CollectionView({ ownedCatalogIds }: { ownedCatalogIds?: string[] }) {
   const [query, setQuery] = useState("");
   const [element, setElement] = useState<Element | "all">("all");
 
@@ -18,7 +18,7 @@ export function CollectionView() {
       const matchesElement = element === "all" || creature.element === element;
       const matchesQuery =
         !normalized ||
-        `${creature.name} ${creature.title} ${creature.inspiration}`
+        `${creature.name} ${creature.title} ${creature.folklore.tradition} ${creature.folklore.origin}`
           .toLocaleLowerCase("pt-BR")
           .includes(normalized);
       return matchesElement && matchesQuery;
@@ -32,7 +32,7 @@ export function CollectionView() {
           <span className="view-eyebrow">Atlas de seres</span>
           <h1>Bestiário de Aurória</h1>
           <p>
-            Folclores do mundo reinterpretados em criaturas originais — sem misturar fontes sagradas com invenções do jogo.
+            Seres de folclores e mitologias reais, adaptados para o combate sem apagar seus nomes, origens ou traços fundamentais.
           </p>
         </div>
         <div className="catalog-progress">
@@ -72,12 +72,17 @@ export function CollectionView() {
 
       <div className="collection-summary">
         <Badge>{creatures.length} resultados</Badge>
+        {ownedCatalogIds ? <Badge>{ownedCatalogIds.length} possuídos</Badge> : null}
         <p>{IMPLEMENTATION_NOTE.statement}</p>
       </div>
 
       <div className="collection-grid">
         {creatures.map((creature) => (
-          <CreatureCard key={creature.id} creature={creature} />
+          <CreatureCard
+            key={creature.id}
+            creature={creature}
+            owned={ownedCatalogIds ? ownedCatalogIds.includes(creature.id) : undefined}
+          />
         ))}
       </div>
     </section>

@@ -5,6 +5,7 @@ import {
   Castle,
   PackageOpen,
   Compass,
+  Footprints,
   LockKeyhole,
   MapPin,
   Shield,
@@ -29,15 +30,24 @@ const activityMeta = {
 
 export function WorldMap({
   selected,
+  playerRegionId,
   onSelect,
+  onTravel,
   onBattle,
   onTreasure,
 }: {
   selected: RegionDefinition | null;
+  playerRegionId: string;
   onSelect: (region: RegionDefinition | null) => void;
+  onTravel: (region: RegionDefinition) => void;
   onBattle: (region: RegionDefinition, activity: keyof typeof activityMeta) => void;
   onTreasure: (region: RegionDefinition) => void;
 }) {
+  const currentRegion = REGIONS.find((region) => region.id === playerRegionId) ?? REGIONS[0];
+  const canTravelToSelected = selected
+    ? currentRegion.neighbors.includes(selected.id)
+    : false;
+
   return (
     <section className="world-map-shell" aria-label="Mapa de Aurória">
       <div className="world-map">
@@ -56,7 +66,20 @@ export function WorldMap({
             Atlas vivo
           </span>
           <h1>Terras de Aurória</h1>
-          <p>Toque em uma região. A exploração acontece por encontros, sem deslocamento livre.</p>
+          <p>Escolha uma região conectada, viaje até ela e então inicie encontros locais.</p>
+        </div>
+
+        <div
+          role="img"
+          className="player-map-marker"
+          style={{
+            left: `${currentRegion.mapPosition.x}%`,
+            top: `${currentRegion.mapPosition.y}%`,
+          }}
+          aria-label={`Sua posição: ${currentRegion.name}`}
+        >
+          <Footprints />
+          <span>Você</span>
         </div>
 
         {REGIONS.map((region) => {
@@ -126,6 +149,21 @@ export function WorldMap({
                 <strong>Portal de fim de semana</strong>
                 <span>Abre sábado às 09:00 no horário de Brasília.</span>
               </div>
+            </div>
+          ) : selected.id !== playerRegionId ? (
+            <div className="region-panel__travel">
+              <p>As atividades ficam disponíveis quando sua expedição chega à região.</p>
+              <Button
+                type="button"
+                variant="game"
+                disabled={!canTravelToSelected}
+                onClick={() => onTravel(selected)}
+              >
+                <Footprints /> Viajar para esta região
+              </Button>
+              {!canTravelToSelected ? (
+                <small>Chegue primeiro a uma região vizinha conectada.</small>
+              ) : null}
             </div>
           ) : (
             <div className="region-activities">

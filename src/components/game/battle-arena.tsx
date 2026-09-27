@@ -9,14 +9,16 @@ import {
   LoaderCircle,
   RotateCcw,
   ShieldCheck,
+  SkipForward,
   Sparkles,
   Swords,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
-import { canPayCost, getActive, getSide } from "@/game/engine";
-import { ELEMENTS, type BattleLogEntry, type BattleState, type Element } from "@/game/types";
+import { canPayCost, energyPoolFor, getActive, getSide } from "@/game/engine";
+import { type BattleLogEntry, type BattleState, type Element } from "@/game/types";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,8 +29,14 @@ import { PixelCreature } from "./pixel-creature";
 type BattleResponse = {
   state: BattleState;
   events: BattleLogEntry[];
-  token: string;
+  token?: string;
+  version?: number;
   authority: "server";
+};
+
+type PvpSession = {
+  battleId: string;
+  playerId: string;
 };
 
 function actionId(prefix: string) {
@@ -46,32 +54,56 @@ async function callBattleApi(body: Record<string, unknown>): Promise<BattleRespo
   return payload;
 }
 
+async function loadPvpBattle(battleId: string): Promise<BattleResponse> {
+  const response = await fetch(`/api/pvp/battles/${battleId}`, { cache: "no-store" });
+  const payload = (await response.json()) as BattleResponse & { error?: string };
+  if (!response.ok) throw new Error(payload.error ?? "O duelo não pôde ser carregado.");
+  return payload;
+}
+
+async function callPvpActionApi(body: Record<string, unknown>): Promise<BattleResponse> {
+  const response = await fetch("/api/pvp/actions", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = (await response.json()) as BattleResponse & { error?: string };
+  if (!response.ok) throw new Error(payload.error ?? "A ação PVP não pôde ser confirmada.");
+  return payload;
+}
+
 export function BattleArena({
   open,
   onClose,
   onVictory,
+  pvp,
 }: {
   open: boolean;
   onClose: () => void;
   onVictory: () => void;
+  pvp?: PvpSession;
 }) {
   const [battle, setBattle] = useState<BattleState | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [serverVersion, setServerVersion] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [die, setDie] = useState<number | null>(null);
   const [effect, setEffect] = useState<string | null>(null);
   const [pendingSwitchIndex, setPendingSwitchIndex] = useState<number | null>(null);
-  const npcQueuedToken = useRef<string | null>(null);
   const victoryReported = useRef(false);
+  const pvpBattleId = pvp?.battleId ?? null;
 
   const startBattle = useCallback(async () => {
     setBusy(true);
     setError("");
     try {
-      const response = await callBattleApi({ action: "start" });
+      const response = pvp
+        ? await loadPvpBattle(pvp.battleId)
+        : await callBattleApi({ action: "start" });
       setBattle(response.state);
-      setToken(response.token);
+      setToken(response.token ?? null);
+      setServerVersion(response.version ?? null);
       setPendingSwitchIndex(null);
       victoryReported.current = false;
     } catch (caught) {
@@ -79,7 +111,7 @@ export function BattleArena({
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [pvp]);
 
   useEffect(() => {
     if (!open || battle || busy) return;
@@ -88,23 +120,50 @@ export function BattleArena({
   }, [battle, busy, open, startBattle]);
 
   useEffect(() => {
-    if (!battle || !token) return;
-    localStorage.setItem("card-realms:demo-battle:v1", JSON.stringify({ version: 1, battle, token }));
-  }, [battle, token]);
+    if (!open || !pvpBattleId) return;
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    let cancelled = false;
+    let removeChannel: (() => void) | null = null;
+    void supabase.realtime.setAuth().then(() => {
+      if (cancelled) return;
+      const channel = supabase
+        .channel(`pvp:battle:${pvpBattleId}`, { config: { private: true } })
+        .on("broadcast", { event: "INSERT" }, () => void startBattle())
+        .subscribe();
+      removeChannel = () => void supabase.removeChannel(channel);
+    }).catch(() => undefined);
+    return () => {
+      cancelled = true;
+      removeChannel?.();
+    };
+  }, [open, pvpBattleId, startBattle]);
+
+  useEffect(() => {
+    if (!open || !pvp || !battle || battle.status !== "active" || battle.turn.sideId === pvp.playerId) return;
+    const timer = window.setInterval(() => void startBattle(), 5000);
+    return () => window.clearInterval(timer);
+  }, [battle, open, pvp, startBattle]);
 
   const perform = useCallback(
     async (payload: Record<string, unknown>, animateRoll = false) => {
-      if (!token || busy) return;
+      if ((!pvp && !token) || (pvp && serverVersion === null) || busy) return;
       setBusy(true);
       setError("");
       setPendingSwitchIndex(null);
       try {
-        const response = await callBattleApi({ ...payload, token });
+        const response = pvp
+          ? await callPvpActionApi({
+            ...payload,
+            battleId: pvp.battleId,
+            expectedVersion: serverVersion,
+          })
+          : await callBattleApi({ ...payload, token });
         const rollEvent = response.events.find((entry) => typeof entry.die === "number");
         if (animateRoll && rollEvent?.die) {
           setDie(rollEvent.die);
           const attackId = rollEvent.attackId;
-          const currentSide = battle ? getSide(battle, battle.currentSideId) : null;
+          const currentSide = battle ? getSide(battle, battle.turn.sideId) : null;
           const active = currentSide ? getActive(currentSide) : null;
           const definition = active ? CREATURE_BY_ID.get(active.catalogId) : null;
           setEffect(definition?.attacks.find((attack) => attack.id === attackId)?.animation ?? "strike");
@@ -113,38 +172,30 @@ export function BattleArena({
           window.setTimeout(() => setEffect(null), 550);
         }
         setBattle(response.state);
-        setToken(response.token);
+        setToken(response.token ?? null);
+        setServerVersion(response.version ?? null);
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : "A ação falhou.");
       } finally {
         setBusy(false);
       }
     },
-    [battle, busy, token],
+    [battle, busy, pvp, serverVersion, token],
   );
 
   useEffect(() => {
-    if (!battle || !token || busy || battle.status !== "active") return;
-    const current = getSide(battle, battle.currentSideId);
-    if (current.kind !== "npc" || npcQueuedToken.current === token) return;
-    npcQueuedToken.current = token;
-    const timer = window.setTimeout(() => {
-      void perform({ action: "npc", actionId: actionId("npc") }, true);
-    }, 900);
-    return () => window.clearTimeout(timer);
-  }, [battle, busy, perform, token]);
-
-  useEffect(() => {
-    if (battle?.status === "finished" && battle.winnerId === "player-one" && !victoryReported.current) {
+    const playerId = pvp?.playerId ?? "player-one";
+    if (battle?.status === "finished" && battle.winnerId === playerId && !victoryReported.current) {
       victoryReported.current = true;
       onVictory();
     }
-  }, [battle, onVictory]);
+  }, [battle, onVictory, pvp?.playerId]);
 
   const data = useMemo(() => {
     if (!battle) return null;
-    const player = getSide(battle, "player-one");
-    const opponent = battle.sides.find((side) => side.id !== "player-one")!;
+    const playerId = pvp?.playerId ?? "player-one";
+    const player = getSide(battle, playerId);
+    const opponent = battle.sides.find((side) => side.id !== playerId)!;
     const playerActive = getActive(player);
     const opponentActive = getActive(opponent);
     return {
@@ -155,7 +206,7 @@ export function BattleArena({
       playerDefinition: CREATURE_BY_ID.get(playerActive.catalogId)!,
       opponentDefinition: CREATURE_BY_ID.get(opponentActive.catalogId)!,
     };
-  }, [battle]);
+  }, [battle, pvp?.playerId]);
 
   if (!open) return null;
 
@@ -170,7 +221,10 @@ export function BattleArena({
     );
   }
 
-  const playerTurn = battle.currentSideId === data.player.id && battle.status === "active";
+  const playerTurn = battle.turn.sideId === data.player.id && battle.status === "active";
+  const mainPhase = playerTurn && battle.turn.phase === "main";
+  const forcedSwitch = playerTurn && battle.turn.phase === "forced_switch";
+  const attachedPool = energyPoolFor(data.playerActive.attachedEnergy);
   const pendingSwitch = pendingSwitchIndex === null ? null : data.player.team[pendingSwitchIndex];
   const pendingSwitchDefinition = pendingSwitch
     ? CREATURE_BY_ID.get(pendingSwitch.catalogId) ?? null
@@ -179,15 +233,17 @@ export function BattleArena({
     <div className="battle-screen">
       <header className="battle-topbar">
         <div>
-          <span className="battle-eyebrow">Provação das Raízes</span>
-          <strong>Rodada {battle.round}</strong>
+          <span className="battle-eyebrow">{pvp ? "Duelo entre cartógrafos" : "Provação das Raízes"}</span>
+          <strong>Rodada {battle.turn.round}</strong>
         </div>
         <div className="battle-turn">
           <span className={cn("battle-turn__dot", playerTurn && "battle-turn__dot--active")} />
           {battle.status === "finished"
             ? "Batalha concluída"
             : playerTurn
-              ? "Seu turno"
+              ? forcedSwitch
+                ? "Escolha a próxima criatura"
+                : "Seu turno"
               : `Turno de ${data.opponent.name}`}
         </div>
         <button type="button" className="battle-close" onClick={onClose} aria-label="Sair da batalha">
@@ -207,10 +263,15 @@ export function BattleArena({
               {ELEMENT_META[data.opponentDefinition.element].name}
             </Badge>
             <span className="battle-hp">{data.opponentActive.hp}/{data.opponentActive.maxHp}</span>
-            <Progress value={(data.opponentActive.hp / data.opponentActive.maxHp) * 100} className="col-span-full" indicatorClassName="bg-red-400" />
+            <Progress
+              value={(data.opponentActive.hp / data.opponentActive.maxHp) * 100}
+              label={`Vida de ${data.opponentDefinition.name}: ${data.opponentActive.hp} de ${data.opponentActive.maxHp}`}
+              className="col-span-full"
+              indicatorClassName="bg-red-400"
+            />
           </div>
           <PixelCreature
-            slot={data.opponentDefinition.artSlot}
+            sprite={data.opponentDefinition.sprite}
             label={data.opponentDefinition.name}
             mirrored
             className="battle-sprite battle-sprite--opponent"
@@ -219,7 +280,7 @@ export function BattleArena({
 
         <div className="battle-combatant battle-combatant--player">
           <PixelCreature
-            slot={data.playerDefinition.artSlot}
+            sprite={data.playerDefinition.sprite}
             label={data.playerDefinition.name}
             className="battle-sprite battle-sprite--player"
           />
@@ -232,7 +293,11 @@ export function BattleArena({
               {ELEMENT_META[data.playerDefinition.element].name}
             </Badge>
             <span className="battle-hp">{data.playerActive.hp}/{data.playerActive.maxHp}</span>
-            <Progress value={(data.playerActive.hp / data.playerActive.maxHp) * 100} className="col-span-full" />
+            <Progress
+              value={(data.playerActive.hp / data.playerActive.maxHp) * 100}
+              label={`Vida de ${data.playerDefinition.name}: ${data.playerActive.hp} de ${data.playerActive.maxHp}`}
+              className="col-span-full"
+            />
           </div>
         </div>
 
@@ -268,7 +333,11 @@ export function BattleArena({
       <section className="battle-hand" aria-label="Suas seis cartas de criaturas">
         <div className="battle-hand__label">
           <span>Suas seis cartas</span>
-          <small>1 ativa · trocar consome a ação e encerra o turno</small>
+          <small>
+            {forcedSwitch
+              ? "Troca obrigatória · não consome sua ação principal"
+              : "1 ativa · a troca voluntária encerra o turno"}
+          </small>
         </div>
         <div className="battle-hand__rail">
           {data.player.team.map((card, index) => {
@@ -302,7 +371,11 @@ export function BattleArena({
               <ArrowRightLeft />
               <div>
                 <strong>Colocar {pendingSwitchDefinition.name} em campo?</strong>
-                <span>A troca usa sua única ação e passa o turno para {data.opponent.name}.</span>
+                <span>
+                  {forcedSwitch
+                    ? "Esta substituição é obrigatória; depois dela, seu turno continua."
+                    : `A troca usa sua ação principal e passa o turno para ${data.opponent.name}.`}
+                </span>
               </div>
               <Button
                 type="button"
@@ -336,39 +409,35 @@ export function BattleArena({
       <section className="battle-controls">
         <div className="energy-tray">
           <div className="battle-section-title">
-            <span>Cartas de energia</span>
-            <small>Escolha até 2 da reserva e vincule até 2 por turno</small>
+            <span>Mão de energia</span>
+            <small>
+              {data.player.energyHand.length} na mão · {data.player.energyDeck.length} no baralho · {data.player.attachmentsRemaining} anexos restantes
+            </small>
           </div>
           <div className="energy-tray__rail">
-            {ELEMENTS.map((element) => {
-              const meta = ELEMENT_META[element];
-              const attached = data.playerActive.attachedEnergy[element];
+            {data.player.energyHand.map((card) => {
+              const meta = ELEMENT_META[card.element];
               return (
-                <div className="energy-card" key={element} style={{ "--energy": meta.color } as React.CSSProperties}>
+                <div className="energy-card" key={card.id} style={{ "--energy": meta.color } as React.CSSProperties}>
                   <span className="energy-card__sigil">{meta.short}</span>
                   <strong>{meta.name}</strong>
-                  <span>Disponível {data.player.energyAvailable[element]}</span>
-                  <span>Reserva {data.player.energyReserve[element]}</span>
-                  <span>Na ativa {attached}</span>
+                  <span>Carta de energia</span>
+                  <span>Na ativa {attachedPool[card.element]}</span>
                   <div className="energy-card__actions">
                     <button
                       type="button"
-                      disabled={!playerTurn || busy || data.player.acquiredThisTurn >= 2 || data.player.energyReserve[element] < 1}
-                      onClick={() => void perform({ action: "acquire", choices: [element], actionId: actionId("acquire") })}
+                      disabled={!mainPhase || busy || data.player.attachmentsRemaining < 1}
+                      onClick={() => void perform({ action: "attach", creatureIndex: data.player.activeIndex, cardId: card.id, actionId: actionId("attach") })}
                     >
-                      + Reserva
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!playerTurn || busy || data.player.attachmentsThisTurn >= 2 || data.player.energyAvailable[element] < 1}
-                      onClick={() => void perform({ action: "attach", creatureIndex: data.player.activeIndex, element, actionId: actionId("attach") })}
-                    >
-                      Vincular
+                      Anexar à ativa
                     </button>
                   </div>
                 </div>
               );
             })}
+            {data.player.energyHand.length === 0 ? (
+              <p className="energy-tray__empty">Sua mão está vazia. Encerre o turno para comprar novas cartas.</p>
+            ) : null}
           </div>
         </div>
 
@@ -386,7 +455,7 @@ export function BattleArena({
                   key={attack.id}
                   type="button"
                   className="attack-button"
-                  disabled={!playerTurn || busy || !affordable || data.playerActive.defeated}
+                  disabled={!mainPhase || busy || !affordable || data.playerActive.defeated}
                   onClick={() => void perform({ action: "attack", attackId: attack.id, actionId: actionId("attack") }, true)}
                 >
                   <span className="attack-button__icon"><Swords /></span>
@@ -404,6 +473,14 @@ export function BattleArena({
                 </button>
               );
             })}
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={!mainPhase || busy}
+              onClick={() => void perform({ action: "pass", actionId: actionId("pass") })}
+            >
+              <SkipForward /> Encerrar turno sem atacar
+            </Button>
           </div>
         </div>
       </section>
@@ -428,20 +505,24 @@ export function BattleArena({
       {battle.status === "finished" ? (
         <div className="battle-victory">
           <div className="battle-victory__mark"><Flame /></div>
-          <span>Provação concluída</span>
-          <h2>{battle.winnerId === "player-one" ? "Sua equipe venceu" : "A guardiã venceu desta vez"}</h2>
+          <span>{pvp ? "Duelo concluído" : "Provação concluída"}</span>
+          <h2>{battle.winnerId === data.player.id ? "Sua equipe venceu" : `${data.opponent.name} venceu o duelo`}</h2>
           <p>
-            {battle.winnerId === "player-one"
-              ? "Você conquistou 120 moedas, experiência e um fragmento de vínculo."
-              : "Revise suas energias, troque a carta ativa e tente novamente."}
+            {pvp
+              ? "O resultado foi confirmado no histórico do servidor. Recompensas competitivas permanecem desativadas nesta fase."
+              : battle.winnerId === data.player.id
+                ? "Você conquistou 120 moedas, experiência e um fragmento de vínculo."
+                : "Revise suas energias, troque a carta ativa e tente novamente."}
           </p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button variant="game" size="lg" onClick={onClose}>
               Voltar ao mapa
             </Button>
-            <Button variant="secondary" size="lg" onClick={startBattle}>
-              <RotateCcw /> Nova batalha
-            </Button>
+            {!pvp ? (
+              <Button variant="secondary" size="lg" onClick={startBattle}>
+                <RotateCcw /> Nova batalha
+              </Button>
+            ) : null}
           </div>
         </div>
       ) : null}
