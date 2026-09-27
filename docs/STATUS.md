@@ -48,28 +48,30 @@ Nenhum marco futuro deve ser apresentado ao jogador como concluído antes de fun
 
 ## Homologação de staging — 27 de setembro de 2026
 
-A organização Supabase acessível é `Card Realms`. O projeto existente `Card Realms` está ativo e aparenta sustentar o protótipo publicado, portanto não recebeu migrations desta intervenção. Uma verificação somente de leitura no painel confirmou que a conta também mantém `cryohive` ativo em `snowLH's Org` e `snowLH's Project` pausado. `Card Realms` + `cryohive` ocupam os dois slots gratuitos ativos. A criação de `Card Realms Staging` foi confirmada, mas recusada por esse limite. Database Branching também foi recusado por exigir plano Pro.
+A organização Supabase acessível é `Card Realms`. O projeto existente `Card Realms` está ativo e aparenta sustentar o protótipo publicado, portanto não recebeu migrations desta intervenção. A ordem aprovada agora é transferir esse projeto para uma organização da conta `laurabvieira25`, criar `Card Realms Staging` lá e somente então aplicar migrations e executar a homologação. `cryohive` está fora de escopo e não foi alterado.
+
+O preflight somente de leitura está registrado em `docs/SUPABASE_TRANSFER.md`. A origem passou nos checks de saúde, integrações e Log Drains, mas a transferência está **BLOCKED** porque a organização de destino ainda não aparece para o Owner da origem e porque falta gerar o backup lógico restarável. O staging, as migrations e o PvP permanecem não executados.
 
 Até existir um projeto isolado, a matriz real permanece reprovada por ausência de execução — não por inferência a partir dos testes locais:
 
 | Sistema | Resultado | Evidência atual |
 | --- | --- | --- |
-| Migrations staging | FAIL | staging não criado; nenhuma migration aplicada remotamente |
-| RLS | FAIL | pgTAP criado, ainda não executado contra o schema migrado |
-| Login A/B | FAIL | duas sessões reais ainda não executadas |
-| Convite PvP | FAIL | ainda não executado em staging |
-| Aceite | FAIL | ainda não executado em staging |
-| Turnos | FAIL | apenas motor local testado; falta ponta a ponta |
-| Energia | FAIL | apenas motor local testado; falta ponta a ponta |
-| Rolagem server-side | FAIL | implementação e contrato local validados; falta observação real |
-| Troca voluntária | FAIL | apenas motor local testado; falta ponta a ponta |
-| Troca forçada | FAIL | apenas motor local testado; falta ponta a ponta |
-| Realtime | FAIL | política/código preparados; canal real não assinado |
-| Polling fallback | FAIL | código presente; perda de evento real não ensaiada |
-| Reconexão | FAIL | refresh e queda de sessão real não ensaiados |
-| Anti-replay | FAIL | testes locais cobrem contrato; concorrência real não ensaiada |
-| Dados privados | FAIL | fronteira endurecida; HTTP/RPC/Realtime reais ainda não sondados |
-| Resultado persistido | FAIL | schema presente; logout/login real não ensaiado |
-| Progresso remoto | FAIL | schema presente; segunda sessão/dispositivo não ensaiado |
+| Migrations staging | BLOCKED | transferência e criação do staging pendentes; nenhuma migration aplicada remotamente |
+| RLS | NOT TESTED | pgTAP criado, ainda não executado contra o schema migrado |
+| Login A/B | NOT TESTED | duas sessões reais ainda não executadas |
+| Convite PvP | NOT TESTED | ainda não executado em staging |
+| Aceite | NOT TESTED | ainda não executado em staging |
+| Turnos | NOT TESTED | apenas motor local testado; falta ponta a ponta |
+| Energia | NOT TESTED | apenas motor local testado; falta ponta a ponta |
+| Rolagem server-side | NOT TESTED | implementação e contrato local validados; falta observação real |
+| Troca voluntária | NOT TESTED | apenas motor local testado; falta ponta a ponta |
+| Troca forçada | NOT TESTED | apenas motor local testado; falta ponta a ponta |
+| Realtime | NOT TESTED | política/código preparados; canal real não assinado |
+| Polling fallback | NOT TESTED | código presente; perda de evento real não ensaiada |
+| Reconexão | NOT TESTED | refresh e queda de sessão real não ensaiados |
+| Anti-replay | NOT TESTED | testes locais cobrem contrato; concorrência real não ensaiada |
+| Dados privados | NOT TESTED | fronteira endurecida; HTTP/RPC/Realtime reais ainda não sondados |
+| Resultado persistido | NOT TESTED | schema presente; logout/login real não ensaiado |
+| Progresso remoto | NOT TESTED | schema presente; segunda sessão/dispositivo não ensaiado |
 
 Verificações locais desta intervenção: `npm run typecheck` PASS, `npm run lint` PASS e `npm test` PASS (32/32). Esses resultados não promovem nenhum item da matriz real para PASS. O procedimento completo está em `docs/SUPABASE_STAGING.md`.

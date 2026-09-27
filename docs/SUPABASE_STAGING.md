@@ -4,9 +4,9 @@ Este documento é o roteiro operacional da homologação. Nenhuma etapa deve ser
 
 ## Bloqueio atual
 
-Em 27 de setembro de 2026, a criação de `Card Realms Staging` na organização `Card Realms` foi confirmada, mas recusada pelo limite de projetos gratuitos ativos. Uma inspeção somente de leitura mostrou `Card Realms` e `cryohive` ativos; `snowLH's Project` está pausado. Os dois primeiros ocupam os slots gratuitos da conta. Database Branching também foi recusado por exigir plano Pro. Nenhum desses projetos foi alterado.
+Em 27 de setembro de 2026, a estratégia foi corrigida: `cryohive` está fora de escopo e não pode ser alterado. O projeto `Card Realms` deve primeiro ser transferido para uma organização da conta `laurabvieira25`; depois, `Card Realms Staging` deve ser criado nessa mesma organização na região `sa-east-1`.
 
-Para retomar com segurança, pause `cryohive` se ele puder ficar temporariamente indisponível, faça upgrade para um plano que permita staging/branch, ou autorize explicitamente a reutilização de um projeto existente sabendo que isso deixa de ser um ambiente isolado. Não pause, apague, retome nem reaproveite projeto sem confirmar o impacto. A opção preferida continua sendo um projeto novo chamado `Card Realms Staging` na região `sa-east-1`.
+O inventário e o procedimento de transferência estão em `docs/SUPABASE_TRANSFER.md`. Neste momento o seletor do Supabase ainda não oferece a organização de destino, pois `henrysoldan@gmail.com` não é membro dela, e o backup lógico restarável está bloqueado pela ausência da senha do banco. Produção não receberá migrations ou testes enquanto esses pré-requisitos não forem resolvidos.
 
 ## Secrets e configuração
 

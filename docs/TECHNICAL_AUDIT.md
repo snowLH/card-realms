@@ -173,3 +173,11 @@ Os detalhes de invariantes e fronteiras resultantes estão em `docs/ARCHITECTURE
 `npm run typecheck`, `npm run lint` e 32/32 testes Vitest passaram após as correções. O schema Realtime do projeto Supabase acessível foi consultado somente para leitura e confirmou PostgreSQL 17.6, `realtime.topic()`, `realtime.messages.extension` e `realtime.broadcast_changes(...)` compatíveis com a migration.
 
 Isso ainda não é homologação. A tentativa de criar `Card Realms Staging` falhou pelo limite de projetos gratuitos; a conta tem `Card Realms` e `cryohive` ativos, além de `snowLH's Project` pausado, e Branching exigiu Pro. Nenhuma migration foi aplicada aos projetos existentes e nenhum item remoto foi marcado PASS. A retomada e a matriz obrigatória estão documentadas em `docs/SUPABASE_STAGING.md` e `docs/STATUS.md`.
+
+## Quarta intervenção — preflight de propriedade Supabase
+
+O plano de ambientes foi reorganizado sem mutar recursos remotos. O projeto `Card Realms` ativo foi inventariado, a integração com Vercel/GitHub foi verificada e os bloqueios oficiais de transferência foram checados. O painel confirmou: origem Free saudável em `sa-east-1`, um único Owner (`henrysoldan@gmail.com`), ausência de GitHub Integration do Supabase, ausência de integração Supabase–Vercel, ausência de Log Drains, Edge Functions e secrets próprios.
+
+O banco legado tem 20 tabelas públicas com RLS, 34 índices, 96 constraints, 36 policies e 10 eventos de trigger, mas não possui histórico no painel de migrations. O Advisor ainda detecta `EXECUTE` amplo sobre duas funções públicas `SECURITY DEFINER`; a migration local de hardening corrige a fronteira, porém não foi aplicada em produção durante esta etapa.
+
+A transferência não foi executada. O seletor oferece somente `snowLH's Org`, e não a organização de `laurabvieira25`; o operador precisa primeiro ser convidado para o destino. O plano Free também não possui backup do provedor, e o dump lógico oficial exige a senha do banco. Essa senha não será solicitada em chat nem substituída silenciosamente. O procedimento, o snapshot sanitizado e os critérios de pós-transferência estão em `docs/SUPABASE_TRANSFER.md`.

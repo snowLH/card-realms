@@ -73,3 +73,13 @@ O JSON integral da batalha precisa existir no Postgres para reconexão e commits
 Realtime é sinalização, não transporte de estado. O payload de `battle_events` contém somente evento público com ID opaco; a tela sempre reconcilia pelo endpoint HTTP. Postgres Changes foi removido da publication para essa tabela, evitando uma segunda superfície de leitura concorrente ao Broadcast privado.
 
 Essa arquitetura está implementada, mas não homologada: ainda requer migration aplicada e um teste real com duas contas/sessões.
+
+## Topologia de ambientes e propriedade
+
+- A produção existente mantém a ref `lfmbvqixixbhffdpmvhp` durante a reorganização; não se cria uma cópia paralela para substituir silenciosamente a origem.
+- Produção e staging devem pertencer à organização controlada pela conta `laurabvieira25`.
+- `henrysoldan@gmail.com` participa da organização de destino somente pelo tempo necessário à transferência e à passagem de controle; depois deve ser removido ou rebaixado.
+- `cryohive` pertence a outro produto e não é recurso, fallback ou capacidade de staging do Folklard.
+- Toda mudança de schema segue `staging -> migrations -> testes reais -> homologação -> produção`.
+- Vercel Production continua apontando para produção; Preview deve receber as credenciais de staging somente depois que o novo projeto isolado existir. As variáveis públicas e secretas não podem misturar referências entre ambientes.
+- A transferência de organização não é migração regional e não deve alterar a project ref. Mesmo assim, URLs, providers, chaves, RLS, Realtime e deploy são revalidados após o movimento antes de qualquer evolução funcional.
