@@ -44,7 +44,7 @@ const BattleSideSchema = z.object({
   turnsStarted: z.number().int().nonnegative(),
 });
 
-const BattleLogEntrySchema = z.object({
+export const BattleLogEntrySchema = z.object({
   id: z.string().min(1),
   turn: z.number().int().positive(),
   actorId: z.string().min(1),

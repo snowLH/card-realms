@@ -64,15 +64,24 @@ export function PvpView({
     const initialLoad = window.setTimeout(() => void refresh(), 0);
     const timer = window.setInterval(() => void refresh(), 15000);
     const supabase = getSupabaseBrowserClient();
-    const channel = supabase
-      ?.channel(`pvp:player:${playerId}`, { config: { private: true } })
-      .on("broadcast", { event: "INSERT" }, () => void refresh())
-      .on("broadcast", { event: "UPDATE" }, () => void refresh())
-      .subscribe();
+    let cancelled = false;
+    let removeChannel: (() => void) | null = null;
+    if (supabase) {
+      void supabase.realtime.setAuth().then(() => {
+        if (cancelled) return;
+        const channel = supabase
+          .channel(`pvp:player:${playerId}`, { config: { private: true } })
+          .on("broadcast", { event: "INSERT" }, () => void refresh())
+          .on("broadcast", { event: "UPDATE" }, () => void refresh())
+          .subscribe();
+        removeChannel = () => void supabase.removeChannel(channel);
+      }).catch(() => undefined);
+    }
     return () => {
+      cancelled = true;
       window.clearTimeout(initialLoad);
       window.clearInterval(timer);
-      if (supabase && channel) void supabase.removeChannel(channel);
+      removeChannel?.();
     };
   }, [bootstrap.source, playerId, refresh]);
 

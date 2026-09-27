@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { BattleStateSchema } from "@/game/battle";
 import { visiblePvpState } from "@/game/pvp";
-import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
+import { loadAuthoritativePvpBattle, PvpBattleAccessError } from "@/server/pvp/battles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ battleId: string }> },
 ) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() || !isSupabaseAdminConfigured()) {
     return NextResponse.json({ error: "Supabase não configurado." }, { status: 503 });
   }
   const { battleId } = await context.params;
@@ -21,24 +21,20 @@ export async function GET(
     return NextResponse.json({ error: "Autenticação necessária." }, { status: 401 });
   }
 
-  const { data, error } = await supabase
-    .from("battles")
-    .select("id,state,version,status,turn_user_id,winner_id,updated_at")
-    .eq("id", battleId)
-    .single();
-  if (error || !data) {
-    return NextResponse.json({ error: "Batalha PVP não encontrada." }, { status: 404 });
-  }
-  const parsed = BattleStateSchema.safeParse(data.state);
-  if (!parsed.success || parsed.data.id !== battleId || parsed.data.mode !== "pvp") {
+  try {
+    const { battle } = await loadAuthoritativePvpBattle(battleId, claimsData.claims.sub);
+    const visible = visiblePvpState(battle.state, claimsData.claims.sub);
+    return NextResponse.json({
+      state: visible.state,
+      events: [],
+      version: battle.version,
+      authority: "server",
+      hidden: visible.hidden,
+    });
+  } catch (error) {
+    if (error instanceof PvpBattleAccessError) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
     return NextResponse.json({ error: "Estado persistido de batalha incompatível." }, { status: 500 });
   }
-  const visible = visiblePvpState(parsed.data, claimsData.claims.sub);
-  return NextResponse.json({
-    state: visible.state,
-    events: [],
-    version: data.version,
-    authority: "server",
-    hidden: visible.hidden,
-  });
 }

@@ -74,6 +74,7 @@ As migrations movem helpers `SECURITY DEFINER` para um schema não exposto, subs
 - `supabase/migrations/`: esquema, RLS, catálogo e endurecimento de segurança;
 - `docs/TECHNICAL_AUDIT.md`: auditoria do protótipo recebido;
 - `docs/ARCHITECTURE.md`: limites, invariantes e caminho de expansão.
+- `docs/SUPABASE_STAGING.md`: criação do staging, migrations, secrets e roteiro de homologação A/B.
 
 ## Publicação existente
 

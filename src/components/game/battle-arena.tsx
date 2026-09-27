@@ -92,6 +92,7 @@ export function BattleArena({
   const [effect, setEffect] = useState<string | null>(null);
   const [pendingSwitchIndex, setPendingSwitchIndex] = useState<number | null>(null);
   const victoryReported = useRef(false);
+  const pvpBattleId = pvp?.battleId ?? null;
 
   const startBattle = useCallback(async () => {
     setBusy(true);
@@ -119,17 +120,24 @@ export function BattleArena({
   }, [battle, busy, open, startBattle]);
 
   useEffect(() => {
-    if (!open || !pvp) return;
+    if (!open || !pvpBattleId) return;
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
-    const channel = supabase
-      .channel(`pvp:battle:${pvp.battleId}`, { config: { private: true } })
-      .on("broadcast", { event: "INSERT" }, () => void startBattle())
-      .subscribe();
+    let cancelled = false;
+    let removeChannel: (() => void) | null = null;
+    void supabase.realtime.setAuth().then(() => {
+      if (cancelled) return;
+      const channel = supabase
+        .channel(`pvp:battle:${pvpBattleId}`, { config: { private: true } })
+        .on("broadcast", { event: "INSERT" }, () => void startBattle())
+        .subscribe();
+      removeChannel = () => void supabase.removeChannel(channel);
+    }).catch(() => undefined);
     return () => {
-      void supabase.removeChannel(channel);
+      cancelled = true;
+      removeChannel?.();
     };
-  }, [open, pvp, startBattle]);
+  }, [open, pvpBattleId, startBattle]);
 
   useEffect(() => {
     if (!open || !pvp || !battle || battle.status !== "active" || battle.turn.sideId === pvp.playerId) return;

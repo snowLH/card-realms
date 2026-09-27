@@ -68,8 +68,10 @@ describe("motor de combate Card Realms v2", () => {
     let state = battle("attachment-limit");
     state = attachElement(state, "player-one", 0, "fire", "attach-1");
     state = attachElement(state, "player-one", 0, "fire", "attach-2");
-    const unavailable = getSide(state, "player-one").energyDeck[0];
-    expect(() => attachEnergy(state, "player-one", 0, unavailable.id, "attach-3")).toThrow(GameRuleError);
+    const thirdCard = ensureCardInHand(state, "player-one", "fire");
+    expect(() => attachEnergy(state, "player-one", 0, thirdCard, "attach-3")).toThrow(
+      "limite é de duas energias",
+    );
     expect(getActive(getSide(state, "player-one")).attachedEnergy).toHaveLength(2);
     expect(state.turn.sideId).toBe("player-one");
   });
@@ -163,6 +165,22 @@ describe("motor de combate Card Realms v2", () => {
     let state = battle("idempotency");
     state = attachElement(state, "player-one", 0, "fire", "same-action");
     expect(() => passTurn(state, "player-one", "same-action")).toThrow(GameRuleError);
+  });
+
+  it("rejeita ação fora do turno e um segundo ataque do mesmo jogador", () => {
+    const initial = battle("turn-cheat");
+    expect(() => passTurn(initial, "warden-aya", "out-of-turn")).toThrow("Aguarde o seu turno");
+
+    const prepared = attachElement(initial, "player-one", 0, "fire", "attach-for-attack");
+    const firstAttack = resolveAttack(prepared, "player-one", "boitata-1", 5, 100, "attack-once");
+    expect(() => resolveAttack(
+      firstAttack.state,
+      "player-one",
+      "boitata-1",
+      6,
+      1,
+      "attack-twice",
+    )).toThrow("Aguarde o seu turno");
   });
 
   it("inicia PVP com dois jogadores, seis criaturas e primeiro turno sorteado no servidor", () => {

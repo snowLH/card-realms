@@ -131,7 +131,7 @@ Os detalhes de invariantes e fronteiras resultantes estão em `docs/ARCHITECTURE
 ### Verificações executadas
 
 - TypeScript e ESLint passaram após as integrações.
-- 23 testes cobrem motor, cinco elementos, energia, troca, IA, save, contrato remoto, criação PVP e ocultação de informação.
+- 32 testes cobrem motor, cinco elementos, energia, troca, IA, save, contrato remoto, criação PVP, entradas hostis e ocultação de informação.
 - Navegador real: mapa, navegação para Duelos, fallback honesto sem Supabase, breakpoint de 390 px sem overflow, arena com seis criaturas/cinco energias e anexação confirmada pela API.
 - A CLI oficial não conseguiu executar `db lint --local` porque não há Postgres Supabase em `127.0.0.1:54322`; não houve tentativa de mascarar essa ausência.
 
@@ -142,3 +142,34 @@ Os detalhes de invariantes e fronteiras resultantes estão em `docs/ARCHITECTURE
 3. A arena continua grande e merece extração após estabilizar o transporte PVP.
 4. Realtime, reconexão e disputa simultânea precisam de teste de carga/concorrência real.
 5. Arte atual é coerente o suficiente para continuar a fundação, mas permanece um sprite sheet gerado; uma revisão humana por criatura e produção quadro a quadro são necessárias antes de tratar o visual como final.
+
+## Terceira intervenção — preparação para homologação real
+
+### Achados de segurança
+
+1. A projeção HTTP escondia mão/baralho, mas `authenticated` ainda possuía `SELECT` direto sobre `battles.state` e `battle_actions.result`. Um participante poderia contornar a rota e obter o estado integral pelo Data API.
+2. `processedActionIds` e IDs de log derivados de `client_action_id` ainda atravessavam a resposta e o Broadcast, expondo tokens internos de idempotência.
+3. O contrato Zod descartava campos extras. Tentativas de enviar `damage`, `die` ou `winnerId` eram ignoradas em vez de rejeitadas explicitamente.
+4. Um retry com o mesmo `client_action_id`, mas payload diferente, recebia o resultado anterior. Isso era idempotente, porém não distinguia repetição legítima de reutilização hostil.
+5. As grants de amizade permitiam informar `status` no `INSERT` e alterar colunas amplas no `UPDATE`; a policy não restringia a criação a `pending` nem tornava os participantes imutáveis.
+6. A policy de Broadcast consultava a coluna `topic` diretamente e não restringia `extension`; a documentação atual recomenda `realtime.topic()` e filtro explícito de `broadcast`.
+7. Os componentes assinavam canal privado sem aguardar `realtime.setAuth()`.
+
+### Correções aplicadas
+
+- Migration de hardening revoga todo acesso de cliente às tabelas autoritativas e remove `battle_events` de Postgres Changes; somente Broadcast privado permanece como sinal.
+- Rotas PVP usam uma camada server-only que confirma `battle_participants` antes de consultar o estado com a chave secreta.
+- Projeção serializada zera IDs processados, substitui IDs de log e mantém mão/baralho adversários apenas como contagens.
+- Eventos gravados recebem UUIDs gerados no servidor antes de chegar ao banco/Realtime.
+- Contratos de desafio/ação agora são estritos; dano, dado, vitória ou identidade enviados fora do contrato retornam erro.
+- Retry idêntico continua retornando o resultado anterior; mesmo ID com ação/payload divergente é rejeitado na rota e novamente dentro da transação SQL.
+- Amizades usam grants por coluna, criação exclusivamente `pending`, aceite/bloqueio pelo destinatário e índice único não direcional.
+- Policy Realtime usa `realtime.topic()`, `extension = 'broadcast'` e associação real ao jogador/batalha.
+- Foram adicionados índices para chaves estrangeiras e caminhos de autorização que não estavam cobertos.
+- `supabase/tests/001_online_foundation.test.sql` adiciona 29 asserções pgTAP negativas e estruturais.
+
+### Evidência e limite
+
+`npm run typecheck`, `npm run lint` e 32/32 testes Vitest passaram após as correções. O schema Realtime do projeto Supabase acessível foi consultado somente para leitura e confirmou PostgreSQL 17.6, `realtime.topic()`, `realtime.messages.extension` e `realtime.broadcast_changes(...)` compatíveis com a migration.
+
+Isso ainda não é homologação. A tentativa de criar `Card Realms Staging` falhou pelo limite de projetos gratuitos; a conta tem `Card Realms` e `cryohive` ativos, além de `snowLH's Project` pausado, e Branching exigiu Pro. Nenhuma migration foi aplicada aos projetos existentes e nenhum item remoto foi marcado PASS. A retomada e a matriz obrigatória estão documentadas em `docs/SUPABASE_STAGING.md` e `docs/STATUS.md`.

@@ -35,7 +35,7 @@ O jogo separa regra, conteúdo, transporte e apresentação. O motor não import
 7. Rolagens e avanço da IA são executados na fronteira do servidor.
 8. Conteúdo folclórico exige tradição, origem, nota de fonte e nota de adaptação.
 9. Em conta online, Postgres é a fonte de verdade; `localStorage` é apenas cache e nunca confirma economia/PVP.
-10. A mão e o baralho do adversário não atravessam a API PVP; o cliente recebe somente contagens ocultas.
+10. A mão, o baralho, `processedActionIds` e IDs internos do adversário não atravessam a API PVP; o cliente recebe somente contagens ocultas e eventos públicos.
 
 ## Escala de conteúdo
 
@@ -60,8 +60,16 @@ O token cifrado permanece somente no combate demonstrativo contra NPC. O PVP usa
 1. um jogador autenticado desafia um amigo aceito; ambos precisam de equipe ativa com seis membros;
 2. a aceitação monta o estado inicial no servidor, e o Postgres revalida participantes e os seis IDs antes de gravar a sala;
 3. cada ação leva `client_action_id` e `expected_version`; o servidor busca o estado íntegro, executa o mesmo motor puro e sorteia os dados;
-4. uma função acessível apenas por `service_role` bloqueia a linha, rejeita versão/turno incorretos, grava ação, estado e eventos na mesma transação e devolve o resultado idempotente;
-5. Broadcast privado acorda as duas telas; polling periódico recupera eventos perdidos/reconexões;
-6. antes da resposta HTTP, a projeção do jogador remove mão e baralho do adversário.
+4. uma função acessível apenas por `service_role` bloqueia a linha, rejeita versão/turno incorretos e reutilização divergente de `client_action_id`, grava ação, estado e eventos na mesma transação e devolve somente retries idênticos como resultado idempotente;
+5. as roles `anon` e `authenticated` não têm `SELECT` nas tabelas autoritativas; uma camada de acesso server-only confirma a participação antes de usar a credencial administrativa;
+6. Broadcast privado, autenticado explicitamente antes da assinatura, acorda as duas telas; polling periódico recupera eventos perdidos/reconexões;
+7. a policy de Broadcast usa `realtime.topic()`, limita a extensão a `broadcast` e autoriza apenas o próprio tópico de jogador ou uma batalha da qual o usuário participa;
+8. antes da resposta HTTP, o DTO remove mão/baralho adversários, IDs de replay e IDs de evento derivados da ação.
+
+### Fronteira de dados privados
+
+O JSON integral da batalha precisa existir no Postgres para reconexão e commits atômicos, mas não é um DTO de cliente. Somente o servidor lê `battles.state`, `battle_actions.result`, participantes e eventos persistidos. O cliente acessa `/api/pvp/battles/:id` e `/api/pvp/actions`; ambos autenticam a sessão, verificam associação em `battle_participants` e serializam uma projeção mínima.
+
+Realtime é sinalização, não transporte de estado. O payload de `battle_events` contém somente evento público com ID opaco; a tela sempre reconcilia pelo endpoint HTTP. Postgres Changes foi removido da publication para essa tabela, evitando uma segunda superfície de leitura concorrente ao Broadcast privado.
 
 Essa arquitetura está implementada, mas não homologada: ainda requer migration aplicada e um teste real com duas contas/sessões.

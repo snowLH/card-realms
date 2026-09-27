@@ -29,6 +29,24 @@ describe("visibilidade do estado PVP", () => {
     expect(authoritativeOpponent.energyDeck).toHaveLength(25);
   });
 
+  it("remove tokens internos de replay e IDs derivados da resposta serializada", () => {
+    const state = createPvpBattle(
+      "00000000-0000-4000-8000-000000000001",
+      { id: "player-a", name: "Ana", teamIds: firstTeam },
+      { id: "player-b", name: "Beto", teamIds: secondTeam },
+      () => 0.25,
+    );
+    state.processedActionIds = ["private-action-token"];
+    state.log[0].id = "private-action-token:0";
+
+    const visible = visiblePvpState(state, "player-a");
+    const serialized = JSON.stringify(visible);
+
+    expect(visible.state.processedActionIds).toEqual([]);
+    expect(serialized).not.toContain("private-action-token");
+    expect(state.processedActionIds).toEqual(["private-action-token"]);
+  });
+
   it("recusa projetar uma batalha para quem não participa", () => {
     const state = createPvpBattle(
       "00000000-0000-4000-8000-000000000001",

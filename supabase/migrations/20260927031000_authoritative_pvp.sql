@@ -349,6 +349,8 @@ as $$
 declare
   battle public.battles;
   previous_result jsonb;
+  previous_action_type text;
+  previous_payload jsonb;
   committed_result jsonb;
   next_version integer;
   next_turn_user_id uuid;
@@ -364,13 +366,19 @@ begin
     raise exception 'Batalha não encontrada' using errcode = 'P0002';
   end if;
 
-  select result into previous_result
+  select action_type, payload, result
+  into previous_action_type, previous_payload, previous_result
   from public.battle_actions
   where battle_id = target_battle_id
     and client_action_id = target_client_action_id
     and user_id = acting_user_id;
 
   if previous_result is not null then
+    if previous_action_type is distinct from target_action_type
+      or previous_payload is distinct from action_payload then
+      raise exception 'O identificador da ação já foi usado com outro comando'
+        using errcode = '23505';
+    end if;
     return previous_result;
   end if;
 
