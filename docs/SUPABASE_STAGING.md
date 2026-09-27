@@ -4,9 +4,11 @@ Este documento é o roteiro operacional da homologação. Nenhuma etapa deve ser
 
 ## Bloqueio atual
 
-Em 27 de setembro de 2026, a estratégia foi corrigida: `cryohive` está fora de escopo e não pode ser alterado. O projeto `Card Realms` deve primeiro ser transferido para uma organização da conta `laurabvieira25`; depois, `Card Realms Staging` deve ser criado nessa mesma organização na região `sa-east-1`.
+Em 27 de setembro de 2026, a estratégia foi corrigida: o projeto antigo chamado `cryohive` está fora de escopo e não pode ser alterado. A conta de destino é `cryohive11@gmail.com`, Owner da organização Free `cryo` (`vdxeeviukkxoztfvmaoe`). O projeto já criado `Card Realms` (`ywawwhnsvpfeppfcuwzg`) será usado como staging.
 
-O inventário e o procedimento de transferência estão em `docs/SUPABASE_TRANSFER.md`. Neste momento o seletor do Supabase ainda não oferece a organização de destino, pois `henrysoldan@gmail.com` não é membro dela, e o backup lógico restarável está bloqueado pela ausência da senha do banco. Produção não receberá migrations ou testes enquanto esses pré-requisitos não forem resolvidos.
+O staging está em `us-east-1`, conectado ao repositório `snowLH/card-realms`, e foi verificado vazio: nenhuma tabela pública, usuário, bucket ou migration remota. A diferença para a região de produção (`sa-east-1`) deve permanecer registrada como limitação de paridade de latência; ela não autoriza reutilizar o projeto `cryohive` nem executar testes em produção.
+
+O inventário e o procedimento de transferência estão em `docs/SUPABASE_TRANSFER.md`. O Owner da origem ainda não é membro de `cryo`, e o backup lógico restarável da produção continua bloqueado pela ausência da senha do banco. Produção não receberá migrations ou testes enquanto esses pré-requisitos não forem resolvidos.
 
 ## Secrets e configuração
 
@@ -44,7 +46,7 @@ As migrations devem ser aplicadas, sem saltos, pela ordem lexical em `supabase/m
 Com a CLI autenticada:
 
 ```bash
-supabase link --project-ref <STAGING_PROJECT_REF>
+supabase link --project-ref ywawwhnsvpfeppfcuwzg
 supabase migration list
 supabase db push
 supabase migration list

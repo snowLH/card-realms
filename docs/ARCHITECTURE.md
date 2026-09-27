@@ -77,9 +77,9 @@ Essa arquitetura está implementada, mas não homologada: ainda requer migration
 ## Topologia de ambientes e propriedade
 
 - A produção existente mantém a ref `lfmbvqixixbhffdpmvhp` durante a reorganização; não se cria uma cópia paralela para substituir silenciosamente a origem.
-- Produção e staging devem pertencer à organização controlada pela conta `laurabvieira25`.
+- Produção e staging devem pertencer à organização `cryo`, controlada pela conta `cryohive11@gmail.com`.
 - `henrysoldan@gmail.com` participa da organização de destino somente pelo tempo necessário à transferência e à passagem de controle; depois deve ser removido ou rebaixado.
-- `cryohive` pertence a outro produto e não é recurso, fallback ou capacidade de staging do Folklard.
+- O projeto antigo chamado `cryohive` pertence a outro produto e não é recurso, fallback ou capacidade de staging do Folklard. A semelhança com o nome da conta `cryohive11` não altera essa separação.
 - Toda mudança de schema segue `staging -> migrations -> testes reais -> homologação -> produção`.
 - Vercel Production continua apontando para produção; Preview deve receber as credenciais de staging somente depois que o novo projeto isolado existir. As variáveis públicas e secretas não podem misturar referências entre ambientes.
 - A transferência de organização não é migração regional e não deve alterar a project ref. Mesmo assim, URLs, providers, chaves, RLS, Realtime e deploy são revalidados após o movimento antes de qualquer evolução funcional.

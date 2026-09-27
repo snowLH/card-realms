@@ -48,15 +48,15 @@ Nenhum marco futuro deve ser apresentado ao jogador como concluído antes de fun
 
 ## Homologação de staging — 27 de setembro de 2026
 
-A organização Supabase acessível é `Card Realms`. O projeto existente `Card Realms` está ativo e aparenta sustentar o protótipo publicado, portanto não recebeu migrations desta intervenção. A ordem aprovada agora é transferir esse projeto para uma organização da conta `laurabvieira25`, criar `Card Realms Staging` lá e somente então aplicar migrations e executar a homologação. `cryohive` está fora de escopo e não foi alterado.
+A origem continua sendo o projeto `Card Realms` (`lfmbvqixixbhffdpmvhp`) em `sa-east-1`, sem alterações nesta intervenção. O destino foi validado na conta `cryohive11@gmail.com`: organização Free `cryo` (`vdxeeviukkxoztfvmaoe`) e projeto vazio `Card Realms` (`ywawwhnsvpfeppfcuwzg`), em `us-east-1`, conectado ao repositório `snowLH/card-realms`. Esse projeto existente será o staging. O projeto antigo chamado `cryohive` continua fora de escopo e não foi alterado.
 
-O preflight somente de leitura está registrado em `docs/SUPABASE_TRANSFER.md`. A origem passou nos checks de saúde, integrações e Log Drains, mas a transferência está **BLOCKED** porque a organização de destino ainda não aparece para o Owner da origem e porque falta gerar o backup lógico restarável. O staging, as migrations e o PvP permanecem não executados.
+O preflight somente de leitura está registrado em `docs/SUPABASE_TRANSFER.md`. A origem passou nos checks de saúde, integrações e Log Drains, mas a transferência de produção continua **BLOCKED** até que `henrysoldan@gmail.com` seja convidado para `cryo` e até que o backup lógico restarável seja gerado. O staging já existe e está vazio: sem tabelas públicas, sem usuários, sem buckets, sem migrations remotas e com uso de banco reportado como zero. As migrations e o PvP ainda não foram executados.
 
 Até existir um projeto isolado, a matriz real permanece reprovada por ausência de execução — não por inferência a partir dos testes locais:
 
 | Sistema | Resultado | Evidência atual |
 | --- | --- | --- |
-| Migrations staging | BLOCKED | transferência e criação do staging pendentes; nenhuma migration aplicada remotamente |
+| Migrations staging | NOT TESTED | staging identificado e vazio; envio da branch e aplicação remota ainda pendentes |
 | RLS | NOT TESTED | pgTAP criado, ainda não executado contra o schema migrado |
 | Login A/B | NOT TESTED | duas sessões reais ainda não executadas |
 | Convite PvP | NOT TESTED | ainda não executado em staging |

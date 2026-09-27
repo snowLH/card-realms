@@ -14,10 +14,11 @@ Este documento controla a reorganização do backend antes da criação do stagi
 | Log Drains | PASS | indisponíveis no Free e nenhum drain configurado |
 | Edge Functions e secrets próprios | PASS | zero funções e nenhum custom secret |
 | Vault secrets | PASS | zero entradas em `vault.secrets`; valores nunca foram consultados |
-| Target `laurabvieira25` elegível | BLOCKED | seletor de transferência mostra somente `snowLH's Org`; a conta atual ainda não participa da organização de destino |
+| Target `cryohive11` identificado | PASS | conta `cryohive11@gmail.com`, Owner da organização Free `cryo` (`vdxeeviukkxoztfvmaoe`) |
+| Owner da origem no target | BLOCKED | `cryo` ainda possui somente `cryohive11@gmail.com`; o operador da origem precisa ser convidado antes da transferência |
 | Backup lógico restarável | BLOCKED | plano Free não oferece backup; `pg_dump`/`supabase db dump` exige a senha do banco, que não está disponível e não será solicitada em chat |
 | Transferência | BLOCKED | não iniciada; depende dos dois itens anteriores |
-| Staging | BLOCKED | só será criado na organização de destino após a transferência |
+| Staging | READY | projeto vazio `ywawwhnsvpfeppfcuwzg`, região `us-east-1`, conectado a `snowLH/card-realms`; migrations ainda não aplicadas |
 
 ## Snapshot pré-transferência
 
@@ -46,8 +47,8 @@ O transfer mantém a região e pode causar 1–2 minutos de indisponibilidade qu
 
 ## Procedimento seguro
 
-1. Na conta `laurabvieira25`, criar ou identificar a organização que será dona exclusiva de `Card Realms` e `Card Realms Staging`.
-2. Convidar `henrysoldan@gmail.com` como Owner temporário dessa organização e aceitar o convite. Isso é necessário para o seletor de transferência reconhecer o destino.
+1. Usar somente a organização `cryo` (`vdxeeviukkxoztfvmaoe`), da conta `cryohive11@gmail.com`, como destino de `Card Realms` e de seu staging.
+2. Convidar `henrysoldan@gmail.com` como membro temporário dessa organização e aceitar o convite. Isso é necessário para o seletor de transferência reconhecer o destino; elevação a Owner só deve ser usada se o Dashboard exigir.
 3. Gerar um backup lógico fora do repositório público com a CLI oficial:
 
    ```bash
@@ -57,14 +58,14 @@ O transfer mantém a região e pode causar 1–2 minutos de indisponibilidade qu
    ```
 
    A senha deve ser inserida localmente pelo proprietário; não deve ser enviada por chat, commit, log ou screenshot. Como `auth.users` e Storage estão vazios, o snapshot de inventário atual reduz o risco, mas não substitui esses três arquivos restaráveis.
-4. Reabrir a prévia de transferência e selecionar apenas a organização criada pela conta `laurabvieira25`.
+4. Reabrir a prévia de transferência e selecionar somente `cryo` (`vdxeeviukkxoztfvmaoe`).
 5. Revisar plano, permissões e aviso de downtime; somente então confirmar a transferência.
 6. Verificar imediatamente: mesma project ref, região, status, Auth URLs, providers, chaves, Data API, Realtime, grants, RLS, Vercel e deploy publicado.
-7. Na organização de destino, criar `Card Realms Staging` em `sa-east-1`; confirmar o custo antes da criação.
-8. Aplicar e homologar migrations somente no staging. Produção continua sem testes destrutivos.
+7. Usar `ywawwhnsvpfeppfcuwzg` como staging. Ele foi criado em `us-east-1`; não criar outro projeto nem reutilizar `cryohive` sem uma decisão explícita posterior.
+8. Aplicar e homologar migrations somente nesse staging. Produção continua sem testes destrutivos.
 9. Após a passagem de controle, remover `henrysoldan@gmail.com` da organização Folklard ou reduzir seu papel ao mínimo necessário. A conta antiga deve permanecer apenas com `cryohive`.
 
 ## Critério de parada
 
-Se o navegador solicitar autenticação da conta `laurabvieira25`, a automação deve parar para o usuário fazer login. Nenhuma senha, OTP, recovery code ou secret deve ser solicitado ou digitado pelo agente.
+Se o navegador solicitar nova autenticação da conta `cryohive11@gmail.com` ou da conta de origem, a automação deve parar para o usuário fazer login. Nenhuma senha, OTP, recovery code ou secret deve ser solicitado ou digitado pelo agente.
 
