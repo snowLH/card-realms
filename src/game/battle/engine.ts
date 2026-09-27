@@ -1,0 +1,549 @@
+import { CREATURE_BY_ID, ELEMENT_META, NPC_TEAM_IDS, STARTER_TEAM_IDS } from "../content";
+import type { AttackDefinition, StatusEffect } from "../domain/creatures";
+import {
+  ELEMENTS,
+  elementMultiplier,
+  emptyEnergyPool,
+  type EnergyCost,
+  type EnergyPool,
+} from "../domain/elements";
+import {
+  ATTACHMENTS_PER_TURN,
+  DRAW_PER_TURN,
+  ENERGY_DECK_SIZE,
+  OPENING_HAND_SIZE,
+  type BattleActionResult,
+  type BattleCreature,
+  type BattleLogEntry,
+  type BattleSide,
+  type BattleState,
+  type EnergyCard,
+  type RandomSource,
+  type Team,
+} from "./types";
+
+export class GameRuleError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "GameRuleError";
+  }
+}
+
+function randomIndex(random: RandomSource, length: number): number {
+  return Math.min(length - 1, Math.floor(random() * length));
+}
+
+function shuffled<T>(items: T[], random: RandomSource): T[] {
+  const result = [...items];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swap = randomIndex(random, index + 1);
+    [result[index], result[swap]] = [result[swap], result[index]];
+  }
+  return result;
+}
+
+function createEnergyDeck(sideId: string, random: RandomSource): EnergyCard[] {
+  const copiesPerElement = ENERGY_DECK_SIZE / ELEMENTS.length;
+  const cards = ELEMENTS.flatMap((element) =>
+    Array.from({ length: copiesPerElement }, (_, copy) => ({
+      id: `${sideId}:energy:${element}:${copy + 1}`,
+      element,
+    })),
+  );
+  return shuffled(cards, random);
+}
+
+function makeBattleCreature(catalogId: string, ownerId: string, index: number): BattleCreature {
+  const definition = CREATURE_BY_ID.get(catalogId);
+  if (!definition) throw new Error(`Criatura desconhecida: ${catalogId}`);
+  return {
+    instanceId: `${ownerId}:${catalogId}:${index}`,
+    catalogId,
+    hp: definition.hp,
+    maxHp: definition.hp,
+    shield: 0,
+    attachedEnergy: [],
+    statuses: [],
+    defeated: false,
+  };
+}
+
+function makeSide(
+  id: string,
+  name: string,
+  kind: BattleSide["kind"],
+  teamIds: readonly [string, string, string, string, string, string],
+  random: RandomSource,
+): BattleSide {
+  const deck = createEnergyDeck(id, random);
+  const hand = deck.splice(0, OPENING_HAND_SIZE);
+  return {
+    id,
+    name,
+    kind,
+    team: teamIds.map((catalogId, index) => makeBattleCreature(catalogId, id, index)) as Team<BattleCreature>,
+    activeIndex: 0,
+    energyDeck: deck,
+    energyHand: hand,
+    energyDiscard: [],
+    attachmentsRemaining: ATTACHMENTS_PER_TURN,
+    turnsStarted: 0,
+  };
+}
+
+export function createDemoBattle(id = crypto.randomUUID(), random: RandomSource = Math.random): BattleState {
+  const playerId = "player-one";
+  const npcId = "warden-aya";
+  const player = makeSide(playerId, "Você", "player", STARTER_TEAM_IDS, random);
+  const npc = makeSide(npcId, "Guardiã Aya", "npc", NPC_TEAM_IDS, random);
+  player.turnsStarted = 1;
+
+  return {
+    version: 2,
+    id,
+    mode: "npc",
+    status: "active",
+    turn: { sideId: playerId, phase: "main", number: 1, round: 1 },
+    sides: [player, npc],
+    processedActionIds: [],
+    log: [
+      {
+        id: `${id}:start`,
+        turn: 1,
+        actorId: "system",
+        kind: "battle_start",
+        message: "A Provação das Raízes começou. Cada lado comprou cinco cartas de energia.",
+      },
+    ],
+  };
+}
+
+export type PvpPlayerSetup = {
+  id: string;
+  name: string;
+  teamIds: Readonly<Team<string>>;
+};
+
+export function createPvpBattle(
+  id: string,
+  challenger: PvpPlayerSetup,
+  challenged: PvpPlayerSetup,
+  random: RandomSource = Math.random,
+): BattleState {
+  if (challenger.id === challenged.id) {
+    throw new GameRuleError("Uma batalha PVP exige dois jogadores diferentes.");
+  }
+
+  const sides: [BattleSide, BattleSide] = [
+    makeSide(challenger.id, challenger.name, "player", challenger.teamIds, random),
+    makeSide(challenged.id, challenged.name, "player", challenged.teamIds, random),
+  ];
+  const firstIndex = randomIndex(random, sides.length);
+  sides[firstIndex].turnsStarted = 1;
+
+  return {
+    version: 2,
+    id,
+    mode: "pvp",
+    status: "active",
+    turn: { sideId: sides[firstIndex].id, phase: "main", number: 1, round: 1 },
+    sides,
+    processedActionIds: [],
+    log: [{
+      id: `${id}:start`,
+      turn: 1,
+      actorId: "system",
+      kind: "battle_start",
+      message: `${challenger.name} e ${challenged.name} iniciaram um duelo com equipes de seis criaturas.`,
+    }],
+  };
+}
+
+export function getSide(state: BattleState, sideId: string): BattleSide {
+  const side = state.sides.find((candidate) => candidate.id === sideId);
+  if (!side) throw new GameRuleError("Participante não encontrado.");
+  return side;
+}
+
+export function getOpponent(state: BattleState, sideId: string): BattleSide {
+  const side = state.sides.find((candidate) => candidate.id !== sideId);
+  if (!side) throw new GameRuleError("Adversário não encontrado.");
+  return side;
+}
+
+export function getActive(side: BattleSide): BattleCreature {
+  return side.team[side.activeIndex];
+}
+
+export function getDefinition(creature: BattleCreature) {
+  const definition = CREATURE_BY_ID.get(creature.catalogId);
+  if (!definition) throw new GameRuleError("Carta de criatura inválida.");
+  return definition;
+}
+
+export function energyPoolFor(cards: readonly EnergyCard[]): EnergyPool {
+  const pool = emptyEnergyPool();
+  for (const card of cards) pool[card.element] += 1;
+  return pool;
+}
+
+export function canPayCost(cards: readonly EnergyCard[], cost: EnergyCost): boolean {
+  const pool = energyPoolFor(cards);
+  return ELEMENTS.every((element) => pool[element] >= (cost[element] ?? 0));
+}
+
+function appendEvents(
+  state: BattleState,
+  actionId: string,
+  events: Omit<BattleLogEntry, "id" | "turn">[],
+): BattleLogEntry[] {
+  const entries = events.map((event, index) => ({
+    ...event,
+    id: `${actionId}:${index}`,
+    turn: state.turn.number,
+  }));
+  state.log.push(...entries);
+  state.log = state.log.slice(-120);
+  return entries;
+}
+
+function assertAction(state: BattleState, sideId: string, actionId: string) {
+  if (state.status !== "active") throw new GameRuleError("A batalha já terminou.");
+  if (state.turn.sideId !== sideId) throw new GameRuleError("Aguarde o seu turno.");
+  if (state.processedActionIds.includes(actionId)) throw new GameRuleError("Esta ação já foi processada.");
+}
+
+function assertMainPhase(state: BattleState) {
+  if (state.turn.phase !== "main") {
+    throw new GameRuleError("Escolha uma criatura disponível antes de continuar o turno.");
+  }
+}
+
+function completeAction(state: BattleState, actionId: string) {
+  state.processedActionIds.push(actionId);
+  state.processedActionIds = state.processedActionIds.slice(-80);
+}
+
+function hasStatus(creature: BattleCreature, effect: StatusEffect): boolean {
+  return creature.statuses.some((status) => status.effect === effect && status.turns > 0);
+}
+
+function expireActingStatuses(creature: BattleCreature) {
+  creature.statuses = creature.statuses
+    .map((status) => ({ ...status, turns: status.turns - 1 }))
+    .filter((status) => status.turns > 0);
+}
+
+function discardAttachedEnergy(side: BattleSide, creature: BattleCreature) {
+  side.energyDiscard.push(...creature.attachedEnergy);
+  creature.attachedEnergy = [];
+}
+
+function drawEnergy(side: BattleSide, count: number): EnergyCard[] {
+  const drawn: EnergyCard[] = [];
+  for (let index = 0; index < count; index += 1) {
+    if (side.energyDeck.length === 0 && side.energyDiscard.length > 0) {
+      side.energyDeck = [...side.energyDiscard].reverse();
+      side.energyDiscard = [];
+    }
+    const card = side.energyDeck.shift();
+    if (!card) break;
+    side.energyHand.push(card);
+    drawn.push(card);
+  }
+  return drawn;
+}
+
+function markDefeated(
+  state: BattleState,
+  defeatedSide: BattleSide,
+  winner: BattleSide,
+  creature: BattleCreature,
+  events: Omit<BattleLogEntry, "id" | "turn">[],
+) {
+  creature.hp = 0;
+  creature.defeated = true;
+  creature.shield = 0;
+  creature.statuses = [];
+  discardAttachedEnergy(defeatedSide, creature);
+  events.push({
+    actorId: winner.id,
+    kind: "defeated",
+    message: `${getDefinition(creature).name} foi derrotado; suas energias anexadas foram descartadas.`,
+  });
+  if (defeatedSide.team.every((candidate) => candidate.defeated)) {
+    state.status = "finished";
+    state.winnerId = winner.id;
+    events.push({
+      actorId: winner.id,
+      kind: "battle_end",
+      message: `${winner.name} venceu a batalha com sua equipe de seis cartas.`,
+    });
+  }
+}
+
+function beginTurn(state: BattleState, side: BattleSide, forcedSwitch: boolean, actionId: string) {
+  side.attachmentsRemaining = ATTACHMENTS_PER_TURN;
+  const shouldDraw = side.turnsStarted > 0;
+  side.turnsStarted += 1;
+  const drawn = shouldDraw ? drawEnergy(side, DRAW_PER_TURN) : [];
+  const events: Omit<BattleLogEntry, "id" | "turn">[] = [
+    {
+      actorId: side.id,
+      kind: "turn_started",
+      message: `Turno de ${side.name}.`,
+    },
+  ];
+  if (drawn.length > 0) {
+    events.push({
+      actorId: side.id,
+      kind: "energy_drawn",
+      message: `${side.name} comprou ${drawn.length} carta${drawn.length === 1 ? "" : "s"} de energia.`,
+    });
+  }
+
+  const active = getActive(side);
+  const burn = active.statuses.find((status) => status.effect === "burn");
+  if (burn && !active.defeated) {
+    const damage = burn.amount ?? 7;
+    active.hp = Math.max(0, active.hp - damage);
+    events.push({
+      actorId: side.id,
+      kind: "status_tick",
+      damage,
+      effect: "burn",
+      message: `${getDefinition(active).name} sofreu ${damage} de dano de queimadura.`,
+    });
+    if (active.hp === 0) {
+      markDefeated(state, side, getOpponent(state, side.id), active, events);
+      forcedSwitch = state.status === "active";
+    }
+  }
+
+  state.turn.phase = forcedSwitch ? "forced_switch" : "main";
+  return appendEvents(state, actionId, events);
+}
+
+function advanceTurn(state: BattleState, nextSide: BattleSide, forcedSwitch: boolean, actionId: string) {
+  const actingSide = getSide(state, state.turn.sideId);
+  expireActingStatuses(getActive(actingSide));
+  const previousIndex = state.sides.findIndex((side) => side.id === state.turn.sideId);
+  const nextIndex = state.sides.findIndex((side) => side.id === nextSide.id);
+  state.turn.number += 1;
+  if (nextIndex <= previousIndex) state.turn.round += 1;
+  state.turn.sideId = nextSide.id;
+  return beginTurn(state, nextSide, forcedSwitch, actionId);
+}
+
+export function attachEnergy(
+  input: BattleState,
+  sideId: string,
+  creatureIndex: number,
+  cardId: string,
+  actionId: string,
+): BattleActionResult {
+  const state = structuredClone(input);
+  assertAction(state, sideId, actionId);
+  assertMainPhase(state);
+  const side = getSide(state, sideId);
+  const creature = side.team[creatureIndex];
+  const cardIndex = side.energyHand.findIndex((card) => card.id === cardId);
+  if (!creature || creature.defeated) throw new GameRuleError("Escolha uma carta de criatura disponível.");
+  if (side.attachmentsRemaining < 1) throw new GameRuleError("O limite é de duas energias anexadas por turno.");
+  if (cardIndex < 0) throw new GameRuleError("Essa carta de energia não está na sua mão.");
+
+  const [card] = side.energyHand.splice(cardIndex, 1);
+  creature.attachedEnergy.push(card);
+  side.attachmentsRemaining -= 1;
+  const events = appendEvents(state, actionId, [{
+    actorId: sideId,
+    kind: "energy_attached",
+    message: `${side.name} anexou Energia de ${ELEMENT_META[card.element].name} a ${getDefinition(creature).name}.`,
+  }]);
+  completeAction(state, actionId);
+  return { state, events };
+}
+
+function payCost(side: BattleSide, creature: BattleCreature, cost: EnergyCost) {
+  if (!canPayCost(creature.attachedEnergy, cost)) throw new GameRuleError("A carta ativa não possui as energias exigidas.");
+  const remaining = [...creature.attachedEnergy];
+  for (const element of ELEMENTS) {
+    const amount = cost[element] ?? 0;
+    for (let count = 0; count < amount; count += 1) {
+      const index = remaining.findIndex((card) => card.element === element);
+      const [spent] = remaining.splice(index, 1);
+      side.energyDiscard.push(spent);
+    }
+  }
+  creature.attachedEnergy = remaining;
+}
+
+function applyDamage(target: BattleCreature, amount: number): number {
+  const absorbed = Math.min(target.shield, amount);
+  target.shield -= absorbed;
+  const healthDamage = amount - absorbed;
+  target.hp = Math.max(0, target.hp - healthDamage);
+  return healthDamage;
+}
+
+function applyEffect(
+  attacker: BattleCreature,
+  defender: BattleCreature,
+  attack: AttackDefinition,
+  effectRoll: number,
+  actorId: string,
+  events: Omit<BattleLogEntry, "id" | "turn">[],
+) {
+  const effect = attack.effect;
+  if (!effect || effectRoll > (effect.chance ?? 100)) return;
+  if (effect.type === "heal") {
+    const before = attacker.hp;
+    attacker.hp = Math.min(attacker.maxHp, attacker.hp + (effect.amount ?? 0));
+    const healed = attacker.hp - before;
+    if (healed > 0) events.push({ actorId, kind: "healed", effect: "heal", message: `${getDefinition(attacker).name} recuperou ${healed} PV.` });
+    return;
+  }
+  if (effect.type === "shield") {
+    const amount = effect.amount ?? 0;
+    attacker.shield += amount;
+    events.push({ actorId, kind: "shielded", effect: "shield", message: `${getDefinition(attacker).name} recebeu ${amount} de escudo.` });
+    return;
+  }
+
+  const target = effect.type === "warded" ? attacker : defender;
+  target.statuses = target.statuses.filter((status) => status.effect !== effect.type);
+  target.statuses.push({
+    effect: effect.type,
+    turns: effect.duration ?? 1,
+    amount: effect.amount,
+    sourceAttackId: attack.id,
+  });
+  events.push({
+    actorId,
+    kind: "status_applied",
+    effect: effect.type,
+    message: `${getDefinition(target).name} recebeu o estado ${effect.type}.`,
+  });
+}
+
+export function switchActiveCreature(
+  input: BattleState,
+  sideId: string,
+  nextIndex: number,
+  actionId: string,
+): BattleActionResult {
+  const state = structuredClone(input);
+  assertAction(state, sideId, actionId);
+  const side = getSide(state, sideId);
+  const current = getActive(side);
+  const next = side.team[nextIndex];
+  if (!next || next.defeated) throw new GameRuleError("Essa carta não pode entrar em campo.");
+  if (nextIndex === side.activeIndex) throw new GameRuleError("Essa carta já está ativa.");
+  const forced = state.turn.phase === "forced_switch";
+  if (!forced && hasStatus(current, "rooted")) throw new GameRuleError("A carta ativa está enraizada e não pode ser trocada neste turno.");
+
+  side.activeIndex = nextIndex;
+  const events = appendEvents(state, actionId, [{
+    actorId: sideId,
+    kind: forced ? "forced_switch" : "creature_switched",
+    message: forced
+      ? `${side.name} escolheu ${getDefinition(next).name} para continuar a batalha.`
+      : `${side.name} colocou ${getDefinition(next).name} em campo e encerrou o turno.`,
+  }]);
+  completeAction(state, actionId);
+  if (forced) {
+    state.turn.phase = "main";
+    return { state, events };
+  }
+  const turnEvents = advanceTurn(state, getOpponent(state, sideId), false, `${actionId}:turn`);
+  return { state, events: [...events, ...turnEvents] };
+}
+
+export function resolveAttack(
+  input: BattleState,
+  sideId: string,
+  attackId: string,
+  die: number,
+  effectRoll: number,
+  actionId: string,
+): BattleActionResult {
+  const state = structuredClone(input);
+  assertAction(state, sideId, actionId);
+  assertMainPhase(state);
+  if (!Number.isInteger(die) || die < 1 || die > 6) throw new GameRuleError("Resultado de dado inválido.");
+  if (!Number.isInteger(effectRoll) || effectRoll < 1 || effectRoll > 100) throw new GameRuleError("Resultado de efeito inválido.");
+
+  const side = getSide(state, sideId);
+  const opponent = getOpponent(state, sideId);
+  const attacker = getActive(side);
+  const defender = getActive(opponent);
+  const attackerDefinition = getDefinition(attacker);
+  const defenderDefinition = getDefinition(defender);
+  const selectedAttack = attackerDefinition.attacks.find((candidate) => candidate.id === attackId);
+  if (!selectedAttack) throw new GameRuleError("Ataque inválido para a carta ativa.");
+  payCost(side, attacker, selectedAttack.cost);
+
+  const shockedPenalty = hasStatus(attacker, "shocked") ? 1 : 0;
+  const speedDelta = attackerDefinition.speed - defenderDefinition.speed;
+  const speedModifier = speedDelta >= 30 ? -1 : speedDelta <= -30 ? 1 : 0;
+  const requiredRoll = Math.max(2, Math.min(6, selectedAttack.minRoll + shockedPenalty + speedModifier));
+  const success = die >= requiredRoll;
+  const critical = die === 6 && success;
+  const staged: Omit<BattleLogEntry, "id" | "turn">[] = [];
+
+  if (!success) {
+    staged.push({
+      actorId: sideId,
+      kind: "attack_miss",
+      attackId,
+      die,
+      damage: 0,
+      message: `${attackerDefinition.name} falhou ao usar ${selectedAttack.name}. As energias foram descartadas.`,
+    });
+  } else {
+    let multiplier = elementMultiplier(attackerDefinition.element, defenderDefinition.element);
+    if (attackerDefinition.element === "storm" && hasStatus(defender, "soaked")) {
+      multiplier *= 1.25;
+      defender.statuses = defender.statuses.filter((status) => status.effect !== "soaked");
+    }
+    if (hasStatus(attacker, "haunted")) multiplier *= 0.85;
+    if (hasStatus(defender, "warded")) multiplier *= 0.8;
+    const defenseFactor = 100 / (100 + defenderDefinition.defense * 0.35);
+    const rawDamage = Math.max(1, Math.floor(selectedAttack.damage * multiplier * defenseFactor * (critical ? 1.5 : 1)));
+    const damage = applyDamage(defender, rawDamage);
+    staged.push({
+      actorId: sideId,
+      kind: critical ? "critical" : "attack_hit",
+      attackId,
+      die,
+      damage,
+      message: critical
+        ? `Acerto crítico! ${attackerDefinition.name} causou ${damage} de dano com ${selectedAttack.name}.`
+        : `${attackerDefinition.name} causou ${damage} de dano com ${selectedAttack.name}.`,
+    });
+    if (defender.hp === 0) markDefeated(state, opponent, side, defender, staged);
+    else applyEffect(attacker, defender, selectedAttack, effectRoll, sideId, staged);
+  }
+
+  const events = appendEvents(state, actionId, staged);
+  completeAction(state, actionId);
+  if (state.status === "finished") return { state, events };
+  const forcedSwitch = defender.defeated;
+  const turnEvents = advanceTurn(state, opponent, forcedSwitch, `${actionId}:turn`);
+  return { state, events: [...events, ...turnEvents] };
+}
+
+export function passTurn(input: BattleState, sideId: string, actionId: string): BattleActionResult {
+  const state = structuredClone(input);
+  assertAction(state, sideId, actionId);
+  assertMainPhase(state);
+  const side = getSide(state, sideId);
+  const events = appendEvents(state, actionId, [{
+    actorId: sideId,
+    kind: "passed",
+    message: `${side.name} encerrou o turno sem usar uma ação principal.`,
+  }]);
+  completeAction(state, actionId);
+  const turnEvents = advanceTurn(state, getOpponent(state, sideId), false, `${actionId}:turn`);
+  return { state, events: [...events, ...turnEvents] };
+}

@@ -1,22 +1,24 @@
 import type { CSSProperties } from "react";
+import type { SpriteDefinition } from "@/game/types";
 import { cn } from "@/lib/utils";
 
 export function PixelCreature({
-  slot,
+  sprite,
   className,
   mirrored = false,
   label,
 }: {
-  slot: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  sprite: SpriteDefinition;
   className?: string;
   mirrored?: boolean;
   label?: string;
 }) {
-  const column = slot % 4;
-  const row = Math.floor(slot / 4);
+  const x = sprite.columns === 1 ? 0 : (sprite.column / (sprite.columns - 1)) * 100;
+  const y = sprite.rows === 1 ? 0 : (sprite.row / (sprite.rows - 1)) * 100;
   const style = {
-    "--sprite-x": `${(column / 3) * 100}%`,
-    "--sprite-y": `${row * 100}%`,
+    backgroundImage: `url("${sprite.sheet}")`,
+    backgroundPosition: `${x}% ${y}%`,
+    backgroundSize: `${sprite.columns * 100}% ${sprite.rows * 100}%`,
     "--sprite-scale-x": mirrored ? -1 : 1,
   } as CSSProperties;
 
