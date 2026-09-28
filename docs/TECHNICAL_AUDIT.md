@@ -202,4 +202,10 @@ A fronteira privada também foi exercitada fora da UI: tabelas autoritativas e R
 
 A idempotência de progresso foi validada com reivindicações sequenciais e concorrentes do mesmo tesouro. Somente uma recompensa, um fragmento, um incremento estatístico e uma linha de ledger foram produzidos por usuário.
 
-Resultado: a fundação online e o PVP satisfazem o critério de homologação em staging. Isso não promove automaticamente o ambiente público: produção ainda requer as mesmas migrations, variáveis próprias e verificação do domínio antes do merge em `main`.
+Resultado: a fundação online e o PVP satisfazem o critério de homologação em staging. Isso não promove automaticamente o banco legado de produção: ele ainda requer as mesmas migrations, variáveis próprias e um novo teste A/B no domínio público.
+
+## Sétima intervenção — publicação da aplicação
+
+A fundação homologada foi integrada a `main` no commit `44ef44c` e publicada pela Vercel. O deploy de produção concluiu como `Ready` em 29 segundos. O domínio `https://card-realms.vercel.app` carregou a interface nova; mapa, navegação e Duelos foram verificados como visitante, sem erros ou avisos no console.
+
+O isolamento de ambientes foi preservado: as cinco variáveis do Supabase de staging continuam vinculadas apenas ao Preview do branch `staging`, enquanto Production mantém seu conjunto próprio. Nenhuma migration foi aplicada ao banco legado de produção nesta intervenção. Portanto, publicação da aplicação está concluída, mas a homologação PVP autenticada de produção permanece aberta e não é confundida com o `PASS` real já obtido em staging.

@@ -56,9 +56,18 @@ Após logout e novo login, histórico e progresso permaneceram no Supabase. A re
 - `npm run test:staging:polling`: PASS.
 - `npm run test:staging:idempotency`: PASS.
 
+## Publicação Vercel Production — commit `44ef44c`
+
+- `main` recebeu a fundação homologada por merge sem conflitos.
+- TypeScript, ESLint, Vitest (32/32) e o build Next.js passaram novamente no commit de release.
+- O deploy de produção terminou como `Ready` em 29 segundos e o domínio público carregou a versão nova.
+- Mapa, navegação e a tela de Duelos foram exercitados como visitante no endereço público, sem erros ou avisos no console.
+- As variáveis de staging permanecem limitadas ao branch `staging`; Production conserva seu conjunto próprio.
+- Esta publicação promove a aplicação, não o schema legado: PVP autenticado permanece `PASS` somente em staging até a aplicação e auditoria das migrations no banco de produção.
+
 ## Limitações restantes
 
-- O deploy público de produção permanece separado do staging e não deve receber credenciais de staging. A promoção exige aplicar as mesmas migrations ao banco de produção e verificar os redirects/domínios desse ambiente.
+- A aplicação já está publicada em Vercel Production, mas o banco legado de produção ainda não recebeu as seis migrations homologadas. Não se declara PVP autenticado de produção como `PASS` antes dessa migração, dos redirects e de um novo teste A/B no domínio público.
 - A região do staging (`us-east-1`) difere da produção (`sa-east-1`), portanto a homologação funcional não mede paridade de latência.
 - Não há fluxo visual completo para criar/aceitar amizade; a relação pode ser preparada por uma sessão autenticada de teste.
 - Matchmaking público, ranking, abandono/timeout, rematch e recompensas PVP balanceadas ainda não existem.

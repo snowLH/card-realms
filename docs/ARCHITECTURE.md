@@ -83,6 +83,7 @@ Essa arquitetura foi homologada em staging em 27 de setembro de 2026: seis migra
 - Toda mudança de schema segue `staging -> migrations -> testes reais -> homologação -> produção`.
 - O projeto Supabase de staging `ywawwhnsvpfeppfcuwzg` usa a branch GitHub dedicada `staging`, mas migrations são aplicadas e auditadas explicitamente pela CLI; a integração GitHub não é fonte de verdade para o histórico do schema.
 - Vercel Production continua apontando para produção; Preview recebe credenciais de staging em escopo separado. As variáveis públicas e secretas não podem misturar referências entre ambientes.
+- A promoção do frontend para Vercel Production é independente da promoção do schema. Um deploy `Ready` comprova entrega da aplicação, mas não transforma a homologação de staging em homologação do banco legado de produção.
 - A transferência de organização não é migração regional e não deve alterar a project ref. Mesmo assim, URLs, providers, chaves, RLS, Realtime e deploy são revalidados após o movimento antes de qualquer evolução funcional.
 
 ## Harness de homologação

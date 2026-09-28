@@ -82,4 +82,4 @@ As migrations movem helpers `SECURITY DEFINER` para um schema não exposto, subs
 - Preview de staging: https://card-realms-git-staging-snow-lh-s-projects.vercel.app
 - Repositório de origem: https://github.com/snowLH/card-realms
 
-O Preview deve usar somente o Supabase de staging. Produção permanece isolada e só recebe esta versão depois que seu banco tiver as mesmas migrations e variáveis próprias validadas.
+O commit de release `44ef44c` foi promovido à Vercel Production. O Preview usa somente o Supabase de staging e a produção mantém variáveis próprias, sem reutilizar credenciais de teste. A interface pública está publicada, mas o PVP autenticado continua homologado apenas em staging até que as mesmas migrations sejam aplicadas e auditadas no banco legado de produção.
