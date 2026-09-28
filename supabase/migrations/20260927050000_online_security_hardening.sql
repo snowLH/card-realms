@@ -118,7 +118,7 @@ create index if not exists event_participation_user_idx
 create index if not exists player_missions_mission_idx
   on public.player_missions (mission_id, user_id);
 create index if not exists region_connections_target_idx
-  on public.region_connections (target_region_id, source_region_id);
+  on public.region_connections (to_region_id, from_region_id);
 create index if not exists player_world_state_region_idx
   on public.player_world_state (current_region_id);
 create index if not exists player_achievements_achievement_idx

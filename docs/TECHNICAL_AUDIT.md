@@ -172,7 +172,7 @@ Os detalhes de invariantes e fronteiras resultantes estão em `docs/ARCHITECTURE
 
 `npm run typecheck`, `npm run lint` e 32/32 testes Vitest passaram após as correções. O schema Realtime do projeto Supabase acessível foi consultado somente para leitura e confirmou PostgreSQL 17.6, `realtime.topic()`, `realtime.messages.extension` e `realtime.broadcast_changes(...)` compatíveis com a migration.
 
-Isso ainda não é homologação. O staging foi identificado como o projeto vazio `ywawwhnsvpfeppfcuwzg`, da organização Free `cryo`, em `us-east-1`, conectado a `snowLH/card-realms`. A organização possui somente esse projeto e o uso reportado de banco, Auth e Storage está zerado. Nenhuma migration foi aplicada e nenhum item remoto foi marcado PASS. A retomada e a matriz obrigatória estão documentadas em `docs/SUPABASE_STAGING.md` e `docs/STATUS.md`.
+Naquele momento isso ainda não era homologação. O bloqueio foi resolvido na sexta intervenção, registrada abaixo; a matriz atual está em `docs/STATUS.md`.
 
 ## Quarta intervenção — preflight de propriedade Supabase
 
@@ -184,6 +184,22 @@ A transferência não foi executada. A organização de destino agora está iden
 
 ## Quinta intervenção — isolamento do deploy de staging
 
-O repositório recebeu a branch remota `staging`, inicialmente idêntica a `main`. No projeto Supabase vazio `ywawwhnsvpfeppfcuwzg`, a GitHub Integration continua com deploy habilitado, mas a **Production branch name** passou de `main` para `staging`.
+O repositório recebeu a branch remota `staging`, inicialmente idêntica a `main`, e um PR separado foi usado para não promover o site público durante a preparação. A tentativa de fazer a GitHub Integration do Supabase acompanhar essa branch não produziu evidência confiável de aplicação do schema.
 
-Essa separação evita usar o merge de produção como mecanismo de homologação: o PR de revisão para `main` permanece aberto, enquanto um PR específico para `staging` pode aplicar as seis migrations sem promover o site público do Vercel. Neste ponto a configuração está pronta, mas nenhum merge de staging ocorreu e nenhuma migration remota foi marcada PASS.
+Por isso a integração não foi tratada como fonte de verdade. A etapa seguinte vinculou a CLI oficial diretamente ao project ref de staging, aplicou as migrations em ordem e verificou o histórico remoto. O PR para `main` permaneceu separado da homologação.
+
+## Sexta intervenção — homologação real do Supabase e PVP
+
+As seis migrations foram aplicadas ao projeto `ywawwhnsvpfeppfcuwzg`. O lint remoto de `public` e `private` terminou sem erros, o Security Advisor não apontou bloqueio e 29/29 asserções pgTAP passaram em uma transação remota com rollback. RLS permaneceu habilitada.
+
+Duas contas reais, com seis criaturas e cookies separados, completaram amizade, desafio, aceite e duas partidas. O servidor congelou as equipes, escolheu o primeiro turno, rolou dados e confirmou todas as ações por versão. Foram observados consumo de energia, falhas, críticos, status, troca voluntária, troca forçada e término persistente.
+
+A primeira tentativa real descobriu um defeito que os testes unitários não revelavam: a UI prefixava o UUID de ação (`pass-<uuid>`), enquanto o contrato de segurança exigia UUID puro. `battle-arena.tsx` passou a gerar `crypto.randomUUID()` sem prefixo; o teste A/B foi reiniciado e completou normalmente.
+
+As sondagens hostis rejeitaram ação fora do turno, dano/dado/vitória escolhidos pelo cliente, versão antiga, troca ilegal, criatura/energia alheia, excesso de anexação, ID de outra batalha e reutilização divergente de `actionId`. O mesmo ID com o mesmo payload retornou o resultado anterior sem duplicação.
+
+A fronteira privada também foi exercitada fora da UI: tabelas autoritativas e RPCs de servidor negaram acesso à role autenticada; perfil/mundo adversário retornaram vazio; tópico Realtime alheio falhou; DTO e Broadcast não continham mão, ordem do baralho, tokens ou IDs internos. Realtime válido, polling sem evento, queda/reconexão, refresh, logout/login e progresso em nova sessão passaram.
+
+A idempotência de progresso foi validada com reivindicações sequenciais e concorrentes do mesmo tesouro. Somente uma recompensa, um fragmento, um incremento estatístico e uma linha de ledger foram produzidos por usuário.
+
+Resultado: a fundação online e o PVP satisfazem o critério de homologação em staging. Isso não promove automaticamente o ambiente público: produção ainda requer as mesmas migrations, variáveis próprias e verificação do domínio antes do merge em `main`.
