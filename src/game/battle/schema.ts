@@ -28,14 +28,7 @@ const BattleSideSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   kind: z.enum(["player", "npc", "boss"]),
-  team: z.tuple([
-    BattleCreatureSchema,
-    BattleCreatureSchema,
-    BattleCreatureSchema,
-    BattleCreatureSchema,
-    BattleCreatureSchema,
-    BattleCreatureSchema,
-  ]),
+  team: z.array(BattleCreatureSchema).min(1).max(6),
   activeIndex: z.number().int().min(0).max(5),
   energyDeck: z.array(EnergyCardSchema),
   energyHand: z.array(EnergyCardSchema),
@@ -77,3 +70,4 @@ export const BattleStateSchema = z.object({
   processedActionIds: z.array(z.string()).max(80),
   log: z.array(BattleLogEntrySchema).max(120),
 });
+

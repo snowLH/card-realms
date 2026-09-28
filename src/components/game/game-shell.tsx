@@ -14,11 +14,13 @@ import {
   UserRound,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CREATURES, REGIONS } from "@/game/catalog";
 import type { PlayerBootstrap, RemotePlayerSnapshot } from "@/game/player";
-import type { RegionDefinition } from "@/game/types";
+import type { BattleReward, RegionDefinition } from "@/game/types";
 import { loadLocalProgress, saveLocalProgress } from "@/game/save/local-progress";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { cn } from "@/lib/utils";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +30,8 @@ import { RefugeView } from "./refuge-view";
 import { PvpView } from "./pvp-view";
 import { TeamView } from "./team-view";
 import { WorldMap } from "./world-map";
+import { StarterChoice } from "./starter-choice";
+import { WelcomeView } from "./welcome-view";
 
 const BattleArena = dynamic(
   () => import("./battle-arena").then((module) => module.BattleArena),
@@ -69,8 +73,10 @@ async function mutateRemoteProgress(body: Record<string, unknown>) {
 }
 
 export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
+  const router = useRouter();
   const remoteSnapshot = bootstrap.snapshot;
   const [view, setView] = useState<View>("hub");
+  const [guestPreview, setGuestPreview] = useState(false);
   const initialRegion = REGIONS.find(
     (region) => region.id === remoteSnapshot?.world.currentRegionId,
   ) ?? REGIONS[0];
@@ -81,6 +87,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   const [coins, setCoins] = useState(remoteSnapshot?.profile.coins ?? 840);
   const [xp, setXp] = useState(remoteSnapshot?.profile.xp ?? 1240);
   const [toast, setToast] = useState<string | null>(null);
+  const [newlyOwnedCatalogIds, setNewlyOwnedCatalogIds] = useState<string[]>([]);
   const [openedTreasures, setOpenedTreasures] = useState<string[]>(
     remoteSnapshot?.world.openedTreasures ?? [],
   );
@@ -145,10 +152,19 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
         const result = await mutateRemoteProgress({ action: "claim_treasure", regionId: region.id }) as {
           coins: number;
           openedTreasures: string[];
+          creatureId?: string;
         };
         setOpenedTreasures(result.openedTreasures);
         setCoins(result.coins);
-        setToast("Tesouro confirmado pelo servidor: +45 moedas e 1 fragmento de vínculo.");
+        if (result.creatureId) {
+          setNewlyOwnedCatalogIds((current) => [...new Set([...current, result.creatureId!])]);
+        }
+        const cardName = result.creatureId
+          ? CREATURES.find((creature) => creature.id === result.creatureId)?.name
+          : null;
+        setToast(cardName
+          ? `Baú aberto: +45 moedas, fragmento e a carta ${cardName}.`
+          : "Tesouro confirmado pelo servidor: +45 moedas e 1 fragmento de vínculo.");
       } catch (error) {
         setToast(error instanceof Error ? error.message : "Não foi possível recolher o tesouro.");
       }
@@ -182,9 +198,21 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     );
   };
 
-  const handleVictory = useCallback(() => {
+  const handleVictory = useCallback((reward?: BattleReward) => {
     if (bootstrap.source === "supabase") {
-      setToast("A batalha demonstrativa não altera a economia da conta online.");
+      if (reward && !reward.replayed) {
+        setCoins((current) => current + reward.coins);
+        setXp((current) => current + reward.xp);
+        if (reward.creatureId) {
+          setNewlyOwnedCatalogIds((current) => [...new Set([...current, reward.creatureId!])]);
+        }
+        const cardName = reward.creatureId
+          ? CREATURES.find((creature) => creature.id === reward.creatureId)?.name
+          : null;
+        setToast(cardName
+          ? `Vitória registrada: você conquistou a carta ${cardName}.`
+          : "Vitória registrada: moedas e experiência recebidas.");
+      }
       return;
     }
     setCoins((current) => current + 120);
@@ -196,8 +224,17 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     .slice()
     .sort((left, right) => left.slot - right.slot)
     .map((member) => member.catalogId);
-  const ownedCatalogIds = remoteSnapshot?.collection.map((creature) => creature.catalogId);
+  const ownedCatalogIds = useMemo(() => remoteSnapshot
+    ? [...new Set([
+      ...remoteSnapshot.collection.map((creature) => creature.catalogId),
+      ...newlyOwnedCatalogIds,
+    ])]
+    : undefined, [newlyOwnedCatalogIds, remoteSnapshot]);
   const currentRegion = REGIONS.find((region) => region.id === playerRegionId) ?? REGIONS[0];
+  const showWelcome = isSupabaseConfigured() && !bootstrap.identity && !guestPreview;
+  const needsStarterChoice = bootstrap.source === "supabase"
+    && Boolean(bootstrap.identity)
+    && remoteSnapshot?.collection.length === 0;
   const pvpSession = useMemo(() => (
     pvpBattleId && bootstrap.identity
       ? { battleId: pvpBattleId, playerId: bootstrap.identity.id }
@@ -205,7 +242,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   ), [bootstrap.identity, pvpBattleId]);
 
   return (
-    <main className="game-app">
+    <main className={cn("game-app", showWelcome && "game-app--welcome")}>
       <header className="app-header">
         <button type="button" className="brand" onClick={() => navigate("hub")}>
           <span className="brand__mark">CR</span>
@@ -220,7 +257,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
         </div>
       </header>
 
-      <aside className="side-nav">
+      {!showWelcome ? <aside className="side-nav">
         <nav>
           {navigation.map((item) => {
             const Icon = item.icon;
@@ -245,10 +282,11 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
               ? "Conta online · cache local de emergência"
               : "Visitante · progresso salvo neste aparelho"}
         </Badge>
-      </aside>
+      </aside> : null}
 
-      <div className="app-content">
-        {view === "hub" ? (
+      <div className={cn("app-content", showWelcome && "app-content--welcome")}>
+        {showWelcome ? <WelcomeView onPreview={() => setGuestPreview(true)} /> : null}
+        {!showWelcome && view === "hub" ? (
           <HubView
             playerName={remoteSnapshot?.profile.displayName ?? bootstrap.identity?.email?.split("@")[0] ?? "Explorador"}
             level={remoteSnapshot?.profile.level ?? 7}
@@ -267,7 +305,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             onClaimTreasure={() => void handleTreasure(currentRegion)}
           />
         ) : null}
-        {view === "map" ? (
+        {!showWelcome && view === "map" ? (
           <WorldMap
             selected={selectedRegion}
             playerRegionId={playerRegionId}
@@ -277,16 +315,16 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             onTreasure={handleTreasure}
           />
         ) : null}
-        {view === "collection" ? <CollectionView ownedCatalogIds={ownedCatalogIds} /> : null}
-        {view === "team" ? <TeamView teamIds={activeTeamIds} teamName={activeTeam?.name} /> : null}
-        {view === "refuge" ? <RefugeView /> : null}
-        {view === "pvp" ? <PvpView bootstrap={bootstrap} onOpenBattle={setPvpBattleId} /> : null}
-        {view === "profile" ? (
+        {!showWelcome && view === "collection" ? <CollectionView ownedCatalogIds={ownedCatalogIds} /> : null}
+        {!showWelcome && view === "team" ? <TeamView teamIds={activeTeamIds} teamName={activeTeam?.name} /> : null}
+        {!showWelcome && view === "refuge" ? <RefugeView /> : null}
+        {!showWelcome && view === "pvp" ? <PvpView bootstrap={bootstrap} onOpenBattle={setPvpBattleId} /> : null}
+        {!showWelcome && view === "profile" ? (
           <ProfileView coins={coins} xp={xp} source={bootstrap.source} snapshot={remoteSnapshot} />
         ) : null}
       </div>
 
-      <nav className="mobile-nav" aria-label="Navegação principal">
+      {!showWelcome ? <nav className="mobile-nav" aria-label="Navegação principal">
         {mobileNavigation.map((item) => {
           const Icon = item.icon;
           return (
@@ -295,7 +333,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             </button>
           );
         })}
-      </nav>
+      </nav> : null}
 
       {toast ? <div className="game-toast"><Trophy /> {toast}</div> : null}
       {battleOpen || pvpSession ? (
@@ -306,11 +344,13 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             onClose={() => {
               setBattleOpen(false);
               setPvpBattleId(null);
+              if (bootstrap.source === "supabase") router.refresh();
             }}
             onVictory={pvpSession ? () => undefined : handleVictory}
           />
         </div>
       ) : null}
+      {needsStarterChoice ? <StarterChoice /> : null}
     </main>
   );
 }
@@ -347,3 +387,4 @@ function ProfileView({
     </section>
   );
 }
+

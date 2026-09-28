@@ -12,6 +12,7 @@ import {
   DRAW_PER_TURN,
   ENERGY_DECK_SIZE,
   OPENING_HAND_SIZE,
+  TEAM_SIZE,
   type BattleActionResult,
   type BattleCreature,
   type BattleLogEntry,
@@ -19,7 +20,6 @@ import {
   type BattleState,
   type EnergyCard,
   type RandomSource,
-  type Team,
 } from "./types";
 
 export class GameRuleError extends Error {
@@ -72,16 +72,19 @@ function makeSide(
   id: string,
   name: string,
   kind: BattleSide["kind"],
-  teamIds: readonly [string, string, string, string, string, string],
+  teamIds: readonly string[],
   random: RandomSource,
 ): BattleSide {
+  if (teamIds.length < 1 || teamIds.length > TEAM_SIZE) {
+    throw new GameRuleError("Uma equipe de aventura precisa ter entre uma e seis cartas.");
+  }
   const deck = createEnergyDeck(id, random);
   const hand = deck.splice(0, OPENING_HAND_SIZE);
   return {
     id,
     name,
     kind,
-    team: teamIds.map((catalogId, index) => makeBattleCreature(catalogId, id, index)) as Team<BattleCreature>,
+    team: teamIds.map((catalogId, index) => makeBattleCreature(catalogId, id, index)),
     activeIndex: 0,
     energyDeck: deck,
     energyHand: hand,
@@ -91,11 +94,15 @@ function makeSide(
   };
 }
 
-export function createDemoBattle(id = crypto.randomUUID(), random: RandomSource = Math.random): BattleState {
+export function createDemoBattle(
+  id = crypto.randomUUID(),
+  random: RandomSource = Math.random,
+  playerTeamIds: readonly string[] = STARTER_TEAM_IDS,
+): BattleState {
   const playerId = "player-one";
   const npcId = "warden-aya";
-  const player = makeSide(playerId, "Você", "player", STARTER_TEAM_IDS, random);
-  const npc = makeSide(npcId, "Guardiã Aya", "npc", NPC_TEAM_IDS, random);
+  const player = makeSide(playerId, "Você", "player", playerTeamIds, random);
+  const npc = makeSide(npcId, "Guardiã Aya", "npc", NPC_TEAM_IDS.slice(0, playerTeamIds.length), random);
   player.turnsStarted = 1;
 
   return {
@@ -112,7 +119,7 @@ export function createDemoBattle(id = crypto.randomUUID(), random: RandomSource 
         turn: 1,
         actorId: "system",
         kind: "battle_start",
-        message: "A Provação das Raízes começou. Cada lado comprou cinco cartas de energia.",
+        message: `A Provação das Raízes começou com ${playerTeamIds.length} carta${playerTeamIds.length === 1 ? "" : "s"} de criatura por lado.`,
       },
     ],
   };
@@ -121,7 +128,7 @@ export function createDemoBattle(id = crypto.randomUUID(), random: RandomSource 
 export type PvpPlayerSetup = {
   id: string;
   name: string;
-  teamIds: Readonly<Team<string>>;
+  teamIds: readonly string[];
 };
 
 export function createPvpBattle(
@@ -547,3 +554,4 @@ export function passTurn(input: BattleState, sideId: string, actionId: string): 
   const turnEvents = advanceTurn(state, getOpponent(state, sideId), false, `${actionId}:turn`);
   return { state, events: [...events, ...turnEvents] };
 }
+

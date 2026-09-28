@@ -52,6 +52,12 @@ describe("motor de combate Card Realms v2", () => {
     expect(state.sides[1].team).toHaveLength(6);
   });
 
+  it("permite que a primeira jornada comece somente com a carta escolhida", () => {
+    const state = createDemoBattle("starter-only", fixedRandom, ["iara"]);
+    expect(state.sides[0].team.map((card) => card.catalogId)).toEqual(["iara"]);
+    expect(state.sides[1].team).toHaveLength(1);
+  });
+
   it("inicia cada lado com um baralho real de 30 energias e mão de cinco", () => {
     const state = battle("energy-deck");
     for (const side of state.sides) {
@@ -214,3 +220,4 @@ describe("motor de combate Card Realms v2", () => {
     expect(() => createPvpBattle("pvp-self", setup, setup, fixedRandom)).toThrow(GameRuleError);
   });
 });
+

@@ -18,17 +18,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
 import { canPayCost, energyPoolFor, getActive, getSide } from "@/game/engine";
 import { type BattleLogEntry, type BattleState, type Element } from "@/game/types";
+import type { BattleReward } from "@/game/types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { CreatureCard } from "./creature-card";
 import { PixelCreature } from "./pixel-creature";
 
 type BattleResponse = {
   state: BattleState;
   events: BattleLogEntry[];
+  reward?: BattleReward;
   token?: string;
   version?: number;
   authority: "server";
@@ -80,7 +80,7 @@ export function BattleArena({
 }: {
   open: boolean;
   onClose: () => void;
-  onVictory: () => void;
+  onVictory: (reward?: BattleReward) => void;
   pvp?: PvpSession;
 }) {
   const [battle, setBattle] = useState<BattleState | null>(null);
@@ -91,6 +91,7 @@ export function BattleArena({
   const [die, setDie] = useState<number | null>(null);
   const [effect, setEffect] = useState<string | null>(null);
   const [pendingSwitchIndex, setPendingSwitchIndex] = useState<number | null>(null);
+  const [reward, setReward] = useState<BattleReward | null>(null);
   const victoryReported = useRef(false);
   const pvpBattleId = pvp?.battleId ?? null;
 
@@ -104,6 +105,7 @@ export function BattleArena({
       setBattle(response.state);
       setToken(response.token ?? null);
       setServerVersion(response.version ?? null);
+      setReward(response.reward ?? null);
       setPendingSwitchIndex(null);
       victoryReported.current = false;
     } catch (caught) {
@@ -174,6 +176,7 @@ export function BattleArena({
         setBattle(response.state);
         setToken(response.token ?? null);
         setServerVersion(response.version ?? null);
+        if (response.reward) setReward(response.reward);
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : "A ação falhou.");
       } finally {
@@ -187,9 +190,9 @@ export function BattleArena({
     const playerId = pvp?.playerId ?? "player-one";
     if (battle?.status === "finished" && battle.winnerId === playerId && !victoryReported.current) {
       victoryReported.current = true;
-      onVictory();
+      onVictory(reward ?? undefined);
     }
-  }, [battle, onVictory, pvp?.playerId]);
+  }, [battle, onVictory, pvp?.playerId, reward]);
 
   const data = useMemo(() => {
     if (!battle) return null;
@@ -251,53 +254,114 @@ export function BattleArena({
         </button>
       </header>
 
-      <section className="battle-stage" aria-label="Arena de batalha em pixel art">
-        <div className="battle-stage__background" />
-        <div className="battle-combatant battle-combatant--opponent">
-          <div className="battle-nameplate">
-            <div>
-              <span>{data.opponent.name}</span>
-              <strong>{data.opponentDefinition.name}</strong>
+      <section className="card-table" aria-label="Mesa de batalha de cartas">
+        <div className="card-table__felt">
+          <div className="card-table__resource-row card-table__resource-row--opponent">
+            <div className="table-pile">
+              <span className="table-card-back">CR</span>
+              <small>{data.opponent.energyDeck.length || "?"} no baralho</small>
             </div>
-            <Badge style={{ color: ELEMENT_META[data.opponentDefinition.element].color }}>
-              {ELEMENT_META[data.opponentDefinition.element].name}
-            </Badge>
-            <span className="battle-hp">{data.opponentActive.hp}/{data.opponentActive.maxHp}</span>
-            <Progress
-              value={(data.opponentActive.hp / data.opponentActive.maxHp) * 100}
-              label={`Vida de ${data.opponentDefinition.name}: ${data.opponentActive.hp} de ${data.opponentActive.maxHp}`}
-              className="col-span-full"
-              indicatorClassName="bg-red-400"
-            />
+            <div className="table-hidden-hand" aria-label="Mão do adversário oculta">
+              {Array.from({ length: Math.min(5, data.opponent.energyHand.length || 5) }, (_, index) => (
+                <span className="table-card-back" key={`opponent-card-${index}`}>CR</span>
+              ))}
+            </div>
+            <div className="table-discard">
+              <span>{data.opponent.energyDiscard.length}</span>
+              <small>descarte</small>
+            </div>
           </div>
-          <PixelCreature
-            sprite={data.opponentDefinition.sprite}
-            label={data.opponentDefinition.name}
-            mirrored
-            className="battle-sprite battle-sprite--opponent"
-          />
-        </div>
 
-        <div className="battle-combatant battle-combatant--player">
-          <PixelCreature
-            sprite={data.playerDefinition.sprite}
-            label={data.playerDefinition.name}
-            className="battle-sprite battle-sprite--player"
-          />
-          <div className="battle-nameplate battle-nameplate--player">
-            <div>
-              <span>Sua carta ativa</span>
-              <strong>{data.playerDefinition.name}</strong>
+          <div className="card-table__side card-table__side--opponent">
+            <div className="table-bench" aria-label="Banco do adversário">
+              {data.opponent.team.map((card, index) => {
+                if (index === data.opponent.activeIndex) return null;
+                const definition = CREATURE_BY_ID.get(card.catalogId)!;
+                return (
+                  <article className={cn("bench-card", card.defeated && "is-defeated")} key={card.instanceId}>
+                    <PixelCreature sprite={definition.sprite} label={definition.name} mirrored />
+                    <span>{definition.name}</span>
+                    <small>{card.hp}/{card.maxHp} PV</small>
+                  </article>
+                );
+              })}
             </div>
-            <Badge style={{ color: ELEMENT_META[data.playerDefinition.element].color }}>
-              {ELEMENT_META[data.playerDefinition.element].name}
-            </Badge>
-            <span className="battle-hp">{data.playerActive.hp}/{data.playerActive.maxHp}</span>
-            <Progress
-              value={(data.playerActive.hp / data.playerActive.maxHp) * 100}
-              label={`Vida de ${data.playerDefinition.name}: ${data.playerActive.hp} de ${data.playerActive.maxHp}`}
-              className="col-span-full"
-            />
+            <div className="table-active-zone table-active-zone--opponent">
+              <span>Carta ativa de {data.opponent.name}</span>
+              <CreatureCard
+                creature={data.opponentDefinition}
+                battle={data.opponentActive}
+                compact
+                active
+                className="table-active-card"
+              />
+            </div>
+          </div>
+
+          <div className="card-table__centerline">
+            <span>{battle.turn.number}</span>
+            <div>
+              <strong>{playerTurn ? "Sua jogada" : "Jogada adversária"}</strong>
+              <small>{forcedSwitch ? "Escolha uma carta do banco" : `Rodada ${battle.turn.round}`}</small>
+            </div>
+            <Swords />
+          </div>
+
+          <div className="card-table__side card-table__side--player">
+            <div className="table-active-zone table-active-zone--player">
+              <span>Sua carta ativa</span>
+              <CreatureCard
+                creature={data.playerDefinition}
+                battle={data.playerActive}
+                compact
+                active
+                className="table-active-card"
+              />
+            </div>
+            <div className="table-bench" aria-label="Seu banco de cartas">
+              {data.player.team.map((card, index) => {
+                if (index === data.player.activeIndex) return null;
+                const definition = CREATURE_BY_ID.get(card.catalogId)!;
+                return (
+                  <button
+                    type="button"
+                    className={cn(
+                      "bench-card",
+                      card.defeated && "is-defeated",
+                      pendingSwitchIndex === index && "is-selected",
+                    )}
+                    key={card.instanceId}
+                    disabled={!playerTurn || busy || card.defeated}
+                    onClick={() => setPendingSwitchIndex(index)}
+                  >
+                    <PixelCreature sprite={definition.sprite} label={definition.name} />
+                    <span>{definition.name}</span>
+                    <small>{card.hp}/{card.maxHp} PV · {card.attachedEnergy.length} EN</small>
+                  </button>
+                );
+              })}
+              {data.player.team.length === 1 ? (
+                <div className="bench-card bench-card--empty">
+                  <span>Banco vazio</span>
+                  <small>Ganhe cartas em batalhas e baús</small>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="card-table__resource-row card-table__resource-row--player">
+            <div className="table-pile">
+              <span className="table-card-back">CR</span>
+              <small>{data.player.energyDeck.length} no baralho</small>
+            </div>
+            <div className="table-zone-label">
+              <strong>{data.player.team.length}/6 cartas</strong>
+              <small>{forcedSwitch ? "Troca obrigatória" : "Banco da equipe"}</small>
+            </div>
+            <div className="table-discard">
+              <span>{data.player.energyDiscard.length}</span>
+              <small>descarte</small>
+            </div>
           </div>
         </div>
 
@@ -330,81 +394,51 @@ export function BattleArena({
         </AnimatePresence>
       </section>
 
-      <section className="battle-hand" aria-label="Suas seis cartas de criaturas">
-        <div className="battle-hand__label">
-          <span>Suas seis cartas</span>
-          <small>
-            {forcedSwitch
-              ? "Troca obrigatória · não consome sua ação principal"
-              : "1 ativa · a troca voluntária encerra o turno"}
-          </small>
-        </div>
-        <div className="battle-hand__rail">
-          {data.player.team.map((card, index) => {
-            const definition = CREATURE_BY_ID.get(card.catalogId)!;
-            return (
-              <CreatureCard
-                key={card.instanceId}
-                creature={definition}
-                battle={card}
-                compact
-                active={index === data.player.activeIndex}
-                disabled={!playerTurn || busy || card.defeated}
-                onClick={() => {
-                  if (index !== data.player.activeIndex && !card.defeated) {
-                    setPendingSwitchIndex(index);
-                  }
-                }}
-              />
-            );
-          })}
-        </div>
-        <AnimatePresence>
-          {pendingSwitchDefinition && pendingSwitchIndex !== null ? (
-            <motion.div
-              className="switch-confirmation"
-              role="status"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
+      <AnimatePresence>
+        {pendingSwitchDefinition && pendingSwitchIndex !== null ? (
+          <motion.div
+            className="switch-confirmation"
+            role="status"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+          >
+            <ArrowRightLeft />
+            <div>
+              <strong>Colocar {pendingSwitchDefinition.name} em campo?</strong>
+              <span>
+                {forcedSwitch
+                  ? "Esta substituição é obrigatória; depois dela, seu turno continua."
+                  : `A troca usa sua ação principal e passa o turno para ${data.opponent.name}.`}
+              </span>
+            </div>
+            <Button
+              type="button"
+              variant="game"
+              size="sm"
+              disabled={!playerTurn || busy}
+              onClick={() =>
+                void perform({
+                  action: "switch",
+                  creatureIndex: pendingSwitchIndex,
+                  actionId: actionId(),
+                })
+              }
             >
-              <ArrowRightLeft />
-              <div>
-                <strong>Colocar {pendingSwitchDefinition.name} em campo?</strong>
-                <span>
-                  {forcedSwitch
-                    ? "Esta substituição é obrigatória; depois dela, seu turno continua."
-                    : `A troca usa sua ação principal e passa o turno para ${data.opponent.name}.`}
-                </span>
-              </div>
-              <Button
-                type="button"
-                variant="game"
-                size="sm"
-                disabled={!playerTurn || busy}
-                onClick={() =>
-                  void perform({
-                    action: "switch",
-                    creatureIndex: pendingSwitchIndex,
-                    actionId: actionId(),
-                  })
-                }
-              >
-                Confirmar troca
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={busy}
-                onClick={() => setPendingSwitchIndex(null)}
-              >
-                Cancelar
-              </Button>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-      </section>
+              Confirmar troca
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={busy}
+              onClick={() => setPendingSwitchIndex(null)}
+            >
+              Cancelar
+            </Button>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <section className="battle-controls">
         <div className="energy-tray">
@@ -514,6 +548,12 @@ export function BattleArena({
                 ? "Você conquistou 120 moedas, experiência e um fragmento de vínculo."
                 : "Revise suas energias, troque a carta ativa e tente novamente."}
           </p>
+          {reward?.creatureId && CREATURE_BY_ID.get(reward.creatureId) ? (
+            <div className="battle-reward-card">
+              <span>Nova carta conquistada</span>
+              <CreatureCard creature={CREATURE_BY_ID.get(reward.creatureId)!} compact />
+            </div>
+          ) : null}
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button variant="game" size="lg" onClick={onClose}>
               Voltar ao mapa
@@ -529,3 +569,4 @@ export function BattleArena({
     </div>
   );
 }
+

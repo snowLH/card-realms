@@ -15,7 +15,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-export function LoginDialog() {
+export function LoginDialog({
+  prominent = false,
+  label,
+}: {
+  prominent?: boolean;
+  label?: string;
+} = {}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -86,8 +92,8 @@ export function LoginDialog() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="secondary" size="sm">
-          {identity ? <UserRound /> : <LogIn />} {identity?.name ?? "Entrar"}
+        <Button variant={prominent ? "default" : "secondary"} size={prominent ? "lg" : "sm"}>
+          {identity ? <UserRound /> : <LogIn />} {identity?.name ?? label ?? "Entrar"}
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -112,6 +118,7 @@ export function LoginDialog() {
         ) : configured ? (
           <div className="space-y-4">
             <Button className="w-full" size="lg" onClick={signInWithGoogle} disabled={busy}>
+              <span className="google-mark" aria-hidden>G</span>
               Entrar com Google
             </Button>
             <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -146,3 +153,4 @@ export function LoginDialog() {
     </Dialog>
   );
 }
+

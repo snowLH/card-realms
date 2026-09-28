@@ -7,7 +7,14 @@ export const OPENING_HAND_SIZE = 5 as const;
 export const DRAW_PER_TURN = 2 as const;
 export const ATTACHMENTS_PER_TURN = 2 as const;
 
-export type Team<T> = [T, T, T, T, T, T];
+export type Team<T> = T[];
+
+export type BattleReward = {
+  coins: number;
+  xp: number;
+  creatureId: string | null;
+  replayed?: boolean;
+};
 
 export type EnergyCard = {
   id: string;
@@ -102,3 +109,4 @@ export type BattleActionResult = {
 };
 
 export type RandomSource = () => number;
+

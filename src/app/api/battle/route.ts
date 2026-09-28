@@ -11,13 +11,17 @@ import {
   resolveAttack,
   switchActiveCreature,
 } from "@/game/engine";
-import { type BattleActionResult, type BattleState } from "@/game/types";
+import { RemotePlayerSnapshotSchema } from "@/game/player";
+import { type BattleActionResult, type BattleReward, type BattleState } from "@/game/types";
 import {
   assertTokenUnused,
   consumeToken,
   signBattleState,
   verifyBattleState,
 } from "@/lib/game-token";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,13 +54,63 @@ const requestSchema = z.discriminatedUnion("action", [
   }),
 ]);
 
-function response(state: BattleState, events = state.log.slice(-1)) {
+const BattleRewardSchema = z.object({
+  coins: z.number().int().nonnegative(),
+  xp: z.number().int().nonnegative(),
+  creatureId: z.string().nullable().default(null),
+  replayed: z.boolean().optional(),
+});
+
+function response(
+  state: BattleState,
+  events = state.log.slice(-1),
+  reward?: BattleReward,
+) {
   return NextResponse.json({
     state,
     events,
     token: signBattleState(state),
+    reward,
     authority: "server",
   });
+}
+
+async function authenticatedPlayerId() {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  return !error && typeof data?.claims?.sub === "string" ? data.claims.sub : null;
+}
+
+async function loadAuthenticatedTeam() {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = await createClient();
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  if (claimsError || typeof claimsData?.claims?.sub !== "string") return null;
+  const { data, error } = await supabase.rpc("get_my_player_snapshot");
+  if (error) throw new Error("Não foi possível carregar sua equipe para a batalha.");
+  const snapshot = RemotePlayerSnapshotSchema.parse(data);
+  const team = snapshot.teams.find((candidate) => candidate.isActive);
+  return team?.members
+    .slice()
+    .sort((left, right) => left.slot - right.slot)
+    .map((member) => member.catalogId) ?? [];
+}
+
+async function claimStoryReward(battleId: string): Promise<BattleReward | undefined> {
+  const playerId = await authenticatedPlayerId();
+  if (!playerId) return undefined;
+  const parsedBattleId = z.string().uuid().parse(battleId);
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("claim_story_battle_reward", {
+    target_player_id: playerId,
+    target_battle_id: parsedBattleId,
+  });
+  if (error) {
+    console.error("Falha ao registrar recompensa da batalha.", error.code);
+    throw new Error("A vitória ocorreu, mas a recompensa não pôde ser registrada.");
+  }
+  return BattleRewardSchema.parse(data);
 }
 
 function performNpcTurn(state: BattleState, actionId: string): BattleActionResult {
@@ -113,7 +167,15 @@ export async function POST(request: Request) {
   try {
     const parsed = requestSchema.parse(await request.json());
     if (parsed.action === "start") {
-      const state = createDemoBattle(randomUUID());
+      const authenticatedTeam = await loadAuthenticatedTeam();
+      if (authenticatedTeam && authenticatedTeam.length === 0) {
+        throw new GameRuleError("Escolha sua primeira carta antes de entrar em combate.");
+      }
+      const state = createDemoBattle(
+        randomUUID(),
+        () => randomInt(0, 0x1000000) / 0x1000000,
+        authenticatedTeam ?? undefined,
+      );
       return response(state, state.log);
     }
 
@@ -166,8 +228,11 @@ export async function POST(request: Request) {
       result = { state: npcResult.state, events: [...result.events, ...npcResult.events] };
     }
 
+    const reward = result.state.status === "finished" && result.state.winnerId === "player-one"
+      ? await claimStoryReward(result.state.id)
+      : undefined;
     consumeToken(parsed.token);
-    return response(result.state, result.events);
+    return response(result.state, result.events, reward);
   } catch (error) {
     const message =
       error instanceof z.ZodError
@@ -179,3 +244,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status });
   }
 }
+
