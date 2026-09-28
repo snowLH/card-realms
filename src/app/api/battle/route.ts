@@ -3,16 +3,15 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
   GameRuleError,
-  acquireEnergy,
   attachEnergy,
-  chooseNpcMove,
   createDemoBattle,
-  getActive,
+  passTurn,
+  planNpcTurn,
   getSide,
   resolveAttack,
   switchActiveCreature,
 } from "@/game/engine";
-import { ELEMENTS, type BattleActionResult, type BattleState, type Element } from "@/game/types";
+import { type BattleActionResult, type BattleState } from "@/game/types";
 import {
   assertTokenUnused,
   consumeToken,
@@ -26,17 +25,11 @@ export const dynamic = "force-dynamic";
 const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start") }),
   z.object({
-    action: z.literal("acquire"),
-    token: z.string().min(20),
-    actionId: z.string().min(4).max(100),
-    choices: z.array(z.enum(ELEMENTS)).min(1).max(2),
-  }),
-  z.object({
     action: z.literal("attach"),
     token: z.string().min(20),
     actionId: z.string().min(4).max(100),
     creatureIndex: z.number().int().min(0).max(5),
-    element: z.enum(ELEMENTS),
+    cardId: z.string().min(8).max(120),
   }),
   z.object({
     action: z.literal("switch"),
@@ -51,7 +44,7 @@ const requestSchema = z.discriminatedUnion("action", [
     attackId: z.string().min(3).max(100),
   }),
   z.object({
-    action: z.literal("npc"),
+    action: z.literal("pass"),
     token: z.string().min(20),
     actionId: z.string().min(4).max(100),
   }),
@@ -67,42 +60,43 @@ function response(state: BattleState, events = state.log.slice(-1)) {
 }
 
 function performNpcTurn(state: BattleState, actionId: string): BattleActionResult {
-  const side = getSide(state, state.currentSideId);
+  const side = getSide(state, state.turn.sideId);
   if (side.kind !== "npc") throw new GameRuleError("Não é o turno do oponente.");
 
   let working = state;
   const events: BattleActionResult["events"] = [];
-  let move = chooseNpcMove(working, side.id);
-
-  if (!move.attack && side.acquiredThisTurn < 2) {
-    const desired = move.energyToAttach ?? "nature";
-    if (side.energyReserve[desired] > 0) {
-      const acquired = acquireEnergy(working, side.id, [desired], `${actionId}:acquire`);
-      working = acquired.state;
-      events.push(...acquired.events);
-    }
+  let plan = planNpcTurn(working, side.id);
+  if (plan.forcedSwitchIndex !== undefined) {
+    const switched = switchActiveCreature(
+      working,
+      side.id,
+      plan.forcedSwitchIndex,
+      `${actionId}:forced-switch`,
+    );
+    working = switched.state;
+    events.push(...switched.events);
+    plan = planNpcTurn(working, side.id);
   }
 
-  move = chooseNpcMove(working, side.id);
-  if (move.energyToAttach) {
+  for (const [index, attachment] of plan.attachments.entries()) {
     const attached = attachEnergy(
       working,
       side.id,
-      getSide(working, side.id).activeIndex,
-      move.energyToAttach,
-      `${actionId}:attach`,
+      attachment.creatureIndex,
+      attachment.cardId,
+      `${actionId}:attach:${index}`,
     );
     working = attached.state;
     events.push(...attached.events);
   }
 
-  move = chooseNpcMove(working, side.id);
-  if (move.attack) {
+  if (plan.attackId) {
     const attacked = resolveAttack(
       working,
       side.id,
-      move.attack.id,
+      plan.attackId,
       randomInt(1, 7),
+      randomInt(1, 101),
       `${actionId}:attack`,
     );
     working = attacked.state;
@@ -110,23 +104,9 @@ function performNpcTurn(state: BattleState, actionId: string): BattleActionResul
     return { state: working, events };
   }
 
-  // With a full seven-element opening pool, this path only occurs after an
-  // unusually long battle. Attach another matching card before retrying.
-  const active = getActive(getSide(working, side.id));
-  const fallback = chooseNpcMove(working, side.id).energyToAttach;
-  if (fallback && getSide(working, side.id).attachmentsThisTurn < 2) {
-    const attached = attachEnergy(
-      working,
-      side.id,
-      getSide(working, side.id).activeIndex,
-      fallback,
-      `${actionId}:attach-fallback`,
-    );
-    working = attached.state;
-    events.push(...attached.events);
-  }
-  const definition = active.catalogId;
-  throw new GameRuleError(`Oponente não encontrou uma ação válida para ${definition}.`);
+  const passed = passTurn(working, side.id, `${actionId}:pass`);
+  events.push(...passed.events);
+  return { state: passed.state, events };
 }
 
 export async function POST(request: Request) {
@@ -139,30 +119,26 @@ export async function POST(request: Request) {
 
     assertTokenUnused(parsed.token);
     const state = verifyBattleState(parsed.token);
+    const actor = getSide(state, state.turn.sideId);
+    if (actor.kind !== "player") {
+      throw new GameRuleError("O estado recebido não está aguardando uma ação do jogador.");
+    }
     let result: BattleActionResult;
 
     switch (parsed.action) {
-      case "acquire":
-        result = acquireEnergy(
-          state,
-          state.currentSideId,
-          parsed.choices as Element[],
-          parsed.actionId,
-        );
-        break;
       case "attach":
         result = attachEnergy(
           state,
-          state.currentSideId,
+          state.turn.sideId,
           parsed.creatureIndex,
-          parsed.element,
+          parsed.cardId,
           parsed.actionId,
         );
         break;
       case "switch":
         result = switchActiveCreature(
           state,
-          state.currentSideId,
+          state.turn.sideId,
           parsed.creatureIndex,
           parsed.actionId,
         );
@@ -170,15 +146,24 @@ export async function POST(request: Request) {
       case "attack":
         result = resolveAttack(
           state,
-          state.currentSideId,
+          state.turn.sideId,
           parsed.attackId,
           randomInt(1, 7),
+          randomInt(1, 101),
           parsed.actionId,
         );
         break;
-      case "npc":
-        result = performNpcTurn(state, parsed.actionId);
+      case "pass":
+        result = passTurn(state, state.turn.sideId, parsed.actionId);
         break;
+    }
+
+    if (
+      result.state.status === "active" &&
+      getSide(result.state, result.state.turn.sideId).kind === "npc"
+    ) {
+      const npcResult = performNpcTurn(result.state, `${parsed.actionId}:npc`);
+      result = { state: npcResult.state, events: [...result.events, ...npcResult.events] };
     }
 
     consumeToken(parsed.token);

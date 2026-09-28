@@ -1,15 +1,13 @@
 import "server-only";
 
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import type { BattleState } from "@/game/types";
 
 type TokenPayload = {
-  version: 1;
+  version: 2;
   expiresAt: number;
   state: BattleState;
 };
-
-const encoder = new TextEncoder();
 
 function secret() {
   const configured = process.env.GAME_ACTION_SECRET;
@@ -20,57 +18,58 @@ function secret() {
   throw new Error("GAME_ACTION_SECRET não configurado.");
 }
 
-function toBase64Url(value: string) {
-  return Buffer.from(value, "utf8").toString("base64url");
-}
-
-function fromBase64Url(value: string) {
-  return Buffer.from(value, "base64url").toString("utf8");
-}
-
-function signature(payload: string) {
-  return createHmac("sha256", secret()).update(payload).digest("base64url");
+function encryptionKey() {
+  return createHash("sha256").update(secret(), "utf8").digest();
 }
 
 export function signBattleState(state: BattleState) {
   const payload: TokenPayload = {
-    version: 1,
+    version: 2,
     expiresAt: Date.now() + 1000 * 60 * 60 * 12,
     state,
   };
-  const encoded = toBase64Url(JSON.stringify(payload));
-  return `${encoded}.${signature(encoded)}`;
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
+  const encrypted = Buffer.concat([
+    cipher.update(JSON.stringify(payload), "utf8"),
+    cipher.final(),
+  ]);
+  const tag = cipher.getAuthTag();
+  return `v2.${iv.toString("base64url")}.${encrypted.toString("base64url")}.${tag.toString("base64url")}`;
 }
 
 export function verifyBattleState(token: string): BattleState {
-  const [encoded, supplied] = token.split(".");
-  if (!encoded || !supplied) throw new Error("Estado de batalha inválido.");
-  const expected = signature(encoded);
-  const suppliedBytes = encoder.encode(supplied);
-  const expectedBytes = encoder.encode(expected);
-  if (
-    suppliedBytes.byteLength !== expectedBytes.byteLength ||
-    !timingSafeEqual(suppliedBytes, expectedBytes)
-  ) {
-    throw new Error("A assinatura da batalha não é válida.");
+  try {
+    const [version, encodedIv, encodedPayload, encodedTag] = token.split(".");
+    if (version !== "v2" || !encodedIv || !encodedPayload || !encodedTag) {
+      throw new Error("Formato inválido.");
+    }
+    const decipher = createDecipheriv(
+      "aes-256-gcm",
+      encryptionKey(),
+      Buffer.from(encodedIv, "base64url"),
+    );
+    decipher.setAuthTag(Buffer.from(encodedTag, "base64url"));
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(encodedPayload, "base64url")),
+      decipher.final(),
+    ]).toString("utf8");
+    const payload = JSON.parse(decrypted) as TokenPayload;
+    if (payload.version !== 2 || payload.expiresAt < Date.now() || payload.state.version !== 2) {
+      throw new Error("Versão ou validade incorreta.");
+    }
+    return payload.state;
+  } catch {
+    throw new Error("A sessão de batalha é inválida ou expirou.");
   }
-  const payload = JSON.parse(fromBase64Url(encoded)) as TokenPayload;
-  if (payload.version !== 1 || payload.expiresAt < Date.now()) {
-    throw new Error("A sessão de batalha expirou.");
-  }
-  return payload.state;
 }
 
 declare global {
   var __cardRealmsConsumedTokens: Set<string> | undefined;
 }
 
-const consumedTokens =
-  globalThis.__cardRealmsConsumedTokens ?? new Set<string>();
-
-if (process.env.NODE_ENV !== "production") {
-  globalThis.__cardRealmsConsumedTokens = consumedTokens;
-}
+const consumedTokens = globalThis.__cardRealmsConsumedTokens ?? new Set<string>();
+globalThis.__cardRealmsConsumedTokens = consumedTokens;
 
 function tokenHash(token: string) {
   return createHash("sha256").update(token).digest("hex");
