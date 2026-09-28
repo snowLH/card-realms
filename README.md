@@ -27,7 +27,7 @@ RPG 2D de cartas colecionáveis para navegador, mobile-first, baseado em criatur
 
 O modo visitante continua usando o save local v2. Quando há conta e schema compatível, Supabase passa a ser a fonte de verdade e o armazenamento do navegador vira apenas cache de emergência. Sem credenciais válidas, o jogo informa o fallback em vez de simular sincronização.
 
-O PVP ainda **não está homologado como concluído**: as migrations precisam ser aplicadas em um projeto Supabase e o fluxo completo precisa passar em duas sessões autenticadas reais. Missões jogáveis completas, captura, editor do refúgio e o catálogo de 400+ criaturas continuam como marcos posteriores. A prevenção de replay da batalha demonstrativa contra NPC ainda é local ao processo e não é usada pelo PVP persistente.
+O PVP foi homologado em 27 de setembro de 2026 contra um Supabase real de staging, com duas contas autenticadas e duas sessões independentes: amizade, desafio, aceite, batalha, Realtime, polling, reconexão, término, privacidade, anti-replay e persistência passaram. Missões jogáveis completas, captura, editor do refúgio e o catálogo de 400+ criaturas continuam como marcos posteriores. A prevenção de replay da batalha demonstrativa contra NPC ainda é local ao processo e não é usada pelo PVP persistente.
 
 ## Executar localmente
 
@@ -56,7 +56,7 @@ npm run build
 3. Habilite os provedores desejados e cadastre `http://localhost:3000/auth/callback` no ambiente local.
 4. Em produção, use o domínio real nos redirects e mantenha `SUPABASE_SECRET_KEY` exclusivamente no servidor.
 
-As migrations movem helpers `SECURITY DEFINER` para um schema não exposto, substituem o enum antigo pelos cinco elementos, sincronizam o catálogo inicial, criam o progresso remoto e adicionam a fronteira PVP autoritativa. Aplicar a migration não substitui a homologação de RLS e duas contas em staging.
+As migrations movem helpers `SECURITY DEFINER` para um schema não exposto, substituem o enum antigo pelos cinco elementos, sincronizam o catálogo inicial, criam o progresso remoto e adicionam a fronteira PVP autoritativa. O roteiro reproduzível e a evidência da homologação estão em `docs/SUPABASE_STAGING.md` e `docs/STATUS.md`.
 
 ## Arquitetura
 
@@ -76,9 +76,10 @@ As migrations movem helpers `SECURITY DEFINER` para um schema não exposto, subs
 - `docs/ARCHITECTURE.md`: limites, invariantes e caminho de expansão.
 - `docs/SUPABASE_STAGING.md`: criação do staging, migrations, secrets e roteiro de homologação A/B.
 
-## Publicação existente
+## Publicação
 
-- Protótipo anterior: https://card-realms.vercel.app
+- Produção existente: https://card-realms.vercel.app
+- Preview de staging: https://card-realms-git-staging-snow-lh-s-projects.vercel.app
 - Repositório de origem: https://github.com/snowLH/card-realms
 
-Esses endereços representam o estado anterior; esta árvore local contém a refatoração ainda não publicada.
+O Preview deve usar somente o Supabase de staging. Produção permanece isolada e só recebe esta versão depois que seu banco tiver as mesmas migrations e variáveis próprias validadas.

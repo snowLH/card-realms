@@ -223,5 +223,7 @@ select results_eq(
   'A cannot read B private profile row directly'
 );
 
-select * from finish();
+-- Raise when any assertion fails so direct remote execution and pg_prove both
+-- produce a non-zero result instead of relying only on TAP text parsing.
+select * from finish(true);
 rollback;

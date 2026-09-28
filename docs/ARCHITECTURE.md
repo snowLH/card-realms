@@ -72,7 +72,7 @@ O JSON integral da batalha precisa existir no Postgres para reconexão e commits
 
 Realtime é sinalização, não transporte de estado. O payload de `battle_events` contém somente evento público com ID opaco; a tela sempre reconcilia pelo endpoint HTTP. Postgres Changes foi removido da publication para essa tabela, evitando uma segunda superfície de leitura concorrente ao Broadcast privado.
 
-Essa arquitetura está implementada, mas não homologada: ainda requer migration aplicada e um teste real com duas contas/sessões.
+Essa arquitetura foi homologada em staging em 27 de setembro de 2026: seis migrations aplicadas, duas contas em sessões independentes, duas batalhas completas, reconexão, Realtime, polling, privacidade e idempotência validados contra o Supabase real.
 
 ## Topologia de ambientes e propriedade
 
@@ -81,6 +81,16 @@ Essa arquitetura está implementada, mas não homologada: ainda requer migration
 - `henrysoldan@gmail.com` participa da organização de destino somente pelo tempo necessário à transferência e à passagem de controle; depois deve ser removido ou rebaixado.
 - O projeto antigo chamado `cryohive` pertence a outro produto e não é recurso, fallback ou capacidade de staging do Folklard. A semelhança com o nome da conta `cryohive11` não altera essa separação.
 - Toda mudança de schema segue `staging -> migrations -> testes reais -> homologação -> produção`.
-- O projeto Supabase de staging `ywawwhnsvpfeppfcuwzg` acompanha a branch GitHub dedicada `staging`. A branch `main` não é usada para aplicar migrations de homologação, porque ela também promove o deploy público do Vercel.
-- Vercel Production continua apontando para produção; Preview deve receber as credenciais de staging somente depois que o novo projeto isolado existir. As variáveis públicas e secretas não podem misturar referências entre ambientes.
+- O projeto Supabase de staging `ywawwhnsvpfeppfcuwzg` usa a branch GitHub dedicada `staging`, mas migrations são aplicadas e auditadas explicitamente pela CLI; a integração GitHub não é fonte de verdade para o histórico do schema.
+- Vercel Production continua apontando para produção; Preview recebe credenciais de staging em escopo separado. As variáveis públicas e secretas não podem misturar referências entre ambientes.
 - A transferência de organização não é migração regional e não deve alterar a project ref. Mesmo assim, URLs, providers, chaves, RLS, Realtime e deploy são revalidados após o movimento antes de qualquer evolução funcional.
+
+## Harness de homologação
+
+- `supabase/tests/001_online_foundation.test.sql`: 29 asserções estruturais e negativas para schema, grants e RLS.
+- `scripts/staging-realtime-probe.mjs`: assinatura válida, negação de tópico alheio e ausência de publicação por cliente.
+- `scripts/staging-polling-probe.mjs`: recuperação por consulta periódica quando o evento não é consumido.
+- `scripts/staging-idempotency-probe.mjs`: repetição sequencial e concorrente da recompensa de tesouro.
+- `scripts/staging-pvp-finish.mjs`: avanço controlado de uma batalha autenticada até o resultado persistido.
+
+Os scripts usam contas descartáveis e variáveis apenas do ambiente; nenhum segredo pertence ao código, à migration ou ao DTO do cliente.

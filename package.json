@@ -10,7 +10,11 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:staging:realtime": "node scripts/staging-realtime-probe.mjs",
+    "test:staging:polling": "node scripts/staging-polling-probe.mjs",
+    "test:staging:pvp-finish": "node scripts/staging-pvp-finish.mjs",
+    "test:staging:idempotency": "node scripts/staging-idempotency-probe.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

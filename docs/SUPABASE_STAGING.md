@@ -2,13 +2,13 @@
 
 Este documento é o roteiro operacional da homologação. Nenhuma etapa deve ser marcada PASS por inspeção de código; PASS exige execução contra um projeto Supabase isolado e duas contas autenticadas em duas sessões independentes.
 
-## Bloqueio atual
+## Ambiente homologado
 
-Em 27 de setembro de 2026, a estratégia foi corrigida: o projeto antigo chamado `cryohive` está fora de escopo e não pode ser alterado. A conta de destino é `cryohive11@gmail.com`, Owner da organização Free `cryo` (`vdxeeviukkxoztfvmaoe`). O projeto já criado `Card Realms` (`ywawwhnsvpfeppfcuwzg`) será usado como staging.
+Em 27 de setembro de 2026, o projeto antigo chamado `cryohive` permaneceu fora de escopo. A conta de destino é `cryohive11@gmail.com`, Owner da organização Free `cryo` (`vdxeeviukkxoztfvmaoe`). O projeto `Card Realms` (`ywawwhnsvpfeppfcuwzg`) foi homologado como staging.
 
-O staging está em `us-east-1`, conectado ao repositório `snowLH/card-realms`, e foi verificado vazio: nenhuma tabela pública, usuário, bucket ou migration remota. A diferença para a região de produção (`sa-east-1`) deve permanecer registrada como limitação de paridade de latência; ela não autoriza reutilizar o projeto `cryohive` nem executar testes em produção.
+O staging está em `us-east-1` e conectado ao repositório `snowLH/card-realms`. Ele começou vazio e recebeu somente as seis migrations versionadas desta fundação. A diferença para a região de produção (`sa-east-1`) permanece como limitação de paridade de latência; ela não autoriza reutilizar o projeto `cryohive` nem executar testes em produção.
 
-A integração GitHub desse projeto aponta para a branch dedicada `staging`, criada a partir do estado atual de `main`. A fundação online deve entrar nela por um PR separado. Isso permite que o Supabase aplique migrations no projeto de staging sem mesclar o mesmo código em `main` e sem promover o deploy público do Vercel antes da homologação.
+A branch dedicada `staging` continua separada de `main`. Na homologação, a integração GitHub não aplicou o schema de forma confiável; por isso as migrations foram aplicadas pela CLI oficial, vinculada explicitamente ao project ref de staging, e verificadas pelo histórico remoto. A branch `main` não foi usada para aplicar schema nem promover produção.
 
 O inventário e o procedimento de transferência estão em `docs/SUPABASE_TRANSFER.md`. O Owner da origem ainda não é membro de `cryo`, e o backup lógico restarável da produção continua bloqueado pela ausência da senha do banco. Produção não receberá migrations ou testes enquanto esses pré-requisitos não forem resolvidos.
 
@@ -36,15 +36,15 @@ No painel do Supabase:
 
 ## Aplicar migrations
 
-Fluxo preferencial deste staging:
+Fluxo reproduzível deste staging:
 
-1. manter `staging` como **Production branch name** apenas no projeto Supabase `ywawwhnsvpfeppfcuwzg`;
-2. abrir PR de `codex/recover-online-foundation` para `staging`;
-3. confirmar que os checks do PR passaram;
-4. mesclar esse PR e acompanhar o deploy da integração Supabase;
-5. conferir no painel que as seis migrations foram registradas antes de iniciar as contas A/B.
+1. autenticar a CLI na conta que controla `cryo`;
+2. executar `supabase link --project-ref ywawwhnsvpfeppfcuwzg` e conferir o ref antes de qualquer DDL;
+3. revisar `supabase migration list` e aplicar `supabase db push`;
+4. confirmar as seis versões no histórico remoto;
+5. executar lint, advisors e pgTAP antes de criar as contas A/B.
 
-O PR separado para `main` não deve ser mesclado durante esta etapa. Ele permanece como revisão da futura promoção, depois da matriz real de staging.
+O PR separado para `main` só deve ser mesclado quando o banco e as variáveis do ambiente público estiverem prontos. Preview usa staging; Production não deve receber URL ou chave do staging.
 
 As migrations devem ser aplicadas, sem saltos, pela ordem lexical em `supabase/migrations/`:
 
@@ -62,7 +62,7 @@ supabase link --project-ref ywawwhnsvpfeppfcuwzg
 supabase migration list
 supabase db push
 supabase migration list
-supabase db lint --linked --level warning
+supabase db lint --linked --schema public,private --level warning --fail-on error
 ```
 
 Antes do push, confirme que o projeto vinculado é o staging. DDL deve entrar por migration; não copie trechos isolados para “fazer passar”. Depois do push, gere os tipos do projeto e compare-os com os contratos TypeScript.
@@ -75,7 +75,7 @@ supabase db reset
 supabase test db
 ```
 
-`supabase/tests/001_online_foundation.test.sql` contém 29 asserções para schema, índices, RLS, grants, amizade, equipes, desafios e negação de leitura das tabelas autoritativas. O teste local não substitui as sondagens do staging.
+`supabase/tests/001_online_foundation.test.sql` contém 29 asserções para schema, índices, RLS, grants, amizade, equipes, desafios e negação de leitura das tabelas autoritativas. Sem Docker local, a homologação executou o mesmo arquivo por conexão remota dentro de uma transação com rollback; 29/29 passaram.
 
 ## Auditoria após migration
 
@@ -164,3 +164,31 @@ npm run build
 ```
 
 Somente altere uma linha de FAIL para PASS depois da evidência real correspondente. O PVP só pode ser declarado concluído quando Conta A e Conta B terminarem o fluxo completo em sessões independentes contra o staging real.
+
+## Resultado executado em 27 de setembro de 2026
+
+A matriz completa está em `docs/STATUS.md`. O teste real usou duas contas autenticadas e dois contextos de navegador isolados. Foram concluídas duas batalhas, incluindo troca voluntária, troca forçada, energia gasta, falha no dado, crítico, status, término e persistência após novo login.
+
+Durante a execução foi encontrado um erro real da interface: o `actionId` era enviado como `pass-<uuid>`, embora o contrato estrito aceitasse apenas UUID. A UI passou a usar `crypto.randomUUID()` puro em todas as ações e o fluxo foi repetido com sucesso.
+
+Sondagens reproduzíveis adicionadas ao repositório:
+
+```bash
+npm run test:staging:realtime
+npm run test:staging:polling
+npm run test:staging:idempotency
+npm run test:staging:pvp-finish
+```
+
+Esses comandos exigem variáveis de staging e contas descartáveis. Credenciais, access tokens, refresh tokens e chaves secretas nunca devem ser gravados no repositório ou copiados para relatórios.
+
+Resultados observados:
+
+- tópico Realtime do participante: `SUBSCRIBED`; tópico de batalha alheia: `CHANNEL_ERROR`;
+- polling deliberado: versão 1 avançou para 2 sem depender do evento;
+- reconexão: sessão A saiu na versão 8 e voltou na versão 10 sem reinício;
+- primeiro duelo: versão final 218, turno 83, oito falhas, quatro críticos, sete status e três trocas forçadas;
+- segundo duelo: versão final 227, turno 86, dez falhas, dois críticos, seis status e duas trocas forçadas;
+- tesouro repetido sequencial e concorrentemente: uma única recompensa e uma única linha de ledger;
+- leitura direta das tabelas autoritativas e chamada de RPC privilegiada por cliente autenticado: negadas;
+- replay idêntico: resultado anterior sem novo dano/turno; replay divergente: rejeitado.

@@ -39,8 +39,8 @@ type PvpSession = {
   playerId: string;
 };
 
-function actionId(prefix: string) {
-  return `${prefix}-${crypto.randomUUID()}`;
+function actionId() {
+  return crypto.randomUUID();
 }
 
 async function callBattleApi(body: Record<string, unknown>): Promise<BattleResponse> {
@@ -386,7 +386,7 @@ export function BattleArena({
                   void perform({
                     action: "switch",
                     creatureIndex: pendingSwitchIndex,
-                    actionId: actionId("switch"),
+                    actionId: actionId(),
                   })
                 }
               >
@@ -427,7 +427,7 @@ export function BattleArena({
                     <button
                       type="button"
                       disabled={!mainPhase || busy || data.player.attachmentsRemaining < 1}
-                      onClick={() => void perform({ action: "attach", creatureIndex: data.player.activeIndex, cardId: card.id, actionId: actionId("attach") })}
+                      onClick={() => void perform({ action: "attach", creatureIndex: data.player.activeIndex, cardId: card.id, actionId: actionId() })}
                     >
                       Anexar à ativa
                     </button>
@@ -456,7 +456,7 @@ export function BattleArena({
                   type="button"
                   className="attack-button"
                   disabled={!mainPhase || busy || !affordable || data.playerActive.defeated}
-                  onClick={() => void perform({ action: "attack", attackId: attack.id, actionId: actionId("attack") }, true)}
+                  onClick={() => void perform({ action: "attack", attackId: attack.id, actionId: actionId() }, true)}
                 >
                   <span className="attack-button__icon"><Swords /></span>
                   <span>
@@ -477,7 +477,7 @@ export function BattleArena({
               type="button"
               variant="ghost"
               disabled={!mainPhase || busy}
-              onClick={() => void perform({ action: "pass", actionId: actionId("pass") })}
+              onClick={() => void perform({ action: "pass", actionId: actionId() })}
             >
               <SkipForward /> Encerrar turno sem atacar
             </Button>
