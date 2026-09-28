@@ -10,6 +10,10 @@ export const dynamic = "force-dynamic";
 const mutationSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("travel"), regionId: z.string().min(1).max(80) }),
   z.object({ action: z.literal("claim_treasure"), regionId: z.string().min(1).max(80) }),
+  z.object({
+    action: z.literal("choose_starter"),
+    creatureId: z.enum(["boitata", "iara", "curupira"]),
+  }),
   z.object({ action: z.literal("activate_team"), teamId: z.string().uuid() }),
 ]);
 
@@ -55,7 +59,9 @@ export async function PATCH(request: Request) {
       ? auth.supabase.rpc("travel_to_region", { target_region_id: payload.regionId })
       : payload.action === "claim_treasure"
         ? auth.supabase.rpc("claim_region_treasure", { target_region_id: payload.regionId })
-        : auth.supabase.rpc("activate_team", { target_team_id: payload.teamId });
+        : payload.action === "choose_starter"
+          ? auth.supabase.rpc("choose_starter_card", { target_creature_id: payload.creatureId })
+          : auth.supabase.rpc("activate_team", { target_team_id: payload.teamId });
     const { data, error } = await rpc;
     if (error) {
       const conflict = error.code === "23505" || error.code === "22023";
@@ -76,3 +82,4 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
