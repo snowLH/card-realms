@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
+import "./game-ui.css";
 
 export const metadata: Metadata = {
   title: "Card Realms — Mundo dos Colecionadores",
@@ -24,8 +25,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
-  themeColor: "#08111f",
-  colorScheme: "dark",
+  themeColor: "#edf2f8",
+  colorScheme: "light",
 };
 
 export default function RootLayout({
@@ -34,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${GeistSans.variable} ${GeistMono.variable} dark`}
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
     >
       <body>{children}</body>
     </html>

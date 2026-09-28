@@ -4,15 +4,15 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-bold transition disabled:pointer-events-none disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-px [&_svg]:size-4",
+  "inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-extrabold transition disabled:pointer-events-none disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-px [&_svg]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-[0_0_24px_rgba(78,228,188,.2)] hover:bg-primary/90",
-        secondary: "border border-border bg-secondary text-secondary-foreground hover:bg-accent",
+        default: "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
+        secondary: "border border-border bg-secondary text-secondary-foreground shadow-sm hover:bg-accent",
         ghost: "text-muted-foreground hover:bg-accent hover:text-foreground",
         danger: "bg-destructive text-white hover:bg-destructive/90",
-        game: "border border-amber-300/45 bg-amber-300 text-slate-950 shadow-[0_4px_0_#8a5d10] hover:bg-amber-200 active:translate-y-1 active:shadow-none",
+        game: "border border-blue-700 bg-blue-600 text-white shadow-sm hover:bg-blue-700",
       },
       size: {
         default: "h-11",

@@ -2,19 +2,16 @@
 
 import {
   Album,
-  Bell,
-  CalendarDays,
   Coins,
   Home,
+  LayoutDashboard,
   Layers3,
   Map,
-  Menu,
   ScrollText,
   ShieldCheck,
   Swords,
   Trophy,
   UserRound,
-  X,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -26,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Badge } from "@/components/ui/badge";
 import { CollectionView } from "./collection-view";
+import { HubView } from "./hub-view";
 import { RefugeView } from "./refuge-view";
 import { PvpView } from "./pvp-view";
 import { TeamView } from "./team-view";
@@ -43,9 +41,10 @@ const BattleArena = dynamic(
   },
 );
 
-type View = "map" | "collection" | "team" | "refuge" | "pvp" | "profile";
+type View = "hub" | "map" | "collection" | "team" | "refuge" | "pvp" | "profile";
 
 const navigation = [
+  { id: "hub", label: "Início", icon: LayoutDashboard },
   { id: "map", label: "Mapa", icon: Map },
   { id: "collection", label: "Coleção", icon: Album },
   { id: "team", label: "Equipe", icon: Layers3 },
@@ -53,6 +52,10 @@ const navigation = [
   { id: "pvp", label: "Duelos", icon: Swords },
   { id: "profile", label: "Perfil", icon: UserRound },
 ] satisfies Array<{ id: View; label: string; icon: typeof Map }>;
+
+const mobileNavigation = navigation.filter((item) =>
+  ["hub", "collection", "team", "pvp", "profile"].includes(item.id),
+);
 
 async function mutateRemoteProgress(body: Record<string, unknown>) {
   const response = await fetch("/api/player/progress", {
@@ -67,7 +70,7 @@ async function mutateRemoteProgress(body: Record<string, unknown>) {
 
 export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   const remoteSnapshot = bootstrap.snapshot;
-  const [view, setView] = useState<View>("map");
+  const [view, setView] = useState<View>("hub");
   const initialRegion = REGIONS.find(
     (region) => region.id === remoteSnapshot?.world.currentRegionId,
   ) ?? REGIONS[0];
@@ -75,7 +78,6 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   const [playerRegionId, setPlayerRegionId] = useState(initialRegion.id);
   const [battleOpen, setBattleOpen] = useState(false);
   const [pvpBattleId, setPvpBattleId] = useState<string | null>(null);
-  const [mobileMenu, setMobileMenu] = useState(false);
   const [coins, setCoins] = useState(remoteSnapshot?.profile.coins ?? 840);
   const [xp, setXp] = useState(remoteSnapshot?.profile.xp ?? 1240);
   const [toast, setToast] = useState<string | null>(null);
@@ -126,7 +128,6 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
 
   const navigate = (next: View) => {
     setView(next);
-    setMobileMenu(false);
   };
 
   const handleBattle = () => {
@@ -196,6 +197,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     .sort((left, right) => left.slot - right.slot)
     .map((member) => member.catalogId);
   const ownedCatalogIds = remoteSnapshot?.collection.map((creature) => creature.catalogId);
+  const currentRegion = REGIONS.find((region) => region.id === playerRegionId) ?? REGIONS[0];
   const pvpSession = useMemo(() => (
     pvpBattleId && bootstrap.identity
       ? { battleId: pvpBattleId, playerId: bootstrap.identity.id }
@@ -205,10 +207,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   return (
     <main className="game-app">
       <header className="app-header">
-        <button type="button" className="menu-toggle" onClick={() => setMobileMenu((current) => !current)} aria-label="Abrir menu">
-          {mobileMenu ? <X /> : <Menu />}
-        </button>
-        <button type="button" className="brand" onClick={() => navigate("map")}>
+        <button type="button" className="brand" onClick={() => navigate("hub")}>
           <span className="brand__mark">CR</span>
           <span><strong>Card Realms</strong><small>Atlas de Aurória</small></span>
         </button>
@@ -217,13 +216,11 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
           <span><ShieldCheck /> Nv. 7</span>
         </div>
         <div className="header-actions">
-          <button type="button" aria-label="Eventos — em desenvolvimento" title="Eventos em desenvolvimento" disabled><CalendarDays /></button>
-          <button type="button" aria-label="Notificações — em desenvolvimento" title="Notificações em desenvolvimento" disabled><Bell /></button>
           <LoginDialog />
         </div>
       </header>
 
-      <aside className={cn("side-nav", mobileMenu && "side-nav--open")}>
+      <aside className="side-nav">
         <nav>
           {navigation.map((item) => {
             const Icon = item.icon;
@@ -251,6 +248,25 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       </aside>
 
       <div className="app-content">
+        {view === "hub" ? (
+          <HubView
+            playerName={remoteSnapshot?.profile.displayName ?? bootstrap.identity?.email?.split("@")[0] ?? "Explorador"}
+            level={remoteSnapshot?.profile.level ?? 7}
+            coins={coins}
+            xp={xp}
+            collectionCount={ownedCatalogIds?.length ?? CREATURES.length}
+            teamReady={activeTeamIds?.length === 6}
+            currentRegion={currentRegion}
+            source={bootstrap.source}
+            treasureClaimed={openedTreasures.includes(playerRegionId)}
+            onContinue={() => navigate("map")}
+            onOpenCollection={() => navigate("collection")}
+            onOpenTeam={() => navigate("team")}
+            onOpenRefuge={() => navigate("refuge")}
+            onOpenPvp={() => navigate("pvp")}
+            onClaimTreasure={() => void handleTreasure(currentRegion)}
+          />
+        ) : null}
         {view === "map" ? (
           <WorldMap
             selected={selectedRegion}
@@ -271,7 +287,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       </div>
 
       <nav className="mobile-nav" aria-label="Navegação principal">
-        {navigation.map((item) => {
+        {mobileNavigation.map((item) => {
           const Icon = item.icon;
           return (
             <button key={item.id} type="button" className={cn(view === item.id && "is-active")} onClick={() => navigate(item.id)}>
