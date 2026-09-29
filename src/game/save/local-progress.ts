@@ -53,15 +53,15 @@ export type LocalProgress = z.infer<typeof LocalProgressSchema>;
 
 export const DEFAULT_LOCAL_PROGRESS: LocalProgress = {
   version: 4,
-  coins: 840,
-  xp: 1240,
+  coins: 500,
+  xp: 0,
   openedTreasures: [],
   playerRegionId: "roots",
   currentAreaId: "roots-gate",
   visitedAreaIds: ["roots-gate"],
   mapPositions: { roots: { x: 4, y: 20 } },
   energy: { fire: 12, water: 12, nature: 12, storm: 12, spirit: 12 },
-  equipmentIds: ["leather"],
+  equipmentIds: [],
   avatar: DEFAULT_AVATAR_CONFIG,
 };
 
@@ -69,15 +69,26 @@ function unique(values: string[]) {
   return [...new Set(values)];
 }
 
-export function loadLocalProgress(storage: Pick<Storage, "getItem">): LocalProgress {
+export function localProgressKey(accountId?: string | null) {
+  return accountId ? `${LOCAL_PROGRESS_KEY}:account:${accountId}` : LOCAL_PROGRESS_KEY;
+}
+
+export function loadLocalProgress(
+  storage: Pick<Storage, "getItem">,
+  accountId?: string | null,
+): LocalProgress {
   try {
-    const current = storage.getItem(LOCAL_PROGRESS_KEY);
+    const current = storage.getItem(localProgressKey(accountId));
     if (current) {
       const parsed = LocalProgressSchema.safeParse(JSON.parse(current));
       if (parsed.success) {
         return { ...parsed.data, openedTreasures: unique(parsed.data.openedTreasures) };
       }
     }
+
+    // An authenticated account never inherits the visitor save or another
+    // account's emergency cache. Supabase remains the source of truth.
+    if (accountId) return DEFAULT_LOCAL_PROGRESS;
 
     const legacy = storage.getItem(V3_PROGRESS_KEY)
       ?? storage.getItem(V2_PROGRESS_KEY)
@@ -94,7 +105,7 @@ export function loadLocalProgress(storage: Pick<Storage, "getItem">): LocalProgr
       visitedAreaIds: value.visitedAreaIds ?? ["roots-gate"],
       mapPositions: value.mapPositions ?? DEFAULT_LOCAL_PROGRESS.mapPositions,
       energy: value.energy ?? DEFAULT_LOCAL_PROGRESS.energy,
-      equipmentIds: value.equipmentIds ?? ["leather"],
+      equipmentIds: value.equipmentIds ?? DEFAULT_LOCAL_PROGRESS.equipmentIds,
       avatar: value.avatar ?? DEFAULT_AVATAR_CONFIG,
     });
     return { ...migrated, openedTreasures: unique(migrated.openedTreasures) };
@@ -106,6 +117,7 @@ export function loadLocalProgress(storage: Pick<Storage, "getItem">): LocalProgr
 export function saveLocalProgress(
   storage: Pick<Storage, "setItem">,
   progress: LocalProgress,
+  accountId?: string | null,
 ) {
   const validated = LocalProgressSchema.parse({
     ...progress,
@@ -113,5 +125,5 @@ export function saveLocalProgress(
     visitedAreaIds: unique(progress.visitedAreaIds),
     equipmentIds: unique(progress.equipmentIds),
   });
-  storage.setItem(LOCAL_PROGRESS_KEY, JSON.stringify(validated));
+  storage.setItem(localProgressKey(accountId), JSON.stringify(validated));
 }

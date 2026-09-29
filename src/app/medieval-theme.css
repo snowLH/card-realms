@@ -861,6 +861,35 @@ button.creature-card:hover:not(:disabled),
   font-family: var(--font-game);
 }
 
+.creature-card--unowned {
+  --element: #6e655a !important;
+  --element-glow: rgba(35, 27, 25, .18) !important;
+  min-height: 330px;
+  background: linear-gradient(#c2b28e, #8f7b61);
+  filter: saturate(.45);
+}
+
+.creature-card__header--unknown { color: #302724; }
+.creature-card__art--unknown {
+  display: grid;
+  min-height: 164px;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  color: #312624;
+}
+.creature-card__art--unknown svg { width: 38px; height: 38px; }
+.creature-card__art--unknown strong { font: 900 52px var(--font-game); }
+.creature-card__unknown-copy { min-height: auto !important; margin-top: 12px; text-align: center; }
+
+.bestiary-book__page--locked { display: grid; place-items: center; }
+.bestiary-book__page--locked .bestiary-book__folio { justify-self: stretch; }
+.bestiary-book__unknown { display: grid; place-items: center; gap: 14px; color: #5a4637; text-align: center; }
+.bestiary-book__unknown svg { width: 72px; height: 72px; }
+.bestiary-book__unknown strong { font: 900 18px var(--font-game); }
+.bestiary-book__unknown--lore strong { font-size: 42px; }
+.bestiary-book__unknown--lore p { max-width: 300px; color: #765d47; }
+
 .team-meta,
 .team-tip {
   color: #f5dfaf;
@@ -873,6 +902,29 @@ button.creature-card:hover:not(:disabled),
   color: #2b1712;
   box-shadow: inset 0 0 0 2px #ffe39a;
 }
+
+.team-slot--empty {
+  min-height: 310px;
+}
+
+.team-empty-slot {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  border: 4px dashed #76513a;
+  background:
+    repeating-linear-gradient(135deg, rgba(90, 55, 37, .08) 0 6px, transparent 6px 12px),
+    rgba(235, 210, 155, .16);
+  padding: 28px 16px;
+  color: #e7c889;
+  text-align: center;
+}
+
+.team-empty-slot svg { width: 34px; height: 34px; opacity: .72; }
+.team-empty-slot strong { font-family: var(--font-game); font-size: 12px; }
+.team-empty-slot small { max-width: 180px; color: #bda57c; line-height: 1.5; }
 
 /* Starter choice is an oversized guild ledger. */
 
@@ -1398,7 +1450,7 @@ button.creature-card:hover:not(:disabled),
   cursor: pointer;
   font-family: var(--font-geist-mono), monospace;
   filter: drop-shadow(3px 4px #12090b);
-  transition: left 1.4s steps(8, end), top 1.4s steps(8, end), filter .15s;
+  transition: filter .15s;
 }
 .local-area-marker:hover,
 .local-npc:hover,

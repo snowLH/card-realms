@@ -7,14 +7,13 @@ import { Button } from "@/components/ui/button";
 import { CreatureCard } from "./creature-card";
 
 export function TeamView({ teamIds, teamName }: { teamIds?: string[]; teamName?: string }) {
-  const remoteTeam = teamIds
+  const accountTeam = teamIds
     ?.map((id) => CREATURE_BY_ID.get(id))
     .filter((creature) => creature !== undefined);
-  const resolvedTeam = remoteTeam?.length === 6
-    ? remoteTeam
-    : STARTER_TEAM_IDS.map((id) => CREATURE_BY_ID.get(id)).filter(
+  const resolvedTeam = accountTeam ?? STARTER_TEAM_IDS.map((id) => CREATURE_BY_ID.get(id)).filter(
       (creature) => creature !== undefined,
     );
+  const slots = Array.from({ length: 6 }, (_, index) => resolvedTeam[index] ?? null);
   return (
     <section className="content-view team-view">
       <header className="view-heading">
@@ -34,7 +33,19 @@ export function TeamView({ teamIds, teamName }: { teamIds?: string[]; teamName?:
       </div>
 
       <div className="team-grid">
-        {resolvedTeam.map((creature, index) => {
+        {slots.map((creature, index) => {
+          if (!creature) {
+            return (
+              <div className="team-slot team-slot--empty" key={`empty-${index + 1}`}>
+                <span className="team-slot__number">{index + 1}</span>
+                <div className="team-empty-slot">
+                  <Layers3 />
+                  <strong>Espaço vazio</strong>
+                  <small>Encontre cartas em baús para ampliar sua equipe.</small>
+                </div>
+              </div>
+            );
+          }
           return (
             <div className="team-slot" key={creature.id}>
               <span className="team-slot__number">{index + 1}</span>
@@ -47,8 +58,10 @@ export function TeamView({ teamIds, teamName }: { teamIds?: string[]; teamName?:
       <div className="team-tip">
         <Sparkles />
         <div>
-          <strong>Tipos complementares</strong>
-          <p>Esta formação usa os cinco elementos-base. Trocas voluntárias consomem a ação principal; prepare equipes diferentes para cada desafio.</p>
+          <strong>{resolvedTeam.length}/6 cartas vinculadas</strong>
+          <p>{resolvedTeam.length === 6
+            ? "Equipe completa. Trocas voluntárias consomem a ação principal; prepare sua formação para cada desafio."
+            : "Sua primeira carta já pode explorar e batalhar. Abra baús para descobrir novas criaturas e preencher os outros espaços."}</p>
         </div>
       </div>
     </section>

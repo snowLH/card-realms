@@ -23,6 +23,7 @@ export function HubView({
   coins,
   xp,
   collectionCount,
+  currentRegionDiscoveryCount,
   teamReady,
   currentRegion,
   source,
@@ -39,6 +40,7 @@ export function HubView({
   coins: number;
   xp: number;
   collectionCount: number;
+  currentRegionDiscoveryCount: number;
   teamReady: boolean;
   currentRegion: RegionDefinition;
   source: PlayerBootstrap["source"];
@@ -147,7 +149,7 @@ export function HubView({
           <small>Última expedição</small>
           <strong>{currentRegion.name}</strong>
         </span>
-        <span className="hub-recent__meta">{currentRegion.discovered}/{currentRegion.totalCreatures} descobertos</span>
+        <span className="hub-recent__meta">{currentRegionDiscoveryCount}/{currentRegion.totalCreatures} descobertos</span>
         <ArrowRight />
       </button>
     </section>

@@ -3,13 +3,14 @@
 import { Album, Coins, ScrollText, Trophy } from "lucide-react";
 import type { PlayerBootstrap, RemotePlayerSnapshot } from "@/game/player";
 import type { AvatarConfig } from "@/game/save/local-progress";
-import { CREATURES } from "@/game/catalog";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { CharacterAvatar2D, CharacterCreator2D } from "./character-avatar";
 
 export function ProfileView({
   coins,
   xp,
+  level,
+  collectionCount,
   source,
   snapshot,
   avatar,
@@ -18,6 +19,8 @@ export function ProfileView({
 }: {
   coins: number;
   xp: number;
+  level: number;
+  collectionCount: number;
   source: PlayerBootstrap["source"];
   snapshot: RemotePlayerSnapshot | null;
   avatar: AvatarConfig;
@@ -33,12 +36,12 @@ export function ProfileView({
       </header>
       <div className="profile-hero">
         <div className="profile-avatar"><CharacterAvatar2D config={avatar} compact /></div>
-        <div><span className="profile-level">Nível {snapshot?.profile.level ?? 7}</span><h2>{snapshot?.profile.displayName ?? "Explorador das Raízes"}</h2><p>{online ? "Personagem e progresso conectados à sua conta." : "Jornada local neste aparelho."}</p></div>
+        <div><span className="profile-level">Nível {level}</span><h2>{snapshot?.profile.displayName ?? "Explorador das Raízes"}</h2><p>{online ? "Personagem e progresso conectados à sua conta." : "Jornada local neste aparelho."}</p></div>
       </div>
       <div className="profile-stats">
         <article><Coins /><strong>{coins.toLocaleString("pt-BR")}</strong><span>Moedas</span></article>
         <article><ScrollText /><strong>{xp.toLocaleString("pt-BR")}</strong><span>Experiência</span></article>
-        <article><Album /><strong>{snapshot?.collection.length ?? CREATURES.length}</strong><span>Seres possuídos</span></article>
+        <article><Album /><strong>{collectionCount}</strong><span>Seres possuídos</span></article>
         <article><Trophy /><strong>{snapshot?.exploration.filter((entry) => entry.sanctuaryCompleted).length ?? 0}</strong><span>Selos de santuário</span></article>
       </div>
       <CharacterCreator2D initial={avatar} ownedEquipment={equipmentIds} onSave={onSaveAvatar} />
