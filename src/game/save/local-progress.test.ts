@@ -21,7 +21,7 @@ describe("save local versionado", () => {
     expect(loadLocalProgress(storage)).toEqual(DEFAULT_LOCAL_PROGRESS);
   });
 
-  it("migra o save legado para a versão 2", () => {
+  it("migra o save legado para a versão 3 sem perder moedas, XP e tesouros", () => {
     const storage = memoryStorage({
       "card-realms:demo-progress:v1": JSON.stringify({
         coins: 912,
@@ -31,11 +31,11 @@ describe("save local versionado", () => {
     });
 
     expect(loadLocalProgress(storage)).toEqual({
-      version: 2,
+      ...DEFAULT_LOCAL_PROGRESS,
+      version: 3,
       coins: 912,
       xp: 77,
       openedTreasures: ["roots"],
-      playerRegionId: "roots",
     });
   });
 
@@ -47,8 +47,22 @@ describe("save local versionado", () => {
     });
 
     expect(JSON.parse(storage.value(LOCAL_PROGRESS_KEY) ?? "{}")).toMatchObject({
-      version: 2,
+      version: 3,
       openedTreasures: ["roots", "mist"],
+    });
+  });
+
+  it("normaliza áreas e equipamentos duplicados antes de persistir", () => {
+    const storage = memoryStorage();
+    saveLocalProgress(storage, {
+      ...DEFAULT_LOCAL_PROGRESS,
+      visitedAreaIds: ["roots-gate", "roots-gate", "roots-inverted"],
+      equipmentIds: ["leather", "leather", "guardian-armor"],
+    });
+
+    expect(JSON.parse(storage.value(LOCAL_PROGRESS_KEY) ?? "{}")).toMatchObject({
+      visitedAreaIds: ["roots-gate", "roots-inverted"],
+      equipmentIds: ["leather", "guardian-armor"],
     });
   });
 });

@@ -3,9 +3,11 @@ import type { AttackDefinition, CreatureDefinition, Element } from "../types";
 type CreatureSeed = Omit<CreatureDefinition, "attacks" | "sprite"> & {
   moves: [string, string, string];
   spriteIndex: number;
+  spriteSheet?: string;
 };
 
 const SPRITE_SHEET = "/art/folklore-creatures-five-elements.png";
+const SECOND_SPRITE_SHEET = "/art/folklore-creatures-second-atlas.png";
 const SPRITE_COLUMNS = 5;
 const SPRITE_ROWS = 5;
 
@@ -277,15 +279,215 @@ const seeds: CreatureSeed[] = [
     hp: 108, defense: 46, speed: 92, moves: ["Clarão da Gema", "Rastro Precioso", "Tesouro do Carbunclo"],
     obtainableBy: "Minas antigas das Montanhas Rúnicas", spriteIndex: 24,
   },
+  {
+    id: "matinta-pereira", name: "Matinta Pereira", title: "Assobio da Noite Amazônica",
+    description: "Figura encantada anunciada por um assobio agudo durante a noite.",
+    lore: "Em narrativas amazônicas, pode assumir forma de ave ou de uma pessoa idosa e cobrar a promessa de tabaco feita para silenciar seu assobio.",
+    folklore: { tradition: "Folclore amazônico", origin: "Amazônia, Brasil", sourceNote: "Os relatos variam entre localidades e alternam formas humanas, aviárias e encantadas.", adaptation: "Preserva o assobio, a metamorfose e a promessa; evita fixar uma única aparência como universal." },
+    regionId: "roots", element: "spirit", traits: ["metamorfa", "assobio", "noturna"], rarity: "rare", role: "controller",
+    hp: 118, defense: 48, speed: 82, moves: ["Assobio Distante", "Promessa da Noite", "Voo da Matinta"], obtainableBy: "Clareira dos Sussurros", spriteIndex: 0, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "cobra-grande", name: "Cobra Grande", title: "Serpente dos Rios Profundos",
+    description: "Serpente colossal associada aos rios e às transformações da paisagem amazônica.",
+    lore: "Também chamada Boiúna em diferentes narrativas, desloca águas, cria caminhos e inspira cautela nas margens durante a noite.",
+    folklore: { tradition: "Folclore amazônico", origin: "Amazônia, Brasil", sourceNote: "Nomes, dimensões e feitos mudam entre comunidades ribeirinhas.", adaptation: "Mantém o vínculo com rios, tamanho extraordinário e presença noturna." },
+    regionId: "roots", element: "water", traits: ["serpente", "fluvial", "colossal"], rarity: "epic", role: "guardian",
+    hp: 198, defense: 84, speed: 34, moves: ["Cauda de Corrente", "Olhos da Boiúna", "Rio sem Margem"], obtainableBy: "Coração das Raízes", spriteIndex: 1, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "anhanga", name: "Anhangá", title: "Protetor de Olhos de Fogo",
+    description: "Presença protetora da mata frequentemente descrita em forma de veado branco.",
+    lore: "Relatos de matriz tupi o relacionam à defesa dos animais e ao castigo de caçadores que violam os pactos da floresta.",
+    folklore: { tradition: "Tradições indígenas brasileiras registradas historicamente", origin: "Brasil", sourceNote: "Grafias e interpretações variam, e nem toda tradição o descreve da mesma maneira.", adaptation: "Usa a forma de cervo branco e olhos luminosos como uma representação, não como definição única." },
+    regionId: "roots", element: "nature", traits: ["cervo", "guardião", "luminoso"], rarity: "legendary", role: "support",
+    hp: 174, defense: 80, speed: 76, moves: ["Passo Branco", "Olhar Protetor", "Pacto de Anhangá"], obtainableBy: "Ruínas da Guardiã", spriteIndex: 2, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "comadre-fulozinha", name: "Comadre Fulozinha", title: "Guardiã dos Cabelos Longos",
+    description: "Encantada da mata nordestina que protege animais e desorienta quem desrespeita seu território.",
+    lore: "Seu assobio, seus cabelos e a oferta de fumo aparecem em narrativas do Nordeste brasileiro, com muitas formas locais.",
+    folklore: { tradition: "Folclore do Nordeste brasileiro", origin: "Nordeste do Brasil", sourceNote: "Características variam por estado e tradição oral.", adaptation: "Preserva o papel guardião, o assobio e os longos cabelos sem misturá-la à Caipora." },
+    regionId: "roots", element: "nature", traits: ["encantada", "guardiã", "assobio"], rarity: "rare", role: "skirmisher",
+    hp: 124, defense: 52, speed: 90, moves: ["Trança da Mata", "Assobio Cruzado", "Caminho de Fulozinha"], obtainableBy: "Trilha Invertida", spriteIndex: 3, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "uirapuru-encantado", name: "Uirapuru Encantado", title: "Canto que Silencia a Floresta",
+    description: "Ave de canto extraordinário cercada por narrativas de encanto, sorte e transformação.",
+    lore: "Histórias amazônicas explicam seu canto raro por amores, metamorfoses e promessas, em versões que mudam de narrador para narrador.",
+    folklore: { tradition: "Narrativas amazônicas", origin: "Amazônia, Brasil", sourceNote: "O pássaro real e as narrativas encantadas convivem sem formar uma única versão canônica.", adaptation: "Amplifica o canto como poder de apoio e mantém a pequena forma aviária." },
+    regionId: "roots", element: "storm", traits: ["ave", "canto", "encantado"], rarity: "uncommon", role: "support",
+    hp: 96, defense: 36, speed: 102, moves: ["Canto Raro", "Pausa da Mata", "Voo Encantado"], obtainableBy: "Portal da Mata", spriteIndex: 4, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "umibozu", name: "Umibōzu", title: "Sombra sobre o Mar",
+    description: "Aparição marítima gigantesca que surge em águas calmas ou tempestades repentinas.",
+    lore: "Marinheiros japoneses contam que a figura escura pode virar embarcações ou exigir um barril, sendo vencida por astúcia em algumas versões.",
+    folklore: { tradition: "Folclore marítimo japonês", origin: "Japão", sourceNote: "Forma, tamanho e comportamento variam entre regiões costeiras.", adaptation: "Mantém a silhueta escura, a escala marítima e o encontro com navegantes." },
+    regionId: "archipelago", element: "water", traits: ["marítimo", "gigante", "aparição"], rarity: "epic", role: "guardian",
+    hp: 206, defense: 86, speed: 24, moves: ["Onda Silenciosa", "Pedido do Barril", "Noite sobre o Mar"], obtainableBy: "Abismo dos Espíritos", spriteIndex: 5, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "ningyo", name: "Ningyo", title: "Oráculo das Correntes",
+    description: "Ser aquático japonês de aparência variável, frequentemente ligado a presságios.",
+    lore: "Registros e contos descrevem combinações entre peixe e traços humanos; capturá-lo pode anunciar desastres ou longevidade em narrativas distintas.",
+    folklore: { tradition: "Folclore japonês", origin: "Japão", sourceNote: "Não equivale à sereia europeia e possui iconografias variadas.", adaptation: "Preserva a forma híbrida aquática e o papel de presságio." },
+    regionId: "archipelago", element: "water", traits: ["aquático", "oráculo", "presságio"], rarity: "rare", role: "support",
+    hp: 120, defense: 52, speed: 78, moves: ["Escama Oracular", "Voz da Corrente", "Maré do Presságio"], obtainableBy: "Templo das Marés", spriteIndex: 6, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "selkie", name: "Selkie", title: "Viajante da Pele de Foca",
+    description: "Ser capaz de deixar a pele de foca para assumir forma humana em terra.",
+    lore: "Baladas e contos do Atlântico Norte narram amores e cativeiros ligados ao esconderijo da pele que permite seu retorno ao mar.",
+    folklore: { tradition: "Folclores escocês e das ilhas do Atlântico Norte", origin: "Escócia, Orkney e Shetland", sourceNote: "O tom varia entre romance, perda e advertência.", adaptation: "Mantém a pele de foca como centro da metamorfose e evita tratá-la como sereia." },
+    regionId: "archipelago", element: "spirit", traits: ["foca", "metamorfa", "marítima"], rarity: "rare", role: "skirmisher",
+    hp: 126, defense: 48, speed: 88, moves: ["Pele Guardada", "Passo na Praia", "Retorno às Ondas"], obtainableBy: "Ilhas das Promessas", spriteIndex: 7, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "bake-kujira", name: "Bake-kujira", title: "Esqueleto da Baleia Fantasma",
+    description: "Esqueleto espectral de baleia que atravessa o mar acompanhado por aves e peixes incomuns.",
+    lore: "Uma narrativa associada à costa de Shimane descreve pescadores encontrando a aparição e os infortúnios que seguiram sua aproximação.",
+    folklore: { tradition: "Folclore japonês", origin: "Shimane, Japão", sourceNote: "É uma narrativa regional moderna em comparação com yōkai muito antigos.", adaptation: "Mantém a baleia esquelética, o cortejo animal e o caráter de aparição." },
+    regionId: "archipelago", element: "spirit", traits: ["baleia", "esquelético", "fantasma"], rarity: "legendary", role: "controller",
+    hp: 188, defense: 72, speed: 40, moves: ["Canto Oco", "Cortejo do Mar", "Maré Fantasma"], obtainableBy: "Recife Ancestral", spriteIndex: 8, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "nokk", name: "Nøkk", title: "Cavalo das Águas Escuras",
+    description: "Espírito aquático metamórfico que pode surgir como cavalo junto a rios e lagos.",
+    lore: "Tradições escandinavas narram encontros perigosos, música e mudanças de forma ligadas à água.",
+    folklore: { tradition: "Folclores escandinavos", origin: "Escandinávia", sourceNote: "Nomes e formas variam entre línguas e regiões nórdicas.", adaptation: "Usa a forma equina aquática e mantém sua natureza metamórfica." },
+    regionId: "archipelago", element: "water", traits: ["equino", "metamorfo", "lacustre"], rarity: "epic", role: "controller",
+    hp: 148, defense: 62, speed: 84, moves: ["Galope Submerso", "Canção da Margem", "Forma do Nøkk"], obtainableBy: "Cais Cartógrafo", spriteIndex: 9, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "thunderbird", name: "Pássaro do Trovão", title: "Asas que Chamam a Tempestade",
+    description: "Grande ser aviário associado ao trovão e aos relâmpagos em diversas tradições indígenas norte-americanas.",
+    lore: "Não existe uma versão única: nomes, relações e significados pertencem a povos específicos e não devem ser fundidos em uma narrativa genérica.",
+    folklore: { tradition: "Tradições de diferentes povos indígenas da América do Norte", origin: "América do Norte", sourceNote: "Esta entrada reconhece a diversidade e não substitui as narrativas próprias de cada povo.", adaptation: "Representa apenas o motivo amplo de ave e tempestade, sem copiar símbolos cerimoniais específicos." },
+    regionId: "runic", element: "storm", traits: ["ave", "trovão", "celeste"], rarity: "mythic", role: "striker",
+    hp: 190, defense: 70, speed: 90, moves: ["Bater do Trovão", "Olhar de Relâmpago", "Tempestade Celeste"], obtainableBy: "Pico do Trovão", spriteIndex: 10, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "alicanto", name: "Alicanto", title: "Ave dos Veios Minerais",
+    description: "Ave noturna chilena cujas penas brilham conforme o metal ou minério de que se alimenta.",
+    lore: "Mineiros seguem sua luz para encontrar riqueza, mas a ganância ou uma perseguição descuidada pode conduzir a precipícios.",
+    folklore: { tradition: "Folclore mineiro chileno", origin: "Chile", sourceNote: "O brilho e a dieta mineral distinguem versões de ouro e de prata.", adaptation: "Mantém a ave luminosa e sua ligação ambígua com tesouros subterrâneos." },
+    regionId: "runic", element: "spirit", traits: ["ave", "minério", "luminoso"], rarity: "rare", role: "support",
+    hp: 110, defense: 46, speed: 92, moves: ["Pena Metálica", "Rastro de Prata", "Veio do Alicanto"], obtainableBy: "Mina do Carbunclo", spriteIndex: 11, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "fenghuang", name: "Fenghuang", title: "Ave da Harmonia Imperial",
+    description: "Ave auspiciosa chinesa associada à harmonia, virtude e renovação da ordem.",
+    lore: "Sua iconografia reúne traços simbólicos de diferentes aves e se desenvolveu por muitos períodos da história chinesa.",
+    folklore: { tradition: "Mitologia e iconografia chinesa", origin: "China", sourceNote: "Não é simplesmente uma fênix ocidental; sua história e seus significados são próprios.", adaptation: "Preserva a ave composta, a dignidade e a associação à harmonia." },
+    regionId: "runic", element: "fire", traits: ["ave", "auspicioso", "harmonia"], rarity: "legendary", role: "support",
+    hp: 168, defense: 66, speed: 82, moves: ["Pluma das Virtudes", "Dança dos Ventos", "Harmonia do Fenghuang"], obtainableBy: "Santuário do Céu", spriteIndex: 12, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "yeti", name: "Yeti", title: "Habitante das Alturas Nevadas",
+    description: "Ser misterioso associado às montanhas e neves do Himalaia.",
+    lore: "Relatos locais, traduções e explorações estrangeiras produziram imagens diferentes, nem sempre equivalentes ao popular 'abominável homem das neves'.",
+    folklore: { tradition: "Narrativas himalaias", origin: "Região do Himalaia", sourceNote: "Termos e interpretações variam entre comunidades e línguas locais.", adaptation: "Usa uma forma peluda de montanha e evita apresentar especulação moderna como tradição única." },
+    regionId: "runic", element: "nature", traits: ["montanha", "peludo", "neve"], rarity: "epic", role: "guardian",
+    hp: 210, defense: 90, speed: 30, moves: ["Punho da Geleira", "Passo na Neve", "Eco do Himalaia"], obtainableBy: "Passagem Glacial", spriteIndex: 13, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "ratatoskr", name: "Ratatoskr", title: "Mensageiro da Árvore do Mundo",
+    description: "Esquilo que corre pelo tronco de Yggdrasil levando palavras entre a águia e o dragão.",
+    lore: "Na Edda em Prosa, suas mensagens alimentam a disputa entre os seres que habitam as extremidades da árvore cósmica.",
+    folklore: { tradition: "Mitologia nórdica registrada nas Eddas", origin: "Escandinávia medieval", sourceNote: "A fonte preservada é breve, deixando muitos detalhes visuais em aberto.", adaptation: "Mantém o esquilo mensageiro e a corrida vertical pela árvore do mundo." },
+    regionId: "runic", element: "nature", traits: ["esquilo", "mensageiro", "ágil"], rarity: "uncommon", role: "skirmisher",
+    hp: 92, defense: 32, speed: 108, moves: ["Recado Afiado", "Corrida no Tronco", "Rumor de Yggdrasil"], obtainableBy: "Ponte Rúnica", spriteIndex: 14, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "kikimora", name: "Kikimora", title: "Presença Atrás do Fogão",
+    description: "Espírito doméstico eslavo associado a ruídos, fiação e presságios dentro da casa.",
+    lore: "Pode ajudar uma casa bem cuidada ou perturbar seus moradores, dependendo da tradição e da relação com o lar.",
+    folklore: { tradition: "Folclores eslavos", origin: "Europa Oriental", sourceNote: "Há versões domésticas e versões ligadas a pântanos.", adaptation: "Combina pequena figura doméstica e sinais do brejo sem tratá-los como forma universal." },
+    regionId: "mist", element: "spirit", traits: ["doméstico", "fiandeira", "presságio"], rarity: "uncommon", role: "controller",
+    hp: 98, defense: 52, speed: 70, moves: ["Fio Embaraçado", "Ruído na Parede", "Presságio da Kikimora"], obtainableBy: "Casa da Névoa", spriteIndex: 15, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "rusalka", name: "Rusalka", title: "Espírito das Águas Verdes",
+    description: "Figura feminina sobrenatural ligada a rios, lagos, vegetação e períodos do calendário eslavo.",
+    lore: "As descrições variam muito por época e região, indo de presenças férteis a aparições perigosas.",
+    folklore: { tradition: "Folclores eslavos", origin: "Europa Oriental", sourceNote: "Não corresponde exatamente à sereia marítima ocidental.", adaptation: "Mantém o vínculo com água doce, cabelos e vegetação, reconhecendo sua variedade." },
+    regionId: "mist", element: "water", traits: ["água doce", "vegetação", "aparição"], rarity: "rare", role: "controller",
+    hp: 116, defense: 46, speed: 78, moves: ["Cabelo de Junco", "Canto do Lago", "Dança da Rusalka"], obtainableBy: "Charco dos Ecos", spriteIndex: 16, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "puca", name: "Púca", title: "Metamorfo dos Caminhos",
+    description: "Ser do folclore irlandês que assume várias formas animais, frequentemente a de um cavalo escuro.",
+    lore: "Pode assustar, aconselhar ou levar viajantes a corridas imprevisíveis, conforme a narrativa.",
+    folklore: { tradition: "Folclore irlandês", origin: "Irlanda", sourceNote: "Grafia, temperamento e formas mudam entre regiões e traduções.", adaptation: "Usa a forma equina negra como uma dentre várias possibilidades." },
+    regionId: "mist", element: "spirit", traits: ["metamorfo", "equino", "travesso"], rarity: "epic", role: "skirmisher",
+    hp: 142, defense: 54, speed: 96, moves: ["Salto do Caminho", "Forma Imprevista", "Corrida do Púca"], obtainableBy: "Bosque Móvel", spriteIndex: 17, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "dullahan", name: "Dullahan", title: "Cavaleiro sem Cabeça",
+    description: "Cavaleiro sobrenatural irlandês que carrega a própria cabeça e anuncia a morte.",
+    lore: "Quando interrompe sua cavalgada e pronuncia um nome, o destino anunciado se cumpre em muitos relatos.",
+    folklore: { tradition: "Folclore irlandês", origin: "Irlanda", sourceNote: "Detalhes sobre montaria, carruagem e objetos carregados variam.", adaptation: "Mantém a cabeça carregada, o cavalo e o papel de mensageiro fatal." },
+    regionId: "mist", element: "spirit", traits: ["cavaleiro", "sem cabeça", "presságio"], rarity: "legendary", role: "striker",
+    hp: 178, defense: 70, speed: 86, moves: ["Rédea Sombria", "Nome Derradeiro", "Cavalgada do Dullahan"], obtainableBy: "Vila Afundada", spriteIndex: 18, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "fogo-fatuo", name: "Fogo-fátuo", title: "Luz que Desvia Viajantes",
+    description: "Luz errante vista sobre pântanos e caminhos, cercada por explicações naturais e narrativas sobrenaturais.",
+    lore: "Muitas culturas descrevem luzes que afastam viajantes da estrada ou marcam lugares de memória e perigo.",
+    folklore: { tradition: "Folclores europeus e narrativas difundidas globalmente", origin: "Múltiplas regiões", sourceNote: "Nomes e interpretações locais não são equivalentes entre si.", adaptation: "Transforma o motivo da luz errante em criatura sem atribuir uma origem única." },
+    regionId: "mist", element: "fire", traits: ["luz", "errante", "pântano"], rarity: "common", role: "skirmisher",
+    hp: 82, defense: 28, speed: 112, moves: ["Faísca Errante", "Desvio da Trilha", "Brilho do Brejo"], obtainableBy: "Margem Enevoada", spriteIndex: 19, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "ammit", name: "Ammit", title: "Devoradora dos Corações",
+    description: "Ser funerário egípcio com partes de crocodilo, leão e hipopótamo.",
+    lore: "Permanece junto à pesagem do coração e devora aquele considerado indigno, impedindo sua continuidade no além.",
+    folklore: { tradition: "Religião e mitologia do Egito Antigo", origin: "Egito Antigo", sourceNote: "Sua função é ligada ao julgamento funerário, não à caça aleatória.", adaptation: "Preserva a anatomia composta e o papel de consequência do julgamento." },
+    regionId: "desert", element: "nature", traits: ["composto", "julgamento", "funerário"], rarity: "legendary", role: "guardian",
+    hp: 218, defense: 92, speed: 32, moves: ["Mandíbula do Julgamento", "Peso do Coração", "Sentença de Ammit"], obtainableBy: "Tumba dos Reis", spriteIndex: 20, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "manticora", name: "Manticora", title: "Predadora dos Relatos Persas",
+    description: "Criatura descrita por autores antigos com corpo leonino, rosto humano e cauda perigosa.",
+    lore: "Relatos gregos sobre a Pérsia transmitiram e transformaram sua imagem, que depois entrou em bestiários europeus.",
+    folklore: { tradition: "Relatos antigos e bestiários medievais", origin: "Pérsia em fontes gregas", sourceNote: "A transmissão histórica produziu variações importantes de anatomia.", adaptation: "Usa corpo de leão, face humana estilizada e cauda armada sem declarar uma forma única." },
+    regionId: "desert", element: "fire", traits: ["leonino", "cauda", "bestiário"], rarity: "epic", role: "striker",
+    hp: 166, defense: 62, speed: 80, moves: ["Cauda de Espinhos", "Salto Leonino", "Rugido da Manticora"], obtainableBy: "Ossário Colossal", spriteIndex: 21, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "esfinge", name: "Esfinge", title: "Guardiã dos Limiares Sagrados",
+    description: "Ser leonino de cabeça humana associado à proteção monumental e à autoridade régia no Egito Antigo.",
+    lore: "A esfinge egípcia e a esfinge grega possuem histórias distintas; esta entrada segue o motivo guardião egípcio.",
+    folklore: { tradition: "Iconografia e religião do Egito Antigo", origin: "Egito Antigo", sourceNote: "Não funde o guardião egípcio com o enigma da tradição grega.", adaptation: "Mantém corpo de leão, cabeça humana e função protetora." },
+    regionId: "desert", element: "spirit", traits: ["leonino", "guardião", "monumental"], rarity: "legendary", role: "controller",
+    hp: 186, defense: 84, speed: 48, moves: ["Vigília de Pedra", "Palavra Régia", "Limiar da Esfinge"], obtainableBy: "Ruínas do Sol", spriteIndex: 22, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "roc", name: "Roc", title: "Ave que Oculta o Sol",
+    description: "Ave gigantesca das narrativas de viagem do mundo árabe e persa.",
+    lore: "Histórias difundidas nas Mil e Uma Noites descrevem sua força para erguer animais enormes e sua escala quase inacreditável.",
+    folklore: { tradition: "Literatura árabe e persa de viagens maravilhosas", origin: "Oceano Índico imaginado e Oriente Médio", sourceNote: "A grafia Rukh/Roc e os cenários variam entre traduções.", adaptation: "Preserva a ave colossal e a força de voo sem fundi-la com outras aves míticas." },
+    regionId: "desert", element: "storm", traits: ["ave", "colossal", "viajante"], rarity: "mythic", role: "guardian",
+    hp: 224, defense: 78, speed: 68, moves: ["Garra do Roc", "Sombra do Sol", "Voo do Horizonte"], obtainableBy: "Portão de Areia", spriteIndex: 23, spriteSheet: SECOND_SPRITE_SHEET,
+  },
+  {
+    id: "ifrit", name: "Ifrit", title: "Espírito de Fogo Rebelde",
+    description: "Classe poderosa de jinn associada ao fogo e a forças extraordinárias em tradições islâmicas e árabes.",
+    lore: "Textos e narrativas posteriores descrevem ifrits com temperamentos e papéis diversos, não como uma espécie uniforme de demônio.",
+    folklore: { tradition: "Tradições islâmicas e folclores árabes", origin: "Oriente Médio", sourceNote: "Conceitos religiosos e narrativos variam por fonte e época.", adaptation: "Representa um jinn ígneo poderoso sem reduzir toda a categoria a antagonistas." },
+    regionId: "desert", element: "fire", traits: ["jinn", "fogo", "poderoso"], rarity: "epic", role: "striker",
+    hp: 156, defense: 58, speed: 84, moves: ["Punho de Brasa", "Vento do Ifrit", "Coluna de Fogo"], obtainableBy: "Oásis Oculto", spriteIndex: 24, spriteSheet: SECOND_SPRITE_SHEET,
+  },
 ];
 
-export const CREATURES: CreatureDefinition[] = seeds.map(({ moves, spriteIndex, ...seed }) => {
-  const completeSeed = { ...seed, moves, spriteIndex } as CreatureSeed;
+export const CREATURES: CreatureDefinition[] = seeds.map(({ moves, spriteIndex, spriteSheet = SPRITE_SHEET, ...seed }) => {
+  const completeSeed = { ...seed, moves, spriteIndex, spriteSheet } as CreatureSeed;
   return {
     ...seed,
     attacks: attackFactory[seed.element](completeSeed),
     sprite: {
-      sheet: SPRITE_SHEET,
+      sheet: spriteSheet,
       column: spriteIndex % SPRITE_COLUMNS,
       row: Math.floor(spriteIndex / SPRITE_COLUMNS),
       columns: SPRITE_COLUMNS,

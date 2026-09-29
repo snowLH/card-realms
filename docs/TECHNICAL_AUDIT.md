@@ -209,3 +209,15 @@ Resultado: a fundação online e o PVP satisfazem o critério de homologação e
 A fundação homologada foi integrada a `main` no commit `44ef44c` e publicada pela Vercel. O deploy de produção concluiu como `Ready` em 29 segundos. O domínio `https://card-realms.vercel.app` carregou a interface nova; mapa, navegação e Duelos foram verificados como visitante, sem erros ou avisos no console.
 
 O isolamento de ambientes foi preservado: as cinco variáveis do Supabase de staging continuam vinculadas apenas ao Preview do branch `staging`, enquanto Production mantém seu conjunto próprio. Nenhuma migration foi aplicada ao banco legado de produção nesta intervenção. Portanto, publicação da aplicação está concluída, mas a homologação PVP autenticada de produção permanece aberta e não é confundida com o `PASS` real já obtido em staging.
+
+## Oitava intervenção — expansão estritamente 2D
+
+As anotações visuais foram implementadas sem introduzir cena ou modelo 3D. O atlas abre um mapa interno por região, com 25 áreas encadeadas; a Vila Cartógrafa usa a base top-down fornecida pelo usuário; e a arena recebeu moldura de madeira, feltro, linha central e zonas legíveis para baralho, mão, ativa, banco e descarte. O toast que cobria os controles é limpo antes da abertura da arena e permanece no canto superior nas telas comuns.
+
+O bestiário passou de 25 para 50 entradas. As 25 novas criaturas usam uma segunda grade 5×5, descrições próprias e metadados de procedência. O perfil agora inclui criador de personagem em camadas 2D; armaduras especiais vêm de baús e são conferidas novamente pelo servidor.
+
+No online, foram adicionados o fluxo visual de amizade e três RPCs limitadas: visitar área, comprar energia e salvar avatar. Preço, moedas, energia, sequência de áreas e posse de armadura são decididos no Postgres. As migrations `world_expansion_2d` e `add_world_area_index` foram aplicadas à produção, e a consulta de verificação confirmou 25 áreas, 25 criaturas e RLS ativa. O Advisor encontrou o índice ausente da nova FK; ele foi corrigido imediatamente.
+
+O harness pgTAP foi ampliado de 29 para 43 asserções. As contas sintéticas recebem explicitamente seis criaturas próprias para testar o caminho PVP legal sem desfazer o onboarding de uma carta inicial. A execução remota terminou em 43/43, com rollback integral.
+
+Evidência local: TypeScript PASS, ESLint PASS, Vitest 36/36, build Next.js PASS e console do navegador limpo. Foram inspecionados desktop e 390×844 para atlas, mapa regional, vila, personagem, coleção e batalha. Essa evidência valida a expansão, não substitui um novo teste A/B completo do PVP em produção.

@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Layers3,
   Map,
-  ScrollText,
   ShieldCheck,
   Swords,
   Trophy,
@@ -17,9 +16,15 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CREATURES, REGIONS } from "@/game/catalog";
-import type { PlayerBootstrap, RemotePlayerSnapshot } from "@/game/player";
-import type { BattleReward, RegionDefinition } from "@/game/types";
-import { loadLocalProgress, saveLocalProgress } from "@/game/save/local-progress";
+import type { PlayerBootstrap } from "@/game/player";
+import type { BattleReward, Element, EnergyPool, RegionAreaDefinition, RegionDefinition } from "@/game/types";
+import {
+  DEFAULT_AVATAR_CONFIG,
+  DEFAULT_LOCAL_PROGRESS,
+  loadLocalProgress,
+  saveLocalProgress,
+  type AvatarConfig,
+} from "@/game/save/local-progress";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { cn } from "@/lib/utils";
 import { LoginDialog } from "@/components/auth/login-dialog";
@@ -28,7 +33,9 @@ import { CollectionView } from "./collection-view";
 import { HubView } from "./hub-view";
 import { RefugeView } from "./refuge-view";
 import { PvpView } from "./pvp-view";
+import { ProfileView } from "./profile-view";
 import { TeamView } from "./team-view";
+import { VillageView } from "./village-view";
 import { WorldMap } from "./world-map";
 import { StarterChoice } from "./starter-choice";
 import { WelcomeView } from "./welcome-view";
@@ -45,7 +52,7 @@ const BattleArena = dynamic(
   },
 );
 
-type View = "hub" | "map" | "collection" | "team" | "refuge" | "pvp" | "profile";
+type View = "hub" | "map" | "village" | "collection" | "team" | "refuge" | "pvp" | "profile";
 
 const navigation = [
   { id: "hub", label: "Início", icon: LayoutDashboard },
@@ -86,6 +93,20 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   const [pvpBattleId, setPvpBattleId] = useState<string | null>(null);
   const [coins, setCoins] = useState(remoteSnapshot?.profile.coins ?? 840);
   const [xp, setXp] = useState(remoteSnapshot?.profile.xp ?? 1240);
+  const [currentAreaId, setCurrentAreaId] = useState<string | null>(
+    remoteSnapshot?.world.currentAreaId ?? initialRegion.areas?.[0]?.id ?? null,
+  );
+  const [visitedAreaIds, setVisitedAreaIds] = useState<string[]>(
+    remoteSnapshot?.world.visitedAreaIds ?? (initialRegion.areas?.[0] ? [initialRegion.areas[0].id] : []),
+  );
+  const [energy, setEnergy] = useState<EnergyPool>(remoteSnapshot?.energy ?? DEFAULT_LOCAL_PROGRESS.energy);
+  const [avatar, setAvatar] = useState<AvatarConfig>(remoteSnapshot?.profile.avatarConfig ?? DEFAULT_AVATAR_CONFIG);
+  const [equipmentIds, setEquipmentIds] = useState<string[]>(() => {
+    const remoteEquipment = remoteSnapshot?.inventory
+      .filter((item) => item.itemKey.endsWith("-armor") || item.itemKey === "leather")
+      .map((item) => item.itemKey) ?? [];
+    return [...new Set(["leather", ...remoteEquipment])];
+  });
   const [toast, setToast] = useState<string | null>(null);
   const [newlyOwnedCatalogIds, setNewlyOwnedCatalogIds] = useState<string[]>([]);
   const [openedTreasures, setOpenedTreasures] = useState<string[]>(
@@ -100,6 +121,11 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       setCoins(parsed.coins);
       setXp(parsed.xp);
       setOpenedTreasures(parsed.openedTreasures);
+      setCurrentAreaId(parsed.currentAreaId);
+      setVisitedAreaIds(parsed.visitedAreaIds);
+      setEnergy(parsed.energy);
+      setAvatar(parsed.avatar);
+      setEquipmentIds(parsed.equipmentIds);
       const savedRegion = REGIONS.find(
         (region) => region.id === parsed.playerRegionId && region.status === "open",
       );
@@ -116,16 +142,21 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     if (!progressLoaded) return;
     try {
       saveLocalProgress(window.localStorage, {
-        version: 2,
+        version: 3,
         coins,
         xp,
         openedTreasures,
         playerRegionId,
+        currentAreaId,
+        visitedAreaIds,
+        energy,
+        equipmentIds,
+        avatar,
       });
     } catch (error) {
       console.error("Não foi possível salvar o progresso local.", error);
     }
-  }, [coins, openedTreasures, playerRegionId, progressLoaded, xp]);
+  }, [avatar, coins, currentAreaId, energy, equipmentIds, openedTreasures, playerRegionId, progressLoaded, visitedAreaIds, xp]);
 
   useEffect(() => {
     if (!toast) return;
@@ -138,6 +169,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   };
 
   const handleBattle = () => {
+    setToast(null);
     setBattleOpen(true);
   };
 
@@ -153,17 +185,21 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
           coins: number;
           openedTreasures: string[];
           creatureId?: string;
+          itemKey?: string;
         };
         setOpenedTreasures(result.openedTreasures);
         setCoins(result.coins);
         if (result.creatureId) {
           setNewlyOwnedCatalogIds((current) => [...new Set([...current, result.creatureId!])]);
         }
+        if (result.itemKey) {
+          setEquipmentIds((current) => [...new Set([...current, result.itemKey!])]);
+        }
         const cardName = result.creatureId
           ? CREATURES.find((creature) => creature.id === result.creatureId)?.name
           : null;
         setToast(cardName
-          ? `Baú aberto: +45 moedas, fragmento e a carta ${cardName}.`
+          ? `Baú aberto: +45 moedas, fragmento${result.itemKey ? ", equipamento" : ""} e a carta ${cardName}.`
           : "Tesouro confirmado pelo servidor: +45 moedas e 1 fragmento de vínculo.");
       } catch (error) {
         setToast(error instanceof Error ? error.message : "Não foi possível recolher o tesouro.");
@@ -173,10 +209,16 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
 
     setOpenedTreasures((current) => [...current, region.id]);
     setCoins((current) => current + 45);
+    const equipmentByRegion: Partial<Record<string, string>> = {
+      roots: "guardian-armor",
+      runic: "runic-armor",
+    };
+    const equipment = equipmentByRegion[region.id];
+    if (equipment) setEquipmentIds((current) => [...new Set([...current, equipment])]);
     setToast(
       bootstrap.source === "supabase-unavailable"
         ? "Baú salvo somente no cache; a conta remota está indisponível."
-        : "Baú cartográfico encontrado: +45 moedas e 1 fragmento de vínculo.",
+        : `Baú cartográfico encontrado: +45 moedas e 1 fragmento de vínculo${equipment ? " · nova armadura" : ""}.`,
     );
   };
 
@@ -191,11 +233,61 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     }
     setPlayerRegionId(region.id);
     setSelectedRegion(region);
+    const firstArea = region.areas?.[0]?.id ?? null;
+    setCurrentAreaId(firstArea);
+    if (firstArea) setVisitedAreaIds((current) => [...new Set([...current, firstArea])]);
     setToast(
       bootstrap.source === "supabase-unavailable"
         ? `Você chegou a ${region.name}; posição mantida apenas no cache.`
         : `Você chegou a ${region.name}.`,
     );
+  };
+
+  const handleVisitArea = (region: RegionDefinition, area: RegionAreaDefinition) => {
+    setCurrentAreaId(area.id);
+    setVisitedAreaIds((current) => [...new Set([...current, area.id])]);
+    if (bootstrap.source === "supabase") {
+      void mutateRemoteProgress({ action: "visit_area", regionId: region.id, areaId: area.id })
+        .catch((error) => setToast(error instanceof Error ? error.message : "A área não pôde ser sincronizada."));
+    }
+    setToast(`Você entrou em ${area.name}.`);
+  };
+
+  const handleBuyEnergy = async (element: Element, quantity: 1 | 5, price: number) => {
+    if (coins < price) {
+      setToast("Moedas insuficientes para este pacote.");
+      return;
+    }
+    if (bootstrap.source === "supabase") {
+      try {
+        const result = await mutateRemoteProgress({ action: "buy_energy", element, quantity }) as {
+          coins: number;
+          energy: EnergyPool;
+        };
+        setCoins(result.coins);
+        setEnergy(result.energy);
+        setToast(`${quantity} energia(s) adicionada(s) ao inventário.`);
+      } catch (error) {
+        setToast(error instanceof Error ? error.message : "A compra não pôde ser concluída.");
+      }
+      return;
+    }
+    setCoins((current) => current - price);
+    setEnergy((current) => ({ ...current, [element]: current[element] + quantity }));
+    setToast(`${quantity} energia(s) comprada(s) na Vila Cartógrafa.`);
+  };
+
+  const handleSaveAvatar = async (nextAvatar: AvatarConfig) => {
+    setAvatar(nextAvatar);
+    if (bootstrap.source !== "supabase") return;
+    const response = await fetch("/api/player/avatar", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(nextAvatar),
+    });
+    const payload = (await response.json()) as { error?: string };
+    if (!response.ok) throw new Error(payload.error ?? "O personagem não pôde ser salvo.");
+    setToast("Personagem sincronizado com sua conta.");
   };
 
   const handleVictory = useCallback((reward?: BattleReward) => {
@@ -309,10 +401,22 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
           <WorldMap
             selected={selectedRegion}
             playerRegionId={playerRegionId}
+            currentAreaId={currentAreaId}
+            visitedAreaIds={visitedAreaIds}
             onSelect={setSelectedRegion}
             onTravel={handleTravel}
+            onVisitArea={handleVisitArea}
             onBattle={handleBattle}
             onTreasure={handleTreasure}
+            onOpenVillage={() => navigate("village")}
+          />
+        ) : null}
+        {!showWelcome && view === "village" ? (
+          <VillageView
+            coins={coins}
+            energy={energy}
+            onBack={() => navigate("map")}
+            onBuy={handleBuyEnergy}
           />
         ) : null}
         {!showWelcome && view === "collection" ? <CollectionView ownedCatalogIds={ownedCatalogIds} /> : null}
@@ -320,7 +424,15 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
         {!showWelcome && view === "refuge" ? <RefugeView /> : null}
         {!showWelcome && view === "pvp" ? <PvpView bootstrap={bootstrap} onOpenBattle={setPvpBattleId} /> : null}
         {!showWelcome && view === "profile" ? (
-          <ProfileView coins={coins} xp={xp} source={bootstrap.source} snapshot={remoteSnapshot} />
+          <ProfileView
+            coins={coins}
+            xp={xp}
+            source={bootstrap.source}
+            snapshot={remoteSnapshot}
+            avatar={avatar}
+            equipmentIds={equipmentIds}
+            onSaveAvatar={handleSaveAvatar}
+          />
         ) : null}
       </div>
 
@@ -335,7 +447,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
         })}
       </nav> : null}
 
-      {toast ? <div className="game-toast"><Trophy /> {toast}</div> : null}
+      {toast ? <div className="game-toast" role="status" aria-live="polite"><Trophy /> {toast}</div> : null}
       {battleOpen || pvpSession ? (
         <div className="battle-overlay">
           <BattleArena
@@ -352,39 +464,6 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       ) : null}
       {needsStarterChoice ? <StarterChoice /> : null}
     </main>
-  );
-}
-
-function ProfileView({
-  coins,
-  xp,
-  source,
-  snapshot,
-}: {
-  coins: number;
-  xp: number;
-  source: PlayerBootstrap["source"];
-  snapshot: RemotePlayerSnapshot | null;
-}) {
-  const online = source === "supabase";
-  return (
-    <section className="content-view profile-view">
-      <header className="view-heading">
-        <div><span className="view-eyebrow">Jornada pessoal</span><h1>Cartógrafo visitante</h1><p>Entre na sua conta para sincronizar este perfil entre celular, tablet e computador.</p></div>
-        <LoginDialog />
-      </header>
-      <div className="profile-hero">
-        <div className="profile-avatar"><UserRound /></div>
-        <div><Badge>Nível {snapshot?.profile.level ?? 7}</Badge><h2>{snapshot?.profile.displayName ?? "Explorador das Raízes"}</h2><p>{online ? "Progresso carregado da conta online." : "Jornada local neste aparelho."}</p></div>
-      </div>
-      <div className="profile-stats">
-        <article><Coins /><strong>{coins.toLocaleString("pt-BR")}</strong><span>Moedas</span></article>
-        <article><ScrollText /><strong>{xp.toLocaleString("pt-BR")}</strong><span>Experiência</span></article>
-        <article><Album /><strong>{snapshot?.collection.length ?? CREATURES.length}</strong><span>Seres possuídos</span></article>
-        <article><Trophy /><strong>{snapshot?.exploration.filter((entry) => entry.sanctuaryCompleted).length ?? 0}</strong><span>Selos de santuário</span></article>
-      </div>
-      <div className="profile-note"><strong>Persistência transparente</strong><p>{online ? "Perfil, coleção, equipes, energias, mundo, missões, conquistas, casa e histórico vêm do snapshot remoto validado. Alterações críticas continuam exclusivamente no servidor." : source === "supabase-unavailable" ? "A sessão está autenticada, mas o backend de progresso não respondeu. O cache permite continuar sem ser apresentado como autoridade da conta." : "No modo visitante, o save v2 local continua sendo a fonte de verdade até a conta ser conectada."}</p></div>
-    </section>
   );
 }
 

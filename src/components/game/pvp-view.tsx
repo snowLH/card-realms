@@ -4,8 +4,10 @@ import { Check, Clock3, LoaderCircle, Radio, ShieldAlert, Swords, X } from "luci
 import { useCallback, useEffect, useState } from "react";
 import type { PlayerBootstrap } from "@/game/player";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { LoginDialog } from "@/components/auth/login-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FriendManager } from "./friend-manager";
 
 type Challenge = {
   id: string;
@@ -137,7 +139,7 @@ export function PvpView({
         </header>
         <div className="pvp-empty">
           <ShieldAlert />
-          <div><strong>PVP indisponível neste modo</strong><p>{bootstrap.source === "supabase-unavailable" ? "Sua sessão existe, mas a fundação remota não respondeu. Nenhuma batalha local será apresentada como PVP real." : "Entre em uma conta conectada ao Supabase para desafiar amigos."}</p></div>
+          <div><strong>Entre para jogar com amigos</strong><p>{bootstrap.source === "supabase-unavailable" ? "Sua sessão existe, mas a fundação remota não respondeu. Nenhuma batalha local será apresentada como PVP real." : "Use sua conta Google, adicione outro jogador e envie um desafio."}</p><LoginDialog prominent label="Entrar com Google" /></div>
         </div>
       </section>
     );
@@ -157,6 +159,8 @@ export function PvpView({
 
       {error ? <div className="pvp-error" role="alert">{error}</div> : null}
       {loading ? <div className="pvp-empty"><LoaderCircle className="animate-spin" /><strong>Consultando desafios...</strong></div> : null}
+
+      {!loading ? <FriendManager onChanged={() => void refresh()} /> : null}
 
       {!loading ? (
         <div className="pvp-columns">
