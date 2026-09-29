@@ -27,6 +27,7 @@ export function WorldMap({
   openedTreasures,
   avatar,
   mapPositions,
+  discoveredByRegion,
   onSelect,
   onTravel,
   onVisitArea,
@@ -42,6 +43,7 @@ export function WorldMap({
   openedTreasures: string[];
   avatar: AvatarConfig;
   mapPositions: Record<string, GridPoint>;
+  discoveredByRegion: Record<string, number>;
   onSelect: (region: RegionDefinition | null) => void;
   onTravel: (region: RegionDefinition) => void;
   onVisitArea: (region: RegionDefinition, area: RegionAreaDefinition) => void;
@@ -132,7 +134,7 @@ export function WorldMap({
         <aside className="region-panel" aria-live="polite">
           <div className="region-panel__topline">
             <Badge className="border-transparent text-slate-950" style={{ backgroundColor: selected.accent }}>Nível {selected.recommendedLevel}</Badge>
-            <span>{selected.areas?.length ?? 0} áreas · {selected.discovered}/{selected.totalCreatures} seres</span>
+            <span>{selected.areas?.length ?? 0} áreas · {discoveredByRegion[selected.id] ?? 0}/{selected.totalCreatures} seres</span>
           </div>
           <h2>{selected.name}</h2>
           <p className="region-panel__subtitle">{selected.subtitle}</p>

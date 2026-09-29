@@ -43,8 +43,8 @@ export function StarterChoice() {
             <span className="view-eyebrow">Primeiro vínculo</span>
             <h1 id="starter-title">Escolha sua primeira carta</h1>
             <p>
-              Ela começa sua coleção e entra na sua equipe. Outras cartas serão conquistadas
-              em combates, baús e explorações.
+              Ela começa sua coleção e entra na sua equipe. Outras cartas serão reveladas
+              somente ao abrir baús e recompensas especiais.
             </p>
           </div>
         </header>

@@ -18,6 +18,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREATURES } from "@/game/catalog";
 import {
+  createLocalScene,
   isLocalTileWalkable,
   LOCAL_MAPS,
   type LocalMapDefinition,
@@ -101,9 +102,11 @@ export function LocalExploration({
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [interaction, setInteraction] = useState<Interaction | null>(null);
   const [facing, setFacing] = useState<"left" | "right">("right");
-  const [npcSteps, setNpcSteps] = useState<Record<string, number>>({});
-  const [creatureSteps, setCreatureSteps] = useState<Record<string, number>>({});
   const areas = useMemo(() => region.areas ?? [], [region.areas]);
+  const scene = useMemo(() => createLocalScene(
+    map,
+    CREATURES.filter((creature) => creature.regionId === region.id).map((creature) => creature.id),
+  ), [map, region.id]);
 
   useEffect(() => {
     savedPositionRef.current = savedPosition;
@@ -143,20 +146,6 @@ export function LocalExploration({
     }, 92);
     return () => window.clearTimeout(timer);
   }, [path]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNpcSteps((current) => Object.fromEntries(map.npcs.map((npc) => [
-        npc.id,
-        ((current[npc.id] ?? 0) + 1) % npc.route.length,
-      ])));
-      setCreatureSteps((current) => Object.fromEntries(map.creatures.map((creature) => [
-        creature.id,
-        ((current[creature.id] ?? 0) + 1) % creature.route.length,
-      ])));
-    }, 1650);
-    return () => window.clearInterval(timer);
-  }, [map]);
 
   const isWalkable = useCallback(
     (point: GridPoint) => isLocalTileWalkable(map, point),
@@ -231,10 +220,10 @@ export function LocalExploration({
 
   const activeArea = areas.find((area) => area.id === currentAreaId) ?? areas[0];
   const npc = interaction?.type === "npc"
-    ? map.npcs.find((candidate) => candidate.id === interaction.id)
+    ? scene.npcs.find((candidate) => candidate.id === interaction.id)
     : null;
   const encounter = interaction?.type === "creature"
-    ? map.creatures.find((candidate) => candidate.id === interaction.id)
+    ? scene.creatures.find((candidate) => candidate.id === interaction.id)
     : null;
   const encounterCreature = encounter
     ? CREATURES.find((candidate) => candidate.id === encounter.creatureId)
@@ -299,8 +288,8 @@ export function LocalExploration({
             );
           })}
 
-          {map.npcs.map((actor) => {
-            const point = actor.route[npcSteps[actor.id] ?? 0];
+          {scene.npcs.map((actor) => {
+            const point = actor.point;
             return (
               <button
                 key={actor.id}
@@ -317,8 +306,8 @@ export function LocalExploration({
             );
           })}
 
-          {map.creatures.map((actor) => {
-            const point = actor.route[creatureSteps[actor.id] ?? 0];
+          {scene.creatures.map((actor) => {
+            const point = actor.point;
             const creature = CREATURES.find((candidate) => candidate.id === actor.creatureId);
             if (!creature) return null;
             return (
@@ -366,7 +355,7 @@ export function LocalExploration({
           <button type="button" className="local-interaction__close" onClick={() => setInteraction(null)} aria-label="Fechar interação"><X /></button>
           {npc ? (
             <>
-              <span className="local-interaction__eyebrow"><MessageCircle /> Viajante em movimento</span>
+              <span className="local-interaction__eyebrow"><MessageCircle /> Viajante encontrado</span>
               <h2>{npc.name}</h2>
               <p>{npc.role}. “As trilhas mudam, mas as histórias guardam o caminho.”</p>
               <Button type="button" variant="game" onClick={() => { setInteraction(null); onBattle("npc"); }}><Swords /> Duelo de treino</Button>

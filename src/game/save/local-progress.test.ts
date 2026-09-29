@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LOCAL_PROGRESS,
   LOCAL_PROGRESS_KEY,
+  localProgressKey,
   loadLocalProgress,
   saveLocalProgress,
 } from "./local-progress";
@@ -75,6 +76,34 @@ describe("save local versionado", () => {
     expect(JSON.parse(storage.value(LOCAL_PROGRESS_KEY) ?? "{}")).toMatchObject({
       visitedAreaIds: ["roots-gate", "roots-inverted"],
       equipmentIds: ["leather", "guardian-armor"],
+    });
+  });
+
+  it("isola o cache de cada conta do progresso do visitante", () => {
+    const accountId = "00000000-0000-4000-8000-000000000001";
+    const storage = memoryStorage({
+      [LOCAL_PROGRESS_KEY]: JSON.stringify({
+        ...DEFAULT_LOCAL_PROGRESS,
+        coins: 9999,
+        xp: 9999,
+      }),
+    });
+
+    expect(loadLocalProgress(storage, accountId)).toEqual(DEFAULT_LOCAL_PROGRESS);
+
+    saveLocalProgress(storage, { ...DEFAULT_LOCAL_PROGRESS, coins: 525 }, accountId);
+    expect(JSON.parse(storage.value(localProgressKey(accountId)) ?? "{}")).toMatchObject({
+      coins: 525,
+      xp: 0,
+    });
+    expect(JSON.parse(storage.value(LOCAL_PROGRESS_KEY) ?? "{}")).toMatchObject({ coins: 9999 });
+  });
+
+  it("inicia uma jornada limpa, sem nível ou equipamentos de demonstração", () => {
+    expect(DEFAULT_LOCAL_PROGRESS).toMatchObject({
+      coins: 500,
+      xp: 0,
+      equipmentIds: [],
     });
   });
 });

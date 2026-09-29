@@ -1,6 +1,6 @@
 "use client";
 
-import { Shield, Swords, Zap } from "lucide-react";
+import { LockKeyhole, Shield, Swords, Zap } from "lucide-react";
 import type { CSSProperties, MouseEventHandler } from "react";
 import { ELEMENT_META } from "@/game/catalog";
 import type { BattleCreature, CreatureDefinition } from "@/game/types";
@@ -44,8 +44,22 @@ export function CreatureCard({
   } as CSSProperties;
   const currentHp = battle?.hp ?? creature.hp;
   const hpPercent = (currentHp / (battle?.maxHp ?? creature.hp)) * 100;
+  const isUnowned = owned === false;
 
-  const content = (
+  const content = isUnowned ? (
+    <>
+      <div className="creature-card__header creature-card__header--unknown">
+        <span className="creature-card__element">??</span>
+        <span className="font-black">Carta não descoberta</span>
+      </div>
+      <div className="creature-card__art creature-card__art--unknown" aria-label="Criatura ainda não descoberta">
+        <LockKeyhole />
+        <strong>?</strong>
+      </div>
+      <span className="creature-card__unowned">Encontre esta carta em um baú</span>
+      <p className="creature-card__unknown-copy">Nome, arte, elemento e atributos serão revelados quando a carta entrar na sua coleção.</p>
+    </>
+  ) : (
     <>
       <div className="creature-card__halo" />
       <div className="creature-card__header">
@@ -85,7 +99,6 @@ export function CreatureCard({
             <span>Raiz folclórica</span>
             {creature.folklore.tradition} · {creature.folklore.origin}
           </p>
-          {owned === false ? <span className="creature-card__unowned">Ainda não vinculada</span> : null}
           <div className="mt-3 flex items-center justify-between gap-2 text-[11px] font-bold text-muted-foreground">
             <span className="inline-flex items-center gap-1"><Swords className="size-3.5" /> {creature.attacks[0].damage}</span>
             <span className="inline-flex items-center gap-1"><Shield className="size-3.5" /> {creature.defense}</span>
@@ -108,7 +121,7 @@ export function CreatureCard({
     return (
       <button
         type="button"
-        className={cn("creature-card text-left", compact && "creature-card--compact", active && "creature-card--active", className)}
+        className={cn("creature-card text-left", compact && "creature-card--compact", active && "creature-card--active", isUnowned && "creature-card--unowned", className)}
         style={style}
         disabled={disabled}
         onClick={onClick}
@@ -120,7 +133,7 @@ export function CreatureCard({
 
   return (
     <article
-      className={cn("creature-card", compact && "creature-card--compact", active && "creature-card--active", className)}
+      className={cn("creature-card", compact && "creature-card--compact", active && "creature-card--active", isUnowned && "creature-card--unowned", className)}
       style={style}
     >
       {content}

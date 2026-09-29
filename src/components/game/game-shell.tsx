@@ -92,8 +92,8 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   const [playerRegionId, setPlayerRegionId] = useState(initialRegion.id);
   const [battleOpen, setBattleOpen] = useState(false);
   const [pvpBattleId, setPvpBattleId] = useState<string | null>(null);
-  const [coins, setCoins] = useState(remoteSnapshot?.profile.coins ?? 840);
-  const [xp, setXp] = useState(remoteSnapshot?.profile.xp ?? 1240);
+  const [coins, setCoins] = useState(remoteSnapshot?.profile.coins ?? DEFAULT_LOCAL_PROGRESS.coins);
+  const [xp, setXp] = useState(remoteSnapshot?.profile.xp ?? DEFAULT_LOCAL_PROGRESS.xp);
   const [currentAreaId, setCurrentAreaId] = useState<string | null>(
     remoteSnapshot?.world.currentAreaId ?? initialRegion.areas?.[0]?.id ?? null,
   );
@@ -109,7 +109,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     const remoteEquipment = remoteSnapshot?.inventory
       .filter((item) => item.itemKey.endsWith("-armor") || item.itemKey === "leather")
       .map((item) => item.itemKey) ?? [];
-    return [...new Set(["leather", ...remoteEquipment])];
+    return [...new Set(remoteEquipment)];
   });
   const [toast, setToast] = useState<string | null>(null);
   const [newlyOwnedCatalogIds, setNewlyOwnedCatalogIds] = useState<string[]>([]);
@@ -117,11 +117,12 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     remoteSnapshot?.world.openedTreasures ?? [],
   );
   const [progressLoaded, setProgressLoaded] = useState(bootstrap.source === "supabase");
+  const cacheAccountId = bootstrap.identity?.id ?? null;
 
   useEffect(() => {
     if (bootstrap.source === "supabase") return;
     try {
-      const parsed = loadLocalProgress(window.localStorage);
+      const parsed = loadLocalProgress(window.localStorage, cacheAccountId);
       setCoins(parsed.coins);
       setXp(parsed.xp);
       setOpenedTreasures(parsed.openedTreasures);
@@ -141,7 +142,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     } finally {
       setProgressLoaded(true);
     }
-  }, [bootstrap.source]);
+  }, [bootstrap.source, cacheAccountId]);
 
   useEffect(() => {
     if (!progressLoaded) return;
@@ -158,11 +159,11 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
         energy,
         equipmentIds,
         avatar,
-      });
+      }, cacheAccountId);
     } catch (error) {
       console.error("Não foi possível salvar o progresso local.", error);
     }
-  }, [avatar, coins, currentAreaId, energy, equipmentIds, mapPositions, openedTreasures, playerRegionId, progressLoaded, visitedAreaIds, xp]);
+  }, [avatar, cacheAccountId, coins, currentAreaId, energy, equipmentIds, mapPositions, openedTreasures, playerRegionId, progressLoaded, visitedAreaIds, xp]);
 
   useEffect(() => {
     if (!toast) return;
@@ -332,6 +333,19 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       ...newlyOwnedCatalogIds,
     ])]
     : undefined, [newlyOwnedCatalogIds, remoteSnapshot]);
+  const visibleOwnedCatalogIds = useMemo(
+    () => ownedCatalogIds ?? (bootstrap.identity ? [] : undefined),
+    [bootstrap.identity, ownedCatalogIds],
+  );
+  const visibleTeamIds = activeTeamIds ?? (bootstrap.identity ? [] : undefined);
+  const playerLevel = remoteSnapshot?.profile.level ?? Math.max(1, Math.floor(xp / 600) + 1);
+  const discoveredByRegion = useMemo(() => {
+    const visibleIds = new Set(visibleOwnedCatalogIds ?? CREATURES.map((creature) => creature.id));
+    return Object.fromEntries(REGIONS.map((region) => [
+      region.id,
+      CREATURES.filter((creature) => creature.regionId === region.id && visibleIds.has(creature.id)).length,
+    ]));
+  }, [visibleOwnedCatalogIds]);
   const currentRegion = REGIONS.find((region) => region.id === playerRegionId) ?? REGIONS[0];
   const showWelcome = isSupabaseConfigured() && !bootstrap.identity && !guestPreview;
   const needsStarterChoice = bootstrap.source === "supabase"
@@ -352,7 +366,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
         </button>
         <div className="header-stats">
           <span><Coins /> {coins.toLocaleString("pt-BR")}</span>
-          <span><ShieldCheck /> Nv. 7</span>
+          <span><ShieldCheck /> Nv. {playerLevel}</span>
         </div>
         <div className="header-actions">
           <LoginDialog />
@@ -391,10 +405,11 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
         {!showWelcome && view === "hub" ? (
           <HubView
             playerName={remoteSnapshot?.profile.displayName ?? bootstrap.identity?.email?.split("@")[0] ?? "Explorador"}
-            level={remoteSnapshot?.profile.level ?? 7}
+            level={playerLevel}
             coins={coins}
             xp={xp}
-            collectionCount={ownedCatalogIds?.length ?? CREATURES.length}
+            collectionCount={visibleOwnedCatalogIds?.length ?? CREATURES.length}
+            currentRegionDiscoveryCount={discoveredByRegion[currentRegion.id] ?? 0}
             teamReady={activeTeamIds?.length === 6}
             currentRegion={currentRegion}
             source={bootstrap.source}
@@ -416,6 +431,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             openedTreasures={openedTreasures}
             avatar={avatar}
             mapPositions={mapPositions}
+            discoveredByRegion={discoveredByRegion}
             onSelect={setSelectedRegion}
             onTravel={handleTravel}
             onVisitArea={handleVisitArea}
@@ -433,14 +449,16 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             onBuy={handleBuyEnergy}
           />
         ) : null}
-        {!showWelcome && view === "collection" ? <CollectionView ownedCatalogIds={ownedCatalogIds} /> : null}
-        {!showWelcome && view === "team" ? <TeamView teamIds={activeTeamIds} teamName={activeTeam?.name} /> : null}
+        {!showWelcome && view === "collection" ? <CollectionView ownedCatalogIds={visibleOwnedCatalogIds} /> : null}
+        {!showWelcome && view === "team" ? <TeamView teamIds={visibleTeamIds} teamName={activeTeam?.name} /> : null}
         {!showWelcome && view === "refuge" ? <RefugeView /> : null}
         {!showWelcome && view === "pvp" ? <PvpView bootstrap={bootstrap} onOpenBattle={setPvpBattleId} /> : null}
         {!showWelcome && view === "profile" ? (
           <ProfileView
             coins={coins}
             xp={xp}
+            level={playerLevel}
+            collectionCount={visibleOwnedCatalogIds?.length ?? CREATURES.length}
             source={bootstrap.source}
             snapshot={remoteSnapshot}
             avatar={avatar}

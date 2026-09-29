@@ -22,6 +22,11 @@ export type LocalMapDefinition = {
   chest: GridPoint;
 };
 
+export type LocalSceneDefinition = {
+  npcs: Array<LocalActorDefinition & { point: GridPoint }>;
+  creatures: Array<{ id: string; creatureId: string; point: GridPoint }>;
+};
+
 const common = {
   columns: 40 as const,
   rows: 25 as const,
@@ -186,4 +191,45 @@ export function isLocalTileWalkable(map: LocalMapDefinition, point: GridPoint) {
     && point.y >= rect.y
     && point.y < rect.y + rect.height
   ));
+}
+
+function shuffledWith<T>(values: readonly T[], random: () => number) {
+  const result = [...values];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swap = Math.min(index, Math.floor(random() * (index + 1)));
+    [result[index], result[swap]] = [result[swap], result[index]];
+  }
+  return result;
+}
+
+export function createLocalScene(
+  map: LocalMapDefinition,
+  regionalCreatureIds: readonly string[],
+  random: () => number = Math.random,
+): LocalSceneDefinition {
+  const pointKeys = new Set<string>();
+  const spawnPoints = shuffledWith(
+    [...map.npcs.flatMap((actor) => actor.route), ...map.creatures.flatMap((actor) => actor.route)]
+      .filter((point) => {
+        const key = `${point.x}:${point.y}`;
+        if (pointKeys.has(key) || !isLocalTileWalkable(map, point)) return false;
+        pointKeys.add(key);
+        return true;
+      }),
+    random,
+  );
+  const npcPool = shuffledWith(map.npcs, random);
+  const creaturePool = shuffledWith([...new Set(regionalCreatureIds)], random);
+  const npcCount = npcPool.length === 0 ? 0 : Math.min(npcPool.length, 1 + Math.floor(random() * 2));
+  const creatureCount = Math.min(creaturePool.length, 2 + Math.floor(random() * 2));
+  const npcs = npcPool.slice(0, npcCount).map((actor, index) => ({
+    ...actor,
+    point: spawnPoints[index] ?? actor.route[0],
+  }));
+  const creatures = creaturePool.slice(0, creatureCount).map((creatureId, index) => ({
+    id: `${map.regionId}-visit-${index}-${creatureId}`,
+    creatureId,
+    point: spawnPoints[npcCount + index] ?? map.creatures[index % map.creatures.length].route[0],
+  }));
+  return { npcs, creatures };
 }
