@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import "./game-ui.css";
+import "./medieval-theme.css";
 
 export const metadata: Metadata = {
   title: "Card Realms — Mundo dos Colecionadores",
@@ -25,8 +26,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
-  themeColor: "#edf2f8",
-  colorScheme: "light",
+  themeColor: "#18100f",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
