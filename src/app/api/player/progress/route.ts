@@ -17,6 +17,12 @@ const mutationSchema = z.discriminatedUnion("action", [
     areaId: z.string().min(1).max(80),
   }),
   z.object({
+    action: z.literal("save_position"),
+    regionId: z.string().min(1).max(80),
+    x: z.number().int().min(0).max(39),
+    y: z.number().int().min(0).max(24),
+  }),
+  z.object({
     action: z.literal("buy_energy"),
     element: z.enum(ELEMENTS),
     quantity: z.union([z.literal(1), z.literal(5)]),
@@ -49,7 +55,7 @@ export async function GET() {
   const [snapshotResult, profileResult, worldResult] = await Promise.all([
     auth.supabase.rpc("get_my_player_snapshot"),
     auth.supabase.from("profiles").select("avatar_config").single(),
-    auth.supabase.from("player_world_state").select("current_area_id,visited_area_ids").single(),
+    auth.supabase.from("player_world_state").select("current_area_id,visited_area_ids,map_positions").single(),
   ]);
   const { data, error } = snapshotResult;
   if (error) {
@@ -67,6 +73,7 @@ export async function GET() {
           ...((data as { world?: object }).world ?? {}),
           currentAreaId: worldResult.data?.current_area_id ?? null,
           visitedAreaIds: worldResult.data?.visited_area_ids ?? [],
+          mapPositions: worldResult.data?.map_positions ?? {},
         },
       }
     : data;
@@ -94,6 +101,12 @@ export async function PATCH(request: Request) {
               target_region_id: payload.regionId,
               target_area_id: payload.areaId,
             })
+          : payload.action === "save_position"
+            ? auth.supabase.rpc("save_world_position", {
+                target_region_id: payload.regionId,
+                target_x: payload.x,
+                target_y: payload.y,
+              })
           : payload.action === "buy_energy"
             ? auth.supabase.rpc("buy_energy_pack", {
                 target_element: payload.element,

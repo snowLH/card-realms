@@ -1281,6 +1281,309 @@ button.creature-card:hover:not(:disabled),
   }
 }
 
+/* Local worlds: independent regional maps, click-to-move and physical encounters. */
+
+.local-explorer {
+  --region-accent: #73d59a;
+  position: relative;
+  min-height: calc(100dvh - 72px);
+  overflow: hidden;
+  border: 6px solid #170b0c;
+  background: #10090b;
+  color: #ffedbc;
+  box-shadow: inset 0 0 0 3px #8d5933;
+}
+
+.local-explorer__viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.local-explorer__world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+  transition: transform .1s linear;
+  image-rendering: pixelated;
+}
+
+.local-explorer__art,
+.local-explorer__vignette {
+  position: absolute;
+  inset: 0;
+}
+
+.local-explorer__art {
+  object-fit: cover;
+  image-rendering: pixelated;
+  user-select: none;
+  pointer-events: none;
+}
+
+.local-explorer__vignette {
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(8, 5, 7, .35), transparent 18%, transparent 78%, rgba(8, 5, 7, .48)),
+    radial-gradient(ellipse at center, transparent 58%, rgba(10, 6, 8, .27));
+}
+
+.local-explorer__hud {
+  position: absolute;
+  z-index: 30;
+  inset: 16px 16px auto;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 13px;
+  pointer-events: none;
+  text-shadow: 2px 3px #16090b;
+}
+
+.local-explorer__hud > * { pointer-events: auto; }
+.local-explorer__hud > div { display: grid; align-content: start; }
+.local-explorer__hud span {
+  color: var(--region-accent);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.local-explorer__hud h1 { margin: 1px 0 0; font-size: clamp(24px, 3vw, 42px); line-height: .98; }
+.local-explorer__hud p { margin: 4px 0 0; color: #f2d99c; font-size: 12px; font-weight: 850; }
+.local-explorer__hud [data-slot="badge"] {
+  display: inline-flex;
+  gap: 6px;
+  border: 3px solid #2b1714;
+  border-radius: 2px;
+  background: #ead29b;
+  padding: 8px 10px;
+  color: #3a2119;
+  text-shadow: none;
+}
+.local-explorer__hud [data-slot="badge"] svg { width: 15px; }
+
+.local-explorer__hint {
+  position: absolute;
+  z-index: 31;
+  left: 18px;
+  bottom: 16px;
+  display: flex;
+  max-width: min(470px, calc(100% - 36px));
+  align-items: center;
+  gap: 8px;
+  border: 3px double #a66c39;
+  background: rgba(39, 21, 18, .94);
+  padding: 8px 11px;
+  color: #f6dda5;
+  font-size: 10px;
+  pointer-events: none;
+}
+.local-explorer__hint svg { width: 17px; flex: 0 0 auto; color: var(--region-accent); }
+
+.local-area-marker,
+.local-npc,
+.local-creature,
+.local-chest {
+  position: absolute;
+  z-index: 8;
+  transform: translate(-50%, -50%);
+  border: 0;
+  background: transparent;
+  color: #ffefbd;
+  cursor: pointer;
+  font-family: var(--font-geist-mono), monospace;
+  filter: drop-shadow(3px 4px #12090b);
+  transition: left 1.4s steps(8, end), top 1.4s steps(8, end), filter .15s;
+}
+.local-area-marker:hover,
+.local-npc:hover,
+.local-creature:hover,
+.local-chest:hover { z-index: 14; filter: drop-shadow(3px 4px #12090b) brightness(1.14); }
+.local-area-marker:focus-visible,
+.local-npc:focus-visible,
+.local-creature:focus-visible,
+.local-chest:focus-visible { outline: 4px solid #fff4ba; outline-offset: 4px; }
+
+.local-area-marker {
+  display: grid;
+  min-width: 132px;
+  justify-items: center;
+  gap: 3px;
+  font-size: 8px;
+  text-shadow: 2px 2px #160a0c;
+}
+.local-area-marker > span {
+  display: grid;
+  width: 35px;
+  height: 35px;
+  place-items: center;
+  border: 4px solid #2c1714;
+  background: #e6c777;
+  box-shadow: inset 0 0 0 2px #8d5530;
+  color: #382019;
+  text-shadow: none;
+}
+.local-area-marker > span svg { width: 16px; }
+.local-area-marker strong { padding: 2px 5px; background: rgba(31, 15, 14, .82); }
+.local-area-marker small { color: #efd79e; font-size: 6px; background: rgba(31, 15, 14, .76); padding: 1px 4px; }
+.local-area-marker.is-visited > span { background: #8bd49d; }
+.local-area-marker.is-current > span { background: var(--region-accent); outline: 3px solid #fff3b2; }
+.local-area-marker:disabled { opacity: .62; cursor: not-allowed; filter: grayscale(.7) drop-shadow(3px 4px #12090b); }
+
+.local-npc,
+.local-creature,
+.local-chest {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+}
+.local-npc strong,
+.local-creature strong,
+.local-chest strong {
+  border: 2px solid #241310;
+  background: rgba(42, 23, 19, .91);
+  padding: 2px 5px;
+  color: #ffe8a9;
+  font-size: 7px;
+  white-space: nowrap;
+}
+.local-npc__sprite {
+  position: relative;
+  display: block;
+  width: 36px;
+  height: 47px;
+  border: 3px solid #2a1715;
+  background: linear-gradient(#dbac72 0 31%, #3c7690 31% 68%, #44302a 68%);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.18);
+  clip-path: polygon(20% 0,80% 0,80% 17%,100% 28%,88% 100%,12% 100%,0 28%,20% 17%);
+}
+.local-npc__sprite::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 7px;
+  width: 14px;
+  height: 10px;
+  background: #2d1b1b;
+  box-shadow: 0 15px #b78748;
+}
+.local-npc__sprite svg { display: none; }
+
+.local-creature .pixel-creature {
+  width: 61px;
+  height: 61px;
+  transform: scale(1.12);
+  image-rendering: pixelated;
+}
+
+.local-chest > span {
+  display: grid;
+  width: 49px;
+  height: 38px;
+  place-items: center;
+  border: 4px solid #2e1915;
+  border-radius: 9px 9px 2px 2px;
+  background: linear-gradient(#dd9142 0 42%, #8e492d 43% 100%);
+  box-shadow: inset 0 0 0 3px #efbe58, 4px 5px #12090a;
+  color: #381f19;
+}
+.local-chest svg { width: 21px; }
+.local-chest.is-open > span { transform: skew(-8deg); background: #6d563d; filter: grayscale(.55); }
+
+.local-player {
+  position: absolute;
+  z-index: 18;
+  display: grid;
+  width: 54px;
+  height: 72px;
+  transform: translate(-50%, -76%);
+  justify-items: center;
+  pointer-events: none;
+  transition: left .09s linear, top .09s linear;
+  filter: drop-shadow(4px 5px #11080a);
+}
+.local-player .character-avatar-2d { margin: -4px 0 -22px; transform: scale(.61); transform-origin: center bottom; }
+.local-player > span { z-index: 2; border: 2px solid #2b1613; background: #e9d29b; padding: 1px 5px; color: #392019; font: 800 7px var(--font-geist-mono), monospace; }
+.local-player.is-facing-left .character-avatar-2d { transform: scale(-.61, .61); }
+.local-player.is-walking { animation: local-walk .36s steps(2, end) infinite; }
+
+.walk-path-dot,
+.walk-destination {
+  position: absolute;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.walk-path-dot { width: 5px; height: 5px; border: 1px solid #3a231a; background: #f6da77; box-shadow: 1px 2px #1b0e0e; }
+.walk-destination { display: grid; width: 26px; height: 26px; place-items: center; border: 2px dashed #ffea93; border-radius: 50%; color: #fff1a7; animation: destination-pulse 1s steps(2, end) infinite; }
+.walk-destination svg { width: 13px; }
+
+.local-interaction {
+  position: absolute;
+  z-index: 40;
+  right: 18px;
+  bottom: 18px;
+  display: grid;
+  width: min(330px, calc(100% - 36px));
+  gap: 9px;
+  border: 6px solid #211110;
+  background:
+    repeating-linear-gradient(0deg, rgba(96,58,32,.05) 0 1px, transparent 1px 5px),
+    #ecd49c;
+  padding: 17px;
+  box-shadow: inset 0 0 0 3px #9a6138, 7px 9px rgba(10,5,7,.65);
+  color: #3b221a;
+}
+.local-interaction h2 { margin: 0; font-size: 28px; line-height: 1; }
+.local-interaction p { margin: 0; color: #73513c; font-size: 11px; line-height: 1.45; }
+.local-interaction small { color: #7d5b44; font-size: 9px; line-height: 1.35; }
+.local-interaction__close { position: absolute; right: 7px; top: 7px; display: grid; width: 28px; height: 28px; place-items: center; border: 2px solid #6e402c; background: #f0d79d; color: #4d2b21; cursor: pointer; }
+.local-interaction__close svg { width: 14px; }
+.local-interaction__eyebrow { display: flex; align-items: center; gap: 5px; color: #80432d; font: 900 8px var(--font-geist-mono), monospace; letter-spacing: .12em; text-transform: uppercase; }
+.local-interaction__eyebrow svg { width: 14px; }
+.local-interaction__creature { height: 92px; overflow: hidden; border: 3px double #9c6338; background: radial-gradient(circle, #f5e2b3, #caa771); }
+.local-interaction__creature .pixel-creature { height: 105px; margin: -7px auto 0; }
+
+@keyframes local-walk {
+  50% { margin-top: -3px; }
+}
+
+@keyframes destination-pulse {
+  50% { transform: translate(-50%, -50%) scale(1.15); opacity: .65; }
+}
+
+/* Status messages stay clear of the map HUD and interaction cards. */
+.game-toast { inset: auto 18px 18px auto; }
+
+@media (max-width: 767px) {
+  .local-explorer { min-height: calc(100dvh - 132px); border-width: 4px; }
+  .local-explorer__hud { inset: 9px 9px auto; grid-template-columns: auto minmax(0, 1fr); gap: 8px; }
+  .local-explorer__hud h1 { font-size: 20px; }
+  .local-explorer__hud p { font-size: 9px; }
+  .local-explorer__hud > [data-slot="badge"] { display: none; }
+  .local-explorer__hint { left: 9px; bottom: 9px; max-width: calc(100% - 18px); font-size: 8px; }
+  .local-area-marker { min-width: 94px; }
+  .local-area-marker strong { max-width: 94px; overflow: hidden; text-overflow: ellipsis; }
+  .local-area-marker small { display: none; }
+  .local-interaction { right: 9px; bottom: 45px; width: calc(100% - 18px); }
+  .game-toast { inset: auto 10px calc(76px + env(safe-area-inset-bottom)) 10px; width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .local-explorer__world,
+  .local-player,
+  .local-npc,
+  .local-creature,
+  .local-chest { transition: none; }
+  .local-player.is-walking,
+  .walk-destination { animation: none; }
+}
+
 @media (min-width: 768px) {
   .welcome-view {
     grid-template-columns: minmax(0, .9fr) minmax(470px, .8fr);
@@ -1741,4 +2044,11 @@ button.creature-card:hover:not(:disabled),
   .card-table__felt { border-width:6px; }
   .table-bench { min-height:96px; }
   .battle-log { position:static; width:auto; }
+}
+
+/* Final stacking fix: notices never cover the local-map HUD or its controls. */
+.game-toast { inset: auto 18px 18px auto; }
+
+@media (max-width: 767px) {
+  .game-toast { inset: auto 10px calc(76px + env(safe-area-inset-bottom)) 10px; width: auto; }
 }

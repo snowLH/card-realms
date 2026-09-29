@@ -16,6 +16,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CREATURES, REGIONS } from "@/game/catalog";
+import type { GridPoint } from "@/game/exploration/pathfinding";
 import type { PlayerBootstrap } from "@/game/player";
 import type { BattleReward, Element, EnergyPool, RegionAreaDefinition, RegionDefinition } from "@/game/types";
 import {
@@ -99,6 +100,9 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   const [visitedAreaIds, setVisitedAreaIds] = useState<string[]>(
     remoteSnapshot?.world.visitedAreaIds ?? (initialRegion.areas?.[0] ? [initialRegion.areas[0].id] : []),
   );
+  const [mapPositions, setMapPositions] = useState<Record<string, GridPoint>>(
+    remoteSnapshot?.world.mapPositions ?? {},
+  );
   const [energy, setEnergy] = useState<EnergyPool>(remoteSnapshot?.energy ?? DEFAULT_LOCAL_PROGRESS.energy);
   const [avatar, setAvatar] = useState<AvatarConfig>(remoteSnapshot?.profile.avatarConfig ?? DEFAULT_AVATAR_CONFIG);
   const [equipmentIds, setEquipmentIds] = useState<string[]>(() => {
@@ -123,6 +127,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       setOpenedTreasures(parsed.openedTreasures);
       setCurrentAreaId(parsed.currentAreaId);
       setVisitedAreaIds(parsed.visitedAreaIds);
+      setMapPositions(parsed.mapPositions);
       setEnergy(parsed.energy);
       setAvatar(parsed.avatar);
       setEquipmentIds(parsed.equipmentIds);
@@ -142,13 +147,14 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     if (!progressLoaded) return;
     try {
       saveLocalProgress(window.localStorage, {
-        version: 3,
+        version: 4,
         coins,
         xp,
         openedTreasures,
         playerRegionId,
         currentAreaId,
         visitedAreaIds,
+        mapPositions,
         energy,
         equipmentIds,
         avatar,
@@ -156,7 +162,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     } catch (error) {
       console.error("Não foi possível salvar o progresso local.", error);
     }
-  }, [avatar, coins, currentAreaId, energy, equipmentIds, openedTreasures, playerRegionId, progressLoaded, visitedAreaIds, xp]);
+  }, [avatar, coins, currentAreaId, energy, equipmentIds, mapPositions, openedTreasures, playerRegionId, progressLoaded, visitedAreaIds, xp]);
 
   useEffect(() => {
     if (!toast) return;
@@ -253,6 +259,18 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     setToast(`Você entrou em ${area.name}.`);
   };
 
+  const handlePositionChange = (region: RegionDefinition, point: GridPoint) => {
+    setMapPositions((current) => ({ ...current, [region.id]: point }));
+    if (bootstrap.source === "supabase") {
+      void mutateRemoteProgress({
+        action: "save_position",
+        regionId: region.id,
+        x: point.x,
+        y: point.y,
+      }).catch((error) => setToast(error instanceof Error ? error.message : "A posição não pôde ser sincronizada."));
+    }
+  };
+
   const handleBuyEnergy = async (element: Element, quantity: 1 | 5, price: number) => {
     if (coins < price) {
       setToast("Moedas insuficientes para este pacote.");
@@ -295,15 +313,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       if (reward && !reward.replayed) {
         setCoins((current) => current + reward.coins);
         setXp((current) => current + reward.xp);
-        if (reward.creatureId) {
-          setNewlyOwnedCatalogIds((current) => [...new Set([...current, reward.creatureId!])]);
-        }
-        const cardName = reward.creatureId
-          ? CREATURES.find((creature) => creature.id === reward.creatureId)?.name
-          : null;
-        setToast(cardName
-          ? `Vitória registrada: você conquistou a carta ${cardName}.`
-          : "Vitória registrada: moedas e experiência recebidas.");
+        setToast("Vitória registrada: moedas e experiência recebidas. Cartas de criatura são encontradas em baús.");
       }
       return;
     }
@@ -403,11 +413,15 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             playerRegionId={playerRegionId}
             currentAreaId={currentAreaId}
             visitedAreaIds={visitedAreaIds}
+            openedTreasures={openedTreasures}
+            avatar={avatar}
+            mapPositions={mapPositions}
             onSelect={setSelectedRegion}
             onTravel={handleTravel}
             onVisitArea={handleVisitArea}
             onBattle={handleBattle}
             onTreasure={handleTreasure}
+            onPositionChange={handlePositionChange}
             onOpenVillage={() => navigate("village")}
           />
         ) : null}

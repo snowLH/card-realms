@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(43);
+select plan(45);
 
 select has_table('public', 'battles', 'authoritative battles table exists');
 select has_table('public', 'pvp_challenges', 'PVP challenges table exists');
@@ -89,6 +89,10 @@ select ok(
   'authenticated may invoke the validated avatar RPC'
 );
 select ok(
+  has_function_privilege('authenticated', 'public.save_world_position(text,integer,integer)', 'execute'),
+  'authenticated may invoke the bounded position RPC'
+);
+select ok(
   exists (
     select 1 from pg_policies
     where schemaname = 'realtime'
@@ -145,6 +149,10 @@ select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001
 select lives_ok(
   $$select public.visit_region_area('roots', 'roots-gate')$$,
   'A can enter the first area of the current region'
+);
+select lives_ok(
+  $$select public.save_world_position('roots', 4, 20)$$,
+  'A can save a valid position in the current local map'
 );
 select throws_ok(
   $$select public.visit_region_area('roots', 'roots-heart')$$,
