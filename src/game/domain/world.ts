@@ -1,5 +1,15 @@
 export type Activity = "explore" | "wild" | "npc" | "treasure" | "sanctuary" | "boss";
 
+export type RegionAreaDefinition = {
+  id: string;
+  name: string;
+  subtitle: string;
+  recommendedLevel: string;
+  position: { x: number; y: number };
+  activity: Activity;
+  unlockAfter?: string;
+};
+
 export type RegionDefinition = {
   id: string;
   name: string;
@@ -13,4 +23,6 @@ export type RegionDefinition = {
   neighbors: string[];
   activities: Activity[];
   accent: string;
+  viewport?: { x: number; y: number; scale: number };
+  areas?: RegionAreaDefinition[];
 };

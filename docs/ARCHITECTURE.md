@@ -47,11 +47,20 @@ O catálogo é um array de dados tipados; o motor busca definições por índice
 
 | Fonte | Autoridade | Comportamento |
 | --- | --- | --- |
-| `local` | save v2 do navegador | visitante sem sessão |
+| `local` | save v3 do navegador | visitante sem sessão |
 | `supabase` | snapshot e RPCs Postgres | cache local é apenas recuperação visual |
 | `supabase-unavailable` | sessão conhecida, backend indisponível | jogo informa que alterações ficaram só no cache |
 
 O snapshot remoto é validado por Zod antes de entrar no Client Component. Viagem, tesouro e equipe ativa passam por funções transacionais que derivam `auth.uid()`; a chave secreta não participa desses fluxos comuns.
+
+### Mundo regional, vila e personagem 2D
+
+- `RegionDefinition.areas` mantém cinco áreas declarativas por região principal; a UI troca o atlas global por um explorador regional ampliado sem introduzir 3D.
+- `region_areas` é um catálogo RLS somente leitura. `visit_region_area` verifica a região atual e exige a área anterior antes de persistir `current_area_id` e `visited_area_ids`.
+- A economia da vila nunca aceita preço do cliente. `buy_energy_pack` aceita apenas elemento e quantidade 1/5, calcula 18/75 moedas, bloqueia a linha do perfil e atualiza moedas/energia na mesma transação.
+- O avatar é uma composição de camadas CSS 2D validada pelo mesmo schema no cliente e no servidor. `save_avatar_config` rejeita valores extras e impede equipar armaduras rúnica/guardiã antes de existirem no inventário.
+- Baús de Raízes e Montanhas Rúnicas concedem a armadura correspondente dentro da mesma função idempotente que registra o ledger.
+- O diretório de amigos pesquisa somente `id`, `username` e `display_name`; e-mail e tokens nunca entram na resposta. Inserts/updates continuam sujeitos às policies de amizade e grants por coluna.
 
 ## PVP autoritativo
 
@@ -88,7 +97,7 @@ Essa arquitetura foi homologada em staging em 27 de setembro de 2026: seis migra
 
 ## Harness de homologação
 
-- `supabase/tests/001_online_foundation.test.sql`: 29 asserções estruturais e negativas para schema, grants e RLS.
+- `supabase/tests/001_online_foundation.test.sql`: 43 asserções estruturais, funcionais e negativas para schema, grants, RLS, áreas, loja, avatar e preparação do PVP.
 - `scripts/staging-realtime-probe.mjs`: assinatura válida, negação de tópico alheio e ausência de publicação por cliente.
 - `scripts/staging-polling-probe.mjs`: recuperação por consulta periódica quando o evento não é consumido.
 - `scripts/staging-idempotency-probe.mjs`: repetição sequencial e concorrente da recompensa de tesouro.

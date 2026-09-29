@@ -24,7 +24,12 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
     id: subject,
     email: typeof claims?.email === "string" ? claims.email : null,
   };
-  const { data, error } = await supabase.rpc("get_my_player_snapshot");
+  const [snapshotResult, profileResult, worldResult] = await Promise.all([
+    supabase.rpc("get_my_player_snapshot"),
+    supabase.from("profiles").select("avatar_config").single(),
+    supabase.from("player_world_state").select("current_area_id,visited_area_ids").single(),
+  ]);
+  const { data, error } = snapshotResult;
   if (error) {
     console.error("Falha ao carregar o progresso remoto.", error.code);
     return {
@@ -35,7 +40,21 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
     };
   }
 
-  const parsed = RemotePlayerSnapshotSchema.safeParse(data);
+  const enriched = data && typeof data === "object" && !Array.isArray(data)
+    ? {
+        ...data,
+        profile: {
+          ...((data as { profile?: object }).profile ?? {}),
+          avatarConfig: profileResult.data?.avatar_config,
+        },
+        world: {
+          ...((data as { world?: object }).world ?? {}),
+          currentAreaId: worldResult.data?.current_area_id ?? null,
+          visitedAreaIds: worldResult.data?.visited_area_ids ?? [],
+        },
+      }
+    : data;
+  const parsed = RemotePlayerSnapshotSchema.safeParse(enriched);
   if (!parsed.success) {
     console.error("Snapshot remoto incompatível.", parsed.error.issues);
     return {

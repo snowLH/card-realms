@@ -54,6 +54,9 @@ As migrations devem ser aplicadas, sem saltos, pela ordem lexical em `supabase/m
 4. `20260927015815_online_player_progress.sql`
 5. `20260927031000_authoritative_pvp.sql`
 6. `20260927050000_online_security_hardening.sql`
+7. `20260928171334_card_first_journey.sql`
+8. `20260929135232_world_expansion_2d.sql`
+9. `20260929135836_add_world_area_index.sql`
 
 Com a CLI autenticada:
 
@@ -75,7 +78,7 @@ supabase db reset
 supabase test db
 ```
 
-`supabase/tests/001_online_foundation.test.sql` contém 29 asserções para schema, índices, RLS, grants, amizade, equipes, desafios e negação de leitura das tabelas autoritativas. Sem Docker local, a homologação executou o mesmo arquivo por conexão remota dentro de uma transação com rollback; 29/29 passaram.
+`supabase/tests/001_online_foundation.test.sql` contém 43 asserções para schema, índices, RLS, grants, amizade, equipes, desafios, áreas regionais, loja de energia, avatar e negação de leitura das tabelas autoritativas. Sem Docker local, a homologação pode executar o mesmo arquivo por conexão remota dentro de uma transação com rollback; a revisão de 29 de setembro passou 43/43.
 
 ## Auditoria após migration
 

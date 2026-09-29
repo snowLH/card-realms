@@ -1,14 +1,31 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(43);
 
 select has_table('public', 'battles', 'authoritative battles table exists');
 select has_table('public', 'pvp_challenges', 'PVP challenges table exists');
 select has_table('public', 'battle_results', 'persistent battle results table exists');
+select has_table('public', 'region_areas', 'regional area catalog exists');
 select has_index('public', 'friendships', 'one_friendship_per_pair', 'friend pairs are unique in either direction');
 select has_index('public', 'team_members', 'team_members_player_creature_idx', 'team member foreign key is indexed');
+select has_index('public', 'player_world_state', 'player_world_state_current_area_idx', 'current area foreign key is indexed');
 select has_trigger('public', 'battle_events', 'broadcast_pvp_battle_event', 'battle events broadcast trigger exists');
+
+select results_eq(
+  $$select count(*)::bigint from public.region_areas where enabled$$,
+  array[25::bigint],
+  'five primary regions expose twenty-five enabled areas'
+);
+select results_eq(
+  $$select count(*)::bigint from public.creature_catalog where enabled and art_slot between 25 and 49$$,
+  array[25::bigint],
+  'the second atlas contributes twenty-five enabled creatures'
+);
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.region_areas'::regclass),
+  'the regional area catalog keeps RLS enabled'
+);
 
 select results_eq(
   $$
@@ -60,6 +77,18 @@ select ok(
   'authenticated may invoke the narrow challenge RPC'
 );
 select ok(
+  has_function_privilege('authenticated', 'public.visit_region_area(text,text)', 'execute'),
+  'authenticated may invoke the narrow area visit RPC'
+);
+select ok(
+  has_function_privilege('authenticated', 'public.buy_energy_pack(public.card_element,integer)', 'execute'),
+  'authenticated may invoke the server-priced energy shop RPC'
+);
+select ok(
+  has_function_privilege('authenticated', 'public.save_avatar_config(jsonb)', 'execute'),
+  'authenticated may invoke the validated avatar RPC'
+);
+select ok(
   exists (
     select 1 from pg_policies
     where schemaname = 'realtime'
@@ -75,8 +104,74 @@ insert into auth.users (id, email) values
   ('20000000-0000-4000-8000-000000000002', 'pvp-b@test.invalid'),
   ('30000000-0000-4000-8000-000000000003', 'pvp-outsider@test.invalid');
 
+-- New accounts now choose a single starter. Seed the two PvP participants with
+-- six owned creatures each so this suite exercises the legal duel path rather
+-- than bypassing the production team validator.
+with seeded_creatures as (
+  insert into public.player_creatures (
+    user_id, creature_id, acquired_from
+  )
+  select players.user_id, catalog.id, 'pgtap-pvp-fixture'
+  from (
+    values
+      ('10000000-0000-4000-8000-000000000001'::uuid),
+      ('20000000-0000-4000-8000-000000000002'::uuid)
+  ) as players(user_id)
+  cross join lateral (
+    select id
+    from public.creature_catalog
+    where enabled
+    order by art_slot
+    limit 6
+  ) as catalog
+  returning id, user_id, creature_id
+), ranked_creatures as (
+  select
+    id,
+    user_id,
+    row_number() over (partition by user_id order by creature_id)::smallint as slot
+  from seeded_creatures
+)
+insert into public.team_members (team_id, slot, player_creature_id)
+select teams.id, ranked_creatures.slot, ranked_creatures.id
+from ranked_creatures
+join public.teams
+  on teams.user_id = ranked_creatures.user_id
+ and teams.is_active;
+
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+
+select lives_ok(
+  $$select public.visit_region_area('roots', 'roots-gate')$$,
+  'A can enter the first area of the current region'
+);
+select throws_ok(
+  $$select public.visit_region_area('roots', 'roots-heart')$$,
+  '22023',
+  null,
+  'A cannot skip the regional area sequence'
+);
+select throws_ok(
+  $$select public.buy_energy_pack('fire', 2)$$,
+  '22023',
+  null,
+  'A cannot invent an unsupported energy package'
+);
+select lives_ok(
+  $$select public.buy_energy_pack('fire', 1)$$,
+  'A can buy a server-priced energy package'
+);
+select throws_ok(
+  $$select public.save_avatar_config('{"skin":"copper","hair":"braids","outfit":"traveler","armor":"guardian","accent":"gold"}'::jsonb)$$,
+  '22023',
+  null,
+  'A cannot equip an armor that is not in inventory'
+);
+select lives_ok(
+  $$select public.save_avatar_config('{"skin":"copper","hair":"braids","outfit":"traveler","armor":"leather","accent":"gold"}'::jsonb)$$,
+  'A can save a valid base avatar'
+);
 
 select lives_ok(
   $$

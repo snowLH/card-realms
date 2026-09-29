@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ELEMENTS } from "../domain/elements";
+import { AvatarConfigSchema, DEFAULT_AVATAR_CONFIG } from "../save/local-progress";
 
 const JsonObjectSchema = z.record(z.string(), z.unknown());
 const ElementSchema = z.enum(ELEMENTS);
@@ -14,12 +15,15 @@ const ProfileSchema = z.object({
   coins: z.number().int().nonnegative(),
   gems: z.number().int().nonnegative(),
   equippedTitle: z.string().nullable(),
+  avatarConfig: AvatarConfigSchema.default(DEFAULT_AVATAR_CONFIG),
 });
 
 const WorldStateSchema = z.object({
   currentRegionId: z.string().min(1),
   unlockedRegionIds: z.array(z.string().min(1)),
   openedTreasures: z.array(z.string().min(1)),
+  currentAreaId: z.string().min(1).nullable().default(null),
+  visitedAreaIds: z.array(z.string().min(1)).default([]),
 });
 
 const OwnedCreatureSchema = z.object({

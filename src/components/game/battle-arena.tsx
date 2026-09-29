@@ -257,23 +257,23 @@ export function BattleArena({
       <section className="card-table" aria-label="Mesa de batalha de cartas">
         <div className="card-table__felt">
           <div className="card-table__resource-row card-table__resource-row--opponent">
-            <div className="table-pile">
+            <div className="table-pile tcg-zone tcg-zone--deck" data-zone="Baralho">
               <span className="table-card-back">CR</span>
               <small>{data.opponent.energyDeck.length || "?"} no baralho</small>
             </div>
-            <div className="table-hidden-hand" aria-label="Mão do adversário oculta">
+            <div className="table-hidden-hand tcg-zone tcg-zone--hand" data-zone="Mão adversária" aria-label="Mão do adversário oculta">
               {Array.from({ length: Math.min(5, data.opponent.energyHand.length || 5) }, (_, index) => (
-                <span className="table-card-back" key={`opponent-card-${index}`}>CR</span>
+                <span className="table-card-back" style={{ "--card-index": index } as React.CSSProperties} key={`opponent-card-${index}`}>CR</span>
               ))}
             </div>
-            <div className="table-discard">
+            <div className="table-discard tcg-zone tcg-zone--discard" data-zone="Descarte">
               <span>{data.opponent.energyDiscard.length}</span>
               <small>descarte</small>
             </div>
           </div>
 
           <div className="card-table__side card-table__side--opponent">
-            <div className="table-bench" aria-label="Banco do adversário">
+            <div className="table-bench tcg-zone tcg-zone--bench" data-zone="Banco adversário" aria-label="Banco do adversário">
               {data.opponent.team.map((card, index) => {
                 if (index === data.opponent.activeIndex) return null;
                 const definition = CREATURE_BY_ID.get(card.catalogId)!;
@@ -286,7 +286,7 @@ export function BattleArena({
                 );
               })}
             </div>
-            <div className="table-active-zone table-active-zone--opponent">
+            <div className="table-active-zone table-active-zone--opponent tcg-zone tcg-zone--active" data-zone="Criatura ativa">
               <span>Carta ativa de {data.opponent.name}</span>
               <CreatureCard
                 creature={data.opponentDefinition}
@@ -308,7 +308,7 @@ export function BattleArena({
           </div>
 
           <div className="card-table__side card-table__side--player">
-            <div className="table-active-zone table-active-zone--player">
+            <div className="table-active-zone table-active-zone--player tcg-zone tcg-zone--active" data-zone="Criatura ativa">
               <span>Sua carta ativa</span>
               <CreatureCard
                 creature={data.playerDefinition}
@@ -318,7 +318,7 @@ export function BattleArena({
                 className="table-active-card"
               />
             </div>
-            <div className="table-bench" aria-label="Seu banco de cartas">
+            <div className="table-bench tcg-zone tcg-zone--bench" data-zone="Seu banco" aria-label="Seu banco de cartas">
               {data.player.team.map((card, index) => {
                 if (index === data.player.activeIndex) return null;
                 const definition = CREATURE_BY_ID.get(card.catalogId)!;
@@ -350,7 +350,7 @@ export function BattleArena({
           </div>
 
           <div className="card-table__resource-row card-table__resource-row--player">
-            <div className="table-pile">
+            <div className="table-pile tcg-zone tcg-zone--deck" data-zone="Baralho">
               <span className="table-card-back">CR</span>
               <small>{data.player.energyDeck.length} no baralho</small>
             </div>
@@ -358,7 +358,7 @@ export function BattleArena({
               <strong>{data.player.team.length}/6 cartas</strong>
               <small>{forcedSwitch ? "Troca obrigatória" : "Banco da equipe"}</small>
             </div>
-            <div className="table-discard">
+            <div className="table-discard tcg-zone tcg-zone--discard" data-zone="Descarte">
               <span>{data.player.energyDiscard.length}</span>
               <small>descarte</small>
             </div>

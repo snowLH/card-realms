@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { RemotePlayerSnapshotSchema } from "@/game/player";
+import { ELEMENTS } from "@/game/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -10,6 +11,16 @@ export const dynamic = "force-dynamic";
 const mutationSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("travel"), regionId: z.string().min(1).max(80) }),
   z.object({ action: z.literal("claim_treasure"), regionId: z.string().min(1).max(80) }),
+  z.object({
+    action: z.literal("visit_area"),
+    regionId: z.string().min(1).max(80),
+    areaId: z.string().min(1).max(80),
+  }),
+  z.object({
+    action: z.literal("buy_energy"),
+    element: z.enum(ELEMENTS),
+    quantity: z.union([z.literal(1), z.literal(5)]),
+  }),
   z.object({
     action: z.literal("choose_starter"),
     creatureId: z.enum(["boitata", "iara", "curupira"]),
@@ -35,12 +46,31 @@ export async function GET() {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const { data, error } = await auth.supabase.rpc("get_my_player_snapshot");
+  const [snapshotResult, profileResult, worldResult] = await Promise.all([
+    auth.supabase.rpc("get_my_player_snapshot"),
+    auth.supabase.from("profiles").select("avatar_config").single(),
+    auth.supabase.from("player_world_state").select("current_area_id,visited_area_ids").single(),
+  ]);
+  const { data, error } = snapshotResult;
   if (error) {
     console.error("Falha no snapshot remoto.", error.code);
     return NextResponse.json({ error: "Não foi possível carregar o progresso." }, { status: 503 });
   }
-  const parsed = RemotePlayerSnapshotSchema.safeParse(data);
+  const enriched = data && typeof data === "object" && !Array.isArray(data)
+    ? {
+        ...data,
+        profile: {
+          ...((data as { profile?: object }).profile ?? {}),
+          avatarConfig: profileResult.data?.avatar_config,
+        },
+        world: {
+          ...((data as { world?: object }).world ?? {}),
+          currentAreaId: worldResult.data?.current_area_id ?? null,
+          visitedAreaIds: worldResult.data?.visited_area_ids ?? [],
+        },
+      }
+    : data;
+  const parsed = RemotePlayerSnapshotSchema.safeParse(enriched);
   if (!parsed.success) {
     return NextResponse.json({ error: "Snapshot remoto incompatível." }, { status: 500 });
   }
@@ -59,9 +89,19 @@ export async function PATCH(request: Request) {
       ? auth.supabase.rpc("travel_to_region", { target_region_id: payload.regionId })
       : payload.action === "claim_treasure"
         ? auth.supabase.rpc("claim_region_treasure", { target_region_id: payload.regionId })
-        : payload.action === "choose_starter"
-          ? auth.supabase.rpc("choose_starter_card", { target_creature_id: payload.creatureId })
-          : auth.supabase.rpc("activate_team", { target_team_id: payload.teamId });
+        : payload.action === "visit_area"
+          ? auth.supabase.rpc("visit_region_area", {
+              target_region_id: payload.regionId,
+              target_area_id: payload.areaId,
+            })
+          : payload.action === "buy_energy"
+            ? auth.supabase.rpc("buy_energy_pack", {
+                target_element: payload.element,
+                target_quantity: payload.quantity,
+              })
+            : payload.action === "choose_starter"
+              ? auth.supabase.rpc("choose_starter_card", { target_creature_id: payload.creatureId })
+              : auth.supabase.rpc("activate_team", { target_team_id: payload.teamId });
     const { data, error } = await rpc;
     if (error) {
       const conflict = error.code === "23505" || error.code === "22023";
