@@ -1,16 +1,19 @@
 "use client";
 
-import { Filter, Search } from "lucide-react";
+import { BookOpen, Filter, MapPin, Search, Shield, Sparkles, Swords, Zap } from "lucide-react";
+import type { CSSProperties } from "react";
 import { useMemo, useState } from "react";
 import { CREATURES, ELEMENT_META, IMPLEMENTATION_NOTE } from "@/game/catalog";
 import { ELEMENTS, type Element } from "@/game/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { CreatureCard } from "./creature-card";
+import { PixelCreature } from "./pixel-creature";
 
 export function CollectionView({ ownedCatalogIds }: { ownedCatalogIds?: string[] }) {
   const [query, setQuery] = useState("");
   const [element, setElement] = useState<Element | "all">("all");
+  const [selectedId, setSelectedId] = useState(CREATURES[0].id);
 
   const creatures = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("pt-BR");
@@ -24,6 +27,8 @@ export function CollectionView({ ownedCatalogIds }: { ownedCatalogIds?: string[]
       return matchesElement && matchesQuery;
     });
   }, [element, query]);
+  const selected = creatures.find((creature) => creature.id === selectedId) ?? creatures[0] ?? CREATURES[0];
+  const selectedElement = ELEMENT_META[selected.element];
 
   return (
     <section className="content-view collection-view">
@@ -76,12 +81,50 @@ export function CollectionView({ ownedCatalogIds }: { ownedCatalogIds?: string[]
         <p>{IMPLEMENTATION_NOTE.statement}</p>
       </div>
 
+      <section className="bestiary-book" aria-label={`Ficha de ${selected.name}`}>
+        <div className="bestiary-book__spine" aria-hidden />
+        <article className="bestiary-book__page bestiary-book__page--art">
+          <div className="bestiary-book__folio"><BookOpen /> Entrada {String(CREATURES.indexOf(selected) + 1).padStart(2, "0")}</div>
+          <div className="bestiary-book__portrait" style={{ "--bestiary-element": selectedElement.color } as CSSProperties}>
+            <PixelCreature sprite={selected.sprite} label={selected.name} />
+            <Sparkles aria-hidden />
+          </div>
+          <span className="bestiary-book__rarity">{selected.rarity}</span>
+          <h2>{selected.name}</h2>
+          <p className="bestiary-book__title">{selected.title}</p>
+          <div className="bestiary-book__stats">
+            <span><Swords /> {selected.attacks[0].damage}</span>
+            <span><Shield /> {selected.defense}</span>
+            <span><Zap /> {selected.speed}</span>
+          </div>
+        </article>
+        <article className="bestiary-book__page bestiary-book__page--lore">
+          <span className="bestiary-book__element" style={{ "--bestiary-element": selectedElement.color } as CSSProperties}>
+            {selectedElement.short} · {selectedElement.name}
+          </span>
+          <p>{selected.description}</p>
+          <blockquote>{selected.lore}</blockquote>
+          <dl>
+            <div><dt>Tradição</dt><dd>{selected.folklore.tradition}</dd></div>
+            <div><dt>Origem</dt><dd>{selected.folklore.origin}</dd></div>
+            <div><dt>Encontro</dt><dd><MapPin /> {selected.obtainableBy}</dd></div>
+          </dl>
+          <div className="bestiary-book__moves">
+            {selected.attacks.map((attack) => (
+              <span key={attack.id}><strong>{attack.name}</strong><small>{attack.damage} dano · dado {attack.minRoll}+</small></span>
+            ))}
+          </div>
+        </article>
+      </section>
+
       <div className="collection-grid">
         {creatures.map((creature) => (
           <CreatureCard
             key={creature.id}
             creature={creature}
             owned={ownedCatalogIds ? ownedCatalogIds.includes(creature.id) : undefined}
+            className={creature.id === selected.id ? "creature-card--indexed" : undefined}
+            onClick={() => setSelectedId(creature.id)}
           />
         ))}
       </div>
