@@ -24,6 +24,13 @@ const WorldStateSchema = z.object({
   openedTreasures: z.array(z.string().min(1)),
   currentAreaId: z.string().min(1).nullable().default(null),
   visitedAreaIds: z.array(z.string().min(1)).default([]),
+  mapPositions: z.record(
+    z.string().min(1),
+    z.object({
+      x: z.number().int().min(0).max(39),
+      y: z.number().int().min(0).max(24),
+    }),
+  ).default({}),
 });
 
 const OwnedCreatureSchema = z.object({

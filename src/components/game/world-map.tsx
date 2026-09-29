@@ -2,61 +2,55 @@
 
 import Image from "next/image";
 import {
-  ArrowLeft,
-  Castle,
-  Check,
-  Compass,
   Footprints,
   LockKeyhole,
   Map as MapIcon,
   MapPin,
-  PackageOpen,
-  Shield,
   Sparkles,
-  Swords,
   TentTree,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { REGIONS } from "@/game/catalog";
+import type { GridPoint } from "@/game/exploration/pathfinding";
+import type { AvatarConfig } from "@/game/save/local-progress";
 import type { Activity, RegionAreaDefinition, RegionDefinition } from "@/game/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
-const activityMeta = {
-  explore: { label: "Explorar trilha", icon: Compass, battle: true },
-  wild: { label: "Procurar criatura", icon: Sparkles, battle: true },
-  npc: { label: "Enfrentar viajante", icon: Swords, battle: true },
-  treasure: { label: "Abrir baú da área", icon: PackageOpen, battle: false },
-  sanctuary: { label: "Entrar no santuário", icon: Shield, battle: true },
-  boss: { label: "Desafiar guardião", icon: Castle, battle: true },
-} as const;
+import { LocalExploration } from "./local-exploration";
 
 export function WorldMap({
   selected,
   playerRegionId,
   currentAreaId,
   visitedAreaIds,
+  openedTreasures,
+  avatar,
+  mapPositions,
   onSelect,
   onTravel,
   onVisitArea,
   onBattle,
   onTreasure,
+  onPositionChange,
   onOpenVillage,
 }: {
   selected: RegionDefinition | null;
   playerRegionId: string;
   currentAreaId: string | null;
   visitedAreaIds: string[];
+  openedTreasures: string[];
+  avatar: AvatarConfig;
+  mapPositions: Record<string, GridPoint>;
   onSelect: (region: RegionDefinition | null) => void;
   onTravel: (region: RegionDefinition) => void;
   onVisitArea: (region: RegionDefinition, area: RegionAreaDefinition) => void;
   onBattle: (region: RegionDefinition, activity: Activity) => void;
   onTreasure: (region: RegionDefinition) => void;
+  onPositionChange: (region: RegionDefinition, point: GridPoint) => void;
   onOpenVillage: () => void;
 }) {
   const [activeRegionId, setActiveRegionId] = useState<string | null>(null);
-  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(currentAreaId);
   const currentRegion = REGIONS.find((region) => region.id === playerRegionId) ?? REGIONS[0];
   const activeRegion = useMemo(
     () => REGIONS.find((region) => region.id === activeRegionId) ?? null,
@@ -66,23 +60,18 @@ export function WorldMap({
 
   if (activeRegion?.areas?.length) {
     return (
-      <RegionExplorer
+      <LocalExploration
         region={activeRegion}
         currentAreaId={currentAreaId}
         visitedAreaIds={visitedAreaIds}
-        selectedAreaId={selectedAreaId}
-        onSelectArea={setSelectedAreaId}
-        onBack={() => {
-          setActiveRegionId(null);
-          setSelectedAreaId(null);
-        }}
-        onVisit={(area) => {
-          onVisitArea(activeRegion, area);
-          setSelectedAreaId(area.id);
-          const meta = activityMeta[area.activity];
-          if (meta.battle) onBattle(activeRegion, area.activity);
-          else onTreasure(activeRegion);
-        }}
+        openedTreasure={openedTreasures.includes(activeRegion.id)}
+        avatar={avatar}
+        savedPosition={mapPositions[activeRegion.id]}
+        onBack={() => setActiveRegionId(null)}
+        onVisitArea={(area) => onVisitArea(activeRegion, area)}
+        onBattle={(activity) => onBattle(activeRegion, activity)}
+        onTreasure={() => onTreasure(activeRegion)}
+        onPositionChange={(point) => onPositionChange(activeRegion, point)}
       />
     );
   }
@@ -164,7 +153,6 @@ export function WorldMap({
               <p>Amplie o mapa e entre nas trilhas, vilas, ruínas e santuários desta região.</p>
               <Button type="button" variant="game" onClick={() => {
                 setActiveRegionId(selected.id);
-                setSelectedAreaId(currentAreaId && currentAreaId.startsWith(`${selected.id}-`) ? currentAreaId : selected.areas?.[0]?.id ?? null);
               }}><MapIcon /> Entrar na região</Button>
             </div>
           ) : (
@@ -172,78 +160,6 @@ export function WorldMap({
           )}
         </aside>
       ) : null}
-    </section>
-  );
-}
-
-function RegionExplorer({
-  region,
-  currentAreaId,
-  visitedAreaIds,
-  selectedAreaId,
-  onSelectArea,
-  onBack,
-  onVisit,
-}: {
-  region: RegionDefinition;
-  currentAreaId: string | null;
-  visitedAreaIds: string[];
-  selectedAreaId: string | null;
-  onSelectArea: (areaId: string) => void;
-  onBack: () => void;
-  onVisit: (area: RegionAreaDefinition) => void;
-}) {
-  const areas = region.areas ?? [];
-  const selectedArea = areas.find((area) => area.id === selectedAreaId) ?? areas[0];
-  const viewport = region.viewport ?? { x: 50, y: 50, scale: 2 };
-  const unlocked = (area: RegionAreaDefinition) => !area.unlockAfter || visitedAreaIds.includes(area.unlockAfter);
-
-  return (
-    <section className="region-explorer" aria-label={`Exploração de ${region.name}`} style={{ "--region-accent": region.accent } as React.CSSProperties}>
-      <div className="region-explorer__map">
-        <div className="region-explorer__map-art" style={{ transform: `scale(${viewport.scale})`, transformOrigin: `${viewport.x}% ${viewport.y}%` }}>
-          <Image src="/art/world-map-pixel-v2.png" alt={`Mapa ampliado de ${region.name}`} fill priority sizes="100vw" className="object-cover [image-rendering:pixelated]" />
-        </div>
-        <div className="region-explorer__shade" />
-        <header className="region-explorer__heading">
-          <Button type="button" variant="secondary" size="sm" onClick={onBack}><ArrowLeft /> Atlas</Button>
-          <div><span>Região explorável · 5 áreas</span><h1>{region.name}</h1><p>{region.subtitle}</p></div>
-        </header>
-
-        <svg className="region-path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
-          <polyline points={areas.map((area) => `${area.position.x},${area.position.y}`).join(" ")} />
-        </svg>
-        {areas.map((area, index) => {
-          const isUnlocked = unlocked(area);
-          const isVisited = visitedAreaIds.includes(area.id);
-          const isCurrent = currentAreaId === area.id;
-          return (
-            <button
-              key={area.id}
-              type="button"
-              disabled={!isUnlocked}
-              className={cn("area-node", selectedArea?.id === area.id && "is-selected", isVisited && "is-visited", isCurrent && "is-current", !isUnlocked && "is-locked")}
-              style={{ left: `${area.position.x}%`, top: `${area.position.y}%` }}
-              onClick={() => onSelectArea(area.id)}
-            >
-              <span>{!isUnlocked ? <LockKeyhole /> : isVisited ? <Check /> : index + 1}</span>
-              <strong>{area.name}</strong>
-            </button>
-          );
-        })}
-      </div>
-
-      <aside className="area-panel">
-        <div className="area-panel__topline"><Badge>Nível {selectedArea.recommendedLevel}</Badge><span>{visitedAreaIds.includes(selectedArea.id) ? "Explorada" : "Nova área"}</span></div>
-        <h2>{selectedArea.name}</h2><p>{selectedArea.subtitle}</p>
-        <div className="area-panel__activity">
-          {(() => { const Icon = activityMeta[selectedArea.activity].icon; return <Icon />; })()}
-          <div><strong>{activityMeta[selectedArea.activity].label}</strong><span>Criaturas próprias da região e encontros comuns podem aparecer aqui.</span></div>
-        </div>
-        <Button type="button" variant="game" size="lg" disabled={!unlocked(selectedArea)} onClick={() => onVisit(selectedArea)}>
-          <Footprints /> {currentAreaId === selectedArea.id ? "Explorar novamente" : "Viajar para esta área"}
-        </Button>
-      </aside>
     </section>
   );
 }

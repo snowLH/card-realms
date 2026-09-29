@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-export const LOCAL_PROGRESS_KEY = "card-realms:progress:v3";
+export const LOCAL_PROGRESS_KEY = "card-realms:progress:v4";
+const V3_PROGRESS_KEY = "card-realms:progress:v3";
 const V2_PROGRESS_KEY = "card-realms:progress:v2";
 const LEGACY_PROGRESS_KEY = "card-realms:demo-progress:v1";
 
@@ -23,13 +24,20 @@ export const DEFAULT_AVATAR_CONFIG: AvatarConfig = {
 };
 
 const LocalProgressSchema = z.object({
-  version: z.literal(3),
+  version: z.literal(4),
   coins: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
   xp: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
   openedTreasures: z.array(z.string().min(1).max(80)).max(500),
   playerRegionId: z.string().min(1).max(80),
   currentAreaId: z.string().min(1).max(80).nullable(),
   visitedAreaIds: z.array(z.string().min(1).max(80)).max(500),
+  mapPositions: z.record(
+    z.string().min(1).max(80),
+    z.object({
+      x: z.number().int().min(0).max(39),
+      y: z.number().int().min(0).max(24),
+    }),
+  ),
   energy: z.object({
     fire: z.number().int().nonnegative().max(9999),
     water: z.number().int().nonnegative().max(9999),
@@ -44,13 +52,14 @@ const LocalProgressSchema = z.object({
 export type LocalProgress = z.infer<typeof LocalProgressSchema>;
 
 export const DEFAULT_LOCAL_PROGRESS: LocalProgress = {
-  version: 3,
+  version: 4,
   coins: 840,
   xp: 1240,
   openedTreasures: [],
   playerRegionId: "roots",
   currentAreaId: "roots-gate",
   visitedAreaIds: ["roots-gate"],
+  mapPositions: { roots: { x: 4, y: 20 } },
   energy: { fire: 12, water: 12, nature: 12, storm: 12, spirit: 12 },
   equipmentIds: ["leather"],
   avatar: DEFAULT_AVATAR_CONFIG,
@@ -70,20 +79,23 @@ export function loadLocalProgress(storage: Pick<Storage, "getItem">): LocalProgr
       }
     }
 
-    const legacy = storage.getItem(V2_PROGRESS_KEY) ?? storage.getItem(LEGACY_PROGRESS_KEY);
+    const legacy = storage.getItem(V3_PROGRESS_KEY)
+      ?? storage.getItem(V2_PROGRESS_KEY)
+      ?? storage.getItem(LEGACY_PROGRESS_KEY);
     if (!legacy) return DEFAULT_LOCAL_PROGRESS;
     const value = JSON.parse(legacy) as Record<string, unknown>;
     const migrated = LocalProgressSchema.parse({
-      version: 3,
+      version: 4,
       coins: value.coins ?? DEFAULT_LOCAL_PROGRESS.coins,
       xp: value.xp ?? DEFAULT_LOCAL_PROGRESS.xp,
       openedTreasures: value.openedTreasures ?? [],
       playerRegionId: value.playerRegionId ?? "roots",
-      currentAreaId: "roots-gate",
-      visitedAreaIds: ["roots-gate"],
-      energy: DEFAULT_LOCAL_PROGRESS.energy,
-      equipmentIds: ["leather"],
-      avatar: DEFAULT_AVATAR_CONFIG,
+      currentAreaId: value.currentAreaId ?? "roots-gate",
+      visitedAreaIds: value.visitedAreaIds ?? ["roots-gate"],
+      mapPositions: value.mapPositions ?? DEFAULT_LOCAL_PROGRESS.mapPositions,
+      energy: value.energy ?? DEFAULT_LOCAL_PROGRESS.energy,
+      equipmentIds: value.equipmentIds ?? ["leather"],
+      avatar: value.avatar ?? DEFAULT_AVATAR_CONFIG,
     });
     return { ...migrated, openedTreasures: unique(migrated.openedTreasures) };
   } catch {

@@ -27,7 +27,7 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
   const [snapshotResult, profileResult, worldResult] = await Promise.all([
     supabase.rpc("get_my_player_snapshot"),
     supabase.from("profiles").select("avatar_config").single(),
-    supabase.from("player_world_state").select("current_area_id,visited_area_ids").single(),
+    supabase.from("player_world_state").select("current_area_id,visited_area_ids,map_positions").single(),
   ]);
   const { data, error } = snapshotResult;
   if (error) {
@@ -51,6 +51,7 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
           ...((data as { world?: object }).world ?? {}),
           currentAreaId: worldResult.data?.current_area_id ?? null,
           visitedAreaIds: worldResult.data?.visited_area_ids ?? [],
+          mapPositions: worldResult.data?.map_positions ?? {},
         },
       }
     : data;

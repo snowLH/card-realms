@@ -21,7 +21,7 @@ describe("save local versionado", () => {
     expect(loadLocalProgress(storage)).toEqual(DEFAULT_LOCAL_PROGRESS);
   });
 
-  it("migra o save legado para a versão 3 sem perder moedas, XP e tesouros", () => {
+  it("migra o save legado para a versão 4 sem perder moedas, XP e tesouros", () => {
     const storage = memoryStorage({
       "card-realms:demo-progress:v1": JSON.stringify({
         coins: 912,
@@ -32,7 +32,7 @@ describe("save local versionado", () => {
 
     expect(loadLocalProgress(storage)).toEqual({
       ...DEFAULT_LOCAL_PROGRESS,
-      version: 3,
+      version: 4,
       coins: 912,
       xp: 77,
       openedTreasures: ["roots"],
@@ -47,9 +47,21 @@ describe("save local versionado", () => {
     });
 
     expect(JSON.parse(storage.value(LOCAL_PROGRESS_KEY) ?? "{}")).toMatchObject({
-      version: 3,
+      version: 4,
       openedTreasures: ["roots", "mist"],
     });
+  });
+
+  it("migra a posição regional de um save v3 quando ela existe", () => {
+    const storage = memoryStorage({
+      "card-realms:progress:v3": JSON.stringify({
+        ...DEFAULT_LOCAL_PROGRESS,
+        version: 3,
+        mapPositions: { roots: { x: 12, y: 18 } },
+      }),
+    });
+
+    expect(loadLocalProgress(storage).mapPositions.roots).toEqual({ x: 12, y: 18 });
   });
 
   it("normaliza áreas e equipamentos duplicados antes de persistir", () => {
