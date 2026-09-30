@@ -6,6 +6,7 @@ import {
   BattleLogEntrySchema,
   GameRuleError,
   attachEnergy,
+  evolveActiveCreature,
   passTurn,
   resolveAttack,
   switchActiveCreature,
@@ -86,7 +87,9 @@ export async function POST(request: Request) {
         ? switchActiveCreature(state, actorId, action.creatureIndex, action.actionId)
         : action.action === "attack"
           ? resolveAttack(state, actorId, action.attackId, roll(), effectRoll(), action.actionId)
-          : passTurn(state, actorId, action.actionId);
+          : action.action === "evolve"
+            ? evolveActiveCreature(state, actorId, action.actionId)
+            : passTurn(state, actorId, action.actionId);
     const result = withOpaquePvpEventIds(resolved, randomUUID);
 
     const { data, error } = await admin.rpc("commit_pvp_action", {
