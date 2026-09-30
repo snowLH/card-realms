@@ -103,6 +103,7 @@ export function BattleArena({
   const [effect, setEffect] = useState<string | null>(null);
   const [presentationEvent, setPresentationEvent] = useState<BattlePresentationEvent | null>(null);
   const [animationSpeed, setAnimationSpeed] = useState<"normal" | "fast" | "very-fast">("normal");
+  const [turnBannerVisible, setTurnBannerVisible] = useState(false);
   const [pendingSwitchIndex, setPendingSwitchIndex] = useState<number | null>(null);
   const [reward, setReward] = useState<BattleReward | null>(null);
   const victoryReported = useRef(false);
@@ -250,6 +251,13 @@ export function BattleArena({
     };
   }, [battle, pvp?.playerId]);
 
+  useEffect(() => {
+    if (!battle || battle.status !== "active") return;
+    setTurnBannerVisible(true);
+    const timer = window.setTimeout(() => setTurnBannerVisible(false), 1100);
+    return () => window.clearTimeout(timer);
+  }, [battle?.status, battle?.turn.number, battle?.turn.sideId]);
+
   if (!open) return null;
 
   if (!battle || !data) {
@@ -271,6 +279,21 @@ export function BattleArena({
   const pendingSwitchDefinition = pendingSwitch
     ? CREATURE_BY_ID.get(pendingSwitch.catalogId) ?? null
     : null;
+  const playerIsActor = presentationEvent?.actorId === data.player.id;
+  const opponentIsActor = presentationEvent?.actorId === data.opponent.id;
+  const cinematic = Boolean(presentationEvent && (
+    ["attack", "critical", "miss", "ko", "switch"].includes(presentationEvent.kind)
+  ));
+  const playerHit = Boolean(
+    presentationEvent
+    && opponentIsActor
+    && ["attack", "critical"].includes(presentationEvent.kind),
+  );
+  const opponentHit = Boolean(
+    presentationEvent
+    && playerIsActor
+    && ["attack", "critical"].includes(presentationEvent.kind),
+  );
   return (
     <div className="battle-screen">
       <header className="battle-topbar">
