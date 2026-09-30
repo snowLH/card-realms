@@ -2104,3 +2104,875 @@ button.creature-card:hover:not(:disabled),
 @media (max-width: 767px) {
   .game-toast { inset: auto 10px calc(76px + env(safe-area-inset-bottom)) 10px; width: auto; }
 }
+
+
+/* -------------------------------------------------------------------------- */
+/* Battle viewport v3 — fixed competitive arena, no page scrolling            */
+/* -------------------------------------------------------------------------- */
+
+.battle-screen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1200 !important;
+  display: grid !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 0 !important;
+  grid-template-columns: minmax(0, 1fr) clamp(330px, 28vw, 420px) !important;
+  grid-template-rows: 62px minmax(0, 1fr) clamp(92px, 12dvh, 118px) !important;
+  grid-template-areas:
+    "topbar topbar"
+    "arena controls"
+    "arena log" !important;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #170e10 !important;
+  box-shadow: none !important;
+}
+
+.battle-screen--loading {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  grid-template-rows: 1fr !important;
+  place-items: center !important;
+}
+
+.battle-topbar {
+  grid-area: topbar;
+  position: relative !important;
+  top: auto !important;
+  display: grid !important;
+  height: 62px !important;
+  min-height: 0 !important;
+  grid-template-columns: minmax(0, 1fr) auto auto auto 42px !important;
+  grid-template-rows: 1fr !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 6px 10px !important;
+  overflow: hidden;
+}
+
+.battle-topbar > div:first-child {
+  min-width: 0;
+}
+
+.battle-topbar > div:first-child strong {
+  line-height: 1;
+}
+
+.battle-turn {
+  min-height: 32px !important;
+  white-space: nowrap;
+}
+
+.battle-speed {
+  align-self: center;
+  min-height: 32px;
+  padding: 2px !important;
+}
+
+.battle-speed button {
+  min-width: 30px !important;
+  padding: 3px 5px !important;
+}
+
+.battle-sound-toggle,
+.battle-close {
+  width: 38px !important;
+  height: 38px !important;
+}
+
+.card-table {
+  grid-area: arena;
+  min-width: 0;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  padding: 8px !important;
+}
+
+.card-table > .battle-board-scene,
+.battle-board-scene,
+.battle-board-content,
+.battle-board-content .card-table__felt {
+  width: 100%;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+}
+
+.battle-board-scene {
+  border-width: 5px !important;
+}
+
+.battle-board-content {
+  overflow: hidden;
+}
+
+.card-table__felt {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows:
+    clamp(48px, 8%, 64px)
+    minmax(0, 1fr)
+    clamp(42px, 7%, 52px)
+    minmax(0, 1fr)
+    clamp(48px, 8%, 64px) !important;
+  gap: 4px !important;
+  overflow: hidden !important;
+  padding: 8px !important;
+  border-width: 6px !important;
+}
+
+.card-table__resource-row {
+  display: grid !important;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: 72px minmax(0, 1fr) 72px !important;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.card-table__resource-row--opponent {
+  grid-row: 1;
+}
+
+.card-table__resource-row--player {
+  grid-row: 5;
+}
+
+.card-table__side {
+  display: grid !important;
+  min-width: 0;
+  min-height: 0;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.card-table__side--opponent {
+  grid-row: 2;
+  grid-template-columns: minmax(0, 1fr) clamp(160px, 22%, 220px) !important;
+}
+
+.card-table__side--player {
+  grid-row: 4;
+  grid-template-columns: clamp(160px, 22%, 220px) minmax(0, 1fr) !important;
+}
+
+.card-table__centerline {
+  grid-row: 3;
+  position: relative !important;
+  inset: auto !important;
+  display: grid !important;
+  width: min(440px, 48%) !important;
+  min-height: 0 !important;
+  height: 42px !important;
+  grid-template-columns: 42px minmax(0, 1fr) 32px !important;
+  align-self: center;
+  justify-self: center;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px !important;
+  transform: none !important;
+}
+
+.card-table__centerline > span {
+  display: grid;
+  width: 34px !important;
+  height: 30px !important;
+  place-items: center;
+}
+
+.card-table__centerline > div {
+  min-width: 0;
+}
+
+.card-table__centerline strong,
+.card-table__centerline small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-table__centerline > svg {
+  width: 20px;
+}
+
+.tcg-zone {
+  min-height: 0 !important;
+}
+
+.table-pile,
+.table-discard {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  height: 100%;
+  min-height: 0 !important;
+  padding: 8px 4px 3px !important;
+}
+
+.table-card-back {
+  display: grid;
+  width: 38px !important;
+  height: 50px !important;
+  place-items: center;
+  font-size: 8px !important;
+}
+
+.table-pile small,
+.table-discard small {
+  margin-top: 1px;
+  font-size: 6px !important;
+  white-space: nowrap;
+}
+
+.table-discard > span {
+  display: grid;
+  width: 34px !important;
+  height: 38px !important;
+  place-items: center;
+  font-size: 18px !important;
+}
+
+.table-hidden-hand {
+  display: flex !important;
+  min-width: 0;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  overflow: hidden;
+  padding: 5px 8px !important;
+}
+
+.table-hidden-hand .table-card-back {
+  flex: 0 0 38px;
+  margin-inline: -5px;
+}
+
+.table-zone-label {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  align-content: center;
+  gap: 1px;
+  overflow: hidden;
+  text-align: center;
+}
+
+.table-zone-label strong {
+  font-size: 11px;
+}
+
+.table-zone-label small {
+  font-size: 7px;
+}
+
+.table-bench {
+  display: flex !important;
+  min-width: 0;
+  min-height: 0 !important;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  overflow: hidden;
+  padding: 10px 8px 5px !important;
+}
+
+.bench-card {
+  display: grid;
+  width: clamp(72px, 9vw, 98px);
+  min-width: 0;
+  height: clamp(76px, 12dvh, 106px);
+  flex: 0 1 98px;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  place-items: center;
+  gap: 1px;
+  overflow: hidden;
+  padding: 4px !important;
+}
+
+.bench-card .pixel-creature {
+  width: 54px !important;
+  height: 54px !important;
+}
+
+.bench-card > span {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 7px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bench-card > small {
+  font-size: 6px !important;
+  white-space: nowrap;
+}
+
+.bench-card--empty {
+  width: min(220px, 54%) !important;
+  height: 74px !important;
+  flex-basis: 220px;
+  align-content: center;
+}
+
+.table-active-zone {
+  display: grid !important;
+  min-width: 0;
+  min-height: 0 !important;
+  height: 100%;
+  place-items: center;
+  align-content: center;
+  overflow: visible;
+  padding: 13px 4px 2px !important;
+}
+
+.table-active-zone > span:first-child {
+  align-self: start;
+  font-size: 6px;
+}
+
+.battle-active-creature {
+  min-width: 118px !important;
+  padding-top: 38px !important;
+}
+
+.battle-active-creature__sprite {
+  top: -26px !important;
+  width: clamp(68px, 8vw, 94px) !important;
+  height: clamp(68px, 8vw, 94px) !important;
+}
+
+.battle-active-creature .creature-card--compact {
+  width: 112px !important;
+  flex-basis: 112px !important;
+  padding: 5px !important;
+}
+
+.battle-active-creature .creature-card--compact .creature-card__art {
+  height: 64px !important;
+}
+
+.battle-active-creature .creature-card__header {
+  font-size: 9px !important;
+}
+
+.battle-active-creature .creature-card__element {
+  width: 21px !important;
+  height: 21px !important;
+}
+
+.battle-avatar {
+  transform: scale(.78);
+}
+
+.battle-avatar--opponent {
+  right: 4px !important;
+  top: 50px !important;
+}
+
+.battle-avatar--player {
+  left: 4px !important;
+  bottom: 48px !important;
+}
+
+.battle-board-nameplate {
+  top: 7px !important;
+  left: 7px !important;
+  padding: 4px 6px !important;
+}
+
+.battle-turn-banner {
+  width: min(360px, 46%) !important;
+  padding: 7px 22px !important;
+}
+
+.battle-turn-banner span {
+  font-size: clamp(11px, 1.6vw, 18px) !important;
+}
+
+.battle-terrain-status {
+  top: 50% !important;
+  min-width: 190px !important;
+  max-width: 42%;
+  padding: 5px 8px !important;
+}
+
+.battle-controls {
+  grid-area: controls !important;
+  display: grid !important;
+  min-width: 0;
+  min-height: 0 !important;
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+  border-width: 0 0 4px 4px !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+
+.energy-tray {
+  min-width: 0;
+  max-height: 154px;
+  overflow: hidden;
+  border-bottom: 3px double #9b6338;
+  padding: 8px 8px 6px;
+}
+
+.battle-section-title {
+  min-width: 0;
+  margin-bottom: 5px !important;
+}
+
+.battle-section-title > span {
+  font-size: 10px !important;
+}
+
+.battle-section-title small {
+  overflow: hidden;
+  font-size: 7px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.energy-tray__rail {
+  display: grid !important;
+  min-height: 0 !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  align-items: stretch !important;
+  gap: 4px !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  perspective: none !important;
+}
+
+.energy-card {
+  display: grid !important;
+  min-width: 0 !important;
+  width: auto !important;
+  height: 104px;
+  flex: none !important;
+  grid-template-columns: 1fr !important;
+  grid-template-rows: 25px 16px 1fr 28px;
+  place-items: center;
+  gap: 1px !important;
+  margin: 0 !important;
+  padding: 4px !important;
+  transform: none !important;
+  font-size: 6px !important;
+  text-align: center;
+}
+
+.energy-card:hover,
+.energy-card:focus-within {
+  z-index: 4;
+  margin: 0 !important;
+  transform: translateY(-2px) scale(1.02) !important;
+}
+
+.energy-card__sigil {
+  grid-row: auto !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 3px !important;
+  font-size: 7px !important;
+}
+
+.energy-card strong {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 7px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.energy-card > span:not(.energy-card__sigil) {
+  display: none !important;
+}
+
+.energy-card__actions {
+  grid-column: 1 !important;
+  width: 100%;
+  margin: 0 !important;
+}
+
+.energy-card__actions button {
+  width: 100%;
+  min-height: 25px !important;
+  padding: 2px !important;
+  font-size: 6px !important;
+  line-height: 1.05;
+}
+
+.attack-panel {
+  min-width: 0;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  padding: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #9b6338 #3b211b;
+}
+
+.evolution-control {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 6px !important;
+  margin-bottom: 7px;
+  padding: 7px !important;
+}
+
+.evolution-control .view-eyebrow {
+  font-size: 6px !important;
+}
+
+.evolution-control strong {
+  font-size: 8px !important;
+}
+
+.evolution-control small {
+  display: none;
+}
+
+.evolution-control [data-slot="button"] {
+  min-height: 30px !important;
+  padding-inline: 8px !important;
+  font-size: 7px !important;
+}
+
+.attack-list {
+  gap: 5px !important;
+}
+
+.attack-button {
+  min-height: 46px !important;
+  grid-template-columns: 28px minmax(0, 1fr) auto 14px !important;
+  gap: 5px !important;
+  padding: 5px 6px !important;
+}
+
+.attack-button__icon {
+  width: 27px !important;
+  height: 27px !important;
+}
+
+.attack-button__icon svg,
+.attack-button > svg {
+  width: 13px !important;
+}
+
+.attack-button strong {
+  font-size: 8px !important;
+}
+
+.attack-button small {
+  font-size: 6px !important;
+}
+
+.attack-button__stats strong {
+  font-size: 11px !important;
+}
+
+.attack-preview {
+  gap: 6px !important;
+  padding: 7px !important;
+}
+
+.attack-preview__heading {
+  padding-bottom: 4px !important;
+}
+
+.attack-preview__stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 4px !important;
+}
+
+.attack-preview__stats > span {
+  padding: 4px !important;
+}
+
+.attack-preview__stats small {
+  font-size: 6px !important;
+}
+
+.attack-preview__stats strong {
+  font-size: 8px !important;
+}
+
+.battle-log {
+  grid-area: log !important;
+  min-width: 0;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: hidden !important;
+  border-width: 0 0 0 4px !important;
+  border-radius: 0 !important;
+  padding: 6px 8px !important;
+}
+
+.battle-log__toggle {
+  min-height: 24px;
+  margin-bottom: 3px !important;
+}
+
+.battle-log__entries {
+  max-height: calc(100% - 28px) !important;
+  overflow-y: auto !important;
+  gap: 2px !important;
+}
+
+.battle-log__entries p {
+  padding: 3px 5px !important;
+  font-size: 7px !important;
+  line-height: 1.25 !important;
+}
+
+.battle-screen > .switch-confirmation {
+  position: fixed !important;
+  z-index: 70;
+  left: 50%;
+  bottom: 14px;
+  width: min(560px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  margin: 0 !important;
+  box-shadow: 6px 8px rgba(9, 5, 6, .5);
+}
+
+.battle-error {
+  left: 12px !important;
+  right: auto !important;
+  bottom: 12px !important;
+  width: min(440px, calc(100vw - 24px));
+}
+
+.battle-busy {
+  right: calc(clamp(330px, 28vw, 420px) + 12px) !important;
+  bottom: 12px !important;
+}
+
+@media (max-width: 1100px) {
+  .battle-screen {
+    grid-template-columns: minmax(0, 1fr) 320px !important;
+  }
+
+  .card-table__side--opponent {
+    grid-template-columns: minmax(0, 1fr) 150px !important;
+  }
+
+  .card-table__side--player {
+    grid-template-columns: 150px minmax(0, 1fr) !important;
+  }
+
+  .bench-card {
+    width: 66px;
+    flex-basis: 66px;
+  }
+
+  .battle-active-creature .creature-card--compact {
+    width: 104px !important;
+    flex-basis: 104px !important;
+  }
+
+  .battle-busy {
+    right: 332px !important;
+  }
+}
+
+@media (max-width: 819px) {
+  .battle-screen {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 58px minmax(0, 58%) minmax(0, 42%) !important;
+    grid-template-areas:
+      "topbar"
+      "arena"
+      "controls" !important;
+  }
+
+  .battle-topbar {
+    height: 58px !important;
+    grid-template-columns: minmax(0, 1fr) auto auto 38px !important;
+  }
+
+  .battle-speed {
+    display: none !important;
+  }
+
+  .card-table {
+    padding: 5px !important;
+  }
+
+  .battle-board-nameplate,
+  .battle-avatar {
+    display: none !important;
+  }
+
+  .card-table__felt {
+    grid-template-rows: 38px minmax(0, 1fr) 34px minmax(0, 1fr) 38px !important;
+    padding: 5px !important;
+  }
+
+  .card-table__resource-row {
+    grid-template-columns: 52px minmax(0, 1fr) 52px !important;
+    gap: 4px;
+  }
+
+  .table-card-back {
+    width: 30px !important;
+    height: 38px !important;
+  }
+
+  .table-discard > span {
+    width: 27px !important;
+    height: 29px !important;
+    font-size: 13px !important;
+  }
+
+  .card-table__side--opponent {
+    grid-template-columns: minmax(0, 1fr) 115px !important;
+  }
+
+  .card-table__side--player {
+    grid-template-columns: 115px minmax(0, 1fr) !important;
+  }
+
+  .table-bench {
+    gap: 3px;
+    padding-inline: 3px !important;
+  }
+
+  .bench-card {
+    width: 54px;
+    height: 66px;
+    flex-basis: 54px;
+  }
+
+  .bench-card .pixel-creature {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  .bench-card > small {
+    display: none;
+  }
+
+  .battle-active-creature {
+    min-width: 94px !important;
+    padding-top: 28px !important;
+  }
+
+  .battle-active-creature__sprite {
+    top: -20px !important;
+    width: 58px !important;
+    height: 58px !important;
+  }
+
+  .battle-active-creature .creature-card--compact {
+    width: 88px !important;
+    flex-basis: 88px !important;
+  }
+
+  .battle-active-creature .creature-card--compact .creature-card__art {
+    height: 48px !important;
+  }
+
+  .battle-turn-banner {
+    width: 66% !important;
+  }
+
+  .battle-controls {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    border-width: 4px 0 0 !important;
+  }
+
+  .energy-tray,
+  .attack-panel {
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto !important;
+  }
+
+  .energy-tray {
+    border-right: 3px double #9b6338;
+    border-bottom: 0;
+  }
+
+  .energy-tray__rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    overflow-y: auto !important;
+  }
+
+  .energy-card {
+    height: 84px;
+  }
+
+  .battle-log {
+    display: none !important;
+  }
+
+  .battle-busy {
+    right: 10px !important;
+    bottom: 10px !important;
+  }
+}
+
+@media (max-height: 720px) and (min-width: 820px) {
+  .battle-screen {
+    grid-template-rows: 54px minmax(0, 1fr) 82px !important;
+  }
+
+  .battle-topbar {
+    height: 54px !important;
+  }
+
+  .battle-board-nameplate {
+    display: none !important;
+  }
+
+  .battle-avatar {
+    transform: scale(.66);
+  }
+
+  .card-table__felt {
+    grid-template-rows: 42px minmax(0, 1fr) 36px minmax(0, 1fr) 42px !important;
+    padding: 5px !important;
+  }
+
+  .energy-tray {
+    max-height: 132px;
+  }
+
+  .energy-card {
+    height: 88px;
+  }
+
+  .table-bench {
+    padding-top: 7px !important;
+  }
+
+  .bench-card {
+    height: 72px;
+  }
+
+  .battle-active-creature {
+    padding-top: 26px !important;
+  }
+
+  .battle-active-creature__sprite {
+    top: -18px !important;
+    width: 58px !important;
+    height: 58px !important;
+  }
+
+  .battle-active-creature .creature-card--compact .creature-card__art {
+    height: 46px !important;
+  }
+}
