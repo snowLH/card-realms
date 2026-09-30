@@ -6,6 +6,12 @@ const EnergyCardSchema = z.object({
   element: z.enum(ELEMENTS),
 });
 
+const PowerCardSchema = z.object({
+  id: z.string().min(1),
+  attackId: z.string().min(1),
+  element: z.enum(ELEMENTS),
+});
+
 const ActiveStatusSchema = z.object({
   effect: z.enum(["burn", "soaked", "rooted", "shocked", "haunted", "warded"]),
   turns: z.number().int().positive(),
@@ -23,6 +29,7 @@ const BattleCreatureSchema = z.object({
   statuses: z.array(ActiveStatusSchema),
   defeated: z.boolean(),
   evolutionStage: z.union([z.literal(0), z.literal(1)]).optional().default(0),
+  equippedPowerIds: z.array(z.string().min(1)).max(4).default([]),
 });
 
 const BattleSideSchema = z.object({
@@ -35,6 +42,10 @@ const BattleSideSchema = z.object({
   energyHand: z.array(EnergyCardSchema),
   energyDiscard: z.array(EnergyCardSchema),
   attachmentsRemaining: z.number().int().min(0).max(2),
+  powerDeck: z.array(PowerCardSchema),
+  powerHand: z.array(PowerCardSchema),
+  powerDiscard: z.array(PowerCardSchema),
+  powerDrawsRemaining: z.number().int().min(0).max(1),
   turnsStarted: z.number().int().nonnegative(),
 });
 
@@ -44,7 +55,7 @@ export const BattleLogEntrySchema = z.object({
   actorId: z.string().min(1),
   kind: z.enum([
     "battle_start", "turn_started", "energy_drawn", "energy_attached",
-    "creature_switched", "forced_switch", "attack_hit", "attack_miss",
+    "power_drawn", "power_equipped", "creature_switched", "forced_switch", "attack_hit", "attack_miss",
     "critical", "status_applied", "status_tick", "healed", "shielded",
     "passed", "defeated", "evolution_started", "evolution_completed",
     "terrain_activated", "terrain_expired", "battle_end",
@@ -58,6 +69,8 @@ export const BattleLogEntrySchema = z.object({
   evolutionStage: z.union([z.literal(0), z.literal(1)]).optional(),
   terrainElement: z.enum(ELEMENTS).optional(),
   terrainTurns: z.number().int().positive().optional(),
+  powerCardId: z.string().optional(),
+  powerSlot: z.number().int().min(0).max(3).optional(),
 });
 
 export const BattleStateSchema = z.object({
