@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CREATURES, REGIONS } from "@/game/catalog";
 import type { GridPoint } from "@/game/exploration/pathfinding";
 import type { PlayerBootstrap } from "@/game/player";
+import type { RefugeSavePayload } from "@/game/refuge";
 import type { BattleEncounter, BattleReward, Element, EnergyPool, RegionAreaDefinition, RegionDefinition } from "@/game/types";
 import {
   DEFAULT_AVATAR_CONFIG,
@@ -453,7 +454,14 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
         ) : null}
         {!showWelcome && view === "collection" ? <CollectionView ownedCatalogIds={visibleOwnedCatalogIds} /> : null}
         {!showWelcome && view === "team" ? <TeamView teamIds={visibleTeamIds} teamName={activeTeam?.name} /> : null}
-        {!showWelcome && view === "refuge" ? <RefugeView /> : null}
+        {!showWelcome && view === "refuge" ? (
+          <RefugeView
+            ownedCatalogIds={visibleOwnedCatalogIds ?? []}
+            house={remoteSnapshot?.house ?? null}
+            source={bootstrap.source}
+            onSave={bootstrap.source === "supabase" ? handleSaveRefuge : undefined}
+          />
+        ) : null}
         {!showWelcome && view === "pvp" ? <PvpView bootstrap={bootstrap} onOpenBattle={setPvpBattleId} /> : null}
         {!showWelcome && view === "profile" ? (
           <ProfileView
