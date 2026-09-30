@@ -1,12 +1,21 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { RemotePlayerSnapshotSchema } from "@/game/player";
+import { REFUGE_FURNITURE_KEYS, REFUGE_THEMES } from "@/game/refuge";
 import { ELEMENTS } from "@/game/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const refugeFurnitureSchema = z.object({
+  id: z.string().min(1).max(100),
+  itemKey: z.enum(REFUGE_FURNITURE_KEYS),
+  x: z.number().min(8).max(92),
+  y: z.number().min(24).max(88),
+  rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
+});
 
 const mutationSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("travel"), regionId: z.string().min(1).max(80) }),
@@ -32,6 +41,12 @@ const mutationSchema = z.discriminatedUnion("action", [
     creatureId: z.enum(["boitata", "iara", "curupira"]),
   }),
   z.object({ action: z.literal("activate_team"), teamId: z.string().uuid() }),
+  z.object({
+    action: z.literal("save_refuge"),
+    companionId: z.string().min(1).max(80).nullable(),
+    theme: z.enum(REFUGE_THEMES),
+    furniture: z.array(refugeFurnitureSchema).max(12),
+  }),
 ]);
 
 async function authenticatedClient() {
@@ -43,7 +58,7 @@ async function authenticatedClient() {
   if (error || typeof data?.claims?.sub !== "string") {
     return { ok: false, error: "Autenticação necessária.", status: 401 } as const;
   }
-  return { ok: true, supabase } as const;
+  return { ok: true, supabase, userId: data.claims.sub } as const;
 }
 
 export async function GET() {
@@ -92,6 +107,66 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
+    if (payload.action === "save_refuge") {
+      if (payload.companionId) {
+        const { data: owned, error: ownedError } = await auth.supabase
+          .from("player_creatures")
+          .select("id")
+          .eq("user_id", auth.userId)
+          .eq("creature_id", payload.companionId)
+          .limit(1)
+          .maybeSingle();
+        if (ownedError) {
+          return NextResponse.json({ error: "Não foi possível validar a lenda escolhida." }, { status: 503 });
+        }
+        if (!owned) {
+          return NextResponse.json(
+            { error: "Você só pode exibir no Refúgio uma lenda que realmente possui." },
+            { status: 409 },
+          );
+        }
+      }
+
+      const { data: house, error: houseError } = await auth.supabase
+        .from("houses")
+        .select("layout")
+        .eq("user_id", auth.userId)
+        .single();
+      if (houseError || !house) {
+        return NextResponse.json({ error: "O Refúgio desta conta não foi encontrado." }, { status: 404 });
+      }
+
+      const previousLayout = house.layout
+        && typeof house.layout === "object"
+        && !Array.isArray(house.layout)
+        ? house.layout as Record<string, unknown>
+        : {};
+      const nextLayout = {
+        ...previousLayout,
+        residentCreatureId: payload.companionId,
+        furniture: payload.furniture,
+      };
+
+      const { data: updatedHouse, error: updateError } = await auth.supabase
+        .from("houses")
+        .update({ theme: payload.theme, layout: nextLayout })
+        .eq("user_id", auth.userId)
+        .select("id,theme,layout")
+        .single();
+      if (updateError || !updatedHouse) {
+        return NextResponse.json({ error: "Não foi possível salvar a decoração do Refúgio." }, { status: 503 });
+      }
+
+      return NextResponse.json({
+        result: {
+          companionId: payload.companionId,
+          theme: updatedHouse.theme,
+          furniture: payload.furniture,
+        },
+        authority: "supabase",
+      });
+    }
+
     const rpc = payload.action === "travel"
       ? auth.supabase.rpc("travel_to_region", { target_region_id: payload.regionId })
       : payload.action === "claim_treasure"
@@ -115,6 +190,7 @@ export async function PATCH(request: Request) {
             : payload.action === "choose_starter"
               ? auth.supabase.rpc("choose_starter_card", { target_creature_id: payload.creatureId })
               : auth.supabase.rpc("activate_team", { target_team_id: payload.teamId });
+
     const { data, error } = await rpc;
     if (error) {
       const conflict = error.code === "23505" || error.code === "22023";
@@ -135,4 +211,3 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
-
