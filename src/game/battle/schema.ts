@@ -42,10 +42,10 @@ const BattleSideSchema = z.object({
   energyHand: z.array(EnergyCardSchema),
   energyDiscard: z.array(EnergyCardSchema),
   attachmentsRemaining: z.number().int().min(0).max(2),
-  powerDeck: z.array(PowerCardSchema),
-  powerHand: z.array(PowerCardSchema),
-  powerDiscard: z.array(PowerCardSchema),
-  powerDrawsRemaining: z.number().int().min(0).max(1),
+  powerDeck: z.array(PowerCardSchema).default([]),
+  powerHand: z.array(PowerCardSchema).default([]),
+  powerDiscard: z.array(PowerCardSchema).default([]),
+  powerDrawsRemaining: z.number().int().min(0).max(1).default(1),
   turnsStarted: z.number().int().nonnegative(),
 });
 
