@@ -6,6 +6,9 @@ export const ENERGY_DECK_SIZE = 30 as const;
 export const OPENING_HAND_SIZE = 5 as const;
 export const DRAW_PER_TURN = 2 as const;
 export const ATTACHMENTS_PER_TURN = 2 as const;
+export const POWER_DECK_SIZE = 24 as const;
+export const POWER_DRAWS_PER_TURN = 1 as const;
+export const MAX_EQUIPPED_POWERS = 4 as const;
 
 export type Team<T> = T[];
 
@@ -27,6 +30,12 @@ export type EnergyCard = {
   element: Element;
 };
 
+export type PowerCard = {
+  id: string;
+  attackId: string;
+  element: Element;
+};
+
 export type ActiveStatus = {
   effect: StatusEffect;
   turns: number;
@@ -44,6 +53,7 @@ export type BattleCreature = {
   statuses: ActiveStatus[];
   defeated: boolean;
   evolutionStage?: 0 | 1;
+  equippedPowerIds: string[];
 };
 
 export type BattleSide = {
@@ -56,6 +66,10 @@ export type BattleSide = {
   energyHand: EnergyCard[];
   energyDiscard: EnergyCard[];
   attachmentsRemaining: number;
+  powerDeck: PowerCard[];
+  powerHand: PowerCard[];
+  powerDiscard: PowerCard[];
+  powerDrawsRemaining: number;
   turnsStarted: number;
 };
 
@@ -80,6 +94,8 @@ export type BattleLogKind =
   | "turn_started"
   | "energy_drawn"
   | "energy_attached"
+  | "power_drawn"
+  | "power_equipped"
   | "creature_switched"
   | "forced_switch"
   | "attack_hit"
@@ -111,6 +127,8 @@ export type BattleLogEntry = {
   evolutionStage?: 0 | 1;
   terrainElement?: Element;
   terrainTurns?: number;
+  powerCardId?: string;
+  powerSlot?: number;
 };
 
 export type BattleState = {
