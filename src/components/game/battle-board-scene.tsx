@@ -17,6 +17,7 @@ import {
   resolveBattleBoard,
   type BattleBoardId,
 } from "@/game/battle/presentation";
+import type { Element } from "@/game/types";
 import { cn } from "@/lib/utils";
 
 const boardIcons = {
@@ -42,10 +43,12 @@ export function BattleBoardScene({
   boardId,
   children,
   cinematic = false,
+  terrainElement,
 }: {
   boardId: BattleBoardId | string | undefined;
   children: React.ReactNode;
   cinematic?: boolean;
+  terrainElement?: Element;
 }) {
   const board = resolveBattleBoard(boardId);
   const definition = BATTLE_BOARD_BY_ID.get(board)!;
@@ -57,6 +60,7 @@ export function BattleBoardScene({
         "battle-board-scene",
         `battle-board-scene--${board}`,
         cinematic && "is-cinematic",
+        terrainElement && `battle-terrain--${terrainElement}`,
       )}
       data-battle-board={board}
       layout
@@ -133,6 +137,20 @@ export function BattleBoardScene({
           <small>{definition.ambientLabel}</small>
         </span>
       </div>
+
+      {terrainElement ? (
+        <motion.div
+          key={terrainElement}
+          className={cn("battle-terrain-layer", `battle-terrain-layer--${terrainElement}`)}
+          initial={{ opacity: 0, scale: 1.08 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0 }}
+          aria-hidden="true"
+        >
+          <span className="battle-terrain-layer__ring" />
+          <span className="battle-terrain-layer__pulse" />
+        </motion.div>
+      ) : null}
 
       <div className="battle-board-content">{children}</div>
     </motion.div>
