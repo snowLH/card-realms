@@ -27,6 +27,7 @@ import {
   REFUGE_THEMES,
   isRefugeFurnitureKey,
   isRefugeTheme,
+  resolveRefugeResident,
   type RefugeFurnitureKey,
   type RefugeFurniturePlacement,
   type RefugeSavePayload,
@@ -99,12 +100,6 @@ function resolveTheme(house: RefugeHouse): RefugeTheme {
   return isRefugeTheme(house?.theme) ? house.theme : "cartographer";
 }
 
-function resolveResident(house: RefugeHouse, ownedCatalogIds: string[]) {
-  const saved = house?.layout?.residentCreatureId;
-  if (typeof saved === "string" && ownedCatalogIds.includes(saved)) return saved;
-  return ownedCatalogIds[0] ?? null;
-}
-
 function nextRotation(rotation: RefugeFurniturePlacement["rotation"]) {
   if (rotation === 0) return 90;
   if (rotation === 90) return 180;
@@ -126,7 +121,7 @@ export function RefugeView({
   );
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [companionId, setCompanionId] = useState<string | null>(() => resolveResident(house, ownedCatalogIds));
+  const [companionId, setCompanionId] = useState<string | null>(() => resolveRefugeResident(house?.layout?.residentCreatureId, ownedCatalogIds));
   const [theme, setTheme] = useState<RefugeTheme>(() => resolveTheme(house));
   const [furniture, setFurniture] = useState<RefugeFurniturePlacement[]>(() => parseFurniture(house));
   const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
@@ -134,7 +129,7 @@ export function RefugeView({
 
   useEffect(() => {
     if (editing) return;
-    setCompanionId(resolveResident(house, ownedCatalogIds));
+    setCompanionId(resolveRefugeResident(house?.layout?.residentCreatureId, ownedCatalogIds));
     setTheme(resolveTheme(house));
     setFurniture(parseFurniture(house));
     setSelectedFurnitureId(null);
@@ -147,7 +142,7 @@ export function RefugeView({
   const canPersist = source === "supabase" && Boolean(onSave);
 
   function resetDraft() {
-    setCompanionId(resolveResident(house, ownedCatalogIds));
+    setCompanionId(resolveRefugeResident(house?.layout?.residentCreatureId, ownedCatalogIds));
     setTheme(resolveTheme(house));
     setFurniture(parseFurniture(house));
     setSelectedFurnitureId(null);
