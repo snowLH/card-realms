@@ -1,11 +1,12 @@
 import type { AttackDefinition } from "../domain/creatures";
 import { ELEMENTS, elementMultiplier, type Element } from "../domain/elements";
-import { canPayCost, energyPoolFor, getActive, getDefinition, getOpponent, getSide } from "./engine";
+import { canEvolveActiveCreature, canPayCost, energyPoolFor, getActive, getDefinition, getOpponent, getSide } from "./engine";
 import type { BattleState } from "./types";
 
 export type NpcPlan = {
   forcedSwitchIndex?: number;
   attachments: Array<{ cardId: string; creatureIndex: number }>;
+  evolve?: boolean;
   attackId?: string;
 };
 
@@ -32,6 +33,9 @@ export function planNpcTurn(state: BattleState, sideId: string): NpcPlan {
 
   const active = getActive(side);
   const definition = getDefinition(active);
+  const shouldEvolve = canEvolveActiveCreature(state, sideId)
+    && (active.hp <= active.maxHp * 0.75 || active.attachedEnergy.length >= 4);
+  if (shouldEvolve) plan.evolve = true;
   const defender = getDefinition(getActive(getOpponent(state, sideId)));
   const attachedPool = energyPoolFor(active.attachedEnergy);
   const handByElement = new Map<Element, string[]>();
