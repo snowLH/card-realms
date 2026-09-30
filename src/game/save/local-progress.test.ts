@@ -104,6 +104,7 @@ describe("save local versionado", () => {
       coins: 500,
       xp: 0,
       equipmentIds: [],
+      energy: { fire: 0, water: 0, nature: 0, storm: 0, spirit: 0 },
     });
   });
 });
