@@ -145,6 +145,18 @@ export function BattleArena({
   }, [encounter, playerEnergy, pvp]);
 
   useEffect(() => {
+    if (!open) return;
+    const bodyOverflow = document.body.style.overflow;
+    const htmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = bodyOverflow;
+      document.documentElement.style.overflow = htmlOverflow;
+    };
+  }, [open]);
+
+  useEffect(() => {
     if (!open || typeof navigator === "undefined") return;
     const hardware = navigator.hardwareConcurrency ?? 8;
     const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
