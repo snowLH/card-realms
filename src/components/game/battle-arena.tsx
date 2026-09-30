@@ -19,6 +19,7 @@ import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
 import type { BattleBoardId } from "@/game/battle/presentation";
 import type { AvatarConfig } from "@/game/save/local-progress";
 import { canPayCost, energyPoolFor, getActive, getSide } from "@/game/engine";
+import { presentationDuration, toBattlePresentationEvents, type BattlePresentationEvent } from "@/game/battle/presentation-events";
 import { type BattleEncounter, type BattleLogEntry, type BattleState, type Element, type EnergyPool } from "@/game/types";
 import type { BattleReward } from "@/game/types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -100,6 +101,8 @@ export function BattleArena({
   const [error, setError] = useState("");
   const [die, setDie] = useState<number | null>(null);
   const [effect, setEffect] = useState<string | null>(null);
+  const [presentationEvent, setPresentationEvent] = useState<BattlePresentationEvent | null>(null);
+  const [animationSpeed, setAnimationSpeed] = useState<"normal" | "fast" | "very-fast">("normal");
   const [pendingSwitchIndex, setPendingSwitchIndex] = useState<number | null>(null);
   const [reward, setReward] = useState<BattleReward | null>(null);
   const victoryReported = useRef(false);
@@ -158,7 +161,7 @@ export function BattleArena({
   }, [battle, open, pvp, startBattle]);
 
   const perform = useCallback(
-    async (payload: Record<string, unknown>, animateRoll = false) => {
+    async (payload: Record<string, unknown>) => {
       if ((!pvp && !token) || (pvp && serverVersion === null) || busy) return;
       setBusy(true);
       setError("");
@@ -171,29 +174,55 @@ export function BattleArena({
             expectedVersion: serverVersion,
           })
           : await callBattleApi({ ...payload, token });
-        const rollEvent = response.events.find((entry) => typeof entry.die === "number");
-        if (animateRoll && rollEvent?.die) {
-          setDie(rollEvent.die);
-          const attackId = rollEvent.attackId;
-          const currentSide = battle ? getSide(battle, battle.turn.sideId) : null;
-          const active = currentSide ? getActive(currentSide) : null;
-          const definition = active ? CREATURE_BY_ID.get(active.catalogId) : null;
-          setEffect(definition?.attacks.find((attack) => attack.id === attackId)?.animation ?? "strike");
-          await new Promise((resolve) => window.setTimeout(resolve, 850));
-          setDie(null);
-          window.setTimeout(() => setEffect(null), 550);
+
+        const sequence = toBattlePresentationEvents(response.events);
+        for (const event of sequence) {
+          setPresentationEvent(event);
+          if (typeof event.die === "number") setDie(event.die);
+
+          if (["attack", "miss", "critical"].includes(event.kind)) {
+            const attackingSide = battle?.sides.find((side) => side.id === event.actorId);
+            const active = attackingSide ? getActive(attackingSide) : null;
+            const definition = active ? CREATURE_BY_ID.get(active.catalogId) : null;
+            const attackAnimation = definition?.attacks.find((attack) => attack.id === event.attackId)?.animation;
+            setEffect(event.kind === "miss" ? "miss" : attackAnimation ?? "strike");
+
+            const duration = presentationDuration(event.kind, animationSpeed);
+            await new Promise((resolve) => window.setTimeout(resolve, Math.round(duration * 0.42)));
+            setBattle(response.state);
+            await new Promise((resolve) => window.setTimeout(resolve, Math.round(duration * 0.58)));
+            setDie(null);
+            setEffect(null);
+            continue;
+          }
+
+          if (event.kind === "ko" || event.kind === "switch" || event.kind === "forcedSwitch") {
+            setBattle(response.state);
+          }
+
+          await new Promise((resolve) =>
+            window.setTimeout(resolve, presentationDuration(event.kind, animationSpeed)),
+          );
+          if (event.kind === "roll") setDie(null);
         }
+
         setBattle(response.state);
+        setPresentationEvent(null);
+        setDie(null);
+        setEffect(null);
         setToken(response.token ?? null);
         setServerVersion(response.version ?? null);
         if (response.reward) setReward(response.reward);
       } catch (caught) {
+        setPresentationEvent(null);
+        setDie(null);
+        setEffect(null);
         setError(caught instanceof Error ? caught.message : "A ação falhou.");
       } finally {
         setBusy(false);
       }
     },
-    [battle, busy, pvp, serverVersion, token],
+    [animationSpeed, battle, busy, pvp, serverVersion, token],
   );
 
   useEffect(() => {
@@ -510,7 +539,7 @@ export function BattleArena({
                   type="button"
                   className="attack-button"
                   disabled={!mainPhase || busy || !affordable || data.playerActive.defeated}
-                  onClick={() => void perform({ action: "attack", attackId: attack.id, actionId: actionId() }, true)}
+                  onClick={() => void perform({ action: "attack", attackId: attack.id, actionId: actionId() })}
                 >
                   <span className="attack-button__icon"><Swords /></span>
                   <span>
