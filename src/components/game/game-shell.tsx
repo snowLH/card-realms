@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CREATURES, REGIONS } from "@/game/catalog";
 import type { GridPoint } from "@/game/exploration/pathfinding";
 import type { PlayerBootstrap } from "@/game/player";
+import { resolveBattleBoard, type BattleBoardId } from "@/game/battle/presentation";
 import type { RefugeSavePayload } from "@/game/refuge";
 import type { BattleEncounter, BattleReward, Element, EnergyPool, RegionAreaDefinition, RegionDefinition } from "@/game/types";
 import {
@@ -107,6 +108,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   );
   const [energy, setEnergy] = useState<EnergyPool>(remoteSnapshot?.energy ?? DEFAULT_LOCAL_PROGRESS.energy);
   const [avatar, setAvatar] = useState<AvatarConfig>(remoteSnapshot?.profile.avatarConfig ?? DEFAULT_AVATAR_CONFIG);
+  const [battleBoard, setBattleBoard] = useState<BattleBoardId>(() => resolveBattleBoard(remoteSnapshot?.house?.layout?.preferredBattleBoard));
   const [equipmentIds, setEquipmentIds] = useState<string[]>(() => {
     const remoteEquipment = remoteSnapshot?.inventory
       .filter((item) => item.itemKey.endsWith("-armor") || item.itemKey === "leather")
@@ -319,6 +321,22 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     await mutateRemoteProgress({ action: "save_refuge", ...payload });
     setToast("Refúgio sincronizado com sua conta.");
     router.refresh();
+  };
+
+  const handleSaveBattleBoard = async (nextBoard: BattleBoardId) => {
+    const previous = battleBoard;
+    setBattleBoard(nextBoard);
+    if (bootstrap.source !== "supabase") {
+      setToast("Tabuleiro escolhido para esta sessão.");
+      return;
+    }
+    try {
+      await mutateRemoteProgress({ action: "save_battle_board", boardId: nextBoard });
+      setToast("Tabuleiro favorito salvo na sua conta.");
+    } catch (error) {
+      setBattleBoard(previous);
+      throw error;
+    }
   };
 
   const handleVictory = useCallback((reward?: BattleReward) => {
