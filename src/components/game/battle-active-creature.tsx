@@ -66,6 +66,7 @@ export function BattleActiveCreature({
               sprite={definition.sprite}
               label={definition.name}
               mirrored={mirrored}
+              evolved={evolved}
             />
           </motion.div>
         ) : (
