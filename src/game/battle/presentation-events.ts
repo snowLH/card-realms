@@ -39,6 +39,8 @@ const KIND_MAP: Partial<Record<BattleLogEntry["kind"], BattlePresentationKind>> 
   turn_started: "turn",
   energy_drawn: "draw",
   energy_attached: "energy",
+  power_drawn: "draw",
+  power_equipped: "energy",
   creature_switched: "switch",
   forced_switch: "forcedSwitch",
   attack_hit: "attack",
