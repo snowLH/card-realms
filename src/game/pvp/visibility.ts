@@ -5,6 +5,8 @@ export type PvpVisibleState = {
   hidden: {
     opponentHandCount: number;
     opponentDeckCount: number;
+    opponentPowerHandCount: number;
+    opponentPowerDeckCount: number;
   };
 };
 
@@ -39,9 +41,13 @@ export function visiblePvpState(state: BattleState, playerId: string): PvpVisibl
   const hidden = {
     opponentHandCount: opponent.energyHand.length,
     opponentDeckCount: opponent.energyDeck.length,
+    opponentPowerHandCount: opponent.powerHand.length,
+    opponentPowerDeckCount: opponent.powerDeck.length,
   };
   opponent.energyHand = [];
   opponent.energyDeck = [];
+  opponent.powerHand = [];
+  opponent.powerDeck = [];
   visible.processedActionIds = [];
   visible.log = visiblePvpEvents(visible.log);
   return { state: visible, hidden };
