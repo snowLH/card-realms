@@ -312,6 +312,15 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     setToast("Personagem sincronizado com sua conta.");
   };
 
+  const handleSaveRefuge = async (payload: RefugeSavePayload) => {
+    if (bootstrap.source !== "supabase") {
+      throw new Error("Entre com uma conta para salvar o Refúgio.");
+    }
+    await mutateRemoteProgress({ action: "save_refuge", ...payload });
+    setToast("Refúgio sincronizado com sua conta.");
+    router.refresh();
+  };
+
   const handleVictory = useCallback((reward?: BattleReward) => {
     if (bootstrap.source === "supabase") {
       if (reward && !reward.replayed) {
