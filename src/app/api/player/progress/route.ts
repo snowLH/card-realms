@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { RemotePlayerSnapshotSchema } from "@/game/player";
 import { REFUGE_FURNITURE_KEYS, REFUGE_THEMES } from "@/game/refuge";
+import { BATTLE_BOARD_IDS } from "@/game/battle/presentation";
 import { ELEMENTS } from "@/game/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -41,6 +42,7 @@ const mutationSchema = z.discriminatedUnion("action", [
     creatureId: z.enum(["boitata", "iara", "curupira"]),
   }),
   z.object({ action: z.literal("activate_team"), teamId: z.string().uuid() }),
+  z.object({ action: z.literal("save_battle_board"), boardId: z.enum(BATTLE_BOARD_IDS) }),
   z.object({
     action: z.literal("save_refuge"),
     companionId: z.string().min(1).max(80).nullable(),
@@ -105,6 +107,33 @@ export async function PATCH(request: Request) {
     const auth = await authenticatedClient();
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    if (payload.action === "save_battle_board") {
+      const { data: house, error: houseError } = await auth.supabase
+        .from("houses")
+        .select("layout")
+        .eq("user_id", auth.userId)
+        .single();
+      if (houseError || !house) {
+        return NextResponse.json({ error: "O perfil de personalização não foi encontrado." }, { status: 404 });
+      }
+      const previousLayout = house.layout
+        && typeof house.layout === "object"
+        && !Array.isArray(house.layout)
+        ? house.layout as Record<string, unknown>
+        : {};
+      const { error: updateError } = await auth.supabase
+        .from("houses")
+        .update({ layout: { ...previousLayout, preferredBattleBoard: payload.boardId } })
+        .eq("user_id", auth.userId);
+      if (updateError) {
+        return NextResponse.json({ error: "Não foi possível salvar seu tabuleiro." }, { status: 503 });
+      }
+      return NextResponse.json({
+        result: { boardId: payload.boardId },
+        authority: "supabase",
+      });
     }
 
     if (payload.action === "save_refuge") {
