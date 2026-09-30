@@ -3852,3 +3852,18 @@ button.creature-card:disabled {
 .battle-quality--low .battle-active-creature__sprite {
   filter: drop-shadow(3px 4px rgba(8,5,6,.48));
 }
+
+
+/* Compatibility fallback for the opponent hand fan (avoid relying on CSS abs()). */
+.table-hidden-hand .table-card-back:nth-child(1) { transform: rotate(-8deg) translateY(5px); }
+.table-hidden-hand .table-card-back:nth-child(2) { transform: rotate(-4deg) translateY(2px); }
+.table-hidden-hand .table-card-back:nth-child(3) { transform: rotate(0deg); }
+.table-hidden-hand .table-card-back:nth-child(4) { transform: rotate(4deg) translateY(2px); }
+.table-hidden-hand .table-card-back:nth-child(5) { transform: rotate(8deg) translateY(5px); }
+
+.attack-effect--miss {
+  border: 4px dashed rgba(224, 235, 237, .8);
+  background: rgba(103, 126, 137, .28);
+  color: #e2ecee;
+  box-shadow: 0 0 34px rgba(179, 206, 214, .26);
+}
