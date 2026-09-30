@@ -6,6 +6,8 @@ import {
   attachEnergy,
   createDemoBattle,
   createEncounterBattle,
+  drawPowerCard,
+  equipPowerCard,
   evolveActiveCreature,
   passTurn,
   planNpcTurn,
@@ -63,6 +65,19 @@ const requestSchema = z.discriminatedUnion("action", [
     token: z.string().min(20),
     actionId: z.string().min(4).max(100),
     creatureIndex: z.number().int().min(0).max(5),
+  }),
+  z.object({
+    action: z.literal("draw_power"),
+    token: z.string().min(20),
+    actionId: z.string().min(4).max(100),
+  }),
+  z.object({
+    action: z.literal("equip_power"),
+    token: z.string().min(20),
+    actionId: z.string().min(4).max(100),
+    creatureIndex: z.number().int().min(0).max(5),
+    cardId: z.string().min(8).max(160),
+    slot: z.number().int().min(0).max(3).optional(),
   }),
   z.object({
     action: z.literal("evolve"),
@@ -333,6 +348,23 @@ export async function POST(request: Request) {
           state,
           state.turn.sideId,
           parsed.creatureIndex,
+          parsed.actionId,
+        );
+        break;
+      case "draw_power":
+        result = drawPowerCard(
+          state,
+          state.turn.sideId,
+          parsed.actionId,
+        );
+        break;
+      case "equip_power":
+        result = equipPowerCard(
+          state,
+          state.turn.sideId,
+          parsed.creatureIndex,
+          parsed.cardId,
+          parsed.slot,
           parsed.actionId,
         );
         break;
