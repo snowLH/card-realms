@@ -110,6 +110,7 @@ export function BattleArena({
   const [animationSpeed, setAnimationSpeed] = useState<"normal" | "fast" | "very-fast">("normal");
   const [turnBannerVisible, setTurnBannerVisible] = useState(false);
   const [pendingSwitchIndex, setPendingSwitchIndex] = useState<number | null>(null);
+  const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
   const [reward, setReward] = useState<BattleReward | null>(null);
   const victoryReported = useRef(false);
   const pvpBattleId = pvp?.battleId ?? null;
@@ -173,6 +174,7 @@ export function BattleArena({
       setBusy(true);
       setError("");
       setPendingSwitchIndex(null);
+      setSelectedAttackId(null);
       try {
         const response = pvp
           ? await callPvpActionApi({
@@ -286,6 +288,9 @@ export function BattleArena({
   const pendingSwitch = pendingSwitchIndex === null ? null : data.player.team[pendingSwitchIndex];
   const pendingSwitchDefinition = pendingSwitch
     ? CREATURE_BY_ID.get(pendingSwitch.catalogId) ?? null
+    : null;
+  const selectedAttack = selectedAttackId
+    ? data.playerDefinition.attacks.find((attack) => attack.id === selectedAttackId) ?? null
     : null;
   const playerIsActor = presentationEvent?.actorId === data.player.id;
   const opponentIsActor = presentationEvent?.actorId === data.opponent.id;
@@ -647,9 +652,9 @@ export function BattleArena({
                 <button
                   key={attack.id}
                   type="button"
-                  className="attack-button"
+                  className={cn("attack-button", selectedAttackId === attack.id && "is-selected")}
                   disabled={!mainPhase || busy || !affordable || data.playerActive.defeated}
-                  onClick={() => void perform({ action: "attack", attackId: attack.id, actionId: actionId() })}
+                  onClick={() => setSelectedAttackId(attack.id)}
                 >
                   <span className="attack-button__icon"><Swords /></span>
                   <span>
@@ -666,6 +671,38 @@ export function BattleArena({
                 </button>
               );
             })}
+            {selectedAttack ? (
+              <motion.div
+                className="attack-preview"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className="attack-preview__heading">
+                  <span>PREVIEW DO ATAQUE</span>
+                  <strong>{selectedAttack.name}</strong>
+                </div>
+                <div className="attack-preview__stats">
+                  <span><small>Dano base</small><strong>{selectedAttack.damage}</strong></span>
+                  <span><small>Precisão</small><strong>D6 {selectedAttack.minRoll}+</strong></span>
+                  <span>
+                    <small>Custo</small>
+                    <strong>{Object.entries(selectedAttack.cost).map(([element, amount]) => `${amount} ${ELEMENT_META[element as Element].short}`).join(" · ")}</strong>
+                  </span>
+                  <span>
+                    <small>Efeito</small>
+                    <strong>{selectedAttack.effect?.type ?? "Dano direto"}</strong>
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="game"
+                  disabled={!mainPhase || busy || !canPayCost(data.playerActive.attachedEnergy, selectedAttack.cost)}
+                  onClick={() => void perform({ action: "attack", attackId: selectedAttack.id, actionId: actionId() })}
+                >
+                  <Swords /> ATACAR
+                </Button>
+              </motion.div>
+            ) : null}
             <Button
               type="button"
               variant="ghost"
