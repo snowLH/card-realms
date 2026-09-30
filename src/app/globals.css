@@ -3726,3 +3726,25 @@ button.creature-card:disabled {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+
+.battle-sound-toggle {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 2px solid #7e5131;
+  background: #221413;
+  color: #9e896d;
+  cursor: pointer;
+}
+
+.battle-sound-toggle.is-active {
+  background: #c58a3b;
+  color: #251512;
+}
+
+.battle-sound-toggle svg {
+  width: 16px;
+  height: 16px;
+}
