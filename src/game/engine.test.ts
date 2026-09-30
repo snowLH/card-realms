@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CREATURE_BY_ID } from "./content";
 import { ELEMENTS, type BattleState, type Element } from "./types";
 import {
   GameRuleError,
@@ -58,16 +59,24 @@ describe("motor de combate Card Realms v2", () => {
     expect(state.sides[1].team).toHaveLength(1);
   });
 
-  it("inicia cada lado com um baralho real de 30 energias e mão de cinco", () => {
+  it("inicia cada lado com 30 energias e mão de cinco sem inventar elementos fora da equipe", () => {
     const state = battle("energy-deck");
     for (const side of state.sides) {
       expect(side.energyHand).toHaveLength(5);
       expect(side.energyDeck).toHaveLength(25);
-      const all = [...side.energyHand, ...side.energyDeck];
-      for (const element of ELEMENTS) {
-        expect(all.filter((card) => card.element === element)).toHaveLength(6);
-      }
+      expect([...side.energyHand, ...side.energyDeck]).toHaveLength(30);
     }
+
+    const playerCards = [...state.sides[0].energyHand, ...state.sides[0].energyDeck];
+    for (const element of ELEMENTS) {
+      expect(playerCards.filter((card) => card.element === element)).toHaveLength(6);
+    }
+
+    const opponentElements = new Set(
+      state.sides[1].team.map((card) => CREATURE_BY_ID.get(card.catalogId)!.element),
+    );
+    const opponentCards = [...state.sides[1].energyHand, ...state.sides[1].energyDeck];
+    expect(opponentCards.every((card) => opponentElements.has(card.element))).toBe(true);
   });
 
   it("só anexa cartas presentes na mão e limita dois anexos por turno", () => {
