@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
+import type { BattleBoardId } from "@/game/battle/presentation";
+import type { AvatarConfig } from "@/game/save/local-progress";
 import { canPayCost, energyPoolFor, getActive, getSide } from "@/game/engine";
 import { type BattleEncounter, type BattleLogEntry, type BattleState, type Element, type EnergyPool } from "@/game/types";
 import type { BattleReward } from "@/game/types";
@@ -79,6 +81,8 @@ export function BattleArena({
   pvp,
   encounter,
   playerEnergy,
+  battleBoard = "cartographer",
+  playerAvatar,
 }: {
   open: boolean;
   onClose: () => void;
@@ -86,6 +90,8 @@ export function BattleArena({
   pvp?: PvpSession;
   encounter?: BattleEncounter;
   playerEnergy?: EnergyPool;
+  battleBoard?: BattleBoardId;
+  playerAvatar?: AvatarConfig;
 }) {
   const [battle, setBattle] = useState<BattleState | null>(null);
   const [token, setToken] = useState<string | null>(null);
