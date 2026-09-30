@@ -372,11 +372,27 @@ export function BattleArena({
       <section className="card-table" aria-label="Mesa de batalha de cartas">
         <BattleBoardScene boardId={effectiveBattleBoard} cinematic={cinematic}>
         <div className="card-table__felt">
-          <div className="battle-avatar battle-avatar--opponent" aria-label={`Cartógrafo de ${data.opponent.name}`}>
+          <div
+            className={cn(
+              "battle-avatar battle-avatar--opponent",
+              opponentIsActor && presentationEvent?.kind === "energy" && "is-playing-card",
+              opponentIsActor && ["attack", "critical"].includes(presentationEvent?.kind ?? "") && "is-commanding",
+              opponentHit && "is-reacting",
+            )}
+            aria-label={`Cartógrafo de ${data.opponent.name}`}
+          >
             <CharacterAvatar2D compact />
             <span>{data.opponent.name}</span>
           </div>
-          <div className="battle-avatar battle-avatar--player" aria-label="Seu Cartógrafo">
+          <div
+            className={cn(
+              "battle-avatar battle-avatar--player",
+              playerIsActor && presentationEvent?.kind === "energy" && "is-playing-card",
+              playerIsActor && ["attack", "critical"].includes(presentationEvent?.kind ?? "") && "is-commanding",
+              playerHit && "is-reacting",
+            )}
+            aria-label="Seu Cartógrafo"
+          >
             <CharacterAvatar2D config={playerAvatar} compact />
             <span>Você</span>
           </div>
