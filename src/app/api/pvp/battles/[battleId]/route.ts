@@ -22,12 +22,13 @@ export async function GET(
   }
 
   try {
-    const { battle } = await loadAuthoritativePvpBattle(battleId, claimsData.claims.sub);
+    const { battle, boardId } = await loadAuthoritativePvpBattle(battleId, claimsData.claims.sub);
     const visible = visiblePvpState(battle.state, claimsData.claims.sub);
     return NextResponse.json({
       state: visible.state,
       events: [],
       version: battle.version,
+      boardId,
       authority: "server",
       hidden: visible.hidden,
     });
