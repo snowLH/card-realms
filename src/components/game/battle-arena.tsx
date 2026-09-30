@@ -12,6 +12,8 @@ import {
   SkipForward,
   Sparkles,
   Swords,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -20,6 +22,7 @@ import type { BattleBoardId } from "@/game/battle/presentation";
 import type { AvatarConfig } from "@/game/save/local-progress";
 import { canPayCost, energyPoolFor, getActive, getSide } from "@/game/engine";
 import { presentationDuration, toBattlePresentationEvents, type BattlePresentationEvent } from "@/game/battle/presentation-events";
+import { playBattleSfx, unlockBattleAudio } from "@/game/battle/audio";
 import { type BattleEncounter, type BattleLogEntry, type BattleState, type Element, type EnergyPool } from "@/game/types";
 import type { BattleReward } from "@/game/types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -108,6 +111,7 @@ export function BattleArena({
   const [effect, setEffect] = useState<string | null>(null);
   const [presentationEvent, setPresentationEvent] = useState<BattlePresentationEvent | null>(null);
   const [animationSpeed, setAnimationSpeed] = useState<"normal" | "fast" | "very-fast">("normal");
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [turnBannerVisible, setTurnBannerVisible] = useState(false);
   const [pendingSwitchIndex, setPendingSwitchIndex] = useState<number | null>(null);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -171,6 +175,7 @@ export function BattleArena({
   const perform = useCallback(
     async (payload: Record<string, unknown>) => {
       if ((!pvp && !token) || (pvp && serverVersion === null) || busy) return;
+      if (soundEnabled) unlockBattleAudio();
       setBusy(true);
       setError("");
       setPendingSwitchIndex(null);
@@ -187,6 +192,7 @@ export function BattleArena({
         const sequence = toBattlePresentationEvents(response.events);
         for (const event of sequence) {
           setPresentationEvent(event);
+          if (soundEnabled) playBattleSfx(event.kind);
           if (typeof event.die === "number") setDie(event.die);
 
           if (["attack", "miss", "critical"].includes(event.kind)) {
@@ -232,7 +238,7 @@ export function BattleArena({
         setBusy(false);
       }
     },
-    [animationSpeed, battle, busy, pvp, serverVersion, token],
+    [animationSpeed, battle, busy, pvp, serverVersion, soundEnabled, token],
   );
 
   useEffect(() => {
@@ -334,6 +340,17 @@ export function BattleArena({
                 : "Seu turno"
               : `Turno de ${data.opponent.name}`}
         </div>
+        <button
+          type="button"
+          className={cn("battle-sound-toggle", soundEnabled && "is-active")}
+          onClick={() => {
+            setSoundEnabled((current) => !current);
+            unlockBattleAudio();
+          }}
+          aria-label={soundEnabled ? "Desativar sons da batalha" : "Ativar sons da batalha"}
+        >
+          {soundEnabled ? <Volume2 /> : <VolumeX />}
+        </button>
         <div className="battle-speed" aria-label="Velocidade das animações">
           {(["normal", "fast", "very-fast"] as const).map((speed) => (
             <button
