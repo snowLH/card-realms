@@ -12,6 +12,10 @@ export type BattlePresentationKind =
   | "miss"
   | "critical"
   | "status"
+  | "evolutionStart"
+  | "evolutionComplete"
+  | "terrainOn"
+  | "terrainOff"
   | "ko"
   | "end";
 
@@ -24,6 +28,10 @@ export type BattlePresentationEvent = {
   damage?: number;
   attackId?: string;
   effect?: BattleLogEntry["effect"];
+  creatureIndex?: number;
+  evolutionStage?: 0 | 1;
+  terrainElement?: BattleLogEntry["terrainElement"];
+  terrainTurns?: number;
 };
 
 const KIND_MAP: Partial<Record<BattleLogEntry["kind"], BattlePresentationKind>> = {
@@ -40,6 +48,10 @@ const KIND_MAP: Partial<Record<BattleLogEntry["kind"], BattlePresentationKind>> 
   status_tick: "status",
   healed: "status",
   shielded: "status",
+  evolution_started: "evolutionStart",
+  evolution_completed: "evolutionComplete",
+  terrain_activated: "terrainOn",
+  terrain_expired: "terrainOff",
   defeated: "ko",
   battle_end: "end",
 };
@@ -72,6 +84,10 @@ export function toBattlePresentationEvents(
       damage: event.damage,
       attackId: event.attackId,
       effect: event.effect,
+      creatureIndex: event.creatureIndex,
+      evolutionStage: event.evolutionStage,
+      terrainElement: event.terrainElement,
+      terrainTurns: event.terrainTurns,
     });
   }
   return sequence;
@@ -93,6 +109,10 @@ export function presentationDuration(
     miss: 760,
     critical: 1040,
     status: 460,
+    evolutionStart: 760,
+    evolutionComplete: 1120,
+    terrainOn: 980,
+    terrainOff: 620,
     ko: 900,
     end: 700,
   };
