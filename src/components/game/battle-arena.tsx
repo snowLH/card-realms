@@ -22,9 +22,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
 import type { BattleBoardId } from "@/game/battle/presentation";
 import type { AvatarConfig } from "@/game/save/local-progress";
-import { canPayCost, energyPoolFor, getActive, getSide } from "@/game/engine";
+import { canEvolveActiveCreature, canPayCost, energyPoolFor, getActive, getSide } from "@/game/engine";
 import { presentationDuration, toBattlePresentationEvents, type BattlePresentationEvent } from "@/game/battle/presentation-events";
-import { playBattleSfx, unlockBattleAudio } from "@/game/battle/audio";
+import { playBattleSfx, startBattleMusic, stopBattleMusic, unlockBattleAudio } from "@/game/battle/audio";
 import { type BattleEncounter, type BattleLogEntry, type BattleState, type Element, type EnergyPool } from "@/game/types";
 import type { BattleReward } from "@/game/types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -186,7 +186,10 @@ export function BattleArena({
   const perform = useCallback(
     async (payload: Record<string, unknown>) => {
       if ((!pvp && !token) || (pvp && serverVersion === null) || busy) return;
-      if (soundEnabled) unlockBattleAudio();
+      if (soundEnabled) {
+        unlockBattleAudio();
+        startBattleMusic(pvp ? serverBattleBoard ?? battleBoard : battleBoard);
+      }
       setBusy(true);
       setError("");
       setPendingSwitchIndex(null);
@@ -222,7 +225,14 @@ export function BattleArena({
             continue;
           }
 
-          if (event.kind === "ko" || event.kind === "switch" || event.kind === "forcedSwitch") {
+          if (
+            event.kind === "ko"
+            || event.kind === "switch"
+            || event.kind === "forcedSwitch"
+            || event.kind === "evolutionComplete"
+            || event.kind === "terrainOn"
+            || event.kind === "terrainOff"
+          ) {
             setBattle(response.state);
           }
 
@@ -249,8 +259,16 @@ export function BattleArena({
         setBusy(false);
       }
     },
-    [animationSpeed, battle, busy, pvp, serverVersion, soundEnabled, token],
+    [animationSpeed, battle, battleBoard, busy, pvp, serverBattleBoard, serverVersion, soundEnabled, token],
   );
+
+  useEffect(() => {
+    if (!open || !soundEnabled) {
+      stopBattleMusic();
+      return;
+    }
+    return () => stopBattleMusic();
+  }, [open, soundEnabled]);
 
   useEffect(() => {
     const playerId = pvp?.playerId ?? "player-one";
@@ -302,6 +320,10 @@ export function BattleArena({
   const mainPhase = playerTurn && battle.turn.phase === "main";
   const forcedSwitch = playerTurn && battle.turn.phase === "forced_switch";
   const attachedPool = energyPoolFor(data.playerActive.attachedEnergy);
+  const canEvolve = canEvolveActiveCreature(battle, data.player.id);
+  const evolutionElement = data.playerDefinition.element;
+  const terrain = battle.terrain;
+  const terrainMeta = terrain ? ELEMENT_META[terrain.element] : null;
   const pendingSwitch = pendingSwitchIndex === null ? null : data.player.team[pendingSwitchIndex];
   const pendingSwitchDefinition = pendingSwitch
     ? CREATURE_BY_ID.get(pendingSwitch.catalogId) ?? null
@@ -312,7 +334,7 @@ export function BattleArena({
   const playerIsActor = presentationEvent?.actorId === data.player.id;
   const opponentIsActor = presentationEvent?.actorId === data.opponent.id;
   const cinematic = Boolean(presentationEvent && (
-    ["attack", "critical", "miss", "ko", "switch"].includes(presentationEvent.kind)
+    ["attack", "critical", "miss", "ko", "switch", "evolutionStart", "evolutionComplete", "terrainOn"].includes(presentationEvent.kind)
   ));
   const playerHit = Boolean(
     presentationEvent
@@ -355,8 +377,16 @@ export function BattleArena({
           type="button"
           className={cn("battle-sound-toggle", soundEnabled && "is-active")}
           onClick={() => {
-            setSoundEnabled((current) => !current);
-            unlockBattleAudio();
+            setSoundEnabled((current) => {
+              const next = !current;
+              if (next) {
+                unlockBattleAudio();
+                startBattleMusic(effectiveBattleBoard);
+              } else {
+                stopBattleMusic();
+              }
+              return next;
+            });
           }}
           aria-label={soundEnabled ? "Desativar sons da batalha" : "Ativar sons da batalha"}
         >
@@ -375,13 +405,17 @@ export function BattleArena({
             </button>
           ))}
         </div>
-        <button type="button" className="battle-close" onClick={onClose} aria-label="Sair da batalha">
+        <button type="button" className="battle-close" onClick={() => { stopBattleMusic(); onClose(); }} aria-label="Sair da batalha">
           <X />
         </button>
       </header>
 
       <section className="card-table" aria-label="Mesa de batalha de cartas">
-        <BattleBoardScene boardId={effectiveBattleBoard} cinematic={cinematic}>
+        <BattleBoardScene
+          boardId={effectiveBattleBoard}
+          cinematic={cinematic}
+          terrainElement={terrain?.element}
+        >
         <div className="card-table__felt">
           <div
             className={cn(
@@ -474,6 +508,22 @@ export function BattleArena({
             </div>
             <Swords />
           </div>
+
+          {terrain && terrainMeta ? (
+            <motion.div
+              className={cn("battle-terrain-status", `is-${terrain.element}`)}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <Sparkles />
+              <span>
+                <strong>Terreno de {terrainMeta.name}</strong>
+                <small>
+                  +15% de dano para criaturas de {terrainMeta.name} · até o turno {terrain.expiresAfterTurn}
+                </small>
+              </span>
+            </motion.div>
+          ) : null}
 
           <div className="card-table__side card-table__side--player">
             <div className={cn(
@@ -587,6 +637,50 @@ export function BattleArena({
               <span>CR</span>
             </motion.div>
           ) : null}
+          {presentationEvent && ["evolutionStart", "evolutionComplete"].includes(presentationEvent.kind) ? (
+            <motion.div
+              key={`${presentationEvent.id}:evolution`}
+              className={cn("battle-evolution-overlay", presentationEvent.kind === "evolutionComplete" && "is-complete")}
+              initial={{ opacity: 0, scale: .7, rotate: -4 }}
+              animate={{ opacity: 1, scale: [1.08, 1], rotate: 0 }}
+              exit={{ opacity: 0, scale: 1.12 }}
+            >
+              <div className="battle-evolution-overlay__card battle-evolution-overlay__card--base">
+                <PixelCreature sprite={data.playerDefinition.sprite} label={data.playerDefinition.name} />
+                <strong>{data.playerDefinition.name}</strong>
+              </div>
+              <Sparkles />
+              <div className="battle-evolution-overlay__card battle-evolution-overlay__card--evolved">
+                <PixelCreature sprite={data.playerDefinition.sprite} label={`${data.playerDefinition.name} evoluído`} />
+                <strong>{data.playerDefinition.name} · Vínculo I</strong>
+              </div>
+              <span>{presentationEvent.kind === "evolutionComplete" ? "EVOLUÇÃO COMPLETA!" : "EVOLUINDO..."}</span>
+            </motion.div>
+          ) : null}
+          {presentationEvent?.kind === "terrainOn" && presentationEvent.terrainElement ? (
+            <motion.div
+              key={`${presentationEvent.id}:terrain`}
+              className={cn("battle-terrain-callout", `is-${presentationEvent.terrainElement}`)}
+              initial={{ opacity: 0, scale: .6 }}
+              animate={{ opacity: 1, scale: [1.15, 1] }}
+              exit={{ opacity: 0 }}
+            >
+              <Sparkles />
+              <strong>TERRENO: {ELEMENT_META[presentationEvent.terrainElement].name.toUpperCase()}</strong>
+              <small>O campo inteiro foi transformado.</small>
+            </motion.div>
+          ) : null}
+          {presentationEvent?.kind === "terrainOff" ? (
+            <motion.div
+              key={`${presentationEvent.id}:terrain-off`}
+              className="battle-terrain-callout is-off"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <strong>TERRENO DISSIPADO</strong>
+            </motion.div>
+          ) : null}
           {presentationEvent && ["miss", "critical", "ko"].includes(presentationEvent.kind) ? (
             <motion.div
               key={`${presentationEvent.id}:callout`}
@@ -688,6 +782,29 @@ export function BattleArena({
             <span>Ataques de {data.playerDefinition.name}</span>
             <small>O servidor sorteia o dado após a confirmação</small>
           </div>
+          <div className="evolution-control">
+            <div>
+              <span className="view-eyebrow">Evolução de Vínculo</span>
+              <strong>
+                {(data.playerActive.evolutionStage ?? 0) > 0
+                  ? `${data.playerDefinition.name} já evoluiu`
+                  : battle.turn.round < 2
+                    ? "Disponível a partir da 2ª rodada"
+                    : `Requer 2 Energias de ${ELEMENT_META[evolutionElement].name}`}
+              </strong>
+              <small>
+                Evoluir concede +25% de PV máximos, 12 de escudo, +10 Defesa e +12% de dano nesta batalha.
+              </small>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={!canEvolve || busy}
+              onClick={() => void perform({ action: "evolve", actionId: actionId() })}
+            >
+              <Sparkles /> EVOLUIR
+            </Button>
+          </div>
           <div className="attack-list">
             {data.playerDefinition.attacks.map((attack) => {
               const affordable = canPayCost(data.playerActive.attachedEnergy, attack.cost);
@@ -705,6 +822,7 @@ export function BattleArena({
                     <strong>{attack.name}</strong>
                     <small>
                       {Object.entries(attack.cost).map(([element, amount]) => `${amount} ${ELEMENT_META[element as Element].short}`).join(" · ")}
+                      {Object.values(attack.cost).reduce((sum, amount) => sum + (amount ?? 0), 0) >= 3 ? " · ativa Terreno" : ""}
                     </small>
                   </span>
                   <span className="attack-button__stats">
