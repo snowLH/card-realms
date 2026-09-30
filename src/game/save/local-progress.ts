@@ -60,7 +60,7 @@ export const DEFAULT_LOCAL_PROGRESS: LocalProgress = {
   currentAreaId: "roots-gate",
   visitedAreaIds: ["roots-gate"],
   mapPositions: { roots: { x: 4, y: 20 } },
-  energy: { fire: 12, water: 12, nature: 12, storm: 12, spirit: 12 },
+  energy: { fire: 0, water: 0, nature: 0, storm: 0, spirit: 0 },
   equipmentIds: [],
   avatar: DEFAULT_AVATAR_CONFIG,
 };
