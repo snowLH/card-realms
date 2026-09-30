@@ -26,6 +26,7 @@ export function BattleActiveCreature({
   const critical = presentationEvent?.kind === "critical";
   const ko = battle.defeated || (!actor && presentationEvent?.kind === "ko");
   const switching = actor && ["switch", "forcedSwitch"].includes(presentationEvent?.kind ?? "");
+  const evolved = (battle.evolutionStage ?? 0) > 0;
 
   return (
     <div
@@ -37,6 +38,7 @@ export function BattleActiveCreature({
         critical && "is-critical",
         ko && "is-ko",
         switching && "is-switching",
+        evolved && "is-evolved",
       )}
     >
       <AnimatePresence mode="wait">
@@ -49,7 +51,7 @@ export function BattleActiveCreature({
               opacity: 1,
               y: attacking ? -8 : [0, -3, 0],
               x: attacking ? (mirrored ? -18 : 18) : 0,
-              scale: critical ? 1.12 : 1,
+              scale: critical ? 1.12 : evolved ? 1.08 : 1,
               rotate: hit ? [0, -3, 3, 0] : 0,
             }}
             exit={{ opacity: 0, y: 22, scale: .72 }}
@@ -76,6 +78,8 @@ export function BattleActiveCreature({
           />
         )}
       </AnimatePresence>
+
+      {evolved ? <span className="battle-active-creature__evolved-badge">VÍNCULO I</span> : null}
 
       <motion.div
         className="battle-active-creature__card"
