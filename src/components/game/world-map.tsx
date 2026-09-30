@@ -13,7 +13,7 @@ import { useMemo, useState } from "react";
 import { REGIONS } from "@/game/catalog";
 import type { GridPoint } from "@/game/exploration/pathfinding";
 import type { AvatarConfig } from "@/game/save/local-progress";
-import type { Activity, RegionAreaDefinition, RegionDefinition } from "@/game/types";
+import type { BattleEncounter, RegionAreaDefinition, RegionDefinition } from "@/game/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,7 @@ export function WorldMap({
   onSelect: (region: RegionDefinition | null) => void;
   onTravel: (region: RegionDefinition) => void;
   onVisitArea: (region: RegionDefinition, area: RegionAreaDefinition) => void;
-  onBattle: (region: RegionDefinition, activity: Activity) => void;
+  onBattle: (encounter: BattleEncounter) => void;
   onTreasure: (region: RegionDefinition) => void;
   onPositionChange: (region: RegionDefinition, point: GridPoint) => void;
   onOpenVillage: () => void;
@@ -71,7 +71,7 @@ export function WorldMap({
         savedPosition={mapPositions[activeRegion.id]}
         onBack={() => setActiveRegionId(null)}
         onVisitArea={(area) => onVisitArea(activeRegion, area)}
-        onBattle={(activity) => onBattle(activeRegion, activity)}
+        onBattle={onBattle}
         onTreasure={() => onTreasure(activeRegion)}
         onPositionChange={(point) => onPositionChange(activeRegion, point)}
       />
