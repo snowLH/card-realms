@@ -1,6 +1,6 @@
 import type { AttackDefinition } from "../domain/creatures";
 import { ELEMENTS, elementMultiplier, type Element } from "../domain/elements";
-import { canEvolveActiveCreature, canPayCost, energyPoolFor, getActive, getDefinition, getOpponent, getSide } from "./engine";
+import { canEvolveActiveCreature, canPayCost, energyPoolFor, getActive, getAttackById, getDefinition, getOpponent, getSide } from "./engine";
 import type { BattleState } from "./types";
 
 export type NpcPlan = {
@@ -42,7 +42,9 @@ export function planNpcTurn(state: BattleState, sideId: string): NpcPlan {
   for (const element of ELEMENTS) handByElement.set(element, []);
   for (const card of side.energyHand) handByElement.get(card.element)!.push(card.id);
 
-  const candidates = definition.attacks
+  const candidates = active.equippedPowerIds
+    .map((attackId) => getAttackById(attackId))
+    .filter((attack): attack is AttackDefinition => Boolean(attack))
     .map((attack) => {
       const missing = missingElements(attack, attachedPool);
       const canPrepare = missing.length <= side.attachmentsRemaining && missing.every((element, index) => {
