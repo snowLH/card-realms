@@ -42,3 +42,13 @@ export function isRefugeFurnitureKey(value: unknown): value is RefugeFurnitureKe
   return typeof value === "string"
     && REFUGE_FURNITURE_KEYS.includes(value as RefugeFurnitureKey);
 }
+
+export function resolveRefugeResident(
+  savedCreatureId: unknown,
+  ownedCatalogIds: readonly string[],
+): string | null {
+  if (typeof savedCreatureId === "string" && ownedCatalogIds.includes(savedCreatureId)) {
+    return savedCreatureId;
+  }
+  return ownedCatalogIds[0] ?? null;
+}
