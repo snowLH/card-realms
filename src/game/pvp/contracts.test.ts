@@ -17,6 +17,7 @@ describe("contratos PVP hostis", () => {
     { ...validAction, action: "attack", attackId: "boitata-1", damage: 999999 },
     { ...validAction, action: "attack", attackId: "boitata-1", die: 6 },
     { ...validAction, action: "pass", winnerId: "10000000-0000-4000-8000-000000000001" },
+    { ...validAction, action: "evolve", evolutionStage: 1 },
     { ...validAction, action: "victory" },
   ])("rejeita campos ou ações que tentam escolher o resultado: %o", (payload) => {
     expect(PvpActionSchema.safeParse(payload).success).toBe(false);
@@ -28,6 +29,18 @@ describe("contratos PVP hostis", () => {
       action: "attack",
       attackId: "boitata-1",
     }).success).toBe(true);
+  });
+
+  it("aceita Evolução apenas como comando, sem permitir escolher o resultado", () => {
+    expect(PvpActionSchema.safeParse({
+      ...validAction,
+      action: "evolve",
+    }).success).toBe(true);
+    expect(PvpActionSchema.safeParse({
+      ...validAction,
+      action: "evolve",
+      maxHp: 9999,
+    }).success).toBe(false);
   });
 
   it("não permite forjar estado no convite ou na resposta", () => {
