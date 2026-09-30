@@ -501,6 +501,8 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             avatar={avatar}
             equipmentIds={equipmentIds}
             onSaveAvatar={handleSaveAvatar}
+            preferredBattleBoard={battleBoard}
+            onSaveBattleBoard={handleSaveBattleBoard}
           />
         ) : null}
       </div>
@@ -524,6 +526,8 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             pvp={pvpSession}
             encounter={pvpSession ? undefined : battleEncounter ?? undefined}
             playerEnergy={energy}
+            battleBoard={battleBoard}
+            playerAvatar={avatar}
             onClose={() => {
               setBattleOpen(false);
               setBattleEncounter(null);
