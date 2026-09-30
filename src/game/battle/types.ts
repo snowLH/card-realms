@@ -16,6 +16,12 @@ export type BattleReward = {
   replayed?: boolean;
 };
 
+export type BattleEncounter =
+  | { kind: "wild"; regionId: string; creatureId: string }
+  | { kind: "npc"; regionId: string; npcId: string }
+  | { kind: "sanctuary"; regionId: string; areaId: string }
+  | { kind: "boss"; regionId: string; areaId: string };
+
 export type EnergyCard = {
   id: string;
   element: Element;
