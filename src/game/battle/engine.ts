@@ -94,6 +94,7 @@ function makeBattleCreature(catalogId: string, ownerId: string, index: number): 
     attachedEnergy: [],
     statuses: [],
     defeated: false,
+    evolutionStage: 0,
   };
 }
 
@@ -274,6 +275,89 @@ export function canPayCost(cards: readonly EnergyCard[], cost: EnergyCost): bool
   return ELEMENTS.every((element) => pool[element] >= (cost[element] ?? 0));
 }
 
+function evolutionStage(creature: BattleCreature) {
+  return creature.evolutionStage ?? 0;
+}
+
+function sameElementEnergyCount(creature: BattleCreature): number {
+  const definition = getDefinition(creature);
+  return creature.attachedEnergy.filter((card) => card.element === definition.element).length;
+}
+
+export function canEvolveActiveCreature(state: BattleState, sideId: string): boolean {
+  if (state.status !== "active" || state.turn.sideId !== sideId || state.turn.phase !== "main") return false;
+  const side = getSide(state, sideId);
+  const active = getActive(side);
+  return !active.defeated
+    && evolutionStage(active) === 0
+    && state.turn.round >= 2
+    && sameElementEnergyCount(active) >= 2;
+}
+
+function spendMatchingEnergy(side: BattleSide, creature: BattleCreature, amount: number) {
+  const definition = getDefinition(creature);
+  for (let count = 0; count < amount; count += 1) {
+    const index = creature.attachedEnergy.findIndex((card) => card.element === definition.element);
+    if (index < 0) throw new GameRuleError(`São necessárias ${amount} Energias de ${ELEMENT_META[definition.element].name} para evoluir.`);
+    const [spent] = creature.attachedEnergy.splice(index, 1);
+    side.energyDiscard.push(spent);
+  }
+}
+
+function terrainMultiplier(state: BattleState, attacker: BattleCreature): number {
+  const terrain = state.terrain;
+  if (!terrain) return 1;
+  return terrain.element === getDefinition(attacker).element ? 1.15 : 1;
+}
+
+function evolvedDamageMultiplier(creature: BattleCreature): number {
+  return evolutionStage(creature) === 1 ? 1.12 : 1;
+}
+
+function evolvedDefenseBonus(creature: BattleCreature): number {
+  return evolutionStage(creature) === 1 ? 10 : 0;
+}
+
+function signatureAttack(attack: AttackDefinition): boolean {
+  return ELEMENTS.reduce((total, element) => total + (attack.cost[element] ?? 0), 0) >= 3;
+}
+
+function activateTerrain(
+  state: BattleState,
+  sideId: string,
+  element: (typeof ELEMENTS)[number],
+  events: Omit<BattleLogEntry, "id" | "turn">[],
+) {
+  state.terrain = {
+    element,
+    sourceSideId: sideId,
+    activatedTurn: state.turn.number,
+    expiresAfterTurn: state.turn.number + 3,
+  };
+  events.push({
+    actorId: sideId,
+    kind: "terrain_activated",
+    terrainElement: element,
+    terrainTurns: 3,
+    message: `O terreno de ${ELEMENT_META[element].name} tomou conta da arena por 3 turnos.`,
+  });
+}
+
+function expireTerrainIfNeeded(
+  state: BattleState,
+  events: Omit<BattleLogEntry, "id" | "turn">[],
+) {
+  if (!state.terrain || state.turn.number <= state.terrain.expiresAfterTurn) return;
+  const expired = state.terrain;
+  state.terrain = undefined;
+  events.push({
+    actorId: "system",
+    kind: "terrain_expired",
+    terrainElement: expired.element,
+    message: `O terreno de ${ELEMENT_META[expired.element].name} se dissipou.`,
+  });
+}
+
 function appendEvents(
   state: BattleState,
   actionId: string,
@@ -369,13 +453,13 @@ function beginTurn(state: BattleState, side: BattleSide, forcedSwitch: boolean, 
   const shouldDraw = side.turnsStarted > 0;
   side.turnsStarted += 1;
   const drawn = shouldDraw ? drawEnergy(side, DRAW_PER_TURN) : [];
-  const events: Omit<BattleLogEntry, "id" | "turn">[] = [
-    {
-      actorId: side.id,
-      kind: "turn_started",
-      message: `Turno de ${side.name}.`,
-    },
-  ];
+  const events: Omit<BattleLogEntry, "id" | "turn">[] = [];
+  expireTerrainIfNeeded(state, events);
+  events.push({
+    actorId: side.id,
+    kind: "turn_started",
+    message: `Turno de ${side.name}.`,
+  });
   if (drawn.length > 0) {
     events.push({
       actorId: side.id,
@@ -508,6 +592,53 @@ function applyEffect(
   });
 }
 
+export function evolveActiveCreature(
+  input: BattleState,
+  sideId: string,
+  actionId: string,
+): BattleActionResult {
+  const state = structuredClone(input);
+  assertAction(state, sideId, actionId);
+  assertMainPhase(state);
+  const side = getSide(state, sideId);
+  const creature = getActive(side);
+  const definition = getDefinition(creature);
+  if (creature.defeated) throw new GameRuleError("Uma criatura derrotada não pode evoluir.");
+  if (evolutionStage(creature) > 0) throw new GameRuleError("Esta criatura já evoluiu nesta batalha.");
+  if (state.turn.round < 2) throw new GameRuleError("A Evolução só fica disponível a partir da segunda rodada.");
+  if (sameElementEnergyCount(creature) < 2) {
+    throw new GameRuleError(`Anexe duas Energias de ${ELEMENT_META[definition.element].name} para evoluir.`);
+  }
+
+  const staged: Omit<BattleLogEntry, "id" | "turn">[] = [{
+    actorId: sideId,
+    kind: "evolution_started",
+    creatureIndex: side.activeIndex,
+    evolutionStage: 0,
+    message: `${definition.name} iniciou sua Evolução de Vínculo.`,
+  }];
+
+  spendMatchingEnergy(side, creature, 2);
+  const previousMax = creature.maxHp;
+  const bonus = Math.max(18, Math.floor(definition.hp * 0.25));
+  creature.evolutionStage = 1;
+  creature.maxHp = previousMax + bonus;
+  creature.hp = Math.min(creature.maxHp, creature.hp + bonus);
+  creature.shield += 12;
+
+  staged.push({
+    actorId: sideId,
+    kind: "evolution_completed",
+    creatureIndex: side.activeIndex,
+    evolutionStage: 1,
+    message: `${definition.name} evoluiu: +${bonus} PV máximos, 12 de escudo e poder ampliado.`,
+  });
+
+  const events = appendEvents(state, actionId, staged);
+  completeAction(state, actionId);
+  return { state, events };
+}
+
 export function switchActiveCreature(
   input: BattleState,
   sideId: string,
@@ -583,14 +714,17 @@ export function resolveAttack(
       message: `${attackerDefinition.name} falhou ao usar ${selectedAttack.name}. As energias foram descartadas.`,
     });
   } else {
-    let multiplier = elementMultiplier(attackerDefinition.element, defenderDefinition.element);
+    let multiplier = elementMultiplier(attackerDefinition.element, defenderDefinition.element)
+      * terrainMultiplier(state, attacker)
+      * evolvedDamageMultiplier(attacker);
     if (attackerDefinition.element === "storm" && hasStatus(defender, "soaked")) {
       multiplier *= 1.25;
       defender.statuses = defender.statuses.filter((status) => status.effect !== "soaked");
     }
     if (hasStatus(attacker, "haunted")) multiplier *= 0.85;
     if (hasStatus(defender, "warded")) multiplier *= 0.8;
-    const defenseFactor = 100 / (100 + defenderDefinition.defense * 0.35);
+    const effectiveDefense = defenderDefinition.defense + evolvedDefenseBonus(defender);
+    const defenseFactor = 100 / (100 + effectiveDefense * 0.35);
     const rawDamage = Math.max(1, Math.floor(selectedAttack.damage * multiplier * defenseFactor * (critical ? 1.5 : 1)));
     const damage = applyDamage(defender, rawDamage);
     staged.push({
@@ -605,6 +739,9 @@ export function resolveAttack(
     });
     if (defender.hp === 0) markDefeated(state, opponent, side, defender, staged);
     else applyEffect(attacker, defender, selectedAttack, effectRoll, sideId, staged);
+    if (signatureAttack(selectedAttack) && state.status === "active") {
+      activateTerrain(state, sideId, attackerDefinition.element, staged);
+    }
   }
 
   const events = appendEvents(state, actionId, staged);
