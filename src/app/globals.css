@@ -4253,6 +4253,7 @@ button.creature-card:disabled {
 
 
 .pixel-creature--evolved {
+  position: relative;
   filter:
     saturate(1.42)
     brightness(1.12)
