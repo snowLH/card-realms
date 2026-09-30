@@ -78,6 +78,38 @@ describe("terreno autoritativo", () => {
     expect(result.events.some((event) => event.kind === "terrain_activated")).toBe(true);
   });
 
+  it("terreno do mesmo elemento aumenta o dano de forma determinística", () => {
+    const base = prepareAttachedEnergy(1);
+    const withTerrain = structuredClone(base);
+    withTerrain.terrain = {
+      element: "fire",
+      sourceSideId: "player-one",
+      activatedTurn: 1,
+      expiresAfterTurn: 4,
+    };
+
+    const baseResult = resolveAttack(
+      base,
+      "player-one",
+      "boitata-1",
+      5,
+      100,
+      "base-damage",
+    );
+    const terrainResult = resolveAttack(
+      withTerrain,
+      "player-one",
+      "boitata-1",
+      5,
+      100,
+      "terrain-damage",
+    );
+
+    const baseDamage = baseResult.events.find((event) => event.kind === "attack_hit")?.damage ?? 0;
+    const terrainDamage = terrainResult.events.find((event) => event.kind === "attack_hit")?.damage ?? 0;
+    expect(terrainDamage).toBeGreaterThan(baseDamage);
+  });
+
   it("terreno expira por evento autoritativo no turno correto", () => {
     const state = prepareAttachedEnergy(3);
     let working = resolveAttack(
