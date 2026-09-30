@@ -30,6 +30,17 @@ export const PvpActionSchema = z.discriminatedUnion("action", [
   }),
   z.strictObject({
     ...VersionedAction,
+    action: z.literal("draw_power"),
+  }),
+  z.strictObject({
+    ...VersionedAction,
+    action: z.literal("equip_power"),
+    creatureIndex: z.number().int().min(0).max(5),
+    cardId: z.string().min(8).max(160),
+    slot: z.number().int().min(0).max(3).optional(),
+  }),
+  z.strictObject({
+    ...VersionedAction,
     action: z.literal("attack"),
     attackId: z.string().min(3).max(100),
   }),
