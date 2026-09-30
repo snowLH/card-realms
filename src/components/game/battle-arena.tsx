@@ -362,6 +362,7 @@ export function BattleArena({
     : null;
   const selectedPowerAttack = selectedPowerCard ? getAttackById(selectedPowerCard.attackId) : null;
   const powerTarget = powerTargetIndex === null ? null : data.player.team[powerTargetIndex] ?? null;
+  const powerTargetDefinition = powerTarget ? CREATURE_BY_ID.get(powerTarget.catalogId) ?? null : null;
   const playerIsActor = presentationEvent?.actorId === data.player.id;
   const opponentIsActor = presentationEvent?.actorId === data.opponent.id;
   const cinematic = Boolean(presentationEvent && (
