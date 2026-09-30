@@ -35,6 +35,10 @@ export const PvpActionSchema = z.discriminatedUnion("action", [
   }),
   z.strictObject({
     ...VersionedAction,
+    action: z.literal("evolve"),
+  }),
+  z.strictObject({
+    ...VersionedAction,
     action: z.literal("pass"),
   }),
 ]);
