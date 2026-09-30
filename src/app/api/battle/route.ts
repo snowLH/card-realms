@@ -6,6 +6,7 @@ import {
   attachEnergy,
   createDemoBattle,
   createEncounterBattle,
+  evolveActiveCreature,
   passTurn,
   planNpcTurn,
   getSide,
@@ -62,6 +63,11 @@ const requestSchema = z.discriminatedUnion("action", [
     token: z.string().min(20),
     actionId: z.string().min(4).max(100),
     creatureIndex: z.number().int().min(0).max(5),
+  }),
+  z.object({
+    action: z.literal("evolve"),
+    token: z.string().min(20),
+    actionId: z.string().min(4).max(100),
   }),
   z.object({
     action: z.literal("attack"),
@@ -226,6 +232,17 @@ function performNpcTurn(state: BattleState, actionId: string): BattleActionResul
     plan = planNpcTurn(working, side.id);
   }
 
+  if (plan.evolve) {
+    const evolved = evolveActiveCreature(
+      working,
+      side.id,
+      `${actionId}:evolve`,
+    );
+    working = evolved.state;
+    events.push(...evolved.events);
+    plan = planNpcTurn(working, side.id);
+  }
+
   for (const [index, attachment] of plan.attachments.entries()) {
     const attached = attachEnergy(
       working,
@@ -316,6 +333,13 @@ export async function POST(request: Request) {
           state,
           state.turn.sideId,
           parsed.creatureIndex,
+          parsed.actionId,
+        );
+        break;
+      case "evolve":
+        result = evolveActiveCreature(
+          state,
+          state.turn.sideId,
           parsed.actionId,
         );
         break;
