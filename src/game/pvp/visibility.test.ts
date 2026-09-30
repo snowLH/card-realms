@@ -22,11 +22,20 @@ describe("visibilidade do estado PVP", () => {
     const visibleOpponent = visible.state.sides.find((side) => side.id === "player-b")!;
     const authoritativeOpponent = state.sides.find((side) => side.id === "player-b")!;
 
-    expect(visible.hidden).toEqual({ opponentHandCount: 5, opponentDeckCount: 25 });
+    expect(visible.hidden).toEqual({
+      opponentHandCount: 5,
+      opponentDeckCount: 25,
+      opponentPowerHandCount: 3,
+      opponentPowerDeckCount: 21,
+    });
     expect(visibleOpponent.energyHand).toEqual([]);
     expect(visibleOpponent.energyDeck).toEqual([]);
+    expect(visibleOpponent.powerHand).toEqual([]);
+    expect(visibleOpponent.powerDeck).toEqual([]);
     expect(authoritativeOpponent.energyHand).toHaveLength(5);
     expect(authoritativeOpponent.energyDeck).toHaveLength(25);
+    expect(authoritativeOpponent.powerHand).toHaveLength(3);
+    expect(authoritativeOpponent.powerDeck).toHaveLength(21);
   });
 
   it("sincroniza Evolução e Terreno sem revelar recursos ocultos", () => {
