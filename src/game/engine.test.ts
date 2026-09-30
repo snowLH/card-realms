@@ -58,6 +58,38 @@ describe("motor de combate Card Realms v2", () => {
     expect(state.sides[1].team).toHaveLength(1);
   });
 
+  it("usa somente as energias realmente possuídas pela conta", () => {
+    const state = createDemoBattle(
+      "owned-energy",
+      fixedRandom,
+      ["iara"],
+      { fire: 0, water: 12, nature: 0, storm: 0, spirit: 0 },
+    );
+    const player = getSide(state, "player-one");
+    expect(player.energyHand).toHaveLength(5);
+    expect(player.energyDeck).toHaveLength(7);
+    expect([...player.energyHand, ...player.energyDeck].every((card) => card.element === "water")).toBe(true);
+  });
+
+  it("mantém a criatura selvagem encontrada como adversária real", () => {
+    const state = createEncounterBattle(
+      "boto-encounter",
+      {
+        mode: "wild",
+        opponentId: "wild:boto-cor-de-rosa",
+        opponentName: "Boto-cor-de-rosa",
+        opponentTeamIds: ["boto-cor-de-rosa"],
+        playerTeamIds: ["iara"],
+        playerEnergy: { fire: 0, water: 12, nature: 0, storm: 0, spirit: 0 },
+      },
+      fixedRandom,
+    );
+    const opponent = getSide(state, "wild:boto-cor-de-rosa");
+    expect(state.mode).toBe("wild");
+    expect(opponent.name).toBe("Boto-cor-de-rosa");
+    expect(opponent.team.map((card) => card.catalogId)).toEqual(["boto-cor-de-rosa"]);
+  });
+
   it("inicia cada lado com um baralho real de 30 energias e mão de cinco", () => {
     const state = battle("energy-deck");
     for (const side of state.sides) {
