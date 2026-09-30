@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { BattlePresentationEvent } from "@/game/battle/presentation-events";
 import type { BattleCreature, CreatureDefinition } from "@/game/types";
 import { cn } from "@/lib/utils";
-import { CreatureCard } from "./creature-card";
 import { PixelCreature } from "./pixel-creature";
 
 export function BattleActiveCreature({
@@ -27,6 +26,7 @@ export function BattleActiveCreature({
   const ko = battle.defeated || (!actor && presentationEvent?.kind === "ko");
   const switching = actor && ["switch", "forcedSwitch"].includes(presentationEvent?.kind ?? "");
   const evolved = (battle.evolutionStage ?? 0) > 0;
+  const hpPercent = Math.max(0, Math.min(100, (battle.hp / battle.maxHp) * 100));
 
   return (
     <div
@@ -41,20 +41,42 @@ export function BattleActiveCreature({
         evolved && "is-evolved",
       )}
     >
+      <div className="battle-active-creature__hud">
+        <div className="battle-active-creature__hud-title">
+          <strong>{definition.name}</strong>
+          {evolved ? <span>VÍNCULO I</span> : null}
+        </div>
+        <div className="battle-active-creature__hp-row">
+          <span>HP</span>
+          <div className="battle-active-creature__hp-track">
+            <motion.i
+              animate={{ width: `${hpPercent}%` }}
+              transition={{ duration: .38, ease: "easeOut" }}
+            />
+          </div>
+          <small>{battle.hp}/{battle.maxHp}</small>
+        </div>
+        <div className="battle-active-creature__resources">
+          <span>{battle.attachedEnergy.length} EN</span>
+          <span>{battle.equippedPowerIds.length}/4 PODERES</span>
+          {battle.shield > 0 ? <span>{battle.shield} ESC</span> : null}
+        </div>
+      </div>
+
       <AnimatePresence mode="wait">
         {!ko ? (
           <motion.div
             key={battle.instanceId}
             className="battle-active-creature__sprite"
-            initial={{ opacity: 0, y: 26, scale: .72 }}
+            initial={{ opacity: 0, y: 24, scale: .65 }}
             animate={{
               opacity: 1,
-              y: attacking ? -8 : [0, -3, 0],
-              x: attacking ? (mirrored ? -18 : 18) : 0,
-              scale: critical ? 1.12 : evolved ? 1.08 : 1,
-              rotate: hit ? [0, -3, 3, 0] : 0,
+              y: attacking ? -8 : [0, -4, 0],
+              x: attacking ? (mirrored ? -22 : 22) : 0,
+              scale: critical ? 1.18 : evolved ? 1.1 : 1,
+              rotate: hit ? [0, -4, 4, 0] : 0,
             }}
-            exit={{ opacity: 0, y: 22, scale: .72 }}
+            exit={{ opacity: 0, y: 20, scale: .6 }}
             transition={
               attacking
                 ? { duration: .34, ease: "easeOut" }
@@ -74,31 +96,11 @@ export function BattleActiveCreature({
             key={`${battle.instanceId}:ko`}
             className="battle-active-creature__ko"
             initial={{ opacity: 1, scale: 1 }}
-            animate={{ opacity: 0, scale: .65, y: 18 }}
+            animate={{ opacity: 0, scale: .55, y: 24 }}
             transition={{ duration: .65 }}
           />
         )}
       </AnimatePresence>
-
-      {evolved ? <span className="battle-active-creature__evolved-badge">VÍNCULO I</span> : null}
-
-      <motion.div
-        className="battle-active-creature__card"
-        animate={{
-          y: attacking ? -5 : 0,
-          scale: attacking ? 1.025 : 1,
-          filter: hit ? "brightness(1.35)" : "brightness(1)",
-        }}
-        transition={{ duration: .22 }}
-      >
-        <CreatureCard
-          creature={definition}
-          battle={battle}
-          compact
-          active
-          className="table-active-card"
-        />
-      </motion.div>
 
       <AnimatePresence>
         {hit && typeof presentationEvent?.damage === "number" ? (
