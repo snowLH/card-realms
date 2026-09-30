@@ -29,6 +29,29 @@ describe("visibilidade do estado PVP", () => {
     expect(authoritativeOpponent.energyDeck).toHaveLength(25);
   });
 
+  it("sincroniza Evolução e Terreno sem revelar recursos ocultos", () => {
+    const state = createPvpBattle(
+      "00000000-0000-4000-8000-000000000001",
+      { id: "player-a", name: "Ana", teamIds: firstTeam },
+      { id: "player-b", name: "Beto", teamIds: secondTeam },
+      () => 0.25,
+    );
+    state.sides[0].team[0].evolutionStage = 1;
+    state.terrain = {
+      element: "fire",
+      sourceSideId: "player-a",
+      activatedTurn: 2,
+      expiresAfterTurn: 5,
+    };
+
+    const visible = visiblePvpState(state, "player-b");
+
+    expect(visible.state.sides[0].team[0].evolutionStage).toBe(1);
+    expect(visible.state.terrain).toEqual(state.terrain);
+    expect(visible.state.sides[0].energyHand).toEqual([]);
+    expect(visible.state.sides[0].energyDeck).toEqual([]);
+  });
+
   it("remove tokens internos de replay e IDs derivados da resposta serializada", () => {
     const state = createPvpBattle(
       "00000000-0000-4000-8000-000000000001",
