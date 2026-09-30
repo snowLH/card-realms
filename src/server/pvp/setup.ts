@@ -70,8 +70,9 @@ export async function acceptPvpChallenge(challengeId: string, actorId: string) {
   for (const playerId of playerIds) energyByPlayer.set(playerId, emptyEnergyPool());
   for (const row of energyRows ?? []) {
     const pool = energyByPlayer.get(row.user_id);
-    if (pool && ELEMENTS.includes(row.element)) {
-      pool[row.element] = row.quantity;
+    const element = ELEMENTS.find((candidate) => candidate === row.element);
+    if (pool && element) {
+      pool[element] = row.quantity;
     }
   }
 
