@@ -6,11 +6,13 @@ export function PixelCreature({
   sprite,
   className,
   mirrored = false,
+  evolved = false,
   label,
 }: {
   sprite: SpriteDefinition;
   className?: string;
   mirrored?: boolean;
+  evolved?: boolean;
   label?: string;
 }) {
   const x = sprite.columns === 1 ? 0 : (sprite.column / (sprite.columns - 1)) * 100;
@@ -26,7 +28,7 @@ export function PixelCreature({
     <div
       role="img"
       aria-label={label ?? "Criatura"}
-      className={cn("pixel-creature", className)}
+      className={cn("pixel-creature", evolved && "pixel-creature--evolved", className)}
       style={style}
     />
   );
