@@ -77,7 +77,7 @@ function createEnergyDeck(
   return shuffled(cards, random);
 }
 
-function attackById(attackId: string): AttackDefinition | null {
+export function getAttackById(attackId: string): AttackDefinition | null {
   for (const creature of CREATURES) {
     const attack = creature.attacks.find((candidate) => candidate.id === attackId);
     if (attack) return attack;
@@ -613,7 +613,7 @@ export function drawPowerCard(
   const [card] = drawPower(side, 1);
   if (!card) throw new GameRuleError("O Baralho de Poder está vazio.");
   side.powerDrawsRemaining -= 1;
-  const attack = attackById(card.attackId);
+  const attack = getAttackById(card.attackId);
   const events = appendEvents(state, actionId, [{
     actorId: sideId,
     kind: "power_drawn",
@@ -644,7 +644,7 @@ export function equipPowerCard(
 
   const card = side.powerHand[cardIndex];
   const definition = getDefinition(creature);
-  const attack = attackById(card.attackId);
+  const attack = getAttackById(card.attackId);
   if (!attack) throw new GameRuleError("A Carta de Poder não possui um ataque válido.");
   if (card.element !== definition.element) {
     throw new GameRuleError(`Este poder exige uma criatura de ${ELEMENT_META[card.element].name}.`);
@@ -842,7 +842,7 @@ export function resolveAttack(
   if (!attacker.equippedPowerIds.includes(attackId)) {
     throw new GameRuleError("Esse poder não está equipado na criatura ativa.");
   }
-  const selectedAttack = attackById(attackId);
+  const selectedAttack = getAttackById(attackId);
   if (!selectedAttack) throw new GameRuleError("Ataque inválido para a criatura ativa.");
   payCost(side, attacker, selectedAttack.cost);
 
