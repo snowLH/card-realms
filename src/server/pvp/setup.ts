@@ -3,6 +3,7 @@ import "server-only";
 import { randomInt, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { createPvpBattle } from "@/game/battle";
+import { ELEMENTS, emptyEnergyPool, type EnergyPool } from "@/game/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const TeamIdsSchema = z.tuple([
@@ -29,11 +30,16 @@ export async function acceptPvpChallenge(challengeId: string, actorId: string) {
   }
 
   const playerIds = [challenge.requester_id, challenge.addressee_id];
-  const [{ data: profiles, error: profileError }, { data: teams, error: teamError }] = await Promise.all([
+  const [
+    { data: profiles, error: profileError },
+    { data: teams, error: teamError },
+    { data: energyRows, error: energyError },
+  ] = await Promise.all([
     admin.from("profiles").select("id,display_name").in("id", playerIds),
     admin.from("teams").select("id,user_id").in("user_id", playerIds).eq("is_active", true),
+    admin.from("player_energy_inventory").select("user_id,element,quantity").in("user_id", playerIds),
   ]);
-  if (profileError || teamError || profiles?.length !== 2 || teams?.length !== 2) {
+  if (profileError || teamError || energyError || profiles?.length !== 2 || teams?.length !== 2) {
     throw new Error("Os dois jogadores precisam de perfil e equipe ativa.");
   }
 
@@ -60,6 +66,14 @@ export async function acceptPvpChallenge(challengeId: string, actorId: string) {
   const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
   const teamByPlayer = new Map(teams.map((team) => [team.user_id, team]));
   const creatureById = new Map(creatures.map((creature) => [creature.id, creature]));
+  const energyByPlayer = new Map<string, EnergyPool>();
+  for (const playerId of playerIds) energyByPlayer.set(playerId, emptyEnergyPool());
+  for (const row of energyRows ?? []) {
+    const pool = energyByPlayer.get(row.user_id);
+    if (pool && ELEMENTS.includes(row.element)) {
+      pool[row.element] = row.quantity;
+    }
+  }
 
   function playerSetup(playerId: string) {
     const team = teamByPlayer.get(playerId);
@@ -79,6 +93,7 @@ export async function acceptPvpChallenge(challengeId: string, actorId: string) {
       id: playerId,
       name: profile.display_name,
       teamIds: TeamIdsSchema.parse(catalogIds),
+      energy: energyByPlayer.get(playerId) ?? emptyEnergyPool(),
     };
   }
 
