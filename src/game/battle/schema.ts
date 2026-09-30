@@ -22,6 +22,7 @@ const BattleCreatureSchema = z.object({
   attachedEnergy: z.array(EnergyCardSchema),
   statuses: z.array(ActiveStatusSchema),
   defeated: z.boolean(),
+  evolutionStage: z.union([z.literal(0), z.literal(1)]).optional().default(0),
 });
 
 const BattleSideSchema = z.object({
@@ -45,13 +46,18 @@ export const BattleLogEntrySchema = z.object({
     "battle_start", "turn_started", "energy_drawn", "energy_attached",
     "creature_switched", "forced_switch", "attack_hit", "attack_miss",
     "critical", "status_applied", "status_tick", "healed", "shielded",
-    "passed", "defeated", "battle_end",
+    "passed", "defeated", "evolution_started", "evolution_completed",
+    "terrain_activated", "terrain_expired", "battle_end",
   ]),
   message: z.string(),
   die: z.number().int().min(1).max(6).optional(),
   damage: z.number().int().nonnegative().optional(),
   attackId: z.string().optional(),
   effect: z.enum(["burn", "soaked", "rooted", "shocked", "haunted", "warded", "heal", "shield"]).optional(),
+  creatureIndex: z.number().int().min(0).max(5).optional(),
+  evolutionStage: z.union([z.literal(0), z.literal(1)]).optional(),
+  terrainElement: z.enum(ELEMENTS).optional(),
+  terrainTurns: z.number().int().positive().optional(),
 });
 
 export const BattleStateSchema = z.object({
@@ -67,6 +73,12 @@ export const BattleStateSchema = z.object({
   }),
   sides: z.tuple([BattleSideSchema, BattleSideSchema]),
   winnerId: z.string().optional(),
+  terrain: z.object({
+    element: z.enum(ELEMENTS),
+    sourceSideId: z.string().min(1),
+    activatedTurn: z.number().int().positive(),
+    expiresAfterTurn: z.number().int().positive(),
+  }).optional(),
   processedActionIds: z.array(z.string()).max(80),
   log: z.array(BattleLogEntrySchema).max(120),
 });
