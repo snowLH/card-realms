@@ -517,6 +517,7 @@ function markDefeated(
 
 function beginTurn(state: BattleState, side: BattleSide, forcedSwitch: boolean, actionId: string) {
   side.attachmentsRemaining = ATTACHMENTS_PER_TURN;
+  side.powerDrawsRemaining = POWER_DRAWS_PER_TURN;
   const shouldDraw = side.turnsStarted > 0;
   side.turnsStarted += 1;
   const drawn = shouldDraw ? drawEnergy(side, DRAW_PER_TURN) : [];
@@ -592,6 +593,85 @@ export function attachEnergy(
     actorId: sideId,
     kind: "energy_attached",
     message: `${side.name} anexou Energia de ${ELEMENT_META[card.element].name} a ${getDefinition(creature).name}.`,
+  }]);
+  completeAction(state, actionId);
+  return { state, events };
+}
+
+export function drawPowerCard(
+  input: BattleState,
+  sideId: string,
+  actionId: string,
+): BattleActionResult {
+  const state = structuredClone(input);
+  assertAction(state, sideId, actionId);
+  assertMainPhase(state);
+  const side = getSide(state, sideId);
+  if (side.powerDrawsRemaining < 1) {
+    throw new GameRuleError("Você já comprou uma Carta de Poder neste turno.");
+  }
+  const [card] = drawPower(side, 1);
+  if (!card) throw new GameRuleError("O Baralho de Poder está vazio.");
+  side.powerDrawsRemaining -= 1;
+  const attack = attackById(card.attackId);
+  const events = appendEvents(state, actionId, [{
+    actorId: sideId,
+    kind: "power_drawn",
+    powerCardId: card.id,
+    attackId: card.attackId,
+    message: `${side.name} comprou a Carta de Poder ${attack?.name ?? card.attackId}.`,
+  }]);
+  completeAction(state, actionId);
+  return { state, events };
+}
+
+export function equipPowerCard(
+  input: BattleState,
+  sideId: string,
+  creatureIndex: number,
+  cardId: string,
+  slot: number | undefined,
+  actionId: string,
+): BattleActionResult {
+  const state = structuredClone(input);
+  assertAction(state, sideId, actionId);
+  assertMainPhase(state);
+  const side = getSide(state, sideId);
+  const creature = side.team[creatureIndex];
+  if (!creature || creature.defeated) throw new GameRuleError("Escolha uma criatura disponível.");
+  const cardIndex = side.powerHand.findIndex((card) => card.id === cardId);
+  if (cardIndex < 0) throw new GameRuleError("Essa Carta de Poder não está na sua mão.");
+
+  const card = side.powerHand[cardIndex];
+  const definition = getDefinition(creature);
+  const attack = attackById(card.attackId);
+  if (!attack) throw new GameRuleError("A Carta de Poder não possui um ataque válido.");
+  if (card.element !== definition.element) {
+    throw new GameRuleError(`Este poder exige uma criatura de ${ELEMENT_META[card.element].name}.`);
+  }
+  if (creature.equippedPowerIds.includes(card.attackId)) {
+    throw new GameRuleError("Esta criatura já possui esse poder.");
+  }
+
+  let targetSlot = slot;
+  if (creature.equippedPowerIds.length < MAX_EQUIPPED_POWERS) {
+    targetSlot = creature.equippedPowerIds.length;
+  } else if (targetSlot === undefined || targetSlot < 0 || targetSlot >= MAX_EQUIPPED_POWERS) {
+    throw new GameRuleError("Escolha qual dos quatro poderes será substituído.");
+  }
+
+  const [spentCard] = side.powerHand.splice(cardIndex, 1);
+  side.powerDiscard.push(spentCard);
+  creature.equippedPowerIds[targetSlot] = card.attackId;
+
+  const events = appendEvents(state, actionId, [{
+    actorId: sideId,
+    kind: "power_equipped",
+    powerCardId: card.id,
+    powerSlot: targetSlot,
+    attackId: card.attackId,
+    creatureIndex,
+    message: `${definition.name} aprendeu ${attack.name} no espaço ${targetSlot + 1}.`,
   }]);
   completeAction(state, actionId);
   return { state, events };
@@ -759,8 +839,11 @@ export function resolveAttack(
   const defender = getActive(opponent);
   const attackerDefinition = getDefinition(attacker);
   const defenderDefinition = getDefinition(defender);
-  const selectedAttack = attackerDefinition.attacks.find((candidate) => candidate.id === attackId);
-  if (!selectedAttack) throw new GameRuleError("Ataque inválido para a carta ativa.");
+  if (!attacker.equippedPowerIds.includes(attackId)) {
+    throw new GameRuleError("Esse poder não está equipado na criatura ativa.");
+  }
+  const selectedAttack = attackById(attackId);
+  if (!selectedAttack) throw new GameRuleError("Ataque inválido para a criatura ativa.");
   payCost(side, attacker, selectedAttack.cost);
 
   const shockedPenalty = hasStatus(attacker, "shocked") ? 1 : 0;
