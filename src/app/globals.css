@@ -3867,3 +3867,386 @@ button.creature-card:disabled {
   color: #e2ecee;
   box-shadow: 0 0 34px rgba(179, 206, 214, .26);
 }
+
+
+/* -------------------------------------------------------------------------- */
+/* Authoritative evolution + terrain presentation                             */
+/* -------------------------------------------------------------------------- */
+
+.battle-terrain-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.battle-terrain-layer__ring,
+.battle-terrain-layer__pulse {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 72%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+
+.battle-terrain-layer__ring {
+  border: 8px solid currentColor;
+  opacity: .16;
+  animation: terrain-ring 2.1s ease-in-out infinite;
+}
+
+.battle-terrain-layer__pulse {
+  background: radial-gradient(circle, currentColor 0, transparent 68%);
+  opacity: .1;
+  animation: terrain-pulse 2.6s ease-in-out infinite alternate;
+}
+
+.battle-terrain-layer--fire {
+  color: #ff7b35;
+  background:
+    radial-gradient(circle at 22% 78%, rgba(255, 87, 34, .14), transparent 18%),
+    radial-gradient(circle at 76% 24%, rgba(255, 177, 68, .12), transparent 16%);
+}
+
+.battle-terrain-layer--water {
+  color: #70d9ff;
+  background:
+    repeating-radial-gradient(ellipse at center, rgba(96, 213, 245, .08) 0 3px, transparent 4px 28px);
+  animation: terrain-water-shift 4s linear infinite;
+}
+
+.battle-terrain-layer--nature {
+  color: #a9d26b;
+  background:
+    radial-gradient(circle at 20% 82%, rgba(112, 168, 72, .16), transparent 18%),
+    radial-gradient(circle at 81% 75%, rgba(147, 191, 83, .13), transparent 20%);
+}
+
+.battle-terrain-layer--storm {
+  color: #f7e276;
+  background:
+    linear-gradient(115deg, transparent 44%, rgba(248, 234, 119, .09) 46%, transparent 48%),
+    linear-gradient(55deg, transparent 61%, rgba(255, 255, 219, .09) 63%, transparent 65%);
+  animation: terrain-storm-flicker 1.8s steps(2, end) infinite;
+}
+
+.battle-terrain-layer--spirit {
+  color: #c9b0ff;
+  background:
+    radial-gradient(circle at 25% 35%, rgba(192, 161, 241, .12), transparent 14%),
+    radial-gradient(circle at 70% 62%, rgba(150, 122, 218, .13), transparent 17%),
+    radial-gradient(circle at 49% 22%, rgba(221, 210, 255, .08), transparent 12%);
+  animation: terrain-spirit-drift 3.8s ease-in-out infinite alternate;
+}
+
+.battle-terrain--fire .battle-board-content {
+  filter: saturate(1.08) contrast(1.03) sepia(.08);
+}
+
+.battle-terrain--water .battle-board-content {
+  filter: saturate(.96) hue-rotate(4deg) brightness(.97);
+}
+
+.battle-terrain--nature .battle-board-content {
+  filter: saturate(1.04) hue-rotate(-4deg);
+}
+
+.battle-terrain--storm .battle-board-content {
+  filter: contrast(1.07) brightness(1.02);
+}
+
+.battle-terrain--spirit .battle-board-content {
+  filter: saturate(.9) hue-rotate(12deg);
+}
+
+.battle-terrain-status {
+  position: absolute;
+  z-index: 18;
+  left: 50%;
+  top: 52%;
+  display: flex;
+  transform: translate(-50%, -50%);
+  align-items: center;
+  gap: 8px;
+  min-width: 220px;
+  border: 3px solid currentColor;
+  background: rgba(22, 14, 16, .88);
+  padding: 7px 10px;
+  color: #f6d58f;
+  box-shadow: 4px 5px rgba(7, 4, 5, .44);
+  pointer-events: none;
+}
+
+.battle-terrain-status > svg {
+  width: 20px;
+}
+
+.battle-terrain-status > span {
+  display: grid;
+  gap: 1px;
+}
+
+.battle-terrain-status strong {
+  font: 900 8px var(--font-geist-mono), monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.battle-terrain-status small {
+  color: #d1bd98;
+  font-size: 7px;
+}
+
+.battle-terrain-status.is-fire { color: #ff9e55; }
+.battle-terrain-status.is-water { color: #7edfff; }
+.battle-terrain-status.is-nature { color: #b3d977; }
+.battle-terrain-status.is-storm { color: #f7e67b; }
+.battle-terrain-status.is-spirit { color: #d0b7ff; }
+
+.evolution-control {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  border: 4px double #7c5631;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(240, 204, 111, .22), transparent 22%),
+    #ead39e;
+  padding: 11px;
+  color: #352018;
+  box-shadow: inset 0 0 0 2px #c18a4b;
+}
+
+.evolution-control > div {
+  display: grid;
+  gap: 3px;
+}
+
+.evolution-control strong {
+  font-family: var(--font-game);
+  font-size: 11px;
+}
+
+.evolution-control small {
+  color: #71513d;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.battle-active-creature.is-evolved .battle-active-creature__sprite {
+  filter:
+    drop-shadow(0 0 10px rgba(250, 216, 108, .72))
+    drop-shadow(5px 8px rgba(8,5,6,.52));
+}
+
+.battle-active-creature.is-evolved::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: -20px;
+  width: 126px;
+  height: 126px;
+  border: 4px solid rgba(246, 214, 109, .27);
+  border-radius: 50%;
+  animation: evolved-aura 2.3s ease-in-out infinite;
+}
+
+.battle-active-creature__evolved-badge {
+  position: absolute;
+  z-index: 9;
+  top: 44px;
+  right: -7px;
+  border: 2px solid #6b3d27;
+  background: #e4b95e;
+  padding: 3px 5px;
+  color: #2e1b17;
+  font: 1000 7px var(--font-geist-mono), monospace;
+  letter-spacing: .08em;
+  box-shadow: 2px 3px rgba(15,8,8,.35);
+}
+
+.battle-evolution-overlay {
+  position: absolute;
+  z-index: 60;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  grid-template-columns: 112px 46px 112px;
+  align-items: center;
+  justify-items: center;
+  transform: translate(-50%, -50%);
+  border: 5px double #d7aa55;
+  background:
+    radial-gradient(circle, rgba(255, 225, 125, .18), transparent 60%),
+    rgba(25, 14, 16, .95);
+  padding: 20px 24px 30px;
+  color: #ffe8a4;
+  box-shadow: 0 0 52px rgba(229, 184, 81, .38), inset 0 0 30px rgba(245, 211, 114, .08);
+  pointer-events: none;
+}
+
+.battle-evolution-overlay.is-complete {
+  box-shadow: 0 0 70px rgba(255, 221, 104, .62), inset 0 0 34px rgba(250, 218, 118, .16);
+}
+
+.battle-evolution-overlay__card {
+  display: grid;
+  width: 106px;
+  min-height: 142px;
+  place-items: center;
+  gap: 4px;
+  border: 4px solid #6b4329;
+  background: #ead29a;
+  padding: 8px;
+  color: #352019;
+  box-shadow: inset 0 0 0 2px #b77740, 4px 5px #0d0809;
+}
+
+.battle-evolution-overlay__card .pixel-creature {
+  width: 80px;
+  height: 80px;
+}
+
+.battle-evolution-overlay__card--base {
+  transform: rotate(-6deg) translateX(8px);
+  opacity: .78;
+}
+
+.battle-evolution-overlay__card--evolved {
+  transform: rotate(5deg) translateX(-8px) scale(1.08);
+  border-color: #e3b75c;
+  filter: brightness(1.08);
+}
+
+.battle-evolution-overlay > svg {
+  width: 34px;
+  height: 34px;
+  animation: evolution-spark .6s steps(2, end) infinite alternate;
+}
+
+.battle-evolution-overlay > span {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font: 1000 12px var(--font-game);
+  letter-spacing: .12em;
+  text-shadow: 2px 3px #3c211b;
+}
+
+.battle-terrain-callout {
+  position: absolute;
+  z-index: 58;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  transform: translate(-50%, -50%);
+  justify-items: center;
+  gap: 5px;
+  min-width: 300px;
+  border-block: 4px solid currentColor;
+  background: linear-gradient(90deg, transparent, rgba(24, 15, 18, .95) 18% 82%, transparent);
+  padding: 15px 38px;
+  color: #ffe5a0;
+  text-align: center;
+  text-shadow: 2px 3px #2a1515;
+  pointer-events: none;
+}
+
+.battle-terrain-callout svg {
+  width: 26px;
+}
+
+.battle-terrain-callout strong {
+  font: 1000 18px var(--font-game);
+  letter-spacing: .08em;
+}
+
+.battle-terrain-callout small {
+  color: #dbcaa5;
+  font-size: 8px;
+}
+
+.battle-terrain-callout.is-fire { color: #ff9b52; }
+.battle-terrain-callout.is-water { color: #87e3ff; }
+.battle-terrain-callout.is-nature { color: #b9dd7d; }
+.battle-terrain-callout.is-storm { color: #ffed81; }
+.battle-terrain-callout.is-spirit { color: #d4bdff; }
+.battle-terrain-callout.is-off { color: #c6c1b8; }
+
+@keyframes terrain-ring {
+  50% { transform: translate(-50%, -50%) scale(1.08); opacity: .08; }
+}
+
+@keyframes terrain-pulse {
+  to { transform: translate(-50%, -50%) scale(1.12); opacity: .04; }
+}
+
+@keyframes terrain-water-shift {
+  to { background-position: 38px 18px; }
+}
+
+@keyframes terrain-storm-flicker {
+  45% { opacity: .72; }
+  50% { opacity: .28; }
+  55% { opacity: .84; }
+}
+
+@keyframes terrain-spirit-drift {
+  to { transform: translateY(-8px) scale(1.02); opacity: .75; }
+}
+
+@keyframes evolved-aura {
+  50% { transform: scale(1.08); opacity: .35; }
+}
+
+@keyframes evolution-spark {
+  to { transform: scale(1.25) rotate(12deg); filter: brightness(1.3); }
+}
+
+@media (max-width: 620px) {
+  .evolution-control {
+    grid-template-columns: 1fr;
+  }
+
+  .battle-evolution-overlay {
+    grid-template-columns: 88px 32px 88px;
+    padding-inline: 12px;
+  }
+
+  .battle-evolution-overlay__card {
+    width: 84px;
+    min-height: 122px;
+  }
+
+  .battle-evolution-overlay__card .pixel-creature {
+    width: 64px;
+    height: 64px;
+  }
+
+  .battle-terrain-status {
+    top: 48%;
+    min-width: 190px;
+    max-width: 72%;
+  }
+
+  .battle-terrain-callout {
+    min-width: 0;
+    width: 82%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .battle-terrain-layer,
+  .battle-terrain-layer__ring,
+  .battle-terrain-layer__pulse,
+  .battle-active-creature.is-evolved::before,
+  .battle-evolution-overlay > svg {
+    animation: none !important;
+  }
+}
