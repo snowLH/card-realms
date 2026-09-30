@@ -18,7 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CREATURES, REGIONS } from "@/game/catalog";
 import type { GridPoint } from "@/game/exploration/pathfinding";
 import type { PlayerBootstrap } from "@/game/player";
-import type { BattleReward, Element, EnergyPool, RegionAreaDefinition, RegionDefinition } from "@/game/types";
+import type { BattleEncounter, BattleReward, Element, EnergyPool, RegionAreaDefinition, RegionDefinition } from "@/game/types";
 import {
   DEFAULT_AVATAR_CONFIG,
   DEFAULT_LOCAL_PROGRESS,
@@ -91,6 +91,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   const [selectedRegion, setSelectedRegion] = useState<RegionDefinition | null>(initialRegion);
   const [playerRegionId, setPlayerRegionId] = useState(initialRegion.id);
   const [battleOpen, setBattleOpen] = useState(false);
+  const [battleEncounter, setBattleEncounter] = useState<BattleEncounter | null>(null);
   const [pvpBattleId, setPvpBattleId] = useState<string | null>(null);
   const [coins, setCoins] = useState(remoteSnapshot?.profile.coins ?? DEFAULT_LOCAL_PROGRESS.coins);
   const [xp, setXp] = useState(remoteSnapshot?.profile.xp ?? DEFAULT_LOCAL_PROGRESS.xp);
@@ -175,8 +176,9 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     setView(next);
   };
 
-  const handleBattle = () => {
+  const handleBattle = (encounter: BattleEncounter) => {
     setToast(null);
+    setBattleEncounter(encounter);
     setBattleOpen(true);
   };
 
@@ -485,8 +487,11 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
           <BattleArena
             open
             pvp={pvpSession}
+            encounter={pvpSession ? undefined : battleEncounter ?? undefined}
+            playerEnergy={energy}
             onClose={() => {
               setBattleOpen(false);
+              setBattleEncounter(null);
               setPvpBattleId(null);
               if (bootstrap.source === "supabase") router.refresh();
             }}
