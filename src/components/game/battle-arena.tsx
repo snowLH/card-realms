@@ -3,17 +3,20 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRightLeft,
+  BookOpen,
   ChevronDown,
   ChevronRight,
   ChevronUp,
   Dice5,
   Flame,
   LoaderCircle,
+  PackageOpen,
   RotateCcw,
   ShieldCheck,
   SkipForward,
   Sparkles,
   Swords,
+  Users,
   Volume2,
   VolumeX,
   X,
@@ -22,7 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
 import type { BattleBoardId } from "@/game/battle/presentation";
 import type { AvatarConfig } from "@/game/save/local-progress";
-import { canEvolveActiveCreature, canPayCost, energyPoolFor, getActive, getSide } from "@/game/engine";
+import { canEvolveActiveCreature, canPayCost, energyPoolFor, getActive, getAttackById, getSide } from "@/game/engine";
 import { presentationDuration, toBattlePresentationEvents, type BattlePresentationEvent } from "@/game/battle/presentation-events";
 import { playBattleSfx, startBattleMusic, stopBattleMusic, unlockBattleAudio } from "@/game/battle/audio";
 import { type BattleEncounter, type BattleLogEntry, type BattleState, type Element, type EnergyPool } from "@/game/types";
@@ -119,6 +122,9 @@ export function BattleArena({
   const [turnBannerVisible, setTurnBannerVisible] = useState(false);
   const [pendingSwitchIndex, setPendingSwitchIndex] = useState<number | null>(null);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
+  const [commandPanel, setCommandPanel] = useState<"menu" | "attack" | "cards" | "team" | "item">("menu");
+  const [selectedPowerCardId, setSelectedPowerCardId] = useState<string | null>(null);
+  const [powerTargetIndex, setPowerTargetIndex] = useState<number | null>(null);
   const [reward, setReward] = useState<BattleReward | null>(null);
   const victoryReported = useRef(false);
   const pvpBattleId = pvp?.battleId ?? null;
@@ -206,6 +212,8 @@ export function BattleArena({
       setError("");
       setPendingSwitchIndex(null);
       setSelectedAttackId(null);
+      setSelectedPowerCardId(null);
+      setPowerTargetIndex(null);
       try {
         const response = pvp
           ? await callPvpActionApi({
@@ -340,9 +348,20 @@ export function BattleArena({
   const pendingSwitchDefinition = pendingSwitch
     ? CREATURE_BY_ID.get(pendingSwitch.catalogId) ?? null
     : null;
+  const equippedAttackIds = data.playerActive.equippedPowerIds.length > 0
+    ? data.playerActive.equippedPowerIds
+    : [data.playerDefinition.attacks[0].id];
+  const equippedAttacks = equippedAttackIds
+    .map((attackId) => getAttackById(attackId))
+    .filter((attack): attack is NonNullable<typeof attack> => Boolean(attack));
   const selectedAttack = selectedAttackId
-    ? data.playerDefinition.attacks.find((attack) => attack.id === selectedAttackId) ?? null
+    ? getAttackById(selectedAttackId)
     : null;
+  const selectedPowerCard = selectedPowerCardId
+    ? data.player.powerHand.find((card) => card.id === selectedPowerCardId) ?? null
+    : null;
+  const selectedPowerAttack = selectedPowerCard ? getAttackById(selectedPowerCard.attackId) : null;
+  const powerTarget = powerTargetIndex === null ? null : data.player.team[powerTargetIndex] ?? null;
   const playerIsActor = presentationEvent?.actorId === data.player.id;
   const opponentIsActor = presentationEvent?.actorId === data.opponent.id;
   const cinematic = Boolean(presentationEvent && (
