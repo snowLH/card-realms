@@ -1,6 +1,7 @@
 import "server-only";
 
 import { BattleStateSchema } from "@/game/battle";
+import { resolveBattleBoard } from "@/game/battle/presentation";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export class PvpBattleAccessError extends Error {
@@ -23,7 +24,7 @@ export async function loadAuthoritativePvpBattle(battleId: string, actorId: stri
 
   const { data: battle, error: battleError } = await admin
     .from("battles")
-    .select("id,state,version,status,turn_user_id,winner_id,updated_at")
+    .select("id,created_by,state,version,status,turn_user_id,winner_id,updated_at")
     .eq("id", battleId)
     .single();
   if (battleError || !battle) throw new PvpBattleAccessError();
@@ -33,5 +34,20 @@ export async function loadAuthoritativePvpBattle(battleId: string, actorId: stri
     throw new Error("Estado persistido de batalha incompatível.");
   }
 
-  return { admin, battle: { ...battle, state: parsed.data } };
+  const { data: hostHouse } = battle.created_by
+    ? await admin
+        .from("houses")
+        .select("layout")
+        .eq("user_id", battle.created_by)
+        .maybeSingle()
+    : { data: null };
+  const layout = hostHouse?.layout && typeof hostHouse.layout === "object" && !Array.isArray(hostHouse.layout)
+    ? hostHouse.layout as Record<string, unknown>
+    : {};
+
+  return {
+    admin,
+    battle: { ...battle, state: parsed.data },
+    boardId: resolveBattleBoard(layout.preferredBattleBoard),
+  };
 }
