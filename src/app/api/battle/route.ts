@@ -5,14 +5,17 @@ import {
   GameRuleError,
   attachEnergy,
   createDemoBattle,
+  createEncounterBattle,
   passTurn,
   planNpcTurn,
   getSide,
   resolveAttack,
   switchActiveCreature,
 } from "@/game/engine";
+import { CREATURES, CREATURE_BY_ID, REGIONS } from "@/game/catalog";
+import { LOCAL_MAPS } from "@/game/exploration/maps";
 import { RemotePlayerSnapshotSchema } from "@/game/player";
-import { type BattleActionResult, type BattleReward, type BattleState } from "@/game/types";
+import { ELEMENTS, type BattleActionResult, type BattleEncounter, type BattleReward, type BattleState, type EnergyPool } from "@/game/types";
 import {
   assertTokenUnused,
   consumeToken,
@@ -26,8 +29,27 @@ import { createClient } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const EnergyPoolSchema = z.object({
+  fire: z.number().int().nonnegative().max(9999),
+  water: z.number().int().nonnegative().max(9999),
+  nature: z.number().int().nonnegative().max(9999),
+  storm: z.number().int().nonnegative().max(9999),
+  spirit: z.number().int().nonnegative().max(9999),
+});
+
+const EncounterSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("wild"), regionId: z.string().min(1).max(80), creatureId: z.string().min(1).max(80) }),
+  z.object({ kind: z.literal("npc"), regionId: z.string().min(1).max(80), npcId: z.string().min(1).max(80) }),
+  z.object({ kind: z.literal("sanctuary"), regionId: z.string().min(1).max(80), areaId: z.string().min(1).max(80) }),
+  z.object({ kind: z.literal("boss"), regionId: z.string().min(1).max(80), areaId: z.string().min(1).max(80) }),
+]);
+
 const requestSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("start") }),
+  z.object({
+    action: z.literal("start"),
+    encounter: EncounterSchema.optional(),
+    playerEnergy: EnergyPoolSchema.optional(),
+  }),
   z.object({
     action: z.literal("attach"),
     token: z.string().min(20),
@@ -82,19 +104,91 @@ async function authenticatedPlayerId() {
   return !error && typeof data?.claims?.sub === "string" ? data.claims.sub : null;
 }
 
-async function loadAuthenticatedTeam() {
+async function loadAuthenticatedBattleContext() {
   if (!isSupabaseConfigured()) return null;
   const supabase = await createClient();
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
   if (claimsError || typeof claimsData?.claims?.sub !== "string") return null;
   const { data, error } = await supabase.rpc("get_my_player_snapshot");
-  if (error) throw new Error("Não foi possível carregar sua equipe para a batalha.");
+  if (error) throw new Error("Não foi possível carregar seu progresso para a batalha.");
   const snapshot = RemotePlayerSnapshotSchema.parse(data);
   const team = snapshot.teams.find((candidate) => candidate.isActive);
-  return team?.members
-    .slice()
-    .sort((left, right) => left.slot - right.slot)
-    .map((member) => member.catalogId) ?? [];
+  return {
+    teamIds: team?.members
+      .slice()
+      .sort((left, right) => left.slot - right.slot)
+      .map((member) => member.catalogId) ?? [],
+    energy: snapshot.energy as EnergyPool,
+    currentRegionId: snapshot.world.currentRegionId,
+  };
+}
+
+function encounterSetup(
+  encounter: BattleEncounter,
+  playerTeamIds: readonly string[],
+  currentRegionId?: string,
+) {
+  if (currentRegionId && encounter.regionId !== currentRegionId) {
+    throw new GameRuleError("Este encontro não pertence à região atual da conta.");
+  }
+  const map = LOCAL_MAPS[encounter.regionId];
+  const region = REGIONS.find((candidate) => candidate.id === encounter.regionId);
+  if (!map || !region) throw new GameRuleError("A região do encontro é inválida.");
+
+  if (encounter.kind === "wild") {
+    const creature = CREATURE_BY_ID.get(encounter.creatureId);
+    if (!creature || creature.regionId !== encounter.regionId) {
+      throw new GameRuleError("A criatura encontrada não pertence a esta região.");
+    }
+    return {
+      mode: "wild" as const,
+      opponentId: `wild:${creature.id}`,
+      opponentName: creature.name,
+      opponentTeamIds: [creature.id],
+      playerTeamIds,
+      startMessage: `Um encontro selvagem começou contra ${creature.name}.`,
+    };
+  }
+
+  if (encounter.kind === "npc") {
+    const npc = map.npcs.find((candidate) => candidate.id === encounter.npcId);
+    if (!npc) throw new GameRuleError("Este viajante não pertence à região atual.");
+    const regional = CREATURES.filter((creature) => creature.regionId === encounter.regionId);
+    if (regional.length === 0) throw new GameRuleError("O viajante ainda não possui uma equipe válida.");
+    const start = Math.max(0, map.npcs.findIndex((candidate) => candidate.id === npc.id));
+    const size = Math.max(1, Math.min(playerTeamIds.length, 6));
+    const opponentTeamIds = Array.from({ length: size }, (_, index) =>
+      regional[(start + index) % regional.length].id
+    );
+    return {
+      mode: "npc" as const,
+      opponentId: `npc:${npc.id}`,
+      opponentName: npc.name,
+      opponentTeamIds,
+      playerTeamIds,
+      startMessage: `${npc.name} aceitou o duelo de treino em ${region.name}.`,
+    };
+  }
+
+  const area = region.areas?.find((candidate) => candidate.id === encounter.areaId);
+  if (!area || area.activity !== encounter.kind) {
+    throw new GameRuleError("A área não corresponde ao tipo de batalha solicitado.");
+  }
+  const regional = CREATURES.filter((creature) => creature.regionId === encounter.regionId);
+  if (regional.length === 0) throw new GameRuleError("Esta área ainda não possui adversários válidos.");
+  const size = Math.max(1, Math.min(playerTeamIds.length, 6));
+  const opponentTeamIds = encounter.kind === "boss"
+    ? [...regional].slice(-size).map((creature) => creature.id)
+    : regional.slice(0, size).map((creature) => creature.id);
+  return {
+    mode: encounter.kind,
+    opponentId: `${encounter.kind}:${area.id}`,
+    opponentName: area.name,
+    opponentKind: encounter.kind === "boss" ? "boss" as const : "npc" as const,
+    opponentTeamIds,
+    playerTeamIds,
+    startMessage: `${area.name} iniciou uma ${encounter.kind === "boss" ? "batalha de guardião" : "provação de santuário"}.`,
+  };
 }
 
 async function claimStoryReward(battleId: string): Promise<BattleReward | undefined> {
@@ -115,7 +209,7 @@ async function claimStoryReward(battleId: string): Promise<BattleReward | undefi
 
 function performNpcTurn(state: BattleState, actionId: string): BattleActionResult {
   const side = getSide(state, state.turn.sideId);
-  if (side.kind !== "npc") throw new GameRuleError("Não é o turno do oponente.");
+  if (side.kind !== "npc" && side.kind !== "boss") throw new GameRuleError("Não é o turno do oponente.");
 
   let working = state;
   const events: BattleActionResult["events"] = [];
@@ -167,15 +261,35 @@ export async function POST(request: Request) {
   try {
     const parsed = requestSchema.parse(await request.json());
     if (parsed.action === "start") {
-      const authenticatedTeam = await loadAuthenticatedTeam();
-      if (authenticatedTeam && authenticatedTeam.length === 0) {
+      const authenticated = await loadAuthenticatedBattleContext();
+      const playerTeamIds = authenticated?.teamIds ?? undefined;
+      if (authenticated && authenticated.teamIds.length === 0) {
         throw new GameRuleError("Escolha sua primeira carta antes de entrar em combate.");
       }
-      const state = createDemoBattle(
-        randomUUID(),
-        () => randomInt(0, 0x1000000) / 0x1000000,
-        authenticatedTeam ?? undefined,
-      );
+      const random = () => randomInt(0, 0x1000000) / 0x1000000;
+      const playerEnergy = authenticated?.energy ?? parsed.playerEnergy;
+      if (playerEnergy && ELEMENTS.every((element) => playerEnergy[element] === 0)) {
+        throw new GameRuleError("Você ainda não possui cartas de energia para batalhar.");
+      }
+      const state = parsed.encounter
+        ? createEncounterBattle(
+            randomUUID(),
+            {
+              ...encounterSetup(
+                parsed.encounter,
+                playerTeamIds ?? ["boitata"],
+                authenticated?.currentRegionId,
+              ),
+              playerEnergy,
+            },
+            random,
+          )
+        : createDemoBattle(
+            randomUUID(),
+            random,
+            playerTeamIds,
+            playerEnergy,
+          );
       return response(state, state.log);
     }
 
