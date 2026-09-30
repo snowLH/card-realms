@@ -234,6 +234,34 @@ function performNpcTurn(state: BattleState, actionId: string): BattleActionResul
 
   let working = state;
   const events: BattleActionResult["events"] = [];
+
+  if (side.powerDrawsRemaining > 0) {
+    const drawnPower = drawPowerCard(working, side.id, `${actionId}:draw-power`);
+    working = drawnPower.state;
+    events.push(...drawnPower.events);
+
+    const refreshedSide = getSide(working, side.id);
+    const activeCreature = refreshedSide.team[refreshedSide.activeIndex];
+    const activeDefinition = CREATURE_BY_ID.get(activeCreature.catalogId);
+    const compatiblePower = refreshedSide.powerHand.find((card) =>
+      activeDefinition
+      && card.element === activeDefinition.element
+      && !activeCreature.equippedPowerIds.includes(card.attackId)
+    );
+    if (compatiblePower && activeCreature.equippedPowerIds.length < 4) {
+      const equippedPower = equipPowerCard(
+        working,
+        side.id,
+        refreshedSide.activeIndex,
+        compatiblePower.id,
+        undefined,
+        `${actionId}:equip-power`,
+      );
+      working = equippedPower.state;
+      events.push(...equippedPower.events);
+    }
+  }
+
   let plan = planNpcTurn(working, side.id);
   if (plan.forcedSwitchIndex !== undefined) {
     const switched = switchActiveCreature(
