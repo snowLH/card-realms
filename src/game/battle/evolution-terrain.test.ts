@@ -22,6 +22,14 @@ function prepareAttachedEnergy(count: number) {
   return state;
 }
 
+function equipSignaturePower(state: ReturnType<typeof prepareAttachedEnergy>) {
+  const player = getSide(state, "player-one");
+  if (!player.team[0].equippedPowerIds.includes("boitata-3")) {
+    player.team[0].equippedPowerIds.push("boitata-3");
+  }
+  return state;
+}
+
 describe("evolução autoritativa", () => {
   it("consome duas energias, altera o snapshot e emite início/fim", () => {
     const state = prepareAttachedEnergy(2);
@@ -59,7 +67,7 @@ describe("evolução autoritativa", () => {
 
 describe("terreno autoritativo", () => {
   it("ataque de assinatura ativa terreno por três turnos futuros", () => {
-    const state = prepareAttachedEnergy(3);
+    const state = equipSignaturePower(prepareAttachedEnergy(3));
     const result = resolveAttack(
       state,
       "player-one",
@@ -111,7 +119,7 @@ describe("terreno autoritativo", () => {
   });
 
   it("terreno expira por evento autoritativo no turno correto", () => {
-    const state = prepareAttachedEnergy(3);
+    const state = equipSignaturePower(prepareAttachedEnergy(3));
     let working = resolveAttack(
       state,
       "player-one",
