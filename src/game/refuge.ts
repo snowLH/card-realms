@@ -18,7 +18,7 @@ export type RefugeFurniturePlacement = {
   itemKey: RefugeFurnitureKey;
   x: number;
   y: number;
-  rotation: number;
+  rotation: 0 | 90 | 180 | 270;
 };
 
 export type RefugeSavePayload = {
