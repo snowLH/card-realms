@@ -1,6 +1,11 @@
 import type { BattlePresentationKind } from "./presentation-events";
+import type { BattleBoardId } from "./presentation";
 
 let audioContext: AudioContext | null = null;
+let musicTimer: number | null = null;
+let musicGain: GainNode | null = null;
+let musicBoard: BattleBoardId | null = null;
+let musicStep = 0;
 
 function context() {
   if (typeof window === "undefined") return null;
@@ -67,6 +72,73 @@ function noise(duration = 0.12, gain = 0.035) {
   source.start();
 }
 
+const MUSIC_MOTIFS: Record<BattleBoardId, number[]> = {
+  cartographer: [196, 247, 294, 247, 220, 262, 330, 262],
+  ashes: [146, 174, 220, 196, 146, 165, 233, 196],
+  tides: [174, 220, 262, 330, 294, 262, 220, 196],
+  roots: [165, 196, 247, 220, 196, 247, 294, 247],
+  storms: [220, 277, 330, 415, 330, 277, 247, 330],
+  veil: [155, 196, 233, 311, 233, 196, 174, 233],
+};
+
+function scheduleMusicNote(boardId: BattleBoardId) {
+  const ctx = context();
+  if (!ctx || !musicGain) return;
+  const motif = MUSIC_MOTIFS[boardId];
+  const frequency = motif[musicStep % motif.length];
+  musicStep += 1;
+  const start = ctx.currentTime + 0.02;
+  const oscillator = ctx.createOscillator();
+  const overtone = ctx.createOscillator();
+  const localGain = ctx.createGain();
+  oscillator.type = boardId === "veil" || boardId === "tides" ? "sine" : "triangle";
+  overtone.type = "sine";
+  oscillator.frequency.setValueAtTime(frequency, start);
+  overtone.frequency.setValueAtTime(frequency * 2, start);
+  localGain.gain.setValueAtTime(0.0001, start);
+  localGain.gain.exponentialRampToValueAtTime(0.55, start + 0.05);
+  localGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.56);
+  oscillator.connect(localGain);
+  overtone.connect(localGain);
+  localGain.connect(musicGain);
+  oscillator.start(start);
+  overtone.start(start);
+  oscillator.stop(start + 0.6);
+  overtone.stop(start + 0.6);
+}
+
+export function startBattleMusic(boardId: BattleBoardId) {
+  const ctx = context();
+  if (!ctx) return;
+  if (musicBoard === boardId && musicTimer !== null) return;
+  stopBattleMusic();
+  musicBoard = boardId;
+  musicStep = 0;
+  musicGain = ctx.createGain();
+  musicGain.gain.value = 0.025;
+  musicGain.connect(ctx.destination);
+  if (ctx.state === "suspended") void ctx.resume();
+  scheduleMusicNote(boardId);
+  musicTimer = window.setInterval(() => scheduleMusicNote(boardId), 620);
+}
+
+export function stopBattleMusic() {
+  if (musicTimer !== null && typeof window !== "undefined") {
+    window.clearInterval(musicTimer);
+  }
+  musicTimer = null;
+  musicBoard = null;
+  musicStep = 0;
+  if (musicGain) {
+    try {
+      musicGain.disconnect();
+    } catch {
+      // The node may already be disconnected by browser cleanup.
+    }
+  }
+  musicGain = null;
+}
+
 export function playBattleSfx(kind: BattlePresentationKind) {
   const ctx = context();
   if (!ctx || ctx.state !== "running") return;
@@ -121,6 +193,30 @@ export function playBattleSfx(kind: BattlePresentationKind) {
 
   if (kind === "status") {
     tone(680, .18, { endFrequency: 480, type: "sine", gain: .028 });
+    return;
+  }
+
+  if (kind === "evolutionStart") {
+    tone(220, .32, { endFrequency: 660, type: "triangle", gain: .045 });
+    tone(330, .38, { endFrequency: 990, type: "sine", gain: .03, delay: .12 });
+    return;
+  }
+
+  if (kind === "evolutionComplete") {
+    tone(392, .24, { endFrequency: 784, type: "triangle", gain: .055 });
+    tone(523, .32, { endFrequency: 1046, type: "sine", gain: .04, delay: .12 });
+    tone(659, .36, { endFrequency: 1318, type: "triangle", gain: .032, delay: .24 });
+    return;
+  }
+
+  if (kind === "terrainOn") {
+    tone(130, .5, { endFrequency: 390, type: "sine", gain: .038 });
+    noise(.24, .02);
+    return;
+  }
+
+  if (kind === "terrainOff") {
+    tone(390, .3, { endFrequency: 120, type: "sine", gain: .028 });
     return;
   }
 
