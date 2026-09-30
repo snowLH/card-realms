@@ -324,13 +324,49 @@ export function BattleArena({
                 : "Seu turno"
               : `Turno de ${data.opponent.name}`}
         </div>
+        <div className="battle-speed" aria-label="Velocidade das animações">
+          {(["normal", "fast", "very-fast"] as const).map((speed) => (
+            <button
+              key={speed}
+              type="button"
+              className={cn(animationSpeed === speed && "is-active")}
+              onClick={() => setAnimationSpeed(speed)}
+              disabled={busy}
+            >
+              {speed === "normal" ? "1×" : speed === "fast" ? "1.6×" : "2.6×"}
+            </button>
+          ))}
+        </div>
         <button type="button" className="battle-close" onClick={onClose} aria-label="Sair da batalha">
           <X />
         </button>
       </header>
 
       <section className="card-table" aria-label="Mesa de batalha de cartas">
+        <BattleBoardScene boardId={battleBoard} cinematic={cinematic}>
         <div className="card-table__felt">
+          <div className="battle-avatar battle-avatar--opponent" aria-label={`Cartógrafo de ${data.opponent.name}`}>
+            <CharacterAvatar2D compact />
+            <span>{data.opponent.name}</span>
+          </div>
+          <div className="battle-avatar battle-avatar--player" aria-label="Seu Cartógrafo">
+            <CharacterAvatar2D config={playerAvatar} compact />
+            <span>Você</span>
+          </div>
+          <AnimatePresence mode="wait">
+            {turnBannerVisible ? (
+              <motion.div
+                key={`${battle.turn.number}:${battle.turn.sideId}`}
+                className={cn("battle-turn-banner", playerTurn && "is-player")}
+                initial={{ opacity: 0, scaleX: .72, y: -8 }}
+                animate={{ opacity: 1, scaleX: 1, y: 0 }}
+                exit={{ opacity: 0, scaleX: 1.08, y: 8 }}
+                transition={{ duration: .24 }}
+              >
+                <span>{playerTurn ? "SUA VEZ" : `VEZ DE ${data.opponent.name.toUpperCase()}`}</span>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
           <div className="card-table__resource-row card-table__resource-row--opponent">
             <div className="table-pile tcg-zone tcg-zone--deck" data-zone="Baralho">
               <span className="table-card-back">CR</span>
@@ -361,14 +397,17 @@ export function BattleArena({
                 );
               })}
             </div>
-            <div className="table-active-zone table-active-zone--opponent tcg-zone tcg-zone--active" data-zone="Criatura ativa">
+            <div className={cn(
+              "table-active-zone table-active-zone--opponent tcg-zone tcg-zone--active",
+              opponentHit && "is-under-impact",
+            )} data-zone="Criatura ativa">
               <span>Carta ativa de {data.opponent.name}</span>
-              <CreatureCard
-                creature={data.opponentDefinition}
+              <BattleActiveCreature
+                definition={data.opponentDefinition}
                 battle={data.opponentActive}
-                compact
-                active
-                className="table-active-card"
+                sideId={data.opponent.id}
+                presentationEvent={presentationEvent}
+                mirrored
               />
             </div>
           </div>
@@ -383,14 +422,16 @@ export function BattleArena({
           </div>
 
           <div className="card-table__side card-table__side--player">
-            <div className="table-active-zone table-active-zone--player tcg-zone tcg-zone--active" data-zone="Criatura ativa">
+            <div className={cn(
+              "table-active-zone table-active-zone--player tcg-zone tcg-zone--active",
+              playerHit && "is-under-impact",
+            )} data-zone="Criatura ativa">
               <span>Sua carta ativa</span>
-              <CreatureCard
-                creature={data.playerDefinition}
+              <BattleActiveCreature
+                definition={data.playerDefinition}
                 battle={data.playerActive}
-                compact
-                active
-                className="table-active-card"
+                sideId={data.player.id}
+                presentationEvent={presentationEvent}
               />
             </div>
             <div className="table-bench tcg-zone tcg-zone--bench" data-zone="Seu banco" aria-label="Seu banco de cartas">
@@ -439,6 +480,7 @@ export function BattleArena({
             </div>
           </div>
         </div>
+        </BattleBoardScene>
 
         <AnimatePresence>
           {effect ? (
