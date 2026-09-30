@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     }
 
     const actionType = action.action === "attach" ? "attach_energy" : action.action;
-    const { admin, battle: battleRow } = await loadAuthoritativePvpBattle(action.battleId, actorId);
+    const { admin, battle: battleRow, boardId } = await loadAuthoritativePvpBattle(action.battleId, actorId);
     const { data: previous } = await admin
       .from("battle_actions")
       .select("action_type,payload,result")
@@ -61,6 +61,7 @@ export async function POST(request: Request) {
         state: visible.state,
         events: visiblePvpEvents(storedEvents),
         version: stored.version,
+        boardId,
         authority: "server",
         hidden: visible.hidden,
       });
@@ -113,6 +114,7 @@ export async function POST(request: Request) {
       state: visible.state,
       events: visiblePvpEvents(committedEvents),
       version: committed?.version,
+      boardId,
       authority: "server",
       hidden: visible.hidden,
     });
