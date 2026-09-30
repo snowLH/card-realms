@@ -42,15 +42,44 @@ function shuffled<T>(items: T[], random: RandomSource): T[] {
   return result;
 }
 
-function createEnergyDeck(sideId: string, random: RandomSource): EnergyCard[] {
-  const copiesPerElement = ENERGY_DECK_SIZE / ELEMENTS.length;
-  const cards = ELEMENTS.flatMap((element) =>
-    Array.from({ length: copiesPerElement }, (_, copy) => ({
-      id: `${sideId}:energy:${element}:${copy + 1}`,
-      element,
-    })),
-  );
+function createEnergyDeck(
+  sideId: string,
+  random: RandomSource,
+  inventory?: EnergyPool,
+): EnergyCard[] {
+  const cards: EnergyCard[] = [];
+  if (inventory) {
+    for (const element of ELEMENTS) {
+      const available = Math.max(0, Math.floor(inventory[element] ?? 0));
+      for (let copy = 0; copy < available && cards.length < ENERGY_DECK_SIZE; copy += 1) {
+        cards.push({
+          id: `${sideId}:energy:${element}:${copy + 1}`,
+          element,
+        });
+      }
+      if (cards.length >= ENERGY_DECK_SIZE) break;
+    }
+  } else {
+    const copiesPerElement = ENERGY_DECK_SIZE / ELEMENTS.length;
+    for (const element of ELEMENTS) {
+      for (let copy = 0; copy < copiesPerElement; copy += 1) {
+        cards.push({
+          id: `${sideId}:energy:${element}:${copy + 1}`,
+          element,
+        });
+      }
+    }
+  }
   return shuffled(cards, random);
+}
+
+function energyForTeam(teamIds: readonly string[]): EnergyPool {
+  const pool = emptyEnergyPool();
+  for (const catalogId of teamIds) {
+    const definition = CREATURE_BY_ID.get(catalogId);
+    if (definition) pool[definition.element] += 12;
+  }
+  return pool;
 }
 
 function makeBattleCreature(catalogId: string, ownerId: string, index: number): BattleCreature {
@@ -74,11 +103,12 @@ function makeSide(
   kind: BattleSide["kind"],
   teamIds: readonly string[],
   random: RandomSource,
+  energyInventory?: EnergyPool,
 ): BattleSide {
   if (teamIds.length < 1 || teamIds.length > TEAM_SIZE) {
     throw new GameRuleError("Uma equipe de aventura precisa ter entre uma e seis cartas.");
   }
-  const deck = createEnergyDeck(id, random);
+  const deck = createEnergyDeck(id, random, energyInventory);
   const hand = deck.splice(0, OPENING_HAND_SIZE);
   return {
     id,
@@ -94,24 +124,50 @@ function makeSide(
   };
 }
 
-export function createDemoBattle(
-  id = crypto.randomUUID(),
+export type EncounterBattleSetup = {
+  mode: Exclude<BattleState["mode"], "pvp">;
+  opponentId: string;
+  opponentName: string;
+  opponentKind?: Extract<BattleSide["kind"], "npc" | "boss">;
+  opponentTeamIds: readonly string[];
+  playerTeamIds?: readonly string[];
+  playerEnergy?: EnergyPool;
+  opponentEnergy?: EnergyPool;
+  startMessage?: string;
+};
+
+export function createEncounterBattle(
+  id: string,
+  setup: EncounterBattleSetup,
   random: RandomSource = Math.random,
-  playerTeamIds: readonly string[] = STARTER_TEAM_IDS,
 ): BattleState {
   const playerId = "player-one";
-  const npcId = "warden-aya";
-  const player = makeSide(playerId, "Você", "player", playerTeamIds, random);
-  const npc = makeSide(npcId, "Guardiã Aya", "npc", NPC_TEAM_IDS.slice(0, playerTeamIds.length), random);
+  const playerTeamIds = setup.playerTeamIds ?? STARTER_TEAM_IDS;
+  const player = makeSide(
+    playerId,
+    "Você",
+    "player",
+    playerTeamIds,
+    random,
+    setup.playerEnergy,
+  );
+  const opponent = makeSide(
+    setup.opponentId,
+    setup.opponentName,
+    setup.opponentKind ?? "npc",
+    setup.opponentTeamIds,
+    random,
+    setup.opponentEnergy ?? energyForTeam(setup.opponentTeamIds),
+  );
   player.turnsStarted = 1;
 
   return {
     version: 2,
     id,
-    mode: "npc",
+    mode: setup.mode,
     status: "active",
     turn: { sideId: playerId, phase: "main", number: 1, round: 1 },
-    sides: [player, npc],
+    sides: [player, opponent],
     processedActionIds: [],
     log: [
       {
@@ -119,16 +175,35 @@ export function createDemoBattle(
         turn: 1,
         actorId: "system",
         kind: "battle_start",
-        message: `A Provação das Raízes começou com ${playerTeamIds.length} carta${playerTeamIds.length === 1 ? "" : "s"} de criatura por lado.`,
+        message: setup.startMessage
+          ?? `${setup.opponentName} entrou na batalha contra ${playerTeamIds.length} carta${playerTeamIds.length === 1 ? "" : "s"} da sua equipe.`,
       },
     ],
   };
+}
+
+export function createDemoBattle(
+  id = crypto.randomUUID(),
+  random: RandomSource = Math.random,
+  playerTeamIds: readonly string[] = STARTER_TEAM_IDS,
+  playerEnergy?: EnergyPool,
+): BattleState {
+  return createEncounterBattle(id, {
+    mode: "npc",
+    opponentId: "warden-aya",
+    opponentName: "Guardiã Aya",
+    opponentTeamIds: NPC_TEAM_IDS.slice(0, playerTeamIds.length),
+    playerTeamIds,
+    playerEnergy,
+    startMessage: `A Provação das Raízes começou com ${playerTeamIds.length} carta${playerTeamIds.length === 1 ? "" : "s"} de criatura por lado.`,
+  }, random);
 }
 
 export type PvpPlayerSetup = {
   id: string;
   name: string;
   teamIds: readonly string[];
+  energy?: EnergyPool;
 };
 
 export function createPvpBattle(
@@ -142,8 +217,8 @@ export function createPvpBattle(
   }
 
   const sides: [BattleSide, BattleSide] = [
-    makeSide(challenger.id, challenger.name, "player", challenger.teamIds, random),
-    makeSide(challenged.id, challenged.name, "player", challenged.teamIds, random),
+    makeSide(challenger.id, challenger.name, "player", challenger.teamIds, random, challenger.energy),
+    makeSide(challenged.id, challenged.name, "player", challenged.teamIds, random, challenged.energy),
   ];
   const firstIndex = randomIndex(random, sides.length);
   sides[firstIndex].turnsStarted = 1;
