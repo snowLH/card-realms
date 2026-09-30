@@ -508,6 +508,43 @@ export function BattleArena({
               <span>{die === 1 ? "Falha crítica" : die === 6 ? "Acerto crítico" : "Ataque certeiro"}</span>
             </motion.div>
           ) : null}
+          {presentationEvent?.kind === "energy" ? (
+            <motion.div
+              key={presentationEvent.id}
+              className={cn("battle-energy-flight", presentationEvent.actorId === data.opponent.id && "is-opponent")}
+              initial={{ opacity: 0, y: 120, x: presentationEvent.actorId === data.opponent.id ? 160 : -160, scale: .7, rotate: -12 }}
+              animate={{ opacity: [0, 1, 1, 0], y: [120, 20, -45], x: [presentationEvent.actorId === data.opponent.id ? 160 : -160, 0, 0], scale: [.7, 1.05, .5], rotate: [-12, 6, 0] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: .52 }}
+            >
+              <Sparkles />
+              <strong>ENERGIA</strong>
+            </motion.div>
+          ) : null}
+          {presentationEvent?.kind === "draw" ? (
+            <motion.div
+              key={presentationEvent.id}
+              className="battle-draw-flight"
+              initial={{ opacity: 0, x: -180, y: 70, rotate: -18 }}
+              animate={{ opacity: [0, 1, 1], x: [-180, -20, 150], y: [70, 10, 80], rotate: [-18, 4, 12] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: .46 }}
+            >
+              <span>CR</span>
+            </motion.div>
+          ) : null}
+          {presentationEvent && ["miss", "critical", "ko"].includes(presentationEvent.kind) ? (
+            <motion.div
+              key={`${presentationEvent.id}:callout`}
+              className={cn("battle-impact-callout", `is-${presentationEvent.kind}`)}
+              initial={{ opacity: 0, scale: .55 }}
+              animate={{ opacity: 1, scale: [1.25, 1] }}
+              exit={{ opacity: 0, scale: 1.15 }}
+              transition={{ duration: .2 }}
+            >
+              {presentationEvent.kind === "miss" ? "FALHOU!" : presentationEvent.kind === "critical" ? "CRÍTICO!" : "NOCAUTE!"}
+            </motion.div>
+          ) : null}
         </AnimatePresence>
       </section>
 
