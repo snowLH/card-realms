@@ -232,8 +232,7 @@ export function BattleArena({
           if (["attack", "miss", "critical"].includes(event.kind)) {
             const attackingSide = battle?.sides.find((side) => side.id === event.actorId);
             const active = attackingSide ? getActive(attackingSide) : null;
-            const definition = active ? CREATURE_BY_ID.get(active.catalogId) : null;
-            const attackAnimation = definition?.attacks.find((attack) => attack.id === event.attackId)?.animation;
+            const attackAnimation = event.attackId ? getAttackById(event.attackId)?.animation : undefined;
             setEffect(event.kind === "miss" ? "miss" : attackAnimation ?? "strike");
 
             const duration = presentationDuration(event.kind, animationSpeed);
