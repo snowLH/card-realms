@@ -651,7 +651,7 @@ export function BattleArena({
               </div>
               <Sparkles />
               <div className="battle-evolution-overlay__card battle-evolution-overlay__card--evolved">
-                <PixelCreature sprite={data.playerDefinition.sprite} label={`${data.playerDefinition.name} evoluído`} />
+                <PixelCreature sprite={data.playerDefinition.sprite} label={`${data.playerDefinition.name} evoluído`} evolved />
                 <strong>{data.playerDefinition.name} · Vínculo I</strong>
               </div>
               <span>{presentationEvent.kind === "evolutionComplete" ? "EVOLUÇÃO COMPLETA!" : "EVOLUINDO..."}</span>
