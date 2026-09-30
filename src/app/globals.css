@@ -3659,3 +3659,70 @@ button.creature-card:disabled {
     animation: none !important;
   }
 }
+
+
+.attack-button.is-selected {
+  border-color: #c18a42;
+  background: #f5e4bc;
+  box-shadow: inset 0 0 0 2px rgba(193,138,66,.28), 3px 4px rgba(65,35,23,.28);
+}
+
+.attack-preview {
+  display: grid;
+  gap: 10px;
+  border: 4px double #7b4b2d;
+  background: #f2dda7;
+  padding: 12px;
+  color: #352018;
+  box-shadow: inset 0 0 0 2px #c08a4d;
+}
+
+.attack-preview__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 2px solid #b3814b;
+  padding-bottom: 7px;
+}
+
+.attack-preview__heading span {
+  color: #82482e;
+  font: 900 8px var(--font-geist-mono), monospace;
+  letter-spacing: .12em;
+}
+
+.attack-preview__heading strong {
+  font-family: var(--font-game);
+  font-size: 12px;
+}
+
+.attack-preview__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.attack-preview__stats > span {
+  display: grid;
+  gap: 3px;
+  border: 2px solid #a77345;
+  background: rgba(255,246,211,.52);
+  padding: 7px;
+}
+
+.attack-preview__stats small {
+  color: #7a563f;
+  font-size: 7px;
+  text-transform: uppercase;
+}
+
+.attack-preview__stats strong {
+  font-size: 10px;
+}
+
+@media (max-width: 620px) {
+  .attack-preview__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
