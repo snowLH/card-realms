@@ -1,4 +1,4 @@
-import { CREATURE_BY_ID, ELEMENT_META, NPC_TEAM_IDS, STARTER_TEAM_IDS } from "../content";
+import { CREATURES, CREATURE_BY_ID, ELEMENT_META, NPC_TEAM_IDS, STARTER_TEAM_IDS } from "../content";
 import type { AttackDefinition, StatusEffect } from "../domain/creatures";
 import {
   ELEMENTS,
@@ -12,6 +12,9 @@ import {
   DRAW_PER_TURN,
   ENERGY_DECK_SIZE,
   OPENING_HAND_SIZE,
+  POWER_DECK_SIZE,
+  POWER_DRAWS_PER_TURN,
+  MAX_EQUIPPED_POWERS,
   TEAM_SIZE,
   type BattleActionResult,
   type BattleCreature,
@@ -19,6 +22,7 @@ import {
   type BattleSide,
   type BattleState,
   type EnergyCard,
+  type PowerCard,
   type RandomSource,
 } from "./types";
 
@@ -73,6 +77,62 @@ function createEnergyDeck(
   return shuffled(cards, random);
 }
 
+function attackById(attackId: string): AttackDefinition | null {
+  for (const creature of CREATURES) {
+    const attack = creature.attacks.find((candidate) => candidate.id === attackId);
+    if (attack) return attack;
+  }
+  return null;
+}
+
+function createPowerDeck(
+  sideId: string,
+  teamIds: readonly string[],
+  random: RandomSource,
+): PowerCard[] {
+  const teamElements = new Set(
+    teamIds
+      .map((catalogId) => CREATURE_BY_ID.get(catalogId)?.element)
+      .filter((element): element is NonNullable<typeof element> => Boolean(element)),
+  );
+  const candidates = CREATURES
+    .filter((creature) => teamElements.has(creature.element))
+    .flatMap((creature) => creature.attacks.map((attack) => ({
+      attack,
+      element: creature.element,
+    })));
+
+  if (candidates.length === 0) return [];
+
+  const cards: PowerCard[] = [];
+  let copy = 0;
+  while (cards.length < POWER_DECK_SIZE) {
+    const candidate = candidates[copy % candidates.length];
+    cards.push({
+      id: `${sideId}:power:${candidate.attack.id}:${Math.floor(copy / candidates.length) + 1}`,
+      attackId: candidate.attack.id,
+      element: candidate.element,
+    });
+    copy += 1;
+  }
+  return shuffled(cards, random);
+}
+
+function drawPower(side: BattleSide, count: number): PowerCard[] {
+  const drawn: PowerCard[] = [];
+  for (let index = 0; index < count; index += 1) {
+    if (side.powerDeck.length === 0 && side.powerDiscard.length > 0) {
+      side.powerDeck = [...side.powerDiscard].reverse();
+      side.powerDiscard = [];
+    }
+    const card = side.powerDeck.shift();
+    if (!card) break;
+    side.powerHand.push(card);
+    drawn.push(card);
+  }
+  return drawn;
+}
+
 function energyForTeam(teamIds: readonly string[]): EnergyPool {
   const pool = emptyEnergyPool();
   for (const catalogId of teamIds) {
@@ -95,6 +155,7 @@ function makeBattleCreature(catalogId: string, ownerId: string, index: number): 
     statuses: [],
     defeated: false,
     evolutionStage: 0,
+    equippedPowerIds: [definition.attacks[0].id],
   };
 }
 
@@ -111,6 +172,8 @@ function makeSide(
   }
   const deck = createEnergyDeck(id, random, energyInventory);
   const hand = deck.splice(0, OPENING_HAND_SIZE);
+  const powerDeck = createPowerDeck(id, teamIds, random);
+  const powerHand = powerDeck.splice(0, 3);
   return {
     id,
     name,
@@ -121,6 +184,10 @@ function makeSide(
     energyHand: hand,
     energyDiscard: [],
     attachmentsRemaining: ATTACHMENTS_PER_TURN,
+    powerDeck,
+    powerHand,
+    powerDiscard: [],
+    powerDrawsRemaining: POWER_DRAWS_PER_TURN,
     turnsStarted: 0,
   };
 }
