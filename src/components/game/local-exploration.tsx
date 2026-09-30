@@ -29,7 +29,7 @@ import {
   type GridPoint,
 } from "@/game/exploration/pathfinding";
 import type { AvatarConfig } from "@/game/save/local-progress";
-import type { Activity, RegionAreaDefinition, RegionDefinition } from "@/game/types";
+import type { Activity, BattleEncounter, RegionAreaDefinition, RegionDefinition } from "@/game/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -87,7 +87,7 @@ export function LocalExploration({
   savedPosition?: GridPoint;
   onBack: () => void;
   onVisitArea: (area: RegionAreaDefinition) => void;
-  onBattle: (activity: Activity) => void;
+  onBattle: (encounter: BattleEncounter) => void;
   onTreasure: () => void;
   onPositionChange: (point: GridPoint) => void;
 }) {
@@ -358,7 +358,10 @@ export function LocalExploration({
               <span className="local-interaction__eyebrow"><MessageCircle /> Viajante encontrado</span>
               <h2>{npc.name}</h2>
               <p>{npc.role}. “As trilhas mudam, mas as histórias guardam o caminho.”</p>
-              <Button type="button" variant="game" onClick={() => { setInteraction(null); onBattle("npc"); }}><Swords /> Duelo de treino</Button>
+              <Button type="button" variant="game" onClick={() => {
+                setInteraction(null);
+                onBattle({ kind: "npc", regionId: region.id, npcId: npc.id });
+              }}><Swords /> Duelo de treino</Button>
             </>
           ) : encounterCreature ? (
             <>
@@ -366,7 +369,10 @@ export function LocalExploration({
               <div className="local-interaction__creature"><PixelCreature sprite={encounterCreature.sprite} label={encounterCreature.name} /></div>
               <h2>{encounterCreature.name}</h2>
               <p>{encounterCreature.description}</p>
-              <Button type="button" variant="game" onClick={() => { setInteraction(null); onBattle("wild"); }}><Swords /> Iniciar batalha de cartas</Button>
+              <Button type="button" variant="game" onClick={() => {
+                setInteraction(null);
+                onBattle({ kind: "wild", regionId: region.id, creatureId: encounterCreature.id });
+              }}><Swords /> Iniciar batalha de cartas</Button>
               <small>Vencer rende moedas e experiência. Novas cartas continuam exclusivas de baús e recompensas especiais.</small>
             </>
           ) : null}

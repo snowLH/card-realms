@@ -17,7 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
 import { canPayCost, energyPoolFor, getActive, getSide } from "@/game/engine";
-import { type BattleLogEntry, type BattleState, type Element } from "@/game/types";
+import { type BattleEncounter, type BattleLogEntry, type BattleState, type Element, type EnergyPool } from "@/game/types";
 import type { BattleReward } from "@/game/types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -77,11 +77,15 @@ export function BattleArena({
   onClose,
   onVictory,
   pvp,
+  encounter,
+  playerEnergy,
 }: {
   open: boolean;
   onClose: () => void;
   onVictory: (reward?: BattleReward) => void;
   pvp?: PvpSession;
+  encounter?: BattleEncounter;
+  playerEnergy?: EnergyPool;
 }) {
   const [battle, setBattle] = useState<BattleState | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -101,7 +105,7 @@ export function BattleArena({
     try {
       const response = pvp
         ? await loadPvpBattle(pvp.battleId)
-        : await callBattleApi({ action: "start" });
+        : await callBattleApi({ action: "start", encounter, playerEnergy });
       setBattle(response.state);
       setToken(response.token ?? null);
       setServerVersion(response.version ?? null);
@@ -113,7 +117,7 @@ export function BattleArena({
     } finally {
       setBusy(false);
     }
-  }, [pvp]);
+  }, [encounter, playerEnergy, pvp]);
 
   useEffect(() => {
     if (!open || battle || busy) return;
@@ -217,7 +221,7 @@ export function BattleArena({
     return (
       <div className="battle-screen battle-screen--loading">
         <LoaderCircle className="size-8 animate-spin text-primary" />
-        <strong>Preparando as seis cartas...</strong>
+        <strong>Preparando a batalha...</strong>
         {error ? <p>{error}</p> : null}
         {error ? <Button onClick={startBattle}>Tentar novamente</Button> : null}
       </div>
@@ -236,7 +240,17 @@ export function BattleArena({
     <div className="battle-screen">
       <header className="battle-topbar">
         <div>
-          <span className="battle-eyebrow">{pvp ? "Duelo entre cartógrafos" : "Provação das Raízes"}</span>
+          <span className="battle-eyebrow">{
+            pvp
+              ? "Duelo entre cartógrafos"
+              : battle.mode === "wild"
+                ? "Encontro selvagem"
+                : battle.mode === "boss"
+                  ? "Confronto de guardião"
+                  : battle.mode === "sanctuary"
+                    ? "Provação de santuário"
+                    : "Duelo de viajante"
+          }</span>
           <strong>Rodada {battle.turn.round}</strong>
         </div>
         <div className="battle-turn">
