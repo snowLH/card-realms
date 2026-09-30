@@ -43,6 +43,7 @@ export type BattleCreature = {
   attachedEnergy: EnergyCard[];
   statuses: ActiveStatus[];
   defeated: boolean;
+  evolutionStage?: 0 | 1;
 };
 
 export type BattleSide = {
@@ -67,6 +68,13 @@ export type BattleTurn = {
   round: number;
 };
 
+export type BattleTerrain = {
+  element: Element;
+  sourceSideId: string;
+  activatedTurn: number;
+  expiresAfterTurn: number;
+};
+
 export type BattleLogKind =
   | "battle_start"
   | "turn_started"
@@ -83,6 +91,10 @@ export type BattleLogKind =
   | "shielded"
   | "passed"
   | "defeated"
+  | "evolution_started"
+  | "evolution_completed"
+  | "terrain_activated"
+  | "terrain_expired"
   | "battle_end";
 
 export type BattleLogEntry = {
@@ -95,6 +107,10 @@ export type BattleLogEntry = {
   damage?: number;
   attackId?: string;
   effect?: AttackEffect["type"];
+  creatureIndex?: number;
+  evolutionStage?: 0 | 1;
+  terrainElement?: Element;
+  terrainTurns?: number;
 };
 
 export type BattleState = {
@@ -105,6 +121,7 @@ export type BattleState = {
   turn: BattleTurn;
   sides: [BattleSide, BattleSide];
   winnerId?: string;
+  terrain?: BattleTerrain;
   processedActionIds: string[];
   log: BattleLogEntry[];
 };
