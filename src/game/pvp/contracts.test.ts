@@ -31,6 +31,28 @@ describe("contratos PVP hostis", () => {
     }).success).toBe(true);
   });
 
+  it("aceita compra/equipamento de Poder apenas como comandos sem aceitar dano forjado", () => {
+    expect(PvpActionSchema.safeParse({
+      ...validAction,
+      action: "draw_power",
+    }).success).toBe(true);
+    expect(PvpActionSchema.safeParse({
+      ...validAction,
+      action: "equip_power",
+      creatureIndex: 0,
+      cardId: "player-a:power:boitata-2:1",
+      slot: 1,
+    }).success).toBe(true);
+    expect(PvpActionSchema.safeParse({
+      ...validAction,
+      action: "equip_power",
+      creatureIndex: 0,
+      cardId: "player-a:power:boitata-2:1",
+      slot: 1,
+      damage: 9999,
+    }).success).toBe(false);
+  });
+
   it("aceita Evolução apenas como comando, sem permitir escolher o resultado", () => {
     expect(PvpActionSchema.safeParse({
       ...validAction,
