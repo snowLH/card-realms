@@ -27,6 +27,9 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { CreatureCard } from "./creature-card";
 import { PixelCreature } from "./pixel-creature";
+import { BattleActiveCreature } from "./battle-active-creature";
+import { BattleBoardScene } from "./battle-board-scene";
+import { CharacterAvatar2D } from "./character-avatar";
 
 type BattleResponse = {
   state: BattleState;
