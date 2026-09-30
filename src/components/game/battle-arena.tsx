@@ -37,6 +37,7 @@ type BattleResponse = {
   reward?: BattleReward;
   token?: string;
   version?: number;
+  boardId?: BattleBoardId;
   authority: "server";
 };
 
@@ -100,6 +101,7 @@ export function BattleArena({
   const [battle, setBattle] = useState<BattleState | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [serverVersion, setServerVersion] = useState<number | null>(null);
+  const [serverBattleBoard, setServerBattleBoard] = useState<BattleBoardId | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [die, setDie] = useState<number | null>(null);
@@ -122,6 +124,7 @@ export function BattleArena({
       setBattle(response.state);
       setToken(response.token ?? null);
       setServerVersion(response.version ?? null);
+      setServerBattleBoard(response.boardId ?? null);
       setReward(response.reward ?? null);
       setPendingSwitchIndex(null);
       victoryReported.current = false;
@@ -216,6 +219,7 @@ export function BattleArena({
         setEffect(null);
         setToken(response.token ?? null);
         setServerVersion(response.version ?? null);
+        if (response.boardId) setServerBattleBoard(response.boardId);
         if (response.reward) setReward(response.reward);
       } catch (caught) {
         setPresentationEvent(null);
@@ -274,6 +278,7 @@ export function BattleArena({
     );
   }
 
+  const effectiveBattleBoard = pvp ? serverBattleBoard ?? battleBoard : battleBoard;
   const playerTurn = battle.turn.sideId === data.player.id && battle.status === "active";
   const mainPhase = playerTurn && battle.turn.phase === "main";
   const forcedSwitch = playerTurn && battle.turn.phase === "forced_switch";
@@ -343,7 +348,7 @@ export function BattleArena({
       </header>
 
       <section className="card-table" aria-label="Mesa de batalha de cartas">
-        <BattleBoardScene boardId={battleBoard} cinematic={cinematic}>
+        <BattleBoardScene boardId={effectiveBattleBoard} cinematic={cinematic}>
         <div className="card-table__felt">
           <div className="battle-avatar battle-avatar--opponent" aria-label={`Cartógrafo de ${data.opponent.name}`}>
             <CharacterAvatar2D compact />
