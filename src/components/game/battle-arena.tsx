@@ -3,7 +3,9 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRightLeft,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Dice5,
   Flame,
   LoaderCircle,
@@ -112,6 +114,8 @@ export function BattleArena({
   const [presentationEvent, setPresentationEvent] = useState<BattlePresentationEvent | null>(null);
   const [animationSpeed, setAnimationSpeed] = useState<"normal" | "fast" | "very-fast">("normal");
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [visualQuality, setVisualQuality] = useState<"high" | "medium" | "low">("high");
+  const [logOpen, setLogOpen] = useState(false);
   const [turnBannerVisible, setTurnBannerVisible] = useState(false);
   const [pendingSwitchIndex, setPendingSwitchIndex] = useState<number | null>(null);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -139,6 +143,13 @@ export function BattleArena({
       setBusy(false);
     }
   }, [encounter, playerEnergy, pvp]);
+
+  useEffect(() => {
+    if (!open || typeof navigator === "undefined") return;
+    const hardware = navigator.hardwareConcurrency ?? 8;
+    const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
+    setVisualQuality(hardware <= 4 || memory <= 4 ? "low" : hardware <= 8 || memory <= 8 ? "medium" : "high");
+  }, [open]);
 
   useEffect(() => {
     if (!open || battle || busy) return;
@@ -314,7 +325,7 @@ export function BattleArena({
     && ["attack", "critical"].includes(presentationEvent.kind),
   );
   return (
-    <div className="battle-screen">
+    <div className={cn("battle-screen", `battle-quality--${visualQuality}`)}>
       <header className="battle-topbar">
         <div>
           <span className="battle-eyebrow">{
@@ -748,13 +759,21 @@ export function BattleArena({
         </div>
       </section>
 
-      <aside className="battle-log">
-        <div className="battle-section-title">
+      <aside className={cn("battle-log", !logOpen && "is-collapsed")}>
+        <button
+          type="button"
+          className="battle-section-title battle-log__toggle"
+          onClick={() => setLogOpen((current) => !current)}
+          aria-expanded={logOpen}
+        >
           <span>Crônica da batalha</span>
-          <ShieldCheck />
-        </div>
+          <span className="battle-log__toggle-meta">
+            <ShieldCheck />
+            {logOpen ? <ChevronUp /> : <ChevronDown />}
+          </span>
+        </button>
         <div className="battle-log__entries">
-          {battle.log.slice(-5).reverse().map((entry) => (
+          {battle.log.slice(logOpen ? -9 : -3).reverse().map((entry) => (
             <p key={entry.id}>
               {entry.die ? <strong>D{entry.die}</strong> : null} {entry.message}
             </p>
