@@ -279,7 +279,7 @@ export function BattleArena({
         setBusy(false);
       }
     },
-    [animationSpeed, battle, battleBoard, busy, pvp, serverBattleBoard, serverVersion, soundEnabled, token],
+    [animationSpeed, battleBoard, busy, pvp, serverBattleBoard, serverVersion, soundEnabled, token],
   );
 
   useEffect(() => {
