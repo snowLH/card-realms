@@ -30,6 +30,7 @@ import { CreatureCard } from "./creature-card";
 import { PixelCreature } from "./pixel-creature";
 import { BattleActiveCreature } from "./battle-active-creature";
 import { BattleBoardScene } from "./battle-board-scene";
+import { BattleCardHand } from "./battle-card-hand";
 import { BattleDiceRoll } from "./battle-dice-roll";
 import { BattleLogSheet } from "./battle-log-sheet";
 import { BattleTopbar, type BattleAnimationSpeed } from "./battle-topbar";
@@ -1011,71 +1012,24 @@ export function BattleArena({
                   </button>
                 </div>
 
-                <div className="classic-hand-zone">
-                  <span className="view-eyebrow">SUA MÃO</span>
-                  <div className="classic-hand-fan">
-                    {data.player.energyHand.map((card, index) => {
-                      const meta = ELEMENT_META[card.element];
-                      return (
-                        <button
-                          type="button"
-                          key={card.id}
-                          className={cn(
-                            "classic-hand-card",
-                            "is-energy",
-                            selectedEnergyCardId === card.id && "is-selected",
-                          )}
-                          style={{
-                            "--fan-index": index,
-                            "--fan-total": data.player.energyHand.length + data.player.powerHand.length,
-                            "--card-accent": meta.color,
-                          } as React.CSSProperties}
-                          onClick={() => {
-                            setSelectedEnergyCardId(card.id);
-                            setEnergyTargetIndex(null);
-                            setSelectedPowerCardId(null);
-                            setPowerTargetIndex(null);
-                          }}
-                        >
-                          <span className="classic-hand-card__sigil">{meta.short}</span>
-                          <strong>Energia de {meta.name}</strong>
-                          <small>Carta de Energia</small>
-                        </button>
-                      );
-                    })}
-                    {data.player.powerHand.map((card, index) => {
-                      const attack = getAttackById(card.attackId);
-                      if (!attack) return null;
-                      const offset = data.player.energyHand.length + index;
-                      return (
-                        <button
-                          type="button"
-                          key={card.id}
-                          className={cn(
-                            "classic-hand-card",
-                            "is-power",
-                            selectedPowerCardId === card.id && "is-selected",
-                          )}
-                          style={{
-                            "--fan-index": offset,
-                            "--fan-total": data.player.energyHand.length + data.player.powerHand.length,
-                            "--card-accent": ELEMENT_META[card.element].color,
-                          } as React.CSSProperties}
-                          onClick={() => {
-                            setSelectedPowerCardId(card.id);
-                            setPowerTargetIndex(null);
-                            setSelectedEnergyCardId(null);
-                            setEnergyTargetIndex(null);
-                          }}
-                        >
-                          <span className="classic-hand-card__sigil">{ELEMENT_META[card.element].short}</span>
-                          <strong>{attack.name}</strong>
-                          <small>{attack.damage} DMG · D6 {attack.minRoll}+</small>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                <BattleCardHand
+                  energyCards={data.player.energyHand}
+                  powerCards={data.player.powerHand}
+                  selectedEnergyCardId={selectedEnergyCardId}
+                  selectedPowerCardId={selectedPowerCardId}
+                  onSelectEnergy={(cardId) => {
+                    setSelectedEnergyCardId(cardId);
+                    setEnergyTargetIndex(null);
+                    setSelectedPowerCardId(null);
+                    setPowerTargetIndex(null);
+                  }}
+                  onSelectPower={(cardId) => {
+                    setSelectedPowerCardId(cardId);
+                    setPowerTargetIndex(null);
+                    setSelectedEnergyCardId(null);
+                    setEnergyTargetIndex(null);
+                  }}
+                />
 
                 {selectedEnergyCard ? (
                   <div className="classic-card-target-panel">
