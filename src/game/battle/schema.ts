@@ -33,7 +33,7 @@ const BattleCreatureSchema = z.object({
   attachedEnergy: z.array(EnergyCardSchema),
   statuses: z.array(ActiveStatusSchema),
   defeated: z.boolean(),
-  evolutionStage: z.union([z.literal(0), z.literal(1)]).optional().default(0),
+  evolutionStage: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional().default(0),
   equippedPowerIds: z.array(z.string().min(1)).max(4).default([]),
 });
 
@@ -78,7 +78,7 @@ export const BattleLogEntrySchema = z.object({
   attackId: z.string().optional(),
   effect: z.enum(["burn", "soaked", "rooted", "shocked", "haunted", "warded", "heal", "shield"]).optional(),
   creatureIndex: z.number().int().min(0).max(5).optional(),
-  evolutionStage: z.union([z.literal(0), z.literal(1)]).optional(),
+  evolutionStage: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
   terrainElement: z.enum(ELEMENTS).optional(),
   terrainTurns: z.number().int().positive().optional(),
   powerCardId: z.string().optional(),
