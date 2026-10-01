@@ -51,7 +51,7 @@ export async function acceptPvpChallenge(challengeId: string, actorId: string) {
   const instanceIds = validMembers.map((member) => member.player_creature_id);
   const { data: creatures, error: creatureError } = await admin
     .from("player_creatures")
-    .select("id,user_id,creature_id")
+    .select("id,user_id,creature_id,evolution_stage")
     .in("id", instanceIds);
   if (creatureError || !creatures || creatures.length !== 12) {
     throw new Error("A equipe contém uma criatura inválida.");
@@ -65,20 +65,25 @@ export async function acceptPvpChallenge(challengeId: string, actorId: string) {
     const team = teamByPlayer.get(playerId);
     const profile = profileById.get(playerId);
     if (!team || !profile) throw new Error("Perfil ou equipe ativa não encontrado.");
-    const catalogIds = validMembers
+    const orderedMembers = validMembers
       .filter((member) => member.team_id === team.id)
-      .sort((left, right) => left.slot - right.slot)
-      .map((member) => {
-        const creature = creatureById.get(member.player_creature_id);
-        if (!creature || creature.user_id !== playerId) {
-          throw new Error("A equipe possui uma criatura que não pertence ao jogador.");
-        }
-        return creature.creature_id;
-      });
+      .sort((left, right) => left.slot - right.slot);
+    const catalogIds = orderedMembers.map((member) => {
+      const creature = creatureById.get(member.player_creature_id);
+      if (!creature || creature.user_id !== playerId) {
+        throw new Error("A equipe possui uma criatura que não pertence ao jogador.");
+      }
+      return creature.creature_id;
+    });
+    const evolutionStages = orderedMembers.map((member) => {
+      const creature = creatureById.get(member.player_creature_id);
+      return Number(creature?.evolution_stage) || 0;
+    });
     return {
       id: playerId,
       name: profile.display_name,
       teamIds: TeamIdsSchema.parse(catalogIds),
+      evolutionStages,
     };
   }
 
