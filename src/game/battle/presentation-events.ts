@@ -29,7 +29,7 @@ export type BattlePresentationEvent = {
   attackId?: string;
   effect?: BattleLogEntry["effect"];
   creatureIndex?: number;
-  evolutionStage?: 0 | 1;
+  evolutionStage?: 0 | 1 | 2;
   terrainElement?: BattleLogEntry["terrainElement"];
   terrainTurns?: number;
   energyCardId?: string;
