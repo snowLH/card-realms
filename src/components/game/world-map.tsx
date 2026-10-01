@@ -28,6 +28,9 @@ export function WorldMap({
   avatar,
   mapPositions,
   discoveredByRegion,
+  onlineParty,
+  playerId,
+  playerName,
   onSelect,
   onTravel,
   onVisitArea,
@@ -44,6 +47,9 @@ export function WorldMap({
   avatar: AvatarConfig;
   mapPositions: Record<string, GridPoint>;
   discoveredByRegion: Record<string, number>;
+  onlineParty: boolean;
+  playerId?: string;
+  playerName: string;
   onSelect: (region: RegionDefinition | null) => void;
   onTravel: (region: RegionDefinition) => void;
   onVisitArea: (region: RegionDefinition, area: RegionAreaDefinition) => void;
@@ -69,6 +75,9 @@ export function WorldMap({
         openedTreasure={openedTreasures.includes(activeRegion.id)}
         avatar={avatar}
         savedPosition={mapPositions[activeRegion.id]}
+        onlineParty={onlineParty}
+        playerId={playerId}
+        playerName={playerName}
         onBack={() => setActiveRegionId(null)}
         onVisitArea={(area) => onVisitArea(activeRegion, area)}
         onBattle={onBattle}
