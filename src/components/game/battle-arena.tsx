@@ -763,6 +763,104 @@ export function BattleArena({
         </AnimatePresence>
       </section>
 
+      <section className="mobile-battle-console" aria-label="Comandos móveis da batalha">
+        <div className="mobile-battle-console__message">
+          <span>{battle.status === "finished" ? "BATALHA ENCERRADA" : playerTurn ? "SEU TURNO" : `VEZ DE ${data.opponent.name.toUpperCase()}`}</span>
+          <strong>{dialogueMessage}</strong>
+          <small>
+            {forcedSwitch
+              ? "Escolha uma criatura disponível para continuar."
+              : `Rodada ${battle.turn.round} · Turno ${battle.turn.number} · ${data.playerActive.attachedEnergy.length} energia(s) anexada(s)`}
+          </small>
+        </div>
+
+        <div className="mobile-battle-console__playmat">
+          <button
+            type="button"
+            className="mobile-deck-stack"
+            disabled={!mainPhase || busy || data.player.powerDrawsRemaining < 1}
+            onClick={() => void perform({ action: "draw_power", actionId: actionId() })}
+            aria-label="Puxar uma carta de poder do baralho"
+          >
+            <span className="mobile-deck-stack__cards" aria-hidden>CR</span>
+            <strong>PUXAR</strong>
+            <small>{data.player.energyDeck.length} EN · {data.player.powerDeck.length} POD</small>
+          </button>
+
+          <div className="mobile-energy-hand" aria-label="Cartas de energia na mão">
+            {data.player.energyHand.length ? data.player.energyHand.map((card) => (
+              <button
+                type="button"
+                key={card.id}
+                className="mobile-energy-card"
+                style={{ "--mobile-energy": ELEMENT_META[card.element].color } as React.CSSProperties}
+                disabled={!mainPhase || busy || data.player.attachmentsRemaining < 1}
+                onClick={() => void perform({
+                  action: "attach",
+                  creatureIndex: data.player.activeIndex,
+                  cardId: card.id,
+                  actionId: actionId(),
+                })}
+                title={`Anexar Energia de ${ELEMENT_META[card.element].name} em ${data.playerDefinition.name}`}
+              >
+                <span>{ELEMENT_META[card.element].short}</span>
+                <strong>{ELEMENT_META[card.element].name}</strong>
+                <small>ENERGIA</small>
+              </button>
+            )) : (
+              <div className="mobile-energy-hand__empty">Sem energias na mão</div>
+            )}
+          </div>
+        </div>
+
+        <div className="mobile-attack-strip" aria-label="Ataques disponíveis">
+          {equippedAttacks.map((attack) => {
+            const affordable = canPayCost(data.playerActive.attachedEnergy, attack.cost);
+            return (
+              <button
+                type="button"
+                key={attack.id}
+                className="mobile-attack-chip"
+                disabled={!mainPhase || busy || !affordable || data.playerActive.defeated}
+                onClick={() => void perform({ action: "attack", attackId: attack.id, actionId: actionId() })}
+              >
+                <span><Swords /></span>
+                <strong>{attack.name}</strong>
+                <small>{attack.damage} DMG · D6 {attack.minRoll}+</small>
+                <em>{Object.entries(attack.cost).map(([element, amount]) => `${amount}${ELEMENT_META[element as Element].short}`).join(" · ")}</em>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className={cn("mobile-team-strip", forcedSwitch && "is-forced")} aria-label="Sua equipe">
+          {data.player.team.map((creature, index) => {
+            const definition = CREATURE_BY_ID.get(creature.catalogId)!;
+            const active = index === data.player.activeIndex;
+            return (
+              <button
+                type="button"
+                key={creature.instanceId}
+                className={cn(active && "is-active", creature.defeated && "is-defeated")}
+                disabled={active || creature.defeated || !playerTurn || busy}
+                onClick={() => setPendingSwitchIndex(index)}
+                title={active ? "Criatura ativa" : `Trocar para ${definition.name}`}
+              >
+                <PixelCreature sprite={definition.sprite} label={definition.name} />
+                <span>{definition.name}</span>
+                <small>{creature.hp}/{creature.maxHp}</small>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mobile-battle-console__toolbar">
+          <button type="button" onClick={() => setLogOpen((current) => !current)}><BookOpen /> Histórico</button>
+          <button type="button" disabled={!canEvolve || busy} onClick={() => void perform({ action: "evolve", actionId: actionId() })}><Sparkles /> Evoluir</button>
+          <button type="button" disabled={!mainPhase || busy} onClick={() => void perform({ action: "pass", actionId: actionId() })}><SkipForward /> Encerrar turno</button>
+        </div>
+      </section>
+
       <AnimatePresence>
         {pendingSwitchDefinition && pendingSwitchIndex !== null ? (
           <motion.div
