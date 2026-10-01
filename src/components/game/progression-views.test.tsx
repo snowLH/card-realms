@@ -7,13 +7,44 @@ import { CREATURES } from "@/game/catalog";
 import { CollectionView } from "./collection-view";
 import { TeamView } from "./team-view";
 
+const iaraInstanceId = "00000000-0000-4000-8000-000000000101";
+const teamId = "00000000-0000-4000-8000-000000000201";
+const ownedIara = {
+  instanceId: iaraInstanceId,
+  catalogId: "iara",
+  nickname: null,
+  level: 1,
+  xp: 0,
+  bond: 0,
+  variant: "standard",
+  acquiredFrom: "starter",
+  acquiredAt: "2026-10-01T12:00:00.000Z",
+  evolutionStage: 0,
+};
+
 describe("telas de progressão da conta", () => {
   it("mostra somente a carta inicial na equipe e mantém cinco espaços vazios", () => {
-    render(<TeamView teamIds={["iara"]} teamName="Equipe principal" />);
+    render(
+      <TeamView
+        team={{
+          id: teamId,
+          name: "Equipe principal",
+          isActive: true,
+          members: [{
+            slot: 1,
+            playerCreatureId: iaraInstanceId,
+            catalogId: "iara",
+            evolutionStage: 0,
+          }],
+        }}
+        collection={[ownedIara]}
+        source="local"
+      />,
+    );
 
-    expect(screen.getByText("Iara")).toBeInTheDocument();
+    expect(screen.getAllByText("Iara").length).toBeGreaterThan(0);
     expect(screen.queryByText("Boitatá")).not.toBeInTheDocument();
-    expect(screen.getByText("1/6 cartas vinculadas")).toBeInTheDocument();
+    expect(screen.getByText("1/6 cartas selecionadas")).toBeInTheDocument();
     expect(screen.getAllByText("Espaço vazio")).toHaveLength(5);
   });
 
@@ -22,7 +53,9 @@ describe("telas de progressão da conta", () => {
 
     expect(screen.getAllByText("Iara").length).toBeGreaterThan(0);
     expect(screen.queryByText("Boitatá")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Carta não descoberta")).toHaveLength(CREATURES.length - 1);
+    expect(screen.getAllByText("Carta não descoberta")).toHaveLength(
+      Math.min(CREATURES.length, 24) - 1,
+    );
     expect(screen.getByText(`1/${CREATURES.length}`)).toBeInTheDocument();
   });
 });
