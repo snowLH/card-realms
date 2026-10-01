@@ -8,6 +8,7 @@ import {
   Flame,
   LoaderCircle,
   RotateCcw,
+  ShieldCheck,
   SkipForward,
   Sparkles,
   Swords,
