@@ -12,8 +12,6 @@ import {
   Sparkles,
   Swords,
   Users,
-  Volume2,
-  VolumeX,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -34,6 +32,7 @@ import { BattleActiveCreature } from "./battle-active-creature";
 import { BattleBoardScene } from "./battle-board-scene";
 import { BattleDiceRoll } from "./battle-dice-roll";
 import { BattleLogSheet } from "./battle-log-sheet";
+import { BattleTopbar, type BattleAnimationSpeed } from "./battle-topbar";
 import { CharacterAvatar2D } from "./character-avatar";
 
 type BattleResponse = {
@@ -112,7 +111,7 @@ export function BattleArena({
   const [die, setDie] = useState<number | null>(null);
   const [effect, setEffect] = useState<string | null>(null);
   const [presentationEvent, setPresentationEvent] = useState<BattlePresentationEvent | null>(null);
-  const [animationSpeed, setAnimationSpeed] = useState<"normal" | "fast" | "very-fast">("normal");
+  const [animationSpeed, setAnimationSpeed] = useState<BattleAnimationSpeed>("normal");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [visualQuality] = useState<"high" | "medium" | "low">(() => {
     if (typeof navigator === "undefined") return "high";
@@ -399,67 +398,35 @@ export function BattleArena({
   );
   return (
     <div className={cn("battle-screen", `battle-quality--${visualQuality}`)}>
-      <header className="battle-topbar">
-        <div>
-          <span className="battle-eyebrow">{
-            pvp
-              ? "Duelo entre cartógrafos"
-              : battle.mode === "wild"
-                ? "Encontro selvagem"
-                : battle.mode === "boss"
-                  ? "Confronto de guardião"
-                  : battle.mode === "sanctuary"
-                    ? "Provação de santuário"
-                    : "Duelo de viajante"
-          }</span>
-          <strong>Rodada {battle.turn.round}</strong>
-        </div>
-        <div className="battle-turn">
-          <span className={cn("battle-turn__dot", playerTurn && "battle-turn__dot--active")} />
-          {battle.status === "finished"
-            ? "Batalha concluída"
-            : playerTurn
-              ? forcedSwitch
-                ? "Escolha a próxima criatura"
-                : "Seu turno"
-              : `Turno de ${data.opponent.name}`}
-        </div>
-        <button
-          type="button"
-          className={cn("battle-sound-toggle", soundEnabled && "is-active")}
-          onClick={() => {
-            setSoundEnabled((current) => {
-              const next = !current;
-              if (next) {
-                unlockBattleAudio();
-                startBattleMusic(effectiveBattleBoard);
-              } else {
-                stopBattleMusic();
-              }
-              return next;
-            });
-          }}
-          aria-label={soundEnabled ? "Desativar sons da batalha" : "Ativar sons da batalha"}
-        >
-          {soundEnabled ? <Volume2 /> : <VolumeX />}
-        </button>
-        <div className="battle-speed" aria-label="Velocidade das animações">
-          {(["normal", "fast", "very-fast"] as const).map((speed) => (
-            <button
-              key={speed}
-              type="button"
-              className={cn(animationSpeed === speed && "is-active")}
-              onClick={() => setAnimationSpeed(speed)}
-              disabled={busy}
-            >
-              {speed === "normal" ? "1×" : speed === "fast" ? "1.6×" : "2.6×"}
-            </button>
-          ))}
-        </div>
-        <button type="button" className="battle-close" onClick={() => { stopBattleMusic(); onClose(); }} aria-label="Sair da batalha">
-          <X />
-        </button>
-      </header>
+      <BattleTopbar
+        mode={battle.mode}
+        pvp={Boolean(pvp)}
+        round={battle.turn.round}
+        status={battle.status}
+        playerTurn={playerTurn}
+        forcedSwitch={forcedSwitch}
+        opponentName={data.opponent.name}
+        soundEnabled={soundEnabled}
+        onToggleSound={() => {
+          setSoundEnabled((current) => {
+            const next = !current;
+            if (next) {
+              unlockBattleAudio();
+              startBattleMusic(effectiveBattleBoard);
+            } else {
+              stopBattleMusic();
+            }
+            return next;
+          });
+        }}
+        animationSpeed={animationSpeed}
+        onAnimationSpeedChange={setAnimationSpeed}
+        busy={busy}
+        onClose={() => {
+          stopBattleMusic();
+          onClose();
+        }}
+      />
 
       <section className="card-table" aria-label="Mesa de batalha de cartas">
         <BattleBoardScene
