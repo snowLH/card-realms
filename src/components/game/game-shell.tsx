@@ -526,6 +526,9 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             avatar={avatar}
             mapPositions={mapPositions}
             discoveredByRegion={discoveredByRegion}
+            onlineParty={bootstrap.source === "supabase"}
+            playerId={bootstrap.identity?.id}
+            playerName={remoteSnapshot?.profile.displayName ?? bootstrap.identity?.email?.split("@")[0] ?? "Visitante"}
             onSelect={setSelectedRegion}
             onTravel={handleTravel}
             onVisitArea={handleVisitArea}
