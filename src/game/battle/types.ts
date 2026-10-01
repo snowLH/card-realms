@@ -5,7 +5,7 @@ export const TEAM_SIZE = 6 as const;
 export const ENERGY_DECK_SIZE = 30 as const;
 export const OPENING_HAND_SIZE = 5 as const;
 export const DRAW_PER_TURN = 2 as const;
-export const ATTACHMENTS_PER_TURN = 2 as const;
+export const ATTACHMENTS_PER_TURN = 1 as const;
 export const POWER_DECK_SIZE = 24 as const;
 export const POWER_DRAWS_PER_TURN = 1 as const;
 export const MAX_EQUIPPED_POWERS = 4 as const;
@@ -25,9 +25,16 @@ export type BattleEncounter =
   | { kind: "sanctuary"; regionId: string; areaId: string }
   | { kind: "boss"; regionId: string; areaId: string };
 
+export type EnergyCardZone = "deck" | "hand" | "attached" | "discard";
+
 export type EnergyCard = {
   id: string;
   element: Element;
+  origin: "battle_deck" | "inventory";
+  ownerId: string;
+  zone: EnergyCardZone;
+  attachedTo: string | null;
+  status: "ready" | "spent";
 };
 
 export type PowerCard = {
