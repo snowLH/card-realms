@@ -40,8 +40,9 @@ describe("apresentação da batalha", () => {
     ];
 
     const sequence = toBattlePresentationEvents(events);
-    expect(sequence.map((event) => event.kind)).toEqual(["energy", "attack", "ko"]);
-    expect(sequence[1]).toMatchObject({ die: 5, damage: 70, attackId: "iara-1" });
+    expect(sequence.map((event) => event.kind)).toEqual(["energy", "roll", "attack", "ko"]);
+    expect(sequence[1]).toMatchObject({ kind: "roll", die: 5, attackId: "iara-1" });
+    expect(sequence[2]).toMatchObject({ die: 5, damage: 70, attackId: "iara-1" });
   });
 
   it("modo rápido reduz duração sem eliminar feedback", () => {
