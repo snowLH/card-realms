@@ -4,13 +4,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRightLeft,
   BookOpen,
-  ChevronDown,
-  ChevronUp,
   Dice5,
   Flame,
   LoaderCircle,
   RotateCcw,
-  ShieldCheck,
   SkipForward,
   Sparkles,
   Swords,
@@ -35,6 +32,7 @@ import { CreatureCard } from "./creature-card";
 import { PixelCreature } from "./pixel-creature";
 import { BattleActiveCreature } from "./battle-active-creature";
 import { BattleBoardScene } from "./battle-board-scene";
+import { BattleLogSheet } from "./battle-log-sheet";
 import { CharacterAvatar2D } from "./character-avatar";
 
 type BattleResponse = {
@@ -1314,27 +1312,11 @@ export function BattleArena({
         )}
       </section>
 
-      <aside className={cn("battle-log", !logOpen && "is-collapsed")}>
-        <button
-          type="button"
-          className="battle-section-title battle-log__toggle"
-          onClick={() => setLogOpen((current) => !current)}
-          aria-expanded={logOpen}
-        >
-          <span>HISTÓRICO</span>
-          <span className="battle-log__toggle-meta">
-            <ShieldCheck />
-            {logOpen ? <ChevronUp /> : <ChevronDown />}
-          </span>
-        </button>
-        <div className="battle-log__entries">
-          {battle.log.slice(logOpen ? -9 : -3).reverse().map((entry) => (
-            <p key={entry.id}>
-              {entry.die ? <strong>D{entry.die}</strong> : null} {entry.message}
-            </p>
-          ))}
-        </div>
-      </aside>
+      <BattleLogSheet
+        entries={battle.log}
+        open={logOpen}
+        onToggle={() => setLogOpen((current) => !current)}
+      />
 
       {error ? <div className="battle-error">{error}</div> : null}
       {busy ? <div className="battle-busy"><LoaderCircle className="animate-spin" /> Validando ação...</div> : null}
