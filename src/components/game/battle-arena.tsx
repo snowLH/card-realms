@@ -10,7 +10,6 @@ import {
   Dice5,
   Flame,
   LoaderCircle,
-  PackageOpen,
   RotateCcw,
   ShieldCheck,
   SkipForward,
@@ -122,9 +121,12 @@ export function BattleArena({
   const [turnBannerVisible, setTurnBannerVisible] = useState(false);
   const [pendingSwitchIndex, setPendingSwitchIndex] = useState<number | null>(null);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
-  const [commandPanel, setCommandPanel] = useState<"menu" | "attack" | "cards" | "team" | "item">("menu");
+  const [commandPanel, setCommandPanel] = useState<"menu" | "attack" | "cards" | "team">("menu");
   const [selectedPowerCardId, setSelectedPowerCardId] = useState<string | null>(null);
   const [powerTargetIndex, setPowerTargetIndex] = useState<number | null>(null);
+  const [selectedEnergyCardId, setSelectedEnergyCardId] = useState<string | null>(null);
+  const [energyTargetIndex, setEnergyTargetIndex] = useState<number | null>(null);
+  const [concedeConfirm, setConcedeConfirm] = useState(false);
   const [reward, setReward] = useState<BattleReward | null>(null);
   const victoryReported = useRef(false);
   const pvpBattleId = pvp?.battleId ?? null;
@@ -214,6 +216,9 @@ export function BattleArena({
       setSelectedAttackId(null);
       setSelectedPowerCardId(null);
       setPowerTargetIndex(null);
+      setSelectedEnergyCardId(null);
+      setEnergyTargetIndex(null);
+      setConcedeConfirm(false);
       try {
         const response = pvp
           ? await callPvpActionApi({
@@ -362,6 +367,19 @@ export function BattleArena({
   const selectedPowerAttack = selectedPowerCard ? getAttackById(selectedPowerCard.attackId) : null;
   const powerTarget = powerTargetIndex === null ? null : data.player.team[powerTargetIndex] ?? null;
   const powerTargetDefinition = powerTarget ? CREATURE_BY_ID.get(powerTarget.catalogId) ?? null : null;
+  const selectedEnergyCard = selectedEnergyCardId
+    ? data.player.energyHand.find((card) => card.id === selectedEnergyCardId) ?? null
+    : null;
+  const energyTarget = energyTargetIndex === null ? null : data.player.team[energyTargetIndex] ?? null;
+  const energyTargetDefinition = energyTarget ? CREATURE_BY_ID.get(energyTarget.catalogId) ?? null : null;
+  const latestBattleMessage = presentationEvent?.message ?? battle.log.at(-1)?.message;
+  const dialogueMessage = forcedSwitch
+    ? "Escolha sua próxima criatura."
+    : presentationEvent
+      ? presentationEvent.message
+      : playerTurn
+        ? `O que ${data.playerDefinition.name} fará?`
+        : latestBattleMessage ?? `Vez de ${data.opponent.name}.`;
   const playerIsActor = presentationEvent?.actorId === data.player.id;
   const opponentIsActor = presentationEvent?.actorId === data.opponent.id;
   const cinematic = Boolean(presentationEvent && (
