@@ -495,12 +495,12 @@ begin
   where id = target_room_id;
 
   update public.raid_participants
-  set contribution = jsonb_set(
-        contribution,
-        '{actions}',
-        to_jsonb(coalesce((contribution ->> 'actions')::integer, 0) + 1),
-        true
-      ),
+  set contribution = coalesce((
+        select participant -> 'contribution'
+        from jsonb_array_elements(result_state -> 'players') participant
+        where participant ->> 'id' = acting_user_id::text
+        limit 1
+      ), contribution),
       last_seen_at = now()
   where room_id = target_room_id and user_id = acting_user_id;
 
