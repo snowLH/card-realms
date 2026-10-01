@@ -56,6 +56,7 @@ const KIND_MAP: Partial<Record<BattleLogEntry["kind"], BattlePresentationKind>> 
   evolution_completed: "evolutionComplete",
   terrain_activated: "terrainOn",
   terrain_expired: "terrainOff",
+  conceded: "end",
   defeated: "ko",
   battle_end: "end",
 };
