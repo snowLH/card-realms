@@ -76,6 +76,8 @@ export const BattleLogEntrySchema = z.object({
   terrainTurns: z.number().int().positive().optional(),
   powerCardId: z.string().optional(),
   powerSlot: z.number().int().min(0).max(3).optional(),
+  energyCardId: z.string().optional(),
+  energyElement: z.enum(ELEMENTS).optional(),
 });
 
 export const BattleStateSchema = z.object({
