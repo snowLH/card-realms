@@ -409,8 +409,9 @@ export async function POST(request: Request) {
           if (stage <= 0) return;
           const definition = CREATURE_BY_ID.get(creature.catalogId);
           if (!definition) return;
-          creature.evolutionStage = Math.max(0, Math.min(2, stage));
-          const evolvedHp = definition.hp + Math.floor(definition.hp * 0.15 * creature.evolutionStage);
+          const normalizedStage: 0 | 1 | 2 = stage >= 2 ? 2 : 1;
+          creature.evolutionStage = normalizedStage;
+          const evolvedHp = definition.hp + Math.floor(definition.hp * 0.15 * normalizedStage);
           creature.maxHp = evolvedHp;
           creature.hp = evolvedHp;
         });
