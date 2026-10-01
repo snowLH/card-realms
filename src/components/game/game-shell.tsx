@@ -464,6 +464,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             onOpenCollection={() => navigate("collection")}
             onOpenTeam={() => navigate("team")}
             onOpenRefuge={() => navigate("refuge")}
+            onOpenRaid={() => navigate("raid")}
             onOpenPvp={() => navigate("pvp")}
             onClaimTreasure={() => void handleTreasure(currentRegion)}
           />
