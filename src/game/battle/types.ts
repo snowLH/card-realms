@@ -113,6 +113,7 @@ export type BattleLogKind =
   | "healed"
   | "shielded"
   | "passed"
+  | "conceded"
   | "defeated"
   | "evolution_started"
   | "evolution_completed"
