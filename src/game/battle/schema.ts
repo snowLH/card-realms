@@ -37,7 +37,7 @@ const BattleCreatureSchema = z.object({
   equippedPowerIds: z.array(z.string().min(1)).max(4).default([]),
 });
 
-const BattleSideSchema = z.object({
+export const BattleSideSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   kind: z.enum(["player", "npc", "boss"]),
@@ -52,6 +52,13 @@ const BattleSideSchema = z.object({
   powerDiscard: z.array(PowerCardSchema).default([]),
   powerDrawsRemaining: z.number().int().min(0).max(1).default(1),
   turnsStarted: z.number().int().nonnegative(),
+});
+
+export const BattleTerrainSchema = z.object({
+  element: z.enum(ELEMENTS),
+  sourceSideId: z.string().min(1),
+  activatedTurn: z.number().int().positive(),
+  expiresAfterTurn: z.number().int().positive(),
 });
 
 export const BattleLogEntrySchema = z.object({
@@ -93,12 +100,7 @@ export const BattleStateSchema = z.object({
   }),
   sides: z.tuple([BattleSideSchema, BattleSideSchema]),
   winnerId: z.string().optional(),
-  terrain: z.object({
-    element: z.enum(ELEMENTS),
-    sourceSideId: z.string().min(1),
-    activatedTurn: z.number().int().positive(),
-    expiresAfterTurn: z.number().int().positive(),
-  }).optional(),
+  terrain: BattleTerrainSchema.optional(),
   processedActionIds: z.array(z.string()).max(80),
   log: z.array(BattleLogEntrySchema).max(120),
 });
