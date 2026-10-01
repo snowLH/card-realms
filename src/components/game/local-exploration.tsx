@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CharacterAvatar2D } from "./character-avatar";
 import { PixelCreature } from "./pixel-creature";
+import { MapPartyPanel, useMapParty } from "./map-party";
 
 type PendingAction =
   | { type: "area"; id: string }
@@ -73,6 +74,9 @@ export function LocalExploration({
   openedTreasure,
   avatar,
   savedPosition,
+  onlineParty,
+  playerId,
+  playerName,
   onBack,
   onVisitArea,
   onBattle,
@@ -85,6 +89,9 @@ export function LocalExploration({
   openedTreasure: boolean;
   avatar: AvatarConfig;
   savedPosition?: GridPoint;
+  onlineParty: boolean;
+  playerId?: string;
+  playerName: string;
   onBack: () => void;
   onVisitArea: (area: RegionAreaDefinition) => void;
   onBattle: (encounter: BattleEncounter) => void;
@@ -102,6 +109,13 @@ export function LocalExploration({
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [interaction, setInteraction] = useState<Interaction | null>(null);
   const [facing, setFacing] = useState<"left" | "right">("right");
+  const party = useMapParty({
+    online: onlineParty,
+    regionId: region.id,
+    playerId,
+    playerName,
+    avatar,
+  });
   const areas = useMemo(() => region.areas ?? [], [region.areas]);
   const scene = useMemo(() => createLocalScene(
     map,
@@ -173,6 +187,7 @@ export function LocalExploration({
     const timer = window.setTimeout(() => {
       setDestination(null);
       onPositionChange(player);
+      void party.syncPosition(player);
       if (!pendingAction) return;
 
       if (pendingAction.type === "area") {
@@ -338,6 +353,17 @@ export function LocalExploration({
             <strong>{openedTreasure ? "Baú aberto" : "Baú regional"}</strong>
           </button>
 
+          {party.members.filter((member) => !member.isSelf).map((member) => (
+            <div
+              key={member.id}
+              className="local-party-player"
+              style={actorStyle({ x: member.x, y: member.y }, map)}
+            >
+              <CharacterAvatar2D config={member.avatar} compact />
+              <span>{member.name}</span>
+            </div>
+          ))}
+
           <div
             className={cn("local-player", path.length && "is-walking", facing === "left" && "is-facing-left")}
             style={actorStyle(player, map)}
@@ -346,6 +372,7 @@ export function LocalExploration({
             <span>Você</span>
           </div>
         </div>
+        <MapPartyPanel party={party} />
       </div>
 
       <div className="local-explorer__hint"><Compass /> Clique ou toque no terreno para caminhar. Os caminhos respeitam paredes, água e obstáculos.</div>
