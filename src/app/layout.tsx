@@ -4,6 +4,7 @@ import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import "./game-ui.css";
 import "./medieval-theme.css";
+import "./mobile-pixel-overhaul.css";
 
 export const metadata: Metadata = {
   title: "Card Realms — Mundo dos Colecionadores",
