@@ -1,6 +1,7 @@
 import "server-only";
 
-import { createRaidState, RaidStateSchema, type RaidPlayerSetup } from "@/game/raid";
+import { randomInt } from "node:crypto";
+import { createRaidState, RaidStateSchema, resolveRaidBossTurn, type RaidPlayerSetup } from "@/game/raid";
 import type { EnergyPool } from "@/game/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadRaidRoom, RaidRoomAccessError } from "./rooms";
@@ -70,7 +71,7 @@ export async function startRaidRoom(roomId: string, actorId: string) {
     ? event.boss_config as Record<string, unknown>
     : {};
 
-  const state = createRaidState(
+  let state = createRaidState(
     room.id,
     event.id,
     raidPlayers,
@@ -81,6 +82,9 @@ export async function startRaidRoom(roomId: string, actorId: string) {
       maxRounds: numeric(bossConfig.maxRounds, 30),
     },
   );
+  if (state.turn.actorKind === "boss") {
+    state = resolveRaidBossTurn(state, randomInt(0, 1000000), "raid-opening-boss").state;
+  }
   const validated = RaidStateSchema.parse(state);
 
   const { data, error } = await admin.rpc("start_raid_room", {
