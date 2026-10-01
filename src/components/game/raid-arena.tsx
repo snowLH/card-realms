@@ -180,10 +180,7 @@ export function RaidArena({
   const bossDefinition = state ? CREATURE_BY_ID.get(state.boss.catalogId) ?? null : null;
   const playerTurn = Boolean(state && player && state.status === "active" && state.turn.actorId === playerId);
   const forcedSwitch = Boolean(playerTurn && player?.needsSwitch);
-
-  useEffect(() => {
-    if (forcedSwitch) setPanel("team");
-  }, [forcedSwitch]);
+  const activePanel = forcedSwitch ? "team" : panel;
 
   const equippedAttacks = useMemo(() => {
     if (!activeCreature || !activeDefinition) return [];
@@ -398,7 +395,7 @@ export function RaidArena({
             <div><span className="view-eyebrow">RAID ENCERRADA</span><h2>O grupo foi derrotado.</h2><p>Reorganize a equipe e tente novamente enquanto o evento estiver ativo.</p></div>
             <Button variant="secondary" onClick={onClose}>Voltar</Button>
           </div>
-        ) : panel === "menu" ? (
+        ) : activePanel === "menu" ? (
           <div className="raid-command-root">
             <div className="raid-dialogue">
               <span className="view-eyebrow">
@@ -425,14 +422,14 @@ export function RaidArena({
             </div>
           </div>
         ) : (
-          <div className={cn("raid-submenu", `raid-submenu--${panel}`)}>
+          <div className={cn("raid-submenu", `raid-submenu--${activePanel}`)}>
             <div className="raid-submenu__top">
               <button type="button" onClick={() => setPanel("menu")}><ChevronLeft /> VOLTAR</button>
-              <strong>{panel === "attack" ? "ATAQUES" : panel === "cards" ? "CARTAS" : panel === "team" ? "EQUIPE" : "INFO DA RAID"}</strong>
+              <strong>{activePanel === "attack" ? "ATAQUES" : activePanel === "cards" ? "CARTAS" : activePanel === "team" ? "EQUIPE" : "INFO DA RAID"}</strong>
               <small>{playerTurn ? "Seu turno" : "Somente leitura"}</small>
             </div>
 
-            {panel === "attack" ? (
+            {activePanel === "attack" ? (
               <div className="raid-attack-layout">
                 <div className="raid-attack-list">
                   {equippedAttacks.map((attack, index) => (
@@ -472,7 +469,7 @@ export function RaidArena({
               </div>
             ) : null}
 
-            {panel === "cards" ? (
+            {activePanel === "cards" ? (
               <div className="raid-cards-layout">
                 <div className="raid-card-decks">
                   <div><span>ENERGIA</span><strong>{player.side.energyDeck.length}</strong><small>no baralho</small></div>
@@ -619,7 +616,7 @@ export function RaidArena({
               </div>
             ) : null}
 
-            {panel === "team" ? (
+            {activePanel === "team" ? (
               <div className="raid-team-layout">
                 {player.side.team.map((creature, index) => {
                   const definition = CREATURE_BY_ID.get(creature.catalogId)!;
@@ -654,7 +651,7 @@ export function RaidArena({
               </div>
             ) : null}
 
-            {panel === "info" ? (
+            {activePanel === "info" ? (
               <div className="raid-info-layout">
                 <article>
                   <Crown />
