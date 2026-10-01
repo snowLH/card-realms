@@ -152,19 +152,26 @@ function energyForTeam(teamIds: readonly string[]): EnergyPool {
   return pool;
 }
 
-export function createBattleCreature(catalogId: string, ownerId: string, index: number): BattleCreature {
+export function createBattleCreature(
+  catalogId: string,
+  ownerId: string,
+  index: number,
+  startingEvolutionStage = 0,
+): BattleCreature {
   const definition = CREATURE_BY_ID.get(catalogId);
   if (!definition) throw new Error(`Criatura desconhecida: ${catalogId}`);
+  const stage = Math.max(0, Math.min(2, Math.trunc(startingEvolutionStage)));
+  const evolvedHp = definition.hp + Math.floor(definition.hp * 0.15 * stage);
   return {
     instanceId: `${ownerId}:${catalogId}:${index}`,
     catalogId,
-    hp: definition.hp,
-    maxHp: definition.hp,
+    hp: evolvedHp,
+    maxHp: evolvedHp,
     shield: 0,
     attachedEnergy: [],
     statuses: [],
     defeated: false,
-    evolutionStage: 0,
+    evolutionStage: stage,
     equippedPowerIds: [definition.attacks[0].id],
   };
 }
@@ -176,6 +183,7 @@ export function createBattleSide(
   teamIds: readonly string[],
   random: RandomSource,
   energyInventory?: EnergyPool,
+  evolutionStages?: readonly number[],
 ): BattleSide {
   if (teamIds.length < 1 || teamIds.length > TEAM_SIZE) {
     throw new GameRuleError("Uma equipe de aventura precisa ter entre uma e seis cartas.");
@@ -189,7 +197,12 @@ export function createBattleSide(
     id,
     name,
     kind,
-    team: teamIds.map((catalogId, index) => createBattleCreature(catalogId, id, index)),
+    team: teamIds.map((catalogId, index) => createBattleCreature(
+      catalogId,
+      id,
+      index,
+      evolutionStages?.[index] ?? 0,
+    )),
     activeIndex: 0,
     energyDeck: deck,
     energyHand: hand,
@@ -211,7 +224,9 @@ export type EncounterBattleSetup = {
   opponentTeamIds: readonly string[];
   playerTeamIds?: readonly string[];
   playerEnergy?: EnergyPool;
+  playerEvolutionStages?: readonly number[];
   opponentEnergy?: EnergyPool;
+  opponentEvolutionStages?: readonly number[];
   startMessage?: string;
 };
 
@@ -229,6 +244,7 @@ export function createEncounterBattle(
     playerTeamIds,
     random,
     setup.playerEnergy,
+    setup.playerEvolutionStages,
   );
   const opponent = createBattleSide(
     setup.opponentId,
@@ -237,6 +253,7 @@ export function createEncounterBattle(
     setup.opponentTeamIds,
     random,
     setup.opponentEnergy ?? energyForTeam(setup.opponentTeamIds),
+    setup.opponentEvolutionStages,
   );
   player.turnsStarted = 1;
 
@@ -283,6 +300,7 @@ export type PvpPlayerSetup = {
   name: string;
   teamIds: readonly string[];
   energy?: EnergyPool;
+  evolutionStages?: readonly number[];
 };
 
 export function createPvpBattle(
@@ -296,8 +314,24 @@ export function createPvpBattle(
   }
 
   const sides: [BattleSide, BattleSide] = [
-    createBattleSide(challenger.id, challenger.name, "player", challenger.teamIds, random, challenger.energy),
-    createBattleSide(challenged.id, challenged.name, "player", challenged.teamIds, random, challenged.energy),
+    createBattleSide(
+      challenger.id,
+      challenger.name,
+      "player",
+      challenger.teamIds,
+      random,
+      challenger.energy,
+      challenger.evolutionStages,
+    ),
+    createBattleSide(
+      challenged.id,
+      challenged.name,
+      "player",
+      challenged.teamIds,
+      random,
+      challenged.energy,
+      challenged.evolutionStages,
+    ),
   ];
   const firstIndex = randomIndex(random, sides.length);
   sides[firstIndex].turnsStarted = 1;
@@ -392,11 +426,13 @@ function terrainMultiplier(state: BattleState, attacker: BattleCreature): number
 }
 
 function evolvedDamageMultiplier(creature: BattleCreature): number {
-  return evolutionStage(creature) === 1 ? 1.12 : 1;
+  const stage = evolutionStage(creature);
+  return stage >= 2 ? 1.22 : stage === 1 ? 1.12 : 1;
 }
 
 function evolvedDefenseBonus(creature: BattleCreature): number {
-  return evolutionStage(creature) === 1 ? 10 : 0;
+  const stage = evolutionStage(creature);
+  return stage >= 2 ? 20 : stage === 1 ? 10 : 0;
 }
 
 function signatureAttack(attack: AttackDefinition): boolean {
