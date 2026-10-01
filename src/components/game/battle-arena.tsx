@@ -837,302 +837,463 @@ export function BattleArena({
       </AnimatePresence>
 
       <section className="battle-controls hybrid-battle-controls">
-        <div className="hybrid-command-menu">
-          <button type="button" className={cn(commandPanel === "attack" && "is-active")} onClick={() => setCommandPanel("attack")}>
-            <Swords /><span>ATACAR</span>
-          </button>
-          <button type="button" className={cn(commandPanel === "cards" && "is-active")} onClick={() => setCommandPanel("cards")}>
-            <BookOpen /><span>CARTAS</span>
-          </button>
-          <button type="button" className={cn(commandPanel === "team" && "is-active")} onClick={() => setCommandPanel("team")}>
-            <Users /><span>EQUIPE</span>
-          </button>
-          <button type="button" className={cn(commandPanel === "item" && "is-active")} onClick={() => setCommandPanel("item")}>
-            <PackageOpen /><span>ITEM</span>
-          </button>
-          <button
-            type="button"
-            className="is-flee"
-            disabled={Boolean(pvp) || battle.mode === "boss"}
-            onClick={() => { stopBattleMusic(); onClose(); }}
-          >
-            <X /><span>FUGIR</span>
-          </button>
-        </div>
-
-        <div className="hybrid-command-panel">
-          {commandPanel === "menu" ? (
-            <div className="hybrid-command-empty">
-              <strong>O que {data.playerDefinition.name} deve fazer?</strong>
-              <span>Escolha uma ação abaixo. A criatura ativa luta fora da carta; as cartas organizam equipe e poderes.</span>
-            </div>
-          ) : null}
-
-          {commandPanel === "attack" ? (
-            <div className="hybrid-attack-panel">
-              <div className="battle-section-title">
-                <span>Poderes de {data.playerDefinition.name}</span>
-                <small>{equippedAttacks.length}/4 equipados · {data.playerActive.attachedEnergy.length} Energia</small>
-              </div>
-              <div className="hybrid-power-slots">
-                {equippedAttacks.map((attack, index) => {
-                  const affordable = canPayCost(data.playerActive.attachedEnergy, attack.cost);
-                  const chance = Math.round(((7 - attack.minRoll) / 6) * 100);
-                  return (
-                    <button
-                      key={attack.id}
-                      type="button"
-                      className={cn("hybrid-power-slot", selectedAttackId === attack.id && "is-selected")}
-                      disabled={!mainPhase || busy || !affordable || data.playerActive.defeated}
-                      onClick={() => setSelectedAttackId(attack.id)}
-                    >
-                      <span className="hybrid-power-slot__number">{index + 1}</span>
-                      <span>
-                        <strong>{attack.name}</strong>
-                        <small>
-                          {attack.damage} dano · D6 {attack.minRoll}+ · {chance}%
-                        </small>
-                      </span>
-                      <span className="hybrid-power-slot__cost">
-                        {Object.entries(attack.cost).map(([element, amount]) => `${amount} ${ELEMENT_META[element as Element].short}`).join(" · ")}
-                      </span>
-                    </button>
-                  );
-                })}
-                {Array.from({ length: Math.max(0, 4 - equippedAttacks.length) }, (_, index) => (
-                  <div className="hybrid-power-slot is-empty" key={`empty-power-${index}`}>
-                    <span className="hybrid-power-slot__number">{equippedAttacks.length + index + 1}</span>
-                    <span><strong>Espaço vazio</strong><small>Equipe uma Carta de Poder</small></span>
-                  </div>
-                ))}
-              </div>
-              {selectedAttack ? (
-                <div className="hybrid-attack-confirm">
-                  <div>
-                    <strong>{selectedAttack.name}</strong>
-                    <span>{selectedAttack.description}</span>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="game"
-                    disabled={!mainPhase || busy || !canPayCost(data.playerActive.attachedEnergy, selectedAttack.cost)}
-                    onClick={() => void perform({ action: "attack", attackId: selectedAttack.id, actionId: actionId() })}
-                  >
-                    <Swords /> USAR PODER
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {commandPanel === "cards" ? (
-            <div className="hybrid-cards-panel">
-              <div className="power-deck-panel">
+        {commandPanel === "menu" ? (
+          <div className="classic-command-root">
+            <div className="classic-dialogue-box">
+              <span className="classic-dialogue-box__eyebrow">
+                {battle.status === "finished" ? "BATALHA ENCERRADA" : playerTurn ? "SEU TURNO" : `VEZ DE ${data.opponent.name.toUpperCase()}`}
+              </span>
+              <strong>{concedeConfirm ? "Desistir deste duelo?" : dialogueMessage}</strong>
+              <small>
+                {concedeConfirm
+                  ? "A desistência será registrada pelo servidor e dará a vitória ao adversário."
+                  : terrainMeta
+                    ? `Terreno: ${terrainMeta.name} · ativo até o turno ${terrain?.expiresAfterTurn}`
+                    : `Rodada ${battle.turn.round} · Turno ${battle.turn.number}`}
+              </small>
+              <div className="classic-dialogue-box__actions">
+                <button type="button" onClick={() => setLogOpen((current) => !current)}>
+                  <ShieldCheck /> HISTÓRICO
+                </button>
                 <button
                   type="button"
-                  className="power-deck-stack"
-                  disabled={!mainPhase || busy || data.player.powerDrawsRemaining < 1}
-                  onClick={() => void perform({ action: "draw_power", actionId: actionId() })}
+                  disabled={!mainPhase || busy}
+                  onClick={() => void perform({ action: "pass", actionId: actionId() })}
                 >
-                  <span className="power-deck-card power-deck-card--back">PODER</span>
-                  <span>
-                    <strong>Baralho de Poder</strong>
-                    <small>{data.player.powerDeck.length} cartas · {data.player.powerDrawsRemaining} compra neste turno</small>
-                  </span>
+                  <SkipForward /> ENCERRAR TURNO
                 </button>
-                <div className="power-hand-grid">
-                  {data.player.powerHand.map((card) => {
-                    const attack = getAttackById(card.attackId);
-                    if (!attack) return null;
+              </div>
+            </div>
+
+            {concedeConfirm ? (
+              <div className="classic-command-grid classic-command-grid--confirm">
+                <button
+                  type="button"
+                  className="is-danger"
+                  disabled={busy}
+                  onClick={() => void perform({ action: "concede", actionId: actionId() })}
+                >
+                  <X /><span>CONFIRMAR</span>
+                </button>
+                <button type="button" disabled={busy} onClick={() => setConcedeConfirm(false)}>
+                  <ArrowRightLeft /><span>CANCELAR</span>
+                </button>
+              </div>
+            ) : (
+              <div className="classic-command-grid">
+                <button type="button" disabled={!playerTurn || forcedSwitch || busy} onClick={() => setCommandPanel("attack")}>
+                  <Swords /><span>ATACAR</span>
+                </button>
+                <button type="button" disabled={!playerTurn || forcedSwitch || busy} onClick={() => setCommandPanel("cards")}>
+                  <BookOpen /><span>CARTAS</span>
+                </button>
+                <button type="button" disabled={!playerTurn || busy} onClick={() => setCommandPanel("team")}>
+                  <Users /><span>EQUIPE</span>
+                </button>
+                <button
+                  type="button"
+                  className="is-flee"
+                  disabled={busy || (!pvp && battle.mode === "boss")}
+                  onClick={() => {
+                    if (pvp) {
+                      setConcedeConfirm(true);
+                    } else {
+                      stopBattleMusic();
+                      onClose();
+                    }
+                  }}
+                >
+                  <X /><span>{pvp ? "DESISTIR" : "FUGIR"}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className={cn("classic-submenu", `classic-submenu--${commandPanel}`)}>
+            <div className="classic-submenu__topbar">
+              <button
+                type="button"
+                onClick={() => {
+                  setCommandPanel("menu");
+                  setSelectedAttackId(null);
+                  setSelectedPowerCardId(null);
+                  setSelectedEnergyCardId(null);
+                  setPowerTargetIndex(null);
+                  setEnergyTargetIndex(null);
+                }}
+              >
+                ← VOLTAR
+              </button>
+              <strong>
+                {commandPanel === "attack"
+                  ? `Ataques de ${data.playerDefinition.name}`
+                  : commandPanel === "cards"
+                    ? "Sua mão"
+                    : "Equipe"}
+              </strong>
+              <small>
+                {commandPanel === "cards"
+                  ? `${data.player.energyHand.length + data.player.powerHand.length} cartas na mão`
+                  : commandPanel === "team"
+                    ? `${data.player.team.length}/6 criaturas`
+                    : `${data.playerActive.attachedEnergy.length} Energias anexadas`}
+              </small>
+            </div>
+
+            {commandPanel === "attack" ? (
+              <div className="classic-attack-menu">
+                <div className="classic-attack-grid">
+                  {equippedAttacks.map((attack, index) => {
+                    const affordable = canPayCost(data.playerActive.attachedEnergy, attack.cost);
                     return (
                       <button
+                        key={attack.id}
                         type="button"
-                        key={card.id}
-                        className={cn("power-hand-card", selectedPowerCardId === card.id && "is-selected")}
-                        onClick={() => {
-                          setSelectedPowerCardId(card.id);
-                          setPowerTargetIndex(null);
-                        }}
+                        className={cn("classic-attack-card", selectedAttackId === attack.id && "is-selected")}
+                        disabled={!mainPhase || busy || !affordable || data.playerActive.defeated}
+                        onClick={() => setSelectedAttackId(attack.id)}
                       >
-                        <span style={{ "--power-color": ELEMENT_META[card.element].color } as React.CSSProperties}>
-                          {ELEMENT_META[card.element].short}
-                        </span>
+                        <span className="classic-attack-card__index">{index + 1}</span>
                         <strong>{attack.name}</strong>
-                        <small>{attack.damage} dano · D6 {attack.minRoll}+</small>
+                        <small>{attack.damage} DMG · D6 {attack.minRoll}+</small>
+                        <span className="classic-attack-card__cost">
+                          {Object.entries(attack.cost).map(([element, amount]) => `${amount} ${ELEMENT_META[element as Element].short}`).join(" · ")}
+                        </span>
                       </button>
                     );
                   })}
-                  {data.player.powerHand.length === 0 ? <p>Nenhuma Carta de Poder na mão.</p> : null}
+                  {Array.from({ length: Math.max(0, 4 - equippedAttacks.length) }, (_, index) => (
+                    <div className="classic-attack-card is-empty" key={`empty-power-${index}`}>
+                      <span className="classic-attack-card__index">{equippedAttacks.length + index + 1}</span>
+                      <strong>Espaço vazio</strong>
+                      <small>Equipe uma Carta de Poder</small>
+                    </div>
+                  ))}
                 </div>
-              </div>
 
-              {selectedPowerCard && selectedPowerAttack ? (
-                <div className="power-equip-panel">
-                  <div>
-                    <span className="view-eyebrow">Equipar poder</span>
-                    <strong>{selectedPowerAttack.name}</strong>
-                    <small>Escolha uma criatura de {ELEMENT_META[selectedPowerCard.element].name}.</small>
+                {selectedAttack ? (
+                  <motion.div
+                    className="classic-attack-preview"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div>
+                      <span className="view-eyebrow">PREVIEW DO ATAQUE</span>
+                      <strong>{selectedAttack.name}</strong>
+                      <p>{selectedAttack.description}</p>
+                    </div>
+                    <div className="classic-attack-preview__stats">
+                      <span><small>Dano base</small><strong>{selectedAttack.damage}</strong></span>
+                      <span><small>Acerto</small><strong>D6 {selectedAttack.minRoll}+</strong></span>
+                      <span><small>Crítico</small><strong>D6 6</strong></span>
+                      <span><small>Efeito</small><strong>{selectedAttack.effect?.type ?? "Dano direto"}</strong></span>
+                    </div>
+                    <div className="classic-attack-preview__energy">
+                      {data.playerActive.attachedEnergy.map((card) => (
+                        <span
+                          key={card.id}
+                          className={cn((selectedAttack.cost[card.element] ?? 0) > 0 && "is-required")}
+                          title={`Energia de ${ELEMENT_META[card.element].name}`}
+                        >
+                          {ELEMENT_META[card.element].short}
+                        </span>
+                      ))}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="game"
+                      disabled={!mainPhase || busy || !canPayCost(data.playerActive.attachedEnergy, selectedAttack.cost)}
+                      onClick={() => void perform({ action: "attack", attackId: selectedAttack.id, actionId: actionId() })}
+                    >
+                      <Swords /> ATACAR
+                    </Button>
+                  </motion.div>
+                ) : (
+                  <div className="classic-attack-help">Escolha um dos poderes equipados para ver os detalhes.</div>
+                )}
+              </div>
+            ) : null}
+
+            {commandPanel === "cards" ? (
+              <div className="classic-cards-menu">
+                <div className="classic-deck-rack">
+                  <div
+                    className={cn(
+                      "classic-deck-pile classic-deck-pile--energy",
+                      presentationEvent?.kind === "draw" && presentationEvent.energyElement && "is-drawing",
+                    )}
+                  >
+                    <span>ENERGIA</span>
+                    <strong>{data.player.energyDeck.length}</strong>
+                    <small>restantes</small>
                   </div>
-                  <div className="power-equip-team">
-                    {data.player.team.map((creature, index) => {
-                      const definition = CREATURE_BY_ID.get(creature.catalogId)!;
-                      const compatible = definition.element === selectedPowerCard.element && !creature.defeated;
+                  <button
+                    type="button"
+                    className="classic-deck-pile classic-deck-pile--power"
+                    disabled={!mainPhase || busy || data.player.powerDrawsRemaining < 1}
+                    onClick={() => void perform({ action: "draw_power", actionId: actionId() })}
+                  >
+                    <span>PODER</span>
+                    <strong>{data.player.powerDeck.length}</strong>
+                    <small>{data.player.powerDrawsRemaining > 0 ? "comprar 1" : "já comprou"}</small>
+                  </button>
+                </div>
+
+                <div className="classic-hand-zone">
+                  <span className="view-eyebrow">SUA MÃO</span>
+                  <div className="classic-hand-fan">
+                    {data.player.energyHand.map((card, index) => {
+                      const meta = ELEMENT_META[card.element];
                       return (
                         <button
                           type="button"
-                          key={creature.instanceId}
-                          disabled={!compatible}
-                          className={cn(powerTargetIndex === index && "is-selected")}
-                          onClick={() => setPowerTargetIndex(index)}
+                          key={card.id}
+                          className={cn(
+                            "classic-hand-card",
+                            "is-energy",
+                            selectedEnergyCardId === card.id && "is-selected",
+                          )}
+                          style={{
+                            "--fan-index": index,
+                            "--fan-total": data.player.energyHand.length + data.player.powerHand.length,
+                            "--card-accent": meta.color,
+                          } as React.CSSProperties}
+                          onClick={() => {
+                            setSelectedEnergyCardId(card.id);
+                            setEnergyTargetIndex(null);
+                            setSelectedPowerCardId(null);
+                            setPowerTargetIndex(null);
+                          }}
                         >
-                          <PixelCreature sprite={definition.sprite} label={definition.name} />
-                          <span>{definition.name}</span>
-                          <small>{creature.equippedPowerIds.length}/4</small>
+                          <span className="classic-hand-card__sigil">{meta.short}</span>
+                          <strong>Energia de {meta.name}</strong>
+                          <small>Carta de Energia</small>
+                        </button>
+                      );
+                    })}
+                    {data.player.powerHand.map((card, index) => {
+                      const attack = getAttackById(card.attackId);
+                      if (!attack) return null;
+                      const offset = data.player.energyHand.length + index;
+                      return (
+                        <button
+                          type="button"
+                          key={card.id}
+                          className={cn(
+                            "classic-hand-card",
+                            "is-power",
+                            selectedPowerCardId === card.id && "is-selected",
+                          )}
+                          style={{
+                            "--fan-index": offset,
+                            "--fan-total": data.player.energyHand.length + data.player.powerHand.length,
+                            "--card-accent": ELEMENT_META[card.element].color,
+                          } as React.CSSProperties}
+                          onClick={() => {
+                            setSelectedPowerCardId(card.id);
+                            setPowerTargetIndex(null);
+                            setSelectedEnergyCardId(null);
+                            setEnergyTargetIndex(null);
+                          }}
+                        >
+                          <span className="classic-hand-card__sigil">{ELEMENT_META[card.element].short}</span>
+                          <strong>{attack.name}</strong>
+                          <small>{attack.damage} DMG · D6 {attack.minRoll}+</small>
                         </button>
                       );
                     })}
                   </div>
-                  {powerTarget && powerTargetDefinition ? (
-                    <div className="power-equip-slots">
-                      {powerTarget.equippedPowerIds.length < 4 ? (
-                        <Button
-                          type="button"
-                          variant="game"
-                          disabled={!mainPhase || busy}
-                          onClick={() => void perform({
-                            action: "equip_power",
-                            creatureIndex: powerTargetIndex,
-                            cardId: selectedPowerCard.id,
-                            actionId: actionId(),
-                          })}
-                        >
-                          Equipar em {powerTargetDefinition.name}
-                        </Button>
-                      ) : (
-                        <>
-                          <span>Escolha qual poder substituir:</span>
-                          {powerTarget.equippedPowerIds.map((attackId, slot) => (
-                            <button
-                              type="button"
-                              key={`${attackId}:${slot}`}
-                              onClick={() => void perform({
-                                action: "equip_power",
-                                creatureIndex: powerTargetIndex,
-                                cardId: selectedPowerCard.id,
-                                slot,
-                                actionId: actionId(),
-                              })}
-                            >
-                              {slot + 1}. {getAttackById(attackId)?.name ?? "Poder"}
-                            </button>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  ) : null}
                 </div>
-              ) : null}
 
-              <div className="compact-energy-panel">
-                <div>
-                  <strong>Energia</strong>
-                  <small>{data.player.attachmentsRemaining} anexos restantes</small>
-                </div>
-                <div className="compact-energy-row">
-                  {data.player.energyHand.map((card) => {
-                    const meta = ELEMENT_META[card.element];
-                    return (
-                      <button
+                {selectedEnergyCard ? (
+                  <div className="classic-card-target-panel">
+                    <div>
+                      <span className="view-eyebrow">VINCULAR ENERGIA</span>
+                      <strong>Energia de {ELEMENT_META[selectedEnergyCard.element].name}</strong>
+                      <small>Escolha a carta de criatura que receberá esta Energia.</small>
+                    </div>
+                    <div className="classic-card-targets">
+                      {data.player.team.map((creature, index) => {
+                        const definition = CREATURE_BY_ID.get(creature.catalogId)!;
+                        return (
+                          <button
+                            type="button"
+                            key={creature.instanceId}
+                            disabled={creature.defeated}
+                            className={cn(energyTargetIndex === index && "is-selected")}
+                            onClick={() => setEnergyTargetIndex(index)}
+                          >
+                            <PixelCreature sprite={definition.sprite} label={definition.name} />
+                            <span>{definition.name}</span>
+                            <small>{creature.attachedEnergy.length} EN</small>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {energyTarget && energyTargetDefinition ? (
+                      <Button
                         type="button"
-                        key={card.id}
-                        style={{ "--energy": meta.color } as React.CSSProperties}
+                        variant="game"
                         disabled={!mainPhase || busy || data.player.attachmentsRemaining < 1}
-                        onClick={() => void perform({ action: "attach", creatureIndex: data.player.activeIndex, cardId: card.id, actionId: actionId() })}
+                        onClick={() => void perform({
+                          action: "attach",
+                          creatureIndex: energyTargetIndex,
+                          cardId: selectedEnergyCard.id,
+                          actionId: actionId(),
+                        })}
                       >
-                        <span>{meta.short}</span>
-                        <small>{meta.name}</small>
-                      </button>
+                        Vincular a {energyTargetDefinition.name}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {selectedPowerCard && selectedPowerAttack ? (
+                  <div className="classic-card-target-panel">
+                    <div>
+                      <span className="view-eyebrow">EQUIPAR PODER</span>
+                      <strong>{selectedPowerAttack.name}</strong>
+                      <small>Escolha uma criatura de {ELEMENT_META[selectedPowerCard.element].name}.</small>
+                    </div>
+                    <div className="classic-card-targets">
+                      {data.player.team.map((creature, index) => {
+                        const definition = CREATURE_BY_ID.get(creature.catalogId)!;
+                        const compatible = definition.element === selectedPowerCard.element && !creature.defeated;
+                        return (
+                          <button
+                            type="button"
+                            key={creature.instanceId}
+                            disabled={!compatible}
+                            className={cn(powerTargetIndex === index && "is-selected")}
+                            onClick={() => setPowerTargetIndex(index)}
+                          >
+                            <PixelCreature sprite={definition.sprite} label={definition.name} />
+                            <span>{definition.name}</span>
+                            <small>{creature.equippedPowerIds.length}/4</small>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {powerTarget && powerTargetDefinition ? (
+                      <div className="classic-power-equip-actions">
+                        {powerTarget.equippedPowerIds.length < 4 ? (
+                          <Button
+                            type="button"
+                            variant="game"
+                            disabled={!mainPhase || busy}
+                            onClick={() => void perform({
+                              action: "equip_power",
+                              creatureIndex: powerTargetIndex,
+                              cardId: selectedPowerCard.id,
+                              actionId: actionId(),
+                            })}
+                          >
+                            Equipar em {powerTargetDefinition.name}
+                          </Button>
+                        ) : (
+                          <>
+                            <span>Substituir qual poder?</span>
+                            {powerTarget.equippedPowerIds.map((attackId, slot) => (
+                              <button
+                                type="button"
+                                key={`${attackId}:${slot}`}
+                                onClick={() => void perform({
+                                  action: "equip_power",
+                                  creatureIndex: powerTargetIndex,
+                                  cardId: selectedPowerCard.id,
+                                  slot,
+                                  actionId: actionId(),
+                                })}
+                              >
+                                {slot + 1}. {getAttackById(attackId)?.name ?? "Poder"}
+                              </button>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className="classic-card-utility-row">
+                  <div className="evolution-control">
+                    <div>
+                      <span className="view-eyebrow">EVOLUÇÃO</span>
+                      <strong>
+                        {(data.playerActive.evolutionStage ?? 0) > 0
+                          ? `${data.playerDefinition.name} já evoluiu`
+                          : battle.turn.round < 2
+                            ? "Disponível a partir da 2ª rodada"
+                            : `Requer 2 Energias de ${ELEMENT_META[evolutionElement].name}`}
+                      </strong>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={!canEvolve || busy}
+                      onClick={() => void perform({ action: "evolve", actionId: actionId() })}
+                    >
+                      <Sparkles /> EVOLUIR
+                    </Button>
+                  </div>
+                  <div className="classic-terrain-card">
+                    <span className="view-eyebrow">TERRENO</span>
+                    <strong>{terrainMeta ? terrainMeta.name : "Nenhum terreno ativo"}</strong>
+                    <small>{terrainMeta ? `Expira após o turno ${terrain?.expiresAfterTurn}` : "Ataques de assinatura podem transformar a arena."}</small>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {commandPanel === "team" ? (
+              <div className="classic-team-menu">
+                <div className="classic-team-grid">
+                  {data.player.team.map((creature, index) => {
+                    const definition = CREATURE_BY_ID.get(creature.catalogId)!;
+                    const active = index === data.player.activeIndex;
+                    return (
+                      <article
+                        className={cn(
+                          "classic-team-card",
+                          active && "is-active",
+                          creature.defeated && "is-defeated",
+                        )}
+                        key={creature.instanceId}
+                      >
+                        <PixelCreature sprite={definition.sprite} label={definition.name} />
+                        <div>
+                          <strong>{definition.name}</strong>
+                          <small>{creature.hp}/{creature.maxHp} HP</small>
+                          <small>{creature.attachedEnergy.length} Energia · {creature.equippedPowerIds.length}/4 Poderes</small>
+                          <small>{creature.statuses.length > 0 ? creature.statuses.map((status) => status.effect).join(" · ") : "Normal"}</small>
+                        </div>
+                        <span>{active ? "ATIVA" : creature.defeated ? "NOCAUTE" : "BANCO"}</span>
+                        {!active && !creature.defeated ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            disabled={!playerTurn || busy}
+                            onClick={() => setPendingSwitchIndex(index)}
+                          >
+                            TROCAR
+                          </Button>
+                        ) : null}
+                      </article>
                     );
                   })}
                 </div>
+                {!forcedSwitch ? (
+                  <p className="classic-team-note">
+                    A troca voluntária consome sua ação principal e passa o turno. O servidor continua validando a troca.
+                  </p>
+                ) : (
+                  <p className="classic-team-note is-warning">Escolha uma criatura disponível para continuar.</p>
+                )}
               </div>
-            </div>
-          ) : null}
-
-          {commandPanel === "team" ? (
-            <div className="hybrid-team-panel">
-              <div className="battle-section-title">
-                <span>Equipe · {data.player.team.length}/6</span>
-                <small>Escolha quem fica ativa e quem permanece no banco</small>
-              </div>
-              <div className="hybrid-team-grid">
-                {data.player.team.map((creature, index) => {
-                  const definition = CREATURE_BY_ID.get(creature.catalogId)!;
-                  const active = index === data.player.activeIndex;
-                  return (
-                    <article className={cn("hybrid-team-card", active && "is-active", creature.defeated && "is-defeated")} key={creature.instanceId}>
-                      <PixelCreature sprite={definition.sprite} label={definition.name} />
-                      <div>
-                        <strong>{definition.name}</strong>
-                        <small>{creature.hp}/{creature.maxHp} HP · {creature.attachedEnergy.length} EN · {creature.equippedPowerIds.length}/4 poderes</small>
-                      </div>
-                      <span className="hybrid-team-card__state">{active ? "ATIVA" : "BANCO"}</span>
-                      {!active ? (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={!playerTurn || busy || creature.defeated}
-                          onClick={() => setPendingSwitchIndex(index)}
-                        >
-                          Colocar ativa
-                        </Button>
-                      ) : null}
-                    </article>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
-
-          {commandPanel === "item" ? (
-            <div className="hybrid-item-panel">
-              <div className="evolution-control">
-                <div>
-                  <span className="view-eyebrow">Evolução de Vínculo</span>
-                  <strong>
-                    {(data.playerActive.evolutionStage ?? 0) > 0
-                      ? `${data.playerDefinition.name} já evoluiu`
-                      : battle.turn.round < 2
-                        ? "Disponível a partir da 2ª rodada"
-                        : `Requer 2 Energias de ${ELEMENT_META[evolutionElement].name}`}
-                  </strong>
-                  <small>Evolução continua autoritativa e usa o estado real da batalha.</small>
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={!canEvolve || busy}
-                  onClick={() => void perform({ action: "evolve", actionId: actionId() })}
-                >
-                  <Sparkles /> EVOLUIR
-                </Button>
-              </div>
-              <div className="hybrid-item-info">
-                <strong>{terrainMeta ? `Terreno de ${terrainMeta.name}` : "Sem Terreno ativo"}</strong>
-                <span>{terrainMeta ? "O campo continua afetando dano conforme o elemento." : "Ataques de assinatura podem transformar o campo."}</span>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={!mainPhase || busy}
-                onClick={() => void perform({ action: "pass", actionId: actionId() })}
-              >
-                <SkipForward /> Encerrar turno
-              </Button>
-            </div>
-          ) : null}
-        </div>
+            ) : null}
+          </div>
+        )}
       </section>
 
       <aside className={cn("battle-log", !logOpen && "is-collapsed")}>
@@ -1142,7 +1303,7 @@ export function BattleArena({
           onClick={() => setLogOpen((current) => !current)}
           aria-expanded={logOpen}
         >
-          <span>Crônica da batalha</span>
+          <span>HISTÓRICO</span>
           <span className="battle-log__toggle-meta">
             <ShieldCheck />
             {logOpen ? <ChevronUp /> : <ChevronDown />}
