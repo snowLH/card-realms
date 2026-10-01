@@ -44,7 +44,7 @@ describe("Raid Mítica cooperativa", () => {
   });
 
   it("mantém uma única vida compartilhada do boss", () => {
-    const state = raid(2);
+    let state = raid(2);
     const actor = state.players.find((player) => player.id === state.turn.actorId)!;
     const fireCard = actor.side.energyHand.find((card) => card.element === "fire")
       ?? actor.side.energyDeck.find((card) => card.element === "fire")!;
@@ -115,7 +115,7 @@ describe("Raid Mítica cooperativa", () => {
   });
 
   it("mantém Energia como carta real vinculada à criatura", () => {
-    let state = raid(2);
+    const state = raid(2);
     const actor = state.players.find((player) => player.id === state.turn.actorId)!;
     const card = actor.side.energyHand[0];
 
