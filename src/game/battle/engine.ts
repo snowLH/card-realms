@@ -942,6 +942,34 @@ export function resolveAttack(
   return { state, events: [...events, ...turnEvents] };
 }
 
+export function concedeBattle(
+  input: BattleState,
+  sideId: string,
+  actionId: string,
+): BattleActionResult {
+  const state = structuredClone(input);
+  if (state.status !== "active") throw new GameRuleError("A batalha já terminou.");
+  if (state.processedActionIds.includes(actionId)) throw new GameRuleError("Esta ação já foi processada.");
+  const side = getSide(state, sideId);
+  const opponent = getOpponent(state, sideId);
+  state.status = "finished";
+  state.winnerId = opponent.id;
+  const events = appendEvents(state, actionId, [
+    {
+      actorId: sideId,
+      kind: "conceded",
+      message: `${side.name} desistiu da batalha.`,
+    },
+    {
+      actorId: opponent.id,
+      kind: "battle_end",
+      message: `${opponent.name} venceu por desistência.`,
+    },
+  ]);
+  completeAction(state, actionId);
+  return { state, events };
+}
+
 export function passTurn(input: BattleState, sideId: string, actionId: string): BattleActionResult {
   const state = structuredClone(input);
   assertAction(state, sideId, actionId);
