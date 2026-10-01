@@ -5,7 +5,6 @@ import {
   ArrowRightLeft,
   BookOpen,
   ChevronDown,
-  ChevronRight,
   ChevronUp,
   Dice5,
   Flame,
@@ -24,7 +23,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
 import type { BattleBoardId } from "@/game/battle/presentation";
 import type { AvatarConfig } from "@/game/save/local-progress";
-import { canEvolveActiveCreature, canPayCost, energyPoolFor, getActive, getAttackById, getSide } from "@/game/engine";
+import { canEvolveActiveCreature, canPayCost, getActive, getAttackById, getSide } from "@/game/engine";
 import { presentationDuration, toBattlePresentationEvents, type BattlePresentationEvent } from "@/game/battle/presentation-events";
 import { playBattleSfx, startBattleMusic, stopBattleMusic, unlockBattleAudio } from "@/game/battle/audio";
 import { type BattleEncounter, type BattleLogEntry, type BattleState, type Element, type EnergyPool } from "@/game/types";
@@ -326,6 +325,14 @@ export function BattleArena({
     return () => window.clearTimeout(timer);
   }, [battle?.status, battle?.turn.number, battle?.turn.sideId]);
 
+  useEffect(() => {
+    if (!battle || battle.status !== "active") return;
+    const playerId = pvp?.playerId ?? "player-one";
+    if (battle.turn.sideId === playerId && battle.turn.phase === "forced_switch") {
+      setCommandPanel("team");
+    }
+  }, [battle, pvp?.playerId]);
+
   if (!open) return null;
 
   if (!battle || !data) {
@@ -343,7 +350,6 @@ export function BattleArena({
   const playerTurn = battle.turn.sideId === data.player.id && battle.status === "active";
   const mainPhase = playerTurn && battle.turn.phase === "main";
   const forcedSwitch = playerTurn && battle.turn.phase === "forced_switch";
-  const attachedPool = energyPoolFor(data.playerActive.attachedEnergy);
   const canEvolve = canEvolveActiveCreature(battle, data.player.id);
   const evolutionElement = data.playerDefinition.element;
   const terrain = battle.terrain;
@@ -709,26 +715,41 @@ export function BattleArena({
           {presentationEvent?.kind === "energy" ? (
             <motion.div
               key={presentationEvent.id}
-              className={cn("battle-energy-flight", presentationEvent.actorId === data.opponent.id && "is-opponent")}
+              className={cn(
+                "battle-energy-flight",
+                presentationEvent.actorId === data.opponent.id && "is-opponent",
+                presentationEvent.energyElement && `is-${presentationEvent.energyElement}`,
+              )}
               initial={{ opacity: 0, y: 120, x: presentationEvent.actorId === data.opponent.id ? 160 : -160, scale: .7, rotate: -12 }}
               animate={{ opacity: [0, 1, 1, 0], y: [120, 20, -45], x: [presentationEvent.actorId === data.opponent.id ? 160 : -160, 0, 0], scale: [.7, 1.05, .5], rotate: [-12, 6, 0] }}
               exit={{ opacity: 0 }}
               transition={{ duration: .52 }}
             >
               <Sparkles />
-              <strong>ENERGIA</strong>
+              <strong>
+                {presentationEvent.energyElement
+                  ? ELEMENT_META[presentationEvent.energyElement].short
+                  : "PODER"}
+              </strong>
             </motion.div>
           ) : null}
           {presentationEvent?.kind === "draw" ? (
             <motion.div
               key={presentationEvent.id}
-              className="battle-draw-flight"
+              className={cn(
+                "battle-draw-flight",
+                presentationEvent.energyElement && `is-${presentationEvent.energyElement}`,
+              )}
               initial={{ opacity: 0, x: -180, y: 70, rotate: -18 }}
-              animate={{ opacity: [0, 1, 1], x: [-180, -20, 150], y: [70, 10, 80], rotate: [-18, 4, 12] }}
+              animate={{ opacity: [0, 1, 1, 0], x: [-180, -20, 150, 205], y: [70, 10, 80, 112], rotate: [-18, 4, 12, 4] }}
               exit={{ opacity: 0 }}
-              transition={{ duration: .46 }}
+              transition={{ duration: .5 }}
             >
-              <span>CR</span>
+              <span>
+                {presentationEvent.energyElement
+                  ? ELEMENT_META[presentationEvent.energyElement].short
+                  : "PODER"}
+              </span>
             </motion.div>
           ) : null}
           {presentationEvent && ["evolutionStart", "evolutionComplete"].includes(presentationEvent.kind) ? (
