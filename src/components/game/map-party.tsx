@@ -156,19 +156,17 @@ export function useMapParty({
     };
   }, [online]);
 
-  function localSelf(point: GridPoint = { x: 4, y: 20 }): MapPartyMember {
-    return {
-      id: selfId,
-      name: playerName,
-      x: point.x,
-      y: point.y,
-      avatar,
-      isSelf: true,
-      presenceStatus: "online",
-    };
-  }
+  const localSelf = useCallback((point: GridPoint = { x: 4, y: 20 }): MapPartyMember => ({
+    id: selfId,
+    name: playerName,
+    x: point.x,
+    y: point.y,
+    avatar,
+    isSelf: true,
+    presenceStatus: "online",
+  }), [avatar, playerName, selfId]);
 
-  async function action(body: Record<string, unknown>) {
+  const action = useCallback(async (body: Record<string, unknown>) => {
     setBusy(true);
     setError("");
     try {
@@ -187,7 +185,7 @@ export function useMapParty({
     } finally {
       setBusy(false);
     }
-  }
+  }, [refresh]);
 
   async function create() {
     if (online) {
@@ -247,7 +245,7 @@ export function useMapParty({
     setMembers([]);
   }
 
-  async function syncPosition(point: GridPoint) {
+  const syncPosition = useCallback(async (point: GridPoint) => {
     if (!session) return;
     if (online) {
       await action({
@@ -265,7 +263,7 @@ export function useMapParty({
       roomCode: session.inviteCode,
       member: me,
     } satisfies LocalMessage);
-  }
+  }, [action, localSelf, online, session]);
 
   return {
     session,
