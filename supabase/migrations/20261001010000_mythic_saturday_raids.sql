@@ -138,6 +138,8 @@ grant select on public.raid_rooms, public.raid_participants, public.raid_room_ev
   public.raid_reward_ledger to authenticated;
 grant all privileges on public.raid_events, public.raid_rooms, public.raid_participants,
   public.raid_actions, public.raid_room_events, public.raid_reward_ledger to service_role;
+grant usage, select on sequence public.raid_actions_id_seq to service_role;
+grant usage, select on sequence public.raid_room_events_id_seq to service_role;
 
 create or replace function public.get_raid_schedule()
 returns jsonb
@@ -402,7 +404,13 @@ begin
   where id = room.id;
 
   insert into public.raid_room_events (room_id, sequence, event_type, payload)
-  values (room.id, 1, 'raid_started', submitted_state);
+  select
+    room.id,
+    ordinal::integer,
+    coalesce(event ->> 'kind', 'raid_event'),
+    event
+  from jsonb_array_elements(coalesce(submitted_state -> 'log', '[]'::jsonb))
+    with ordinality as entries(event, ordinal);
 
   return jsonb_build_object('roomId', room.id, 'state', submitted_state, 'version', 1);
 end;
@@ -434,17 +442,8 @@ declare
   committed_result jsonb;
 begin
   select * into room from public.raid_rooms where id = target_room_id for update;
-  if room.id is null or room.status <> 'active' then
-    raise exception 'A Raid não está ativa' using errcode = '22023';
-  end if;
-  if room.version <> expected_version then
-    raise exception 'Versão de Raid desatualizada' using errcode = '40001';
-  end if;
-  if not exists (
-    select 1 from public.raid_participants
-    where room_id = target_room_id and user_id = acting_user_id
-  ) then
-    raise exception 'Jogador não participa desta Raid' using errcode = '42501';
+  if room.id is null then
+    raise exception 'Sala de Raid não encontrada' using errcode = 'P0002';
   end if;
 
   select result into previous_result
@@ -455,6 +454,19 @@ begin
 
   if previous_result is not null then
     return previous_result;
+  end if;
+
+  if room.status <> 'active' then
+    raise exception 'A Raid não está ativa' using errcode = '22023';
+  end if;
+  if room.version <> expected_version then
+    raise exception 'Versão de Raid desatualizada' using errcode = '40001';
+  end if;
+  if not exists (
+    select 1 from public.raid_participants
+    where room_id = target_room_id and user_id = acting_user_id
+  ) then
+    raise exception 'Jogador não participa desta Raid' using errcode = '42501';
   end if;
 
   if target_action_type not in (
@@ -613,8 +625,12 @@ set title = excluded.title,
 create policy "raid players receive private broadcasts"
 on realtime.messages for select to authenticated
 using (
-  topic like 'raid:room:%'
-  and private.is_raid_participant(split_part(topic, ':', 3)::uuid)
+  exists (
+    select 1
+    from public.raid_participants participant
+    where participant.user_id = auth.uid()
+      and topic = 'raid:room:' || participant.room_id::text
+  )
 );
 
 
@@ -638,17 +654,27 @@ returns trigger
 language plpgsql
 security definer
 set search_path = ''
-as $$
+as $
 declare
-  target_room_id uuid := coalesce(new.room_id, old.room_id);
+  target_room_id uuid;
 begin
+  if tg_op = 'DELETE' then
+    target_room_id := old.room_id;
+  else
+    target_room_id := new.room_id;
+  end if;
+
   perform realtime.broadcast_changes(
     'raid:room:' || target_room_id::text,
     tg_op, tg_op, tg_table_name, tg_table_schema, new, old
   );
-  return coalesce(new, old);
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
 end;
-$$;
+$;
 
 create or replace function private.broadcast_raid_event()
 returns trigger
