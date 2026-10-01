@@ -41,8 +41,9 @@ export async function startRaidRoom(roomId: string, actorId: string) {
   for (const row of energyRows ?? []) {
     const pool = pools.get(row.user_id);
     if (!pool) continue;
-    if (row.element === "fire" || row.element === "water" || row.element === "nature" || row.element === "storm" || row.element === "spirit") {
-      pool[row.element] = Math.max(0, Number(row.quantity) || 0);
+    const element = typeof row.element === "string" ? row.element : "";
+    if (element === "fire" || element === "water" || element === "nature" || element === "storm" || element === "spirit") {
+      pool[element] = Math.max(0, Number(row.quantity) || 0);
     }
   }
 
