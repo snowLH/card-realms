@@ -12,6 +12,7 @@ import {
   passTurn,
   planNpcTurn,
   getSide,
+  getOpponent,
   resolveAttack,
   switchActiveCreature,
 } from "@/game/engine";
@@ -210,6 +211,45 @@ function encounterSetup(
     playerTeamIds,
     startMessage: `${area.name} iniciou uma ${encounter.kind === "boss" ? "batalha de guardião" : "provação de santuário"}.`,
   };
+}
+
+async function recordBattleMissionEvents(
+  state: BattleState,
+  events: BattleActionResult["events"],
+) {
+  const playerId = await authenticatedPlayerId();
+  if (!playerId) return;
+
+  const opponent = getOpponent(state, "player-one");
+  const regionId = opponent.id === "warden-aya"
+    ? "roots"
+    : opponent.id.startsWith("boss:roots-")
+      ? "roots"
+      : CREATURE_BY_ID.get(opponent.team[0]?.catalogId ?? "")?.regionId ?? null;
+  const missionEvents = [...events];
+  if (state.status === "finished" && state.winnerId === "player-one") {
+    missionEvents.push({
+      id: `${state.id}:mission:victory`,
+      turn: state.turn.number,
+      actorId: "player-one",
+      kind: "battle_victory" as never,
+      message: "Vitória registrada para o progresso de missões.",
+    });
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("record_mission_events", {
+    target_player_id: playerId,
+    target_events: missionEvents,
+    target_context: {
+      regionId,
+      opponentId: opponent.id,
+      mode: state.mode,
+    },
+  });
+  if (error) {
+    console.error("Falha ao registrar progresso de missão.", error.code);
+  }
 }
 
 async function claimStoryReward(battleId: string): Promise<BattleReward | undefined> {
@@ -426,6 +466,7 @@ export async function POST(request: Request) {
       result = { state: npcResult.state, events: [...result.events, ...npcResult.events] };
     }
 
+    await recordBattleMissionEvents(result.state, result.events);
     const reward = result.state.status === "finished" && result.state.winnerId === "player-one"
       ? await claimStoryReward(result.state.id)
       : undefined;
