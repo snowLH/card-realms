@@ -407,10 +407,10 @@ begin
   select
     room.id,
     ordinal::integer,
-    coalesce(event ->> 'kind', 'raid_event'),
-    event
+    coalesce(event_payload ->> 'kind', 'raid_event'),
+    event_payload
   from jsonb_array_elements(coalesce(submitted_state -> 'log', '[]'::jsonb))
-    with ordinality as entries(event, ordinal);
+    with ordinality as entries(event_payload, ordinal);
 
   return jsonb_build_object('roomId', room.id, 'state', submitted_state, 'version', 1);
 end;
