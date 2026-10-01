@@ -115,7 +115,12 @@ export function BattleArena({
   const [presentationEvent, setPresentationEvent] = useState<BattlePresentationEvent | null>(null);
   const [animationSpeed, setAnimationSpeed] = useState<"normal" | "fast" | "very-fast">("normal");
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [visualQuality, setVisualQuality] = useState<"high" | "medium" | "low">("high");
+  const [visualQuality] = useState<"high" | "medium" | "low">(() => {
+    if (typeof navigator === "undefined") return "high";
+    const hardware = navigator.hardwareConcurrency ?? 8;
+    const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
+    return hardware <= 4 || memory <= 4 ? "low" : hardware <= 8 || memory <= 8 ? "medium" : "high";
+  });
   const [logOpen, setLogOpen] = useState(false);
   const [turnBannerVisible, setTurnBannerVisible] = useState(false);
   const [pendingSwitchIndex, setPendingSwitchIndex] = useState<number | null>(null);
@@ -163,12 +168,6 @@ export function BattleArena({
     };
   }, [open]);
 
-  useEffect(() => {
-    if (!open || typeof navigator === "undefined") return;
-    const hardware = navigator.hardwareConcurrency ?? 8;
-    const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
-    setVisualQuality(hardware <= 4 || memory <= 4 ? "low" : hardware <= 8 || memory <= 8 ? "medium" : "high");
-  }, [open]);
 
   useEffect(() => {
     if (!open || battle || busy) return;
@@ -234,8 +233,6 @@ export function BattleArena({
           if (typeof event.die === "number") setDie(event.die);
 
           if (["attack", "miss", "critical"].includes(event.kind)) {
-            const attackingSide = battle?.sides.find((side) => side.id === event.actorId);
-            const active = attackingSide ? getActive(attackingSide) : null;
             const attackAnimation = event.attackId ? getAttackById(event.attackId)?.animation : undefined;
             setEffect(event.kind === "miss" ? "miss" : attackAnimation ?? "strike");
 
@@ -318,20 +315,19 @@ export function BattleArena({
     };
   }, [battle, pvp?.playerId]);
 
-  useEffect(() => {
-    if (!battle || battle.status !== "active") return;
-    setTurnBannerVisible(true);
-    const timer = window.setTimeout(() => setTurnBannerVisible(false), 1100);
-    return () => window.clearTimeout(timer);
-  }, [battle?.status, battle?.turn.number, battle?.turn.sideId]);
+  const battleStatus = battle?.status;
+  const battleTurnNumber = battle?.turn.number;
+  const battleTurnSideId = battle?.turn.sideId;
 
   useEffect(() => {
-    if (!battle || battle.status !== "active") return;
-    const playerId = pvp?.playerId ?? "player-one";
-    if (battle.turn.sideId === playerId && battle.turn.phase === "forced_switch") {
-      setCommandPanel("team");
-    }
-  }, [battle, pvp?.playerId]);
+    if (battleStatus !== "active") return;
+    const showTimer = window.setTimeout(() => setTurnBannerVisible(true), 0);
+    const hideTimer = window.setTimeout(() => setTurnBannerVisible(false), 1100);
+    return () => {
+      window.clearTimeout(showTimer);
+      window.clearTimeout(hideTimer);
+    };
+  }, [battleStatus, battleTurnNumber, battleTurnSideId]);
 
   if (!open) return null;
 
@@ -350,6 +346,7 @@ export function BattleArena({
   const playerTurn = battle.turn.sideId === data.player.id && battle.status === "active";
   const mainPhase = playerTurn && battle.turn.phase === "main";
   const forcedSwitch = playerTurn && battle.turn.phase === "forced_switch";
+  const activeCommandPanel = forcedSwitch ? "team" : commandPanel;
   const canEvolve = canEvolveActiveCreature(battle, data.player.id);
   const evolutionElement = data.playerDefinition.element;
   const terrain = battle.terrain;
@@ -858,7 +855,7 @@ export function BattleArena({
       </AnimatePresence>
 
       <section className="battle-controls hybrid-battle-controls">
-        {commandPanel === "menu" ? (
+        {activeCommandPanel === "menu" ? (
           <div className="classic-command-root">
             <div className="classic-dialogue-box">
               <span className="classic-dialogue-box__eyebrow">
@@ -930,7 +927,7 @@ export function BattleArena({
             )}
           </div>
         ) : (
-          <div className={cn("classic-submenu", `classic-submenu--${commandPanel}`)}>
+          <div className={cn("classic-submenu", `classic-submenu--${activeCommandPanel}`)}>
             <div className="classic-submenu__topbar">
               <button
                 type="button"
@@ -946,22 +943,22 @@ export function BattleArena({
                 ← VOLTAR
               </button>
               <strong>
-                {commandPanel === "attack"
+                {activeCommandPanel === "attack"
                   ? `Ataques de ${data.playerDefinition.name}`
-                  : commandPanel === "cards"
+                  : activeCommandPanel === "cards"
                     ? "Sua mão"
                     : "Equipe"}
               </strong>
               <small>
-                {commandPanel === "cards"
+                {activeCommandPanel === "cards"
                   ? `${data.player.energyHand.length + data.player.powerHand.length} cartas na mão`
-                  : commandPanel === "team"
+                  : activeCommandPanel === "team"
                     ? `${data.player.team.length}/6 criaturas`
                     : `${data.playerActive.attachedEnergy.length} Energias anexadas`}
               </small>
             </div>
 
-            {commandPanel === "attack" ? (
+            {activeCommandPanel === "attack" ? (
               <div className="classic-attack-menu">
                 <div className="classic-attack-grid">
                   {equippedAttacks.map((attack, index) => {
@@ -1035,7 +1032,7 @@ export function BattleArena({
               </div>
             ) : null}
 
-            {commandPanel === "cards" ? (
+            {activeCommandPanel === "cards" ? (
               <div className="classic-cards-menu">
                 <div className="classic-deck-rack">
                   <div
@@ -1266,7 +1263,7 @@ export function BattleArena({
               </div>
             ) : null}
 
-            {commandPanel === "team" ? (
+            {activeCommandPanel === "team" ? (
               <div className="classic-team-menu">
                 <div className="classic-team-grid">
                   {data.player.team.map((creature, index) => {
