@@ -6,6 +6,7 @@ import {
   Check,
   Coins,
   Compass,
+  Crown,
   Gift,
   Home,
   Layers3,
@@ -32,6 +33,7 @@ export function HubView({
   onOpenCollection,
   onOpenTeam,
   onOpenRefuge,
+  onOpenRaid,
   onOpenPvp,
   onClaimTreasure,
 }: {
@@ -49,6 +51,7 @@ export function HubView({
   onOpenCollection: () => void;
   onOpenTeam: () => void;
   onOpenRefuge: () => void;
+  onOpenRaid: () => void;
   onOpenPvp: () => void;
   onClaimTreasure: () => void;
 }) {
@@ -89,6 +92,16 @@ export function HubView({
             <small>Expedição salva</small>
             <strong>Continuar jornada</strong>
             <span>{currentRegion.name}</span>
+          </span>
+          <ArrowRight />
+        </button>
+
+        <button type="button" className="hub-duel hub-raid" onClick={onOpenRaid}>
+          <span className="hub-duel__icon"><Crown /></span>
+          <span>
+            <small>Evento cooperativo</small>
+            <strong>Raid Mítica</strong>
+            <em>Sábado · até 5 amigos</em>
           </span>
           <ArrowRight />
         </button>
