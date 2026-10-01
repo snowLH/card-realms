@@ -43,6 +43,7 @@ const OwnedCreatureSchema = z.object({
   variant: z.string().min(1),
   acquiredFrom: z.string().min(1),
   acquiredAt: z.string(),
+  evolutionStage: z.number().int().min(0).max(2).default(0),
 });
 
 const TeamSchema = z.object({
@@ -53,6 +54,7 @@ const TeamSchema = z.object({
     slot: z.number().int().min(1).max(6),
     playerCreatureId: z.string().uuid(),
     catalogId: z.string().min(1),
+    evolutionStage: z.number().int().min(0).max(2).default(0),
   })).max(6),
 });
 
@@ -70,6 +72,7 @@ const MissionSchema = z.object({
   title: z.string().min(1),
   description: z.string(),
   progress: z.number().int().nonnegative(),
+  target: z.number().int().positive().default(1),
   completedAt: z.string().nullable(),
   claimedAt: z.string().nullable(),
   rewards: JsonObjectSchema,
