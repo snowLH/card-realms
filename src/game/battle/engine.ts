@@ -160,7 +160,7 @@ export function createBattleCreature(
 ): BattleCreature {
   const definition = CREATURE_BY_ID.get(catalogId);
   if (!definition) throw new Error(`Criatura desconhecida: ${catalogId}`);
-  const stage = Math.max(0, Math.min(2, Math.trunc(startingEvolutionStage)));
+  const stage: 0 | 1 | 2 = startingEvolutionStage >= 2 ? 2 : startingEvolutionStage >= 1 ? 1 : 0;
   const evolvedHp = definition.hp + Math.floor(definition.hp * 0.15 * stage);
   return {
     instanceId: `${ownerId}:${catalogId}:${index}`,
