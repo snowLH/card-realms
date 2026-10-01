@@ -13,12 +13,11 @@ import {
   Radio,
   ShieldAlert,
   Sparkles,
-  Swords,
   Trophy,
   Users,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { PlayerBootstrap } from "@/game/player";
 import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
 import { LoginDialog } from "@/components/auth/login-dialog";
