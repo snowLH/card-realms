@@ -50,7 +50,7 @@ export async function startRaidRoom(roomId: string, actorId: string) {
 
   const raidPlayers: RaidPlayerSetup[] = participants.map((participant) => {
     const snapshot = Array.isArray(participant.team_snapshot)
-      ? participant.team_snapshot as Array<{ catalogId?: unknown }>
+      ? participant.team_snapshot as Array<{ catalogId?: unknown; evolutionStage?: unknown }>
       : [];
     const teamIds = snapshot
       .map((member) => typeof member.catalogId === "string" ? member.catalogId : "")
@@ -63,6 +63,7 @@ export async function startRaidRoom(roomId: string, actorId: string) {
       name: participant.name,
       seat: participant.seat,
       teamIds,
+      evolutionStages: snapshot.map((member) => Math.max(0, Math.min(2, Number(member.evolutionStage) || 0))),
       energy: pools.get(participant.user_id),
     };
   });
