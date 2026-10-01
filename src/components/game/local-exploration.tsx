@@ -201,7 +201,7 @@ export function LocalExploration({
       setPendingAction(null);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [areas, onPositionChange, onTreasure, onVisitArea, openedTreasure, path.length, pendingAction, player]);
+  }, [areas, onPositionChange, onTreasure, onVisitArea, openedTreasure, party.syncPosition, path.length, pendingAction, player]);
 
   const tileWidth = map.width / map.columns;
   const tileHeight = map.height / map.rows;
