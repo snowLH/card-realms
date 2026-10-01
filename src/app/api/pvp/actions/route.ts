@@ -6,6 +6,7 @@ import {
   BattleLogEntrySchema,
   GameRuleError,
   attachEnergy,
+  concedeBattle,
   drawPowerCard,
   equipPowerCard,
   evolveActiveCreature,
@@ -77,7 +78,10 @@ export async function POST(request: Request) {
     }
 
     const state = battleRow.state;
-    if (state.mode !== "pvp" || state.id !== action.battleId || state.turn.sideId !== actorId) {
+    if (state.mode !== "pvp" || state.id !== action.battleId) {
+      throw new GameRuleError("Batalha PVP inválida.");
+    }
+    if (action.action !== "concede" && state.turn.sideId !== actorId) {
       throw new GameRuleError("Aguarde o seu turno.");
     }
 
@@ -95,7 +99,9 @@ export async function POST(request: Request) {
               ? resolveAttack(state, actorId, action.attackId, roll(), effectRoll(), action.actionId)
               : action.action === "evolve"
                 ? evolveActiveCreature(state, actorId, action.actionId)
-                : passTurn(state, actorId, action.actionId);
+                : action.action === "concede"
+                  ? concedeBattle(state, actorId, action.actionId)
+                  : passTurn(state, actorId, action.actionId);
     const result = withOpaquePvpEventIds(resolved, randomUUID);
 
     const { data, error } = await admin.rpc("commit_pvp_action", {
