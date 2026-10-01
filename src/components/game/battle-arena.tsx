@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRightLeft,
   BookOpen,
-  Dice5,
   Flame,
   LoaderCircle,
   RotateCcw,
@@ -33,6 +32,7 @@ import { CreatureCard } from "./creature-card";
 import { PixelCreature } from "./pixel-creature";
 import { BattleActiveCreature } from "./battle-active-creature";
 import { BattleBoardScene } from "./battle-board-scene";
+import { BattleDiceRoll } from "./battle-dice-roll";
 import { BattleLogSheet } from "./battle-log-sheet";
 import { CharacterAvatar2D } from "./character-avatar";
 
@@ -695,19 +695,7 @@ export function BattleArena({
               <Sparkles />
             </motion.div>
           ) : null}
-          {die ? (
-            <motion.div
-              className={cn("dice-result", die === 1 && "dice-result--miss", die === 6 && "dice-result--critical")}
-              initial={{ rotate: -520, scale: 0.1, opacity: 0 }}
-              animate={{ rotate: 0, scale: 1, opacity: 1 }}
-              exit={{ scale: 1.5, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 180, damping: 13 }}
-            >
-              <Dice5 />
-              <strong>{die}</strong>
-              <span>{die === 1 ? "Falha crítica" : die === 6 ? "Acerto crítico" : "Ataque certeiro"}</span>
-            </motion.div>
-          ) : null}
+          {die ? <BattleDiceRoll value={die} /> : null}
           {presentationEvent?.kind === "energy" ? (
             <motion.div
               key={presentationEvent.id}
