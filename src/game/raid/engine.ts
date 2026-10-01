@@ -17,7 +17,7 @@ import {
   getAttackById,
   getDefinition,
 } from "../battle/engine";
-import { ELEMENTS, elementMultiplier, type EnergyCost } from "../domain/elements";
+import { ELEMENTS, elementMultiplier, type Element, type EnergyCost } from "../domain/elements";
 import { RAID_BOSS_ATTACKS, RAID_PHASE_NAMES } from "./content";
 import {
   RAID_BOSS_ID,
@@ -521,7 +521,7 @@ function updateBossPhase(
 function activatePlayerTerrain(
   state: RaidState,
   player: RaidPlayerState,
-  element: BattleCreature extends never ? never : ReturnType<typeof getDefinition>["element"],
+  element: Element,
   actionId: string,
 ) {
   state.terrain = {
