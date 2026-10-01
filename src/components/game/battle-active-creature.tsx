@@ -63,6 +63,35 @@ export function BattleActiveCreature({
         </div>
       </div>
 
+      <AnimatePresence>
+        {!ko ? (
+          <motion.div
+            key={`${battle.instanceId}:summon-card`}
+            className={cn(
+              "battle-summon-card",
+              `is-${definition.element}`,
+              mirrored && "is-mirrored",
+            )}
+            initial={{ opacity: 0, scale: .55, y: 28, rotateY: 88 }}
+            animate={{
+              opacity: [0, 1, 1, 0],
+              scale: [.55, 1.08, 1, .72],
+              y: [28, 0, -4, 18],
+              rotateY: [88, 0, 0, -16],
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: .78, times: [0, .28, .68, 1], ease: "easeOut" }}
+          >
+            <div className="battle-summon-card__frame">
+              <PixelCreature sprite={definition.sprite} label={definition.name} mirrored={mirrored} />
+              <strong>{definition.name}</strong>
+              <small>{definition.title}</small>
+            </div>
+            <span className="battle-summon-card__burst" />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
       <AnimatePresence mode="wait">
         {!ko ? (
           <motion.div
@@ -95,10 +124,16 @@ export function BattleActiveCreature({
           <motion.div
             key={`${battle.instanceId}:ko`}
             className="battle-active-creature__ko"
-            initial={{ opacity: 1, scale: 1 }}
-            animate={{ opacity: 0, scale: .55, y: 24 }}
-            transition={{ duration: .65 }}
-          />
+            initial={{ opacity: 1, scale: 1, y: 0 }}
+            animate={{ opacity: [1, .72, 0], scale: [1, .82, .42], y: [0, 10, 34] }}
+            transition={{ duration: .72 }}
+          >
+            <span className="battle-active-creature__ko-particles" />
+            <div className={cn("battle-ko-card", `is-${definition.element}`)}>
+              <PixelCreature sprite={definition.sprite} label={definition.name} mirrored={mirrored} />
+              <strong>{definition.name}</strong>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
