@@ -32,6 +32,8 @@ export type BattlePresentationEvent = {
   evolutionStage?: 0 | 1;
   terrainElement?: BattleLogEntry["terrainElement"];
   terrainTurns?: number;
+  energyCardId?: string;
+  energyElement?: BattleLogEntry["energyElement"];
 };
 
 const KIND_MAP: Partial<Record<BattleLogEntry["kind"], BattlePresentationKind>> = {
@@ -66,7 +68,7 @@ export function toBattlePresentationEvents(
     const kind = KIND_MAP[event.kind];
     if (!kind) continue;
 
-    if (typeof event.die === "number" && kind !== "miss" && kind !== "attack") {
+    if (typeof event.die === "number") {
       sequence.push({
         id: `${event.id}:roll`,
         kind: "roll",
@@ -90,6 +92,8 @@ export function toBattlePresentationEvents(
       evolutionStage: event.evolutionStage,
       terrainElement: event.terrainElement,
       terrainTurns: event.terrainTurns,
+      energyCardId: event.energyCardId,
+      energyElement: event.energyElement,
     });
   }
   return sequence;
