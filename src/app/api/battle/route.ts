@@ -135,11 +135,22 @@ async function loadAuthenticatedBattleContext() {
   if (error) throw new Error("Não foi possível carregar seu progresso para a batalha.");
   const snapshot = RemotePlayerSnapshotSchema.parse(data);
   const team = snapshot.teams.find((candidate) => candidate.isActive);
+  const orderedMembers = team?.members
+    .slice()
+    .sort((left, right) => left.slot - right.slot) ?? [];
+  const memberIds = orderedMembers.map((member) => member.playerCreatureId);
+  const { data: evolutionRows } = memberIds.length > 0
+    ? await supabase
+        .from("player_creatures")
+        .select("id,evolution_stage")
+        .in("id", memberIds)
+    : { data: [] as Array<{ id: string; evolution_stage: number }> };
+  const evolutionById = new Map(
+    (evolutionRows ?? []).map((row) => [row.id, Number(row.evolution_stage) || 0]),
+  );
   return {
-    teamIds: team?.members
-      .slice()
-      .sort((left, right) => left.slot - right.slot)
-      .map((member) => member.catalogId) ?? [],
+    teamIds: orderedMembers.map((member) => member.catalogId),
+    evolutionStages: orderedMembers.map((member) => evolutionById.get(member.playerCreatureId) ?? 0),
     energy: snapshot.energy as EnergyPool,
     currentRegionId: snapshot.world.currentRegionId,
   };
@@ -381,6 +392,7 @@ export async function POST(request: Request) {
                 authenticated?.currentRegionId,
               ),
               playerEnergy,
+              playerEvolutionStages: authenticated?.evolutionStages,
             },
             random,
           )
@@ -390,6 +402,19 @@ export async function POST(request: Request) {
             playerTeamIds,
             playerEnergy,
           );
+      if (!parsed.encounter && authenticated?.evolutionStages) {
+        const playerSide = getSide(state, "player-one");
+        playerSide.team.forEach((creature, index) => {
+          const stage = authenticated.evolutionStages[index] ?? 0;
+          if (stage <= 0) return;
+          const definition = CREATURE_BY_ID.get(creature.catalogId);
+          if (!definition) return;
+          creature.evolutionStage = Math.max(0, Math.min(2, stage));
+          const evolvedHp = definition.hp + Math.floor(definition.hp * 0.15 * creature.evolutionStage);
+          creature.maxHp = evolvedHp;
+          creature.hp = evolvedHp;
+        });
+      }
       return response(state, state.log);
     }
 
