@@ -24,6 +24,7 @@ import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { PixelCreature } from "./pixel-creature";
 
@@ -168,6 +169,28 @@ export function RaidView({
       window.clearInterval(timer);
     };
   }, [refreshRoom, roomId]);
+
+  useEffect(() => {
+    if (!roomId || bootstrap.source !== "supabase") return;
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    let cancelled = false;
+    let removeChannel: (() => void) | null = null;
+    void supabase.realtime.setAuth().then(() => {
+      if (cancelled) return;
+      const channel = supabase
+        .channel(`raid:room:${roomId}`, { config: { private: true } })
+        .on("broadcast", { event: "INSERT" }, () => void refreshRoom(roomId))
+        .on("broadcast", { event: "UPDATE" }, () => void refreshRoom(roomId))
+        .on("broadcast", { event: "DELETE" }, () => void refreshRoom(roomId))
+        .subscribe();
+      removeChannel = () => void supabase.removeChannel(channel);
+    }).catch(() => undefined);
+    return () => {
+      cancelled = true;
+      removeChannel?.();
+    };
+  }, [bootstrap.source, refreshRoom, roomId]);
 
   async function lobbyAction(body: Record<string, unknown>) {
     setBusy(true);
