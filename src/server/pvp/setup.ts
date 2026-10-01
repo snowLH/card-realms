@@ -3,6 +3,7 @@ import "server-only";
 import { randomInt, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { createPvpBattle } from "@/game/battle";
+import type { EnergyPool } from "@/game/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const TeamIdsSchema = z.tuple([
@@ -65,7 +66,7 @@ export async function acceptPvpChallenge(challengeId: string, actorId: string) {
   const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
   const teamByPlayer = new Map(teams.map((team) => [team.user_id, team]));
   const creatureById = new Map(creatures.map((creature) => [creature.id, creature]));
-  const energyByPlayer = new Map(
+  const energyByPlayer = new Map<string, EnergyPool>(
     playerIds.map((playerId) => [
       playerId,
       { fire: 0, water: 0, nature: 0, storm: 0, spirit: 0 },
@@ -74,7 +75,7 @@ export async function acceptPvpChallenge(challengeId: string, actorId: string) {
   for (const row of energyRows ?? []) {
     const pool = energyByPlayer.get(row.user_id);
     if (!pool) continue;
-    const element = row.element;
+    const element = String(row.element);
     if (
       element === "fire"
       || element === "water"
