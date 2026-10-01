@@ -4,6 +4,11 @@ import { ELEMENTS } from "../domain/elements";
 const EnergyCardSchema = z.object({
   id: z.string().min(1),
   element: z.enum(ELEMENTS),
+  origin: z.enum(["battle_deck", "inventory"]).default("battle_deck"),
+  ownerId: z.string().min(1).default("legacy"),
+  zone: z.enum(["deck", "hand", "attached", "discard"]).default("deck"),
+  attachedTo: z.string().nullable().default(null),
+  status: z.enum(["ready", "spent"]).default("ready"),
 });
 
 const PowerCardSchema = z.object({
@@ -41,7 +46,7 @@ const BattleSideSchema = z.object({
   energyDeck: z.array(EnergyCardSchema),
   energyHand: z.array(EnergyCardSchema),
   energyDiscard: z.array(EnergyCardSchema),
-  attachmentsRemaining: z.number().int().min(0).max(2),
+  attachmentsRemaining: z.number().int().min(0).max(1),
   powerDeck: z.array(PowerCardSchema).default([]),
   powerHand: z.array(PowerCardSchema).default([]),
   powerDiscard: z.array(PowerCardSchema).default([]),
