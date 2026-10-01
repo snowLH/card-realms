@@ -59,7 +59,7 @@ export type BattleCreature = {
   attachedEnergy: EnergyCard[];
   statuses: ActiveStatus[];
   defeated: boolean;
-  evolutionStage?: 0 | 1;
+  evolutionStage?: 0 | 1 | 2;
   equippedPowerIds: string[];
 };
 
@@ -132,7 +132,7 @@ export type BattleLogEntry = {
   attackId?: string;
   effect?: AttackEffect["type"];
   creatureIndex?: number;
-  evolutionStage?: 0 | 1;
+  evolutionStage?: 0 | 1 | 2;
   terrainElement?: Element;
   terrainTurns?: number;
   powerCardId?: string;
