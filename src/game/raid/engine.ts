@@ -287,6 +287,7 @@ export function createRaidState(
           setup.teamIds,
           random,
           setup.energy,
+          setup.evolutionStages,
         ),
         eliminated: false,
         needsSwitch: false,
