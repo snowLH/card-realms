@@ -136,6 +136,8 @@ export type BattleLogEntry = {
   terrainTurns?: number;
   powerCardId?: string;
   powerSlot?: number;
+  energyCardId?: string;
+  energyElement?: Element;
 };
 
 export type BattleState = {
