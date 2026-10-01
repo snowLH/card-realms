@@ -6,7 +6,6 @@ import { BATTLE_BOARDS, type BattleBoardId } from "@/game/battle/presentation";
 import type { PlayerBootstrap, RemotePlayerSnapshot } from "@/game/player";
 import type { AvatarConfig } from "@/game/save/local-progress";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { CharacterAvatar2D, CharacterCreator2D } from "./character-avatar";
 
