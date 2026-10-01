@@ -152,7 +152,7 @@ function energyForTeam(teamIds: readonly string[]): EnergyPool {
   return pool;
 }
 
-function makeBattleCreature(catalogId: string, ownerId: string, index: number): BattleCreature {
+export function createBattleCreature(catalogId: string, ownerId: string, index: number): BattleCreature {
   const definition = CREATURE_BY_ID.get(catalogId);
   if (!definition) throw new Error(`Criatura desconhecida: ${catalogId}`);
   return {
@@ -169,7 +169,7 @@ function makeBattleCreature(catalogId: string, ownerId: string, index: number): 
   };
 }
 
-function makeSide(
+export function createBattleSide(
   id: string,
   name: string,
   kind: BattleSide["kind"],
@@ -189,7 +189,7 @@ function makeSide(
     id,
     name,
     kind,
-    team: teamIds.map((catalogId, index) => makeBattleCreature(catalogId, id, index)),
+    team: teamIds.map((catalogId, index) => createBattleCreature(catalogId, id, index)),
     activeIndex: 0,
     energyDeck: deck,
     energyHand: hand,
@@ -222,7 +222,7 @@ export function createEncounterBattle(
 ): BattleState {
   const playerId = "player-one";
   const playerTeamIds = setup.playerTeamIds ?? STARTER_TEAM_IDS;
-  const player = makeSide(
+  const player = createBattleSide(
     playerId,
     "Você",
     "player",
@@ -230,7 +230,7 @@ export function createEncounterBattle(
     random,
     setup.playerEnergy,
   );
-  const opponent = makeSide(
+  const opponent = createBattleSide(
     setup.opponentId,
     setup.opponentName,
     setup.opponentKind ?? "npc",
@@ -296,8 +296,8 @@ export function createPvpBattle(
   }
 
   const sides: [BattleSide, BattleSide] = [
-    makeSide(challenger.id, challenger.name, "player", challenger.teamIds, random, challenger.energy),
-    makeSide(challenged.id, challenged.name, "player", challenged.teamIds, random, challenged.energy),
+    createBattleSide(challenger.id, challenger.name, "player", challenger.teamIds, random, challenger.energy),
+    createBattleSide(challenged.id, challenged.name, "player", challenged.teamIds, random, challenged.energy),
   ];
   const firstIndex = randomIndex(random, sides.length);
   sides[firstIndex].turnsStarted = 1;
