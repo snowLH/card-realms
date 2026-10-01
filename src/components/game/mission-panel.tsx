@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronLeft, ChevronRight, Gift, LoaderCircle } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { RemotePlayerSnapshot } from "@/game/player";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,9 +23,6 @@ export function MissionPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    if (index >= visible.length) setIndex(0);
-  }, [index, visible.length]);
 
   if (visible.length === 0) {
     return (
@@ -37,7 +34,8 @@ export function MissionPanel({
     );
   }
 
-  const mission = visible[index];
+  const safeIndex = index % visible.length;
+  const mission = visible[safeIndex];
   const progress = Math.min(mission.target, mission.progress);
   const percent = Math.min(100, (progress / mission.target) * 100);
   const complete = Boolean(mission.completedAt) || progress >= mission.target;
@@ -66,7 +64,7 @@ export function MissionPanel({
         {visible.length > 1 ? (
           <div>
             <button type="button" onClick={() => setIndex((current) => (current - 1 + visible.length) % visible.length)} aria-label="Missão anterior"><ChevronLeft /></button>
-            <small>{index + 1}/{visible.length}</small>
+            <small>{safeIndex + 1}/{visible.length}</small>
             <button type="button" onClick={() => setIndex((current) => (current + 1) % visible.length)} aria-label="Próxima missão"><ChevronRight /></button>
           </div>
         ) : null}
