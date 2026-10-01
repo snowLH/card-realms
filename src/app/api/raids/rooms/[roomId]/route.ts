@@ -27,13 +27,21 @@ export async function GET(
       actorId,
     );
     const visible = room.state ? visibleRaidState(room.state, actorId) : null;
-    const { data: reward } = await admin
-      .from("raid_reward_ledger")
-      .select("creature_card_id,granted_at")
-      .eq("event_id", event.id)
-      .eq("player_id", actorId)
-      .eq("reward_type", "mythical_reward")
-      .maybeSingle();
+    const [{ data: reward }, { data: roomEvents }] = await Promise.all([
+      admin
+        .from("raid_reward_ledger")
+        .select("creature_card_id,granted_at")
+        .eq("event_id", event.id)
+        .eq("player_id", actorId)
+        .eq("reward_type", "mythical_reward")
+        .maybeSingle(),
+      admin
+        .from("raid_room_events")
+        .select("sequence,event_type,payload,created_at")
+        .eq("room_id", room.id)
+        .order("sequence", { ascending: false })
+        .limit(40),
+    ]);
     return NextResponse.json({
       room: {
         id: room.id,
@@ -55,6 +63,7 @@ export async function GET(
       })),
       state: visible?.state ?? null,
       hidden: visible?.hidden ?? {},
+      events: (roomEvents ?? []).slice().reverse(),
       mythicalReward: {
         obtained: Boolean(reward),
         creatureCardId: reward?.creature_card_id ?? null,
