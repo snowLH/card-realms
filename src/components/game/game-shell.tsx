@@ -35,6 +35,7 @@ import { LoginDialog } from "@/components/auth/login-dialog";
 import { Badge } from "@/components/ui/badge";
 import { CollectionView } from "./collection-view";
 import { HubView } from "./hub-view";
+import { MissionPanel } from "./mission-panel";
 import { RefugeView } from "./refuge-view";
 import { PvpView } from "./pvp-view";
 import { RaidView } from "./raid-view";
@@ -339,6 +340,47 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     router.refresh();
   };
 
+  const handleSaveTeam = async (memberIds: string[], name: string) => {
+    if (bootstrap.source !== "supabase") {
+      throw new Error("Entre com uma conta para salvar a equipe.");
+    }
+    await mutateRemoteProgress({ action: "save_team", memberIds, name });
+    setToast("Equipe ativa sincronizada.");
+    router.refresh();
+  };
+
+  const handleEvolveCreature = async (instanceId: string) => {
+    if (bootstrap.source !== "supabase") {
+      throw new Error("Entre com uma conta para evoluir cartas.");
+    }
+    const result = await mutateRemoteProgress({
+      action: "evolve_creature",
+      instanceId,
+    }) as { coins?: number; evolutionStage?: number };
+    if (typeof result.coins === "number") setCoins(result.coins);
+    setToast("Vínculo persistente evoluído.");
+    router.refresh();
+  };
+
+  const handleClaimMission = async (missionId: string) => {
+    if (bootstrap.source !== "supabase") {
+      throw new Error("Entre com uma conta para resgatar missões.");
+    }
+    const result = await mutateRemoteProgress({
+      action: "claim_mission",
+      missionId,
+    }) as { coins?: number; xp?: number; coinsAwarded?: number; xpAwarded?: number };
+    if (typeof result.coins === "number") setCoins(result.coins);
+    if (typeof result.xp === "number") setXp(result.xp);
+    setToast(
+      "Missão resgatada"
+      + (result.coinsAwarded ? ": +" + result.coinsAwarded + " moedas" : "")
+      + (result.xpAwarded ? " e +" + result.xpAwarded + " XP" : "")
+      + ".",
+    );
+    router.refresh();
+  };
+
   const handleSaveBattleBoard = async (nextBoard: BattleBoardId) => {
     const previous = battleBoard;
     setBattleBoard(nextBoard);
@@ -430,13 +472,18 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             );
           })}
         </nav>
-        <div className="side-quest">
-          <span>Missão ativa</span>
-          <strong>Vozes da mata</strong>
-          <p>Vença a Guardiã Aya na Provação das Raízes.</p>
-          <div><span style={{ width: `${Math.min(100, (xp / 1800) * 100)}%` }} /></div>
-          <small>{xp}/1.800 XP</small>
-        </div>
+        {remoteSnapshot ? (
+          <MissionPanel
+            missions={remoteSnapshot.missions}
+            onClaim={bootstrap.source === "supabase" ? handleClaimMission : undefined}
+          />
+        ) : (
+          <div className="side-quest">
+            <span>Missões online</span>
+            <strong>Progresso autoritativo</strong>
+            <p>Entre com sua conta para avançar e resgatar missões.</p>
+          </div>
+        )}
         <Badge className="side-build">
           {bootstrap.source === "supabase"
             ? "Conta online · Supabase é a fonte de verdade"
@@ -496,8 +543,23 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             onBuy={handleBuyEnergy}
           />
         ) : null}
-        {!showWelcome && view === "collection" ? <CollectionView ownedCatalogIds={visibleOwnedCatalogIds} /> : null}
-        {!showWelcome && view === "team" ? <TeamView teamIds={visibleTeamIds} teamName={activeTeam?.name} /> : null}
+        {!showWelcome && view === "collection" ? (
+          <CollectionView
+            ownedCatalogIds={visibleOwnedCatalogIds}
+            collection={remoteSnapshot?.collection ?? []}
+            teamMemberIds={activeTeam?.members.map((member) => member.playerCreatureId) ?? []}
+            coins={coins}
+            onEvolve={bootstrap.source === "supabase" ? handleEvolveCreature : undefined}
+          />
+        ) : null}
+        {!showWelcome && view === "team" ? (
+          <TeamView
+            team={activeTeam}
+            collection={remoteSnapshot?.collection ?? []}
+            source={bootstrap.source}
+            onSave={bootstrap.source === "supabase" ? handleSaveTeam : undefined}
+          />
+        ) : null}
         {!showWelcome && view === "refuge" ? (
           <RefugeView
             ownedCatalogIds={visibleOwnedCatalogIds ?? []}
