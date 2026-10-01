@@ -73,7 +73,7 @@ describe("Baralho de Poder autoritativo", () => {
   });
 
   it("exige escolher um slot quando a criatura já possui quatro poderes", () => {
-    let state = createDemoBattle("power-slots", fixedRandom, ["boitata"], fireEnergy);
+    const state = createDemoBattle("power-slots", fixedRandom, ["boitata"], fireEnergy);
     const player = getSide(state, "player-one");
     const distinct = [player.team[0].equippedPowerIds[0]];
     for (const card of [...player.powerHand, ...player.powerDeck]) {
