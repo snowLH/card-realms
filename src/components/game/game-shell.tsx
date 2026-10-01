@@ -84,7 +84,7 @@ const navigation = [
 ] satisfies Array<{ id: View; label: string; icon: typeof Map }>;
 
 const mobileNavigation = navigation.filter((item) =>
-  ["hub", "collection", "team", "raid", "pvp", "profile"].includes(item.id),
+  ["map", "collection", "team", "raid", "pvp", "profile"].includes(item.id),
 );
 
 async function mutateRemoteProgress(body: Record<string, unknown>) {
