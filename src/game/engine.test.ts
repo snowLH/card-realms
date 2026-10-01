@@ -79,15 +79,21 @@ describe("motor de combate Card Realms v2", () => {
     expect(opponentCards.every((card) => opponentElements.has(card.element))).toBe(true);
   });
 
-  it("só anexa cartas presentes na mão e limita dois anexos por turno", () => {
+  it("só anexa cartas presentes na mão e limita uma anexação normal por turno", () => {
     let state = battle("attachment-limit");
     state = attachElement(state, "player-one", 0, "fire", "attach-1");
-    state = attachElement(state, "player-one", 0, "fire", "attach-2");
-    const thirdCard = ensureCardInHand(state, "player-one", "fire");
-    expect(() => attachEnergy(state, "player-one", 0, thirdCard, "attach-3")).toThrow(
-      "limite é de duas energias",
+    const secondCard = ensureCardInHand(state, "player-one", "fire");
+    expect(() => attachEnergy(state, "player-one", 0, secondCard, "attach-2")).toThrow(
+      "uma Energia anexada por turno",
     );
-    expect(getActive(getSide(state, "player-one")).attachedEnergy).toHaveLength(2);
+    const attached = getActive(getSide(state, "player-one")).attachedEnergy;
+    expect(attached).toHaveLength(1);
+    expect(attached[0]).toMatchObject({
+      ownerId: "player-one",
+      zone: "attached",
+      attachedTo: getActive(getSide(state, "player-one")).instanceId,
+      status: "ready",
+    });
     expect(state.turn.sideId).toBe("player-one");
   });
 
@@ -172,7 +178,7 @@ describe("motor de combate Card Realms v2", () => {
     side.turnsStarted = 1;
     ensureCardInHand(state, side.id, "fire");
     const plan = planNpcTurn(state, side.id);
-    expect(plan.attachments.length).toBeLessThanOrEqual(2);
+    expect(plan.attachments.length).toBeLessThanOrEqual(1);
     expect(plan.attackId).toBeTruthy();
   });
 
