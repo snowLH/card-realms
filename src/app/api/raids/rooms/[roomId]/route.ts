@@ -22,11 +22,18 @@ export async function GET(
   }
 
   try {
-    const { room, event, participants } = await loadRaidRoom(
+    const { admin, room, event, participants } = await loadRaidRoom(
       (await context.params).roomId,
       actorId,
     );
     const visible = room.state ? visibleRaidState(room.state, actorId) : null;
+    const { data: reward } = await admin
+      .from("raid_reward_ledger")
+      .select("creature_card_id,granted_at")
+      .eq("event_id", event.id)
+      .eq("player_id", actorId)
+      .eq("reward_type", "mythical_reward")
+      .maybeSingle();
     return NextResponse.json({
       room: {
         id: room.id,
@@ -48,6 +55,11 @@ export async function GET(
       })),
       state: visible?.state ?? null,
       hidden: visible?.hidden ?? {},
+      mythicalReward: {
+        obtained: Boolean(reward),
+        creatureCardId: reward?.creature_card_id ?? null,
+        grantedAt: reward?.granted_at ?? null,
+      },
       authority: "server",
     });
   } catch (caught) {
