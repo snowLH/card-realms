@@ -31,6 +31,7 @@ import {
 } from "@/game/engine";
 import type { Element } from "@/game/types";
 import { Button } from "@/components/ui/button";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { PixelCreature } from "./pixel-creature";
 
@@ -148,6 +149,27 @@ export function RaidArena({
       window.clearInterval(timer);
     };
   }, [refresh]);
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    let cancelled = false;
+    let removeChannel: (() => void) | null = null;
+    void supabase.realtime.setAuth().then(() => {
+      if (cancelled) return;
+      const channel = supabase
+        .channel(`raid:room:${roomId}`, { config: { private: true } })
+        .on("broadcast", { event: "INSERT" }, () => void refresh())
+        .on("broadcast", { event: "UPDATE" }, () => void refresh())
+        .on("broadcast", { event: "DELETE" }, () => void refresh())
+        .subscribe();
+      removeChannel = () => void supabase.removeChannel(channel);
+    }).catch(() => undefined);
+    return () => {
+      cancelled = true;
+      removeChannel?.();
+    };
+  }, [refresh, roomId]);
 
   const player = useMemo(
     () => state?.players.find((entry) => entry.id === playerId) ?? null,
