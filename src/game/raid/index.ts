@@ -3,3 +3,4 @@ export * from "./content";
 export * from "./schema";
 export * from "./engine";
 export * from "./contracts";
+export * from "./visibility";
