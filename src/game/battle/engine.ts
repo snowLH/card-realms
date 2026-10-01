@@ -556,11 +556,15 @@ function beginTurn(state: BattleState, side: BattleSide, forcedSwitch: boolean, 
     message: `Turno de ${side.name}.`,
   });
   if (drawn.length > 0) {
-    events.push({
-      actorId: side.id,
-      kind: "energy_drawn",
-      message: `${side.name} comprou ${drawn.length} carta${drawn.length === 1 ? "" : "s"} de energia.`,
-    });
+    for (const card of drawn) {
+      events.push({
+        actorId: side.id,
+        kind: "energy_drawn",
+        energyCardId: card.id,
+        energyElement: card.element,
+        message: `${side.name} comprou uma Energia de ${ELEMENT_META[card.element].name}.`,
+      });
+    }
   }
 
   const active = getActive(side);
@@ -622,6 +626,9 @@ export function attachEnergy(
   const events = appendEvents(state, actionId, [{
     actorId: sideId,
     kind: "energy_attached",
+    energyCardId: card.id,
+    energyElement: card.element,
+    creatureIndex,
     message: `${side.name} anexou Energia de ${ELEMENT_META[card.element].name} a ${getDefinition(creature).name}.`,
   }]);
   completeAction(state, actionId);
