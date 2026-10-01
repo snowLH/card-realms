@@ -62,7 +62,7 @@ export const BattleLogEntrySchema = z.object({
     "battle_start", "turn_started", "energy_drawn", "energy_attached",
     "power_drawn", "power_equipped", "creature_switched", "forced_switch", "attack_hit", "attack_miss",
     "critical", "status_applied", "status_tick", "healed", "shielded",
-    "passed", "defeated", "evolution_started", "evolution_completed",
+    "passed", "conceded", "defeated", "evolution_started", "evolution_completed",
     "terrain_activated", "terrain_expired", "battle_end",
   ]),
   message: z.string(),
