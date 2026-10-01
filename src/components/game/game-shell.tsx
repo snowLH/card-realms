@@ -425,7 +425,6 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     () => ownedCatalogIds ?? (bootstrap.identity ? [] : undefined),
     [bootstrap.identity, ownedCatalogIds],
   );
-  const visibleTeamIds = activeTeamIds ?? (bootstrap.identity ? [] : undefined);
   const playerLevel = remoteSnapshot?.profile.level ?? Math.max(1, Math.floor(xp / 600) + 1);
   const discoveredByRegion = useMemo(() => {
     const visibleIds = new Set(visibleOwnedCatalogIds ?? CREATURES.map((creature) => creature.id));
