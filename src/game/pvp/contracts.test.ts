@@ -53,6 +53,18 @@ describe("contratos PVP hostis", () => {
     }).success).toBe(false);
   });
 
+  it("aceita desistência apenas como comando sem permitir escolher o vencedor", () => {
+    expect(PvpActionSchema.safeParse({
+      ...validAction,
+      action: "concede",
+    }).success).toBe(true);
+    expect(PvpActionSchema.safeParse({
+      ...validAction,
+      action: "concede",
+      winnerId: "10000000-0000-4000-8000-000000000001",
+    }).success).toBe(false);
+  });
+
   it("aceita Evolução apenas como comando, sem permitir escolher o resultado", () => {
     expect(PvpActionSchema.safeParse({
       ...validAction,
