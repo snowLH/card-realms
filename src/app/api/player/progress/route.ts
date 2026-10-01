@@ -42,6 +42,13 @@ const mutationSchema = z.discriminatedUnion("action", [
     creatureId: z.enum(["boitata", "iara", "curupira"]),
   }),
   z.object({ action: z.literal("activate_team"), teamId: z.string().uuid() }),
+  z.object({
+    action: z.literal("save_team"),
+    memberIds: z.array(z.string().uuid()).min(1).max(6),
+    name: z.string().trim().min(1).max(60).optional(),
+  }),
+  z.object({ action: z.literal("evolve_creature"), instanceId: z.string().uuid() }),
+  z.object({ action: z.literal("claim_mission"), missionId: z.string().min(1).max(80) }),
   z.object({ action: z.literal("save_battle_board"), boardId: z.enum(BATTLE_BOARD_IDS) }),
   z.object({
     action: z.literal("save_refuge"),
@@ -69,29 +76,69 @@ export async function GET() {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const [snapshotResult, profileResult, worldResult] = await Promise.all([
+  const [snapshotResult, profileResult, worldResult, evolutionResult, missionResult] = await Promise.all([
     auth.supabase.rpc("get_my_player_snapshot"),
     auth.supabase.from("profiles").select("avatar_config").single(),
     auth.supabase.from("player_world_state").select("current_area_id,visited_area_ids,map_positions").single(),
+    auth.supabase.from("player_creatures").select("id,evolution_stage"),
+    auth.supabase.from("missions").select("id,objective,enabled").eq("enabled", true),
   ]);
   const { data, error } = snapshotResult;
   if (error) {
     console.error("Falha no snapshot remoto.", error.code);
     return NextResponse.json({ error: "Não foi possível carregar o progresso." }, { status: 503 });
   }
-  const enriched = data && typeof data === "object" && !Array.isArray(data)
+  const evolutionById = new Map(
+    (evolutionResult.data ?? []).map((row) => [row.id, Number(row.evolution_stage) || 0]),
+  );
+  const missionTargets = new Map(
+    (missionResult.data ?? []).map((row) => {
+      const objective = row.objective && typeof row.objective === "object" && !Array.isArray(row.objective)
+        ? row.objective as Record<string, unknown>
+        : {};
+      return [row.id, Math.max(1, Number(objective.count) || 1)] as const;
+    }),
+  );
+  const raw = data && typeof data === "object" && !Array.isArray(data)
+    ? data as Record<string, unknown>
+    : null;
+  const rawCollection = Array.isArray(raw?.collection) ? raw.collection : [];
+  const rawTeams = Array.isArray(raw?.teams) ? raw.teams : [];
+  const rawMissions = Array.isArray(raw?.missions) ? raw.missions : [];
+  const enriched = raw
     ? {
-        ...data,
+        ...raw,
         profile: {
-          ...((data as { profile?: object }).profile ?? {}),
+          ...(raw.profile && typeof raw.profile === "object" ? raw.profile : {}),
           avatarConfig: profileResult.data?.avatar_config,
         },
         world: {
-          ...((data as { world?: object }).world ?? {}),
+          ...(raw.world && typeof raw.world === "object" ? raw.world : {}),
           currentAreaId: worldResult.data?.current_area_id ?? null,
           visitedAreaIds: worldResult.data?.visited_area_ids ?? [],
           mapPositions: worldResult.data?.map_positions ?? {},
         },
+        collection: rawCollection.map((entry) => {
+          const creature = entry as Record<string, unknown>;
+          return { ...creature, evolutionStage: evolutionById.get(String(creature.instanceId)) ?? 0 };
+        }),
+        teams: rawTeams.map((entry) => {
+          const team = entry as Record<string, unknown>;
+          const members = Array.isArray(team.members) ? team.members : [];
+          return {
+            ...team,
+            members: members.map((member) => {
+              const typed = member as Record<string, unknown>;
+              return { ...typed, evolutionStage: evolutionById.get(String(typed.playerCreatureId)) ?? 0 };
+            }),
+          };
+        }),
+        missions: rawMissions
+          .filter((entry) => missionTargets.has(String((entry as Record<string, unknown>).id)))
+          .map((entry) => {
+            const mission = entry as Record<string, unknown>;
+            return { ...mission, target: missionTargets.get(String(mission.id)) ?? 1 };
+          }),
       }
     : data;
   const parsed = RemotePlayerSnapshotSchema.safeParse(enriched);
@@ -107,6 +154,49 @@ export async function PATCH(request: Request) {
     const auth = await authenticatedClient();
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    if (payload.action === "save_team") {
+      const { data, error } = await auth.supabase.rpc("save_active_team", {
+        target_member_ids: payload.memberIds,
+        target_name: payload.name ?? null,
+      });
+      if (error) {
+        const conflict = error.code === "22023" || error.code === "42501";
+        return NextResponse.json(
+          { error: conflict ? error.message : "Não foi possível salvar sua equipe." },
+          { status: conflict ? 409 : 503 },
+        );
+      }
+      return NextResponse.json({ result: data, authority: "supabase" });
+    }
+
+    if (payload.action === "evolve_creature") {
+      const { data, error } = await auth.supabase.rpc("evolve_owned_creature", {
+        target_instance_id: payload.instanceId,
+      });
+      if (error) {
+        const conflict = error.code === "22023" || error.code === "P0002";
+        return NextResponse.json(
+          { error: conflict ? error.message : "Não foi possível evoluir esta carta." },
+          { status: conflict ? 409 : 503 },
+        );
+      }
+      return NextResponse.json({ result: data, authority: "supabase" });
+    }
+
+    if (payload.action === "claim_mission") {
+      const { data, error } = await auth.supabase.rpc("claim_mission_reward", {
+        target_mission_id: payload.missionId,
+      });
+      if (error) {
+        const conflict = error.code === "22023" || error.code === "P0002";
+        return NextResponse.json(
+          { error: conflict ? error.message : "Não foi possível resgatar a missão." },
+          { status: conflict ? 409 : 503 },
+        );
+      }
+      return NextResponse.json({ result: data, authority: "supabase" });
     }
 
     if (payload.action === "save_battle_board") {
