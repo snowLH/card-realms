@@ -504,6 +504,51 @@ export function BattleArena({
               </motion.div>
             ) : null}
           </AnimatePresence>
+
+          <div className="classic-battle-status classic-battle-status--opponent">
+            <div className="classic-battle-status__heading">
+              <strong>{data.opponentDefinition.name}</strong>
+              <span>{ELEMENT_META[data.opponentDefinition.element].name} · Estágio {(data.opponentActive.evolutionStage ?? 0) + 1}</span>
+            </div>
+            <div className="classic-battle-status__hp">
+              <span>HP</span>
+              <div><i style={{ width: `${Math.max(0, Math.min(100, (data.opponentActive.hp / data.opponentActive.maxHp) * 100))}%` }} /></div>
+              <small>{data.opponentActive.hp}/{data.opponentActive.maxHp}</small>
+            </div>
+            <div className="classic-battle-status__meta">
+              <span className="classic-energy-stack">
+                {data.opponentActive.attachedEnergy.slice(0, 5).map((card) => (
+                  <i key={card.id} title={`Energia de ${ELEMENT_META[card.element].name}`}>
+                    {ELEMENT_META[card.element].short}
+                  </i>
+                ))}
+              </span>
+              <span>{data.opponentActive.statuses.length > 0 ? data.opponentActive.statuses.map((status) => status.effect).join(" · ") : "Normal"}</span>
+            </div>
+          </div>
+
+          <div className="classic-battle-status classic-battle-status--player">
+            <div className="classic-battle-status__heading">
+              <strong>{data.playerDefinition.name}</strong>
+              <span>{ELEMENT_META[data.playerDefinition.element].name} · Estágio {(data.playerActive.evolutionStage ?? 0) + 1}</span>
+            </div>
+            <div className="classic-battle-status__hp">
+              <span>HP</span>
+              <div><i style={{ width: `${Math.max(0, Math.min(100, (data.playerActive.hp / data.playerActive.maxHp) * 100))}%` }} /></div>
+              <small>{data.playerActive.hp}/{data.playerActive.maxHp}</small>
+            </div>
+            <div className="classic-battle-status__meta">
+              <span className="classic-energy-stack">
+                {data.playerActive.attachedEnergy.map((card) => (
+                  <i key={card.id} title={`Energia de ${ELEMENT_META[card.element].name}`}>
+                    {ELEMENT_META[card.element].short}
+                  </i>
+                ))}
+              </span>
+              <span>{data.playerActive.statuses.length > 0 ? data.playerActive.statuses.map((status) => status.effect).join(" · ") : "Normal"}</span>
+            </div>
+          </div>
+
           <div className="card-table__resource-row card-table__resource-row--opponent">
             <div className="table-pile tcg-zone tcg-zone--deck" data-zone="Baralho">
               <span className="table-card-back">CR</span>
