@@ -3,6 +3,7 @@
 import {
   Album,
   Coins,
+  Crown,
   Home,
   LayoutDashboard,
   Layers3,
@@ -36,6 +37,7 @@ import { CollectionView } from "./collection-view";
 import { HubView } from "./hub-view";
 import { RefugeView } from "./refuge-view";
 import { PvpView } from "./pvp-view";
+import { RaidView } from "./raid-view";
 import { ProfileView } from "./profile-view";
 import { TeamView } from "./team-view";
 import { VillageView } from "./village-view";
@@ -55,7 +57,19 @@ const BattleArena = dynamic(
   },
 );
 
-type View = "hub" | "map" | "village" | "collection" | "team" | "refuge" | "pvp" | "profile";
+const RaidArena = dynamic(
+  () => import("./raid-arena").then((module) => module.RaidArena),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="battle-loading" role="status">
+        Preparando a Raid Mítica...
+      </div>
+    ),
+  },
+);
+
+type View = "hub" | "map" | "village" | "collection" | "team" | "refuge" | "raid" | "pvp" | "profile";
 
 const navigation = [
   { id: "hub", label: "Início", icon: LayoutDashboard },
@@ -63,12 +77,13 @@ const navigation = [
   { id: "collection", label: "Coleção", icon: Album },
   { id: "team", label: "Equipe", icon: Layers3 },
   { id: "refuge", label: "Refúgio", icon: Home },
+  { id: "raid", label: "Raids", icon: Crown },
   { id: "pvp", label: "Duelos", icon: Swords },
   { id: "profile", label: "Perfil", icon: UserRound },
 ] satisfies Array<{ id: View; label: string; icon: typeof Map }>;
 
 const mobileNavigation = navigation.filter((item) =>
-  ["hub", "collection", "team", "pvp", "profile"].includes(item.id),
+  ["hub", "collection", "team", "raid", "pvp", "profile"].includes(item.id),
 );
 
 async function mutateRemoteProgress(body: Record<string, unknown>) {
@@ -95,6 +110,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   const [battleOpen, setBattleOpen] = useState(false);
   const [battleEncounter, setBattleEncounter] = useState<BattleEncounter | null>(null);
   const [pvpBattleId, setPvpBattleId] = useState<string | null>(null);
+  const [raidRoomId, setRaidRoomId] = useState<string | null>(null);
   const [coins, setCoins] = useState(remoteSnapshot?.profile.coins ?? DEFAULT_LOCAL_PROGRESS.coins);
   const [xp, setXp] = useState(remoteSnapshot?.profile.xp ?? DEFAULT_LOCAL_PROGRESS.xp);
   const [currentAreaId, setCurrentAreaId] = useState<string | null>(
@@ -489,6 +505,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             onSave={bootstrap.source === "supabase" ? handleSaveRefuge : undefined}
           />
         ) : null}
+        {!showWelcome && view === "raid" ? <RaidView bootstrap={bootstrap} onOpenRaid={setRaidRoomId} /> : null}
         {!showWelcome && view === "pvp" ? <PvpView bootstrap={bootstrap} onOpenBattle={setPvpBattleId} /> : null}
         {!showWelcome && view === "profile" ? (
           <ProfileView
@@ -519,6 +536,18 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       </nav> : null}
 
       {toast ? <div className="game-toast" role="status" aria-live="polite"><Trophy /> {toast}</div> : null}
+      {raidRoomId && bootstrap.identity ? (
+        <div className="battle-overlay raid-overlay">
+          <RaidArena
+            roomId={raidRoomId}
+            playerId={bootstrap.identity.id}
+            onClose={() => {
+              setRaidRoomId(null);
+              if (bootstrap.source === "supabase") router.refresh();
+            }}
+          />
+        </div>
+      ) : null}
       {battleOpen || pvpSession ? (
         <div className="battle-overlay">
           <BattleArena
