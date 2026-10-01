@@ -1,5 +1,5 @@
 import type { BattleSide, BattleTerrain } from "../battle";
-import type { Element } from "../domain/elements";
+import type { Element, EnergyPool } from "../domain/elements";
 
 export const RAID_MIN_PLAYERS = 2 as const;
 export const RAID_MAX_PLAYERS = 5 as const;
@@ -118,7 +118,7 @@ export type RaidPlayerSetup = {
   name: string;
   seat: number;
   teamIds: readonly string[];
-  energy?: Partial<Record<Element, number>>;
+  energy?: EnergyPool;
 };
 
 export type RaidBossSetup = {
