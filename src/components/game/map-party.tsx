@@ -4,7 +4,6 @@ import { Copy, Link2, LogIn, LogOut, Radio, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GridPoint } from "@/game/exploration/pathfinding";
 import type { AvatarConfig } from "@/game/save/local-progress";
-import { DEFAULT_AVATAR_CONFIG } from "@/game/save/local-progress";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 
@@ -71,7 +70,12 @@ export function useMapParty({
   const [joinCode, setJoinCode] = useState("");
   const localChannel = useRef<BroadcastChannel | null>(null);
   const sessionRef = useRef<MapPartySession | null>(null);
-  sessionRef.current = session;
+  const membersRef = useRef<MapPartyMember[]>([]);
+
+  useEffect(() => {
+    sessionRef.current = session;
+    membersRef.current = members;
+  }, [members, session]);
 
   const selfId = useMemo(() => {
     if (online) return playerId ?? "";
@@ -142,7 +146,7 @@ export function useMapParty({
         return [...next, message.member].slice(0, 5);
       });
       if (message.type === "join") {
-        const me = members.find((member) => member.isSelf);
+        const me = membersRef.current.find((member) => member.isSelf);
         if (me) channel.postMessage({ type: "presence", roomCode: active.inviteCode, member: me } satisfies LocalMessage);
       }
     };
@@ -150,7 +154,7 @@ export function useMapParty({
       channel.close();
       localChannel.current = null;
     };
-  }, [members, online]);
+  }, [online]);
 
   function localSelf(point: GridPoint = { x: 4, y: 20 }): MapPartyMember {
     return {
