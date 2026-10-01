@@ -59,6 +59,11 @@ function createEnergyDeck(
         cards.push({
           id: `${sideId}:energy:${element}:${copy + 1}`,
           element,
+          origin: "inventory",
+          ownerId: sideId,
+          zone: "deck",
+          attachedTo: null,
+          status: "ready",
         });
       }
       if (cards.length >= ENERGY_DECK_SIZE) break;
@@ -70,6 +75,11 @@ function createEnergyDeck(
         cards.push({
           id: `${sideId}:energy:${element}:${copy + 1}`,
           element,
+          origin: "battle_deck",
+          ownerId: sideId,
+          zone: "deck",
+          attachedTo: null,
+          status: "ready",
         });
       }
     }
@@ -172,6 +182,7 @@ function makeSide(
   }
   const deck = createEnergyDeck(id, random, energyInventory);
   const hand = deck.splice(0, OPENING_HAND_SIZE);
+  for (const card of hand) card.zone = "hand";
   const powerDeck = createPowerDeck(id, teamIds, random);
   const powerHand = powerDeck.splice(0, 3);
   return {
@@ -367,6 +378,9 @@ function spendMatchingEnergy(side: BattleSide, creature: BattleCreature, amount:
     const index = creature.attachedEnergy.findIndex((card) => card.element === definition.element);
     if (index < 0) throw new GameRuleError(`São necessárias ${amount} Energias de ${ELEMENT_META[definition.element].name} para evoluir.`);
     const [spent] = creature.attachedEnergy.splice(index, 1);
+    spent.zone = "discard";
+    spent.attachedTo = null;
+    spent.status = "spent";
     side.energyDiscard.push(spent);
   }
 }
@@ -468,7 +482,12 @@ function expireActingStatuses(creature: BattleCreature) {
 }
 
 function discardAttachedEnergy(side: BattleSide, creature: BattleCreature) {
-  side.energyDiscard.push(...creature.attachedEnergy);
+  for (const card of creature.attachedEnergy) {
+    card.zone = "discard";
+    card.attachedTo = null;
+    card.status = "spent";
+    side.energyDiscard.push(card);
+  }
   creature.attachedEnergy = [];
 }
 
@@ -478,9 +497,17 @@ function drawEnergy(side: BattleSide, count: number): EnergyCard[] {
     if (side.energyDeck.length === 0 && side.energyDiscard.length > 0) {
       side.energyDeck = [...side.energyDiscard].reverse();
       side.energyDiscard = [];
+      for (const recycled of side.energyDeck) {
+        recycled.zone = "deck";
+        recycled.attachedTo = null;
+        recycled.status = "ready";
+      }
     }
     const card = side.energyDeck.shift();
     if (!card) break;
+    card.zone = "hand";
+    card.attachedTo = null;
+    card.status = "ready";
     side.energyHand.push(card);
     drawn.push(card);
   }
@@ -583,10 +610,13 @@ export function attachEnergy(
   const creature = side.team[creatureIndex];
   const cardIndex = side.energyHand.findIndex((card) => card.id === cardId);
   if (!creature || creature.defeated) throw new GameRuleError("Escolha uma carta de criatura disponível.");
-  if (side.attachmentsRemaining < 1) throw new GameRuleError("O limite é de duas energias anexadas por turno.");
+  if (side.attachmentsRemaining < 1) throw new GameRuleError("O limite normal é de uma Energia anexada por turno.");
   if (cardIndex < 0) throw new GameRuleError("Essa carta de energia não está na sua mão.");
 
   const [card] = side.energyHand.splice(cardIndex, 1);
+  card.zone = "attached";
+  card.attachedTo = creature.instanceId;
+  card.status = "ready";
   creature.attachedEnergy.push(card);
   side.attachmentsRemaining -= 1;
   const events = appendEvents(state, actionId, [{
@@ -685,6 +715,9 @@ function payCost(side: BattleSide, creature: BattleCreature, cost: EnergyCost) {
     for (let count = 0; count < amount; count += 1) {
       const index = remaining.findIndex((card) => card.element === element);
       const [spent] = remaining.splice(index, 1);
+      spent.zone = "discard";
+      spent.attachedTo = null;
+      spent.status = "spent";
       side.energyDiscard.push(spent);
     }
   }
