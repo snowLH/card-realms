@@ -616,3 +616,63 @@ using (
   topic like 'raid:room:%'
   and private.is_raid_participant(split_part(topic, ':', 3)::uuid)
 );
+
+
+create or replace function private.broadcast_raid_room()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $
+begin
+  perform realtime.broadcast_changes(
+    'raid:room:' || new.id::text,
+    tg_op, tg_op, tg_table_name, tg_table_schema, new, old
+  );
+  return new;
+end;
+$;
+
+create or replace function private.broadcast_raid_participant()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  target_room_id uuid := coalesce(new.room_id, old.room_id);
+begin
+  perform realtime.broadcast_changes(
+    'raid:room:' || target_room_id::text,
+    tg_op, tg_op, tg_table_name, tg_table_schema, new, old
+  );
+  return coalesce(new, old);
+end;
+$;
+
+create or replace function private.broadcast_raid_event()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $
+begin
+  perform realtime.broadcast_changes(
+    'raid:room:' || new.room_id::text,
+    tg_op, tg_op, tg_table_name, tg_table_schema, new, old
+  );
+  return new;
+end;
+$;
+
+create trigger raid_rooms_broadcast_changes
+after update on public.raid_rooms
+for each row execute function private.broadcast_raid_room();
+
+create trigger raid_participants_broadcast_changes
+after insert or update or delete on public.raid_participants
+for each row execute function private.broadcast_raid_participant();
+
+create trigger raid_room_events_broadcast_changes
+after insert on public.raid_room_events
+for each row execute function private.broadcast_raid_event();
