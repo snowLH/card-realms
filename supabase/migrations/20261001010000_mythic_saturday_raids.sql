@@ -639,7 +639,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = ''
-as $$
+as $raid$
 begin
   perform realtime.broadcast_changes(
     'raid:room:' || new.id::text,
@@ -647,14 +647,14 @@ begin
   );
   return new;
 end;
-$$;
+$raid$;
 
 create or replace function private.broadcast_raid_participant()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $raid$
 declare
   target_room_id uuid;
 begin
@@ -674,14 +674,14 @@ begin
   end if;
   return new;
 end;
-$;
+$raid$;
 
 create or replace function private.broadcast_raid_event()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
-as $$
+as $raid$
 begin
   perform realtime.broadcast_changes(
     'raid:room:' || new.room_id::text,
@@ -689,7 +689,7 @@ begin
   );
   return new;
 end;
-$$;
+$raid$;
 
 create trigger raid_rooms_broadcast_changes
 after update on public.raid_rooms
