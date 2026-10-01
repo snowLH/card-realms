@@ -118,6 +118,7 @@ export type RaidPlayerSetup = {
   name: string;
   seat: number;
   teamIds: readonly string[];
+  evolutionStages?: readonly number[];
   energy?: EnergyPool;
 };
 
