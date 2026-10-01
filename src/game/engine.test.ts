@@ -4,6 +4,7 @@ import { ELEMENTS, type BattleState, type Element } from "./types";
 import {
   GameRuleError,
   attachEnergy,
+  concedeBattle,
   createDemoBattle,
   createPvpBattle,
   getActive,
@@ -163,6 +164,21 @@ describe("motor de combate Card Realms v2", () => {
       sourceAttackId: "test",
     });
     expect(() => switchActiveCreature(state, "player-one", 1, "switch")).toThrow("enraizada");
+  });
+
+  it("encerra PVP por desistência mesmo fora do turno do desistente", () => {
+    const state = createPvpBattle(
+      "00000000-0000-4000-8000-000000000010",
+      { id: "00000000-0000-4000-8000-000000000011", name: "Ana", teamIds: ["boitata"] },
+      { id: "00000000-0000-4000-8000-000000000012", name: "Beto", teamIds: ["iara"] },
+      () => 0.9,
+    );
+    const quitter = state.sides.find((side) => side.id !== state.turn.sideId)!;
+    const winner = state.sides.find((side) => side.id === state.turn.sideId)!;
+    const result = concedeBattle(state, quitter.id, "concede-test");
+    expect(result.state.status).toBe("finished");
+    expect(result.state.winnerId).toBe(winner.id);
+    expect(result.events.map((event) => event.kind)).toEqual(["conceded", "battle_end"]);
   });
 
   it("oferece a ação de passar para nunca travar um turno", () => {
