@@ -17,7 +17,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { CREATURE_BY_ID } from "@/game/catalog";
 import type { ProgressSource, RemotePlayerSnapshot } from "@/game/player";
@@ -127,13 +127,6 @@ export function RefugeView({
   const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
   const [status, setStatus] = useState("");
 
-  useEffect(() => {
-    if (editing) return;
-    setCompanionId(resolveRefugeResident(house?.layout?.residentCreatureId, ownedCatalogIds));
-    setTheme(resolveTheme(house));
-    setFurniture(parseFurniture(house));
-    setSelectedFurnitureId(null);
-  }, [editing, house, ownedCatalogIds]);
 
   const companion = companionId && ownedCatalogIds.includes(companionId)
     ? CREATURE_BY_ID.get(companionId)
