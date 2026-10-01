@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify:deploy": "npm run typecheck && npm run lint && npm test && npm run build",
     "test:staging:realtime": "node scripts/staging-realtime-probe.mjs",
     "test:staging:polling": "node scripts/staging-polling-probe.mjs",
     "test:staging:pvp-finish": "node scripts/staging-pvp-finish.mjs",
