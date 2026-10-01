@@ -15,7 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CREATURES, ELEMENT_META, IMPLEMENTATION_NOTE } from "@/game/catalog";
 import type { RemotePlayerSnapshot } from "@/game/player";
 import {
@@ -101,7 +101,6 @@ export function CollectionView({
     });
   }, [element, query, rarity, role]);
 
-  useEffect(() => setPage(1), [element, query, rarity, role]);
 
   const totalPages = Math.max(1, Math.ceil(creatures.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
