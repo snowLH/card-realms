@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
 import type { ProgressSource, RemotePlayerSnapshot } from "@/game/player";
 import { Button } from "@/components/ui/button";
@@ -41,10 +41,6 @@ export function TeamView({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    setMembers(initialMembers);
-    setName(team?.name ?? "Equipe principal");
-  }, [initialMembers, team?.name]);
 
   const ownedById = useMemo(
     () => new Map(collection.map((creature) => [creature.instanceId, creature])),
