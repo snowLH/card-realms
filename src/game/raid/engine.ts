@@ -392,6 +392,7 @@ export function attachRaidEnergy(
   card.status = "ready";
   creature.attachedEnergy.push(card);
   player.side.attachmentsRemaining -= 1;
+  player.contribution.actions += 1;
 
   const events = appendEvents(state, actionId, [{
     actorId: playerId,
@@ -419,6 +420,7 @@ export function drawRaidPower(
   const [card] = drawPower(player.side, 1);
   if (!card) throw new RaidRuleError("O Baralho de Poder está vazio.");
   player.side.powerDrawsRemaining -= 1;
+  player.contribution.actions += 1;
   const attack = getAttackById(card.attackId);
   const events = appendEvents(state, actionId, [{
     actorId: playerId,
@@ -467,6 +469,7 @@ export function equipRaidPower(
   const [spent] = player.side.powerHand.splice(cardIndex, 1);
   player.side.powerDiscard.push(spent);
   creature.equippedPowerIds[targetSlot] = card.attackId;
+  player.contribution.actions += 1;
 
   const events = appendEvents(state, actionId, [{
     actorId: playerId,
@@ -759,7 +762,7 @@ export function switchRaidCreature(
   const forced = player.needsSwitch;
   player.side.activeIndex = nextIndex;
   player.needsSwitch = false;
-  if (!forced) player.contribution.actions += 1;
+  player.contribution.actions += 1;
   const events = appendEvents(state, actionId, [{
     actorId: playerId,
     kind: "creature_switched",
@@ -812,6 +815,8 @@ export function evolveRaidCreature(
   creature.maxHp += bonus;
   creature.hp = Math.min(creature.maxHp, creature.hp + bonus);
   creature.shield += 12;
+  player.contribution.actions += 1;
+  player.contribution.shield += 12;
 
   const completed = appendEvents(state, `${actionId}:done`, [{
     actorId: playerId,
@@ -831,6 +836,7 @@ export function passRaidTurn(
   const state = structuredClone(input);
   const player = assertPlayerAction(state, playerId, actionId);
   if (player.needsSwitch) throw new RaidRuleError("Escolha a próxima criatura antes de passar.");
+  player.contribution.actions += 1;
   const events = appendEvents(state, actionId, [{
     actorId: playerId,
     kind: "passed",
