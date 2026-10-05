@@ -1,0 +1,3341 @@
+import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
+import { ARPG_ASSET_MANIFEST, getArpgSpriteSheetFrameConfig } from "../assets";
+import type { ArpgDungeonRuntimeConfig, DungeonLoot } from "../content/dungeons";
+import {
+  ARPG_ARMOR_BY_ID,
+  ARPG_ARMORS,
+  ARPG_WEAPON_BY_ID,
+  ARPG_WEAPONS,
+  getArmorAbilityCooldownMs,
+  getArmorDashCooldownMs,
+  getArmorMovingDefenseBonus,
+  getArmorRetaliationDamage,
+  getWeaponAttackIntervalMs,
+  getWeaponAttackProc,
+} from "../content/equipment";
+import {
+  ARPG_RELIC_BY_ID,
+  getRelicAbilityCooldownMs,
+  getRelicChestHeal,
+  getRelicXpMultiplier,
+  STARTER_ARPG_RELIC_ID,
+} from "../content/relics";
+import {
+  DEFAULT_ARPG_LOADOUT,
+  MATA_CARDS,
+} from "../content/mata-encantada";
+import type {
+  ArpgDungeonMapState,
+  ArpgHudState,
+  ArpgLoadout,
+  ArpgMiniMapRoomState,
+  ArpgRoomChoiceState,
+  ArpgRunLootEntry,
+  ArpgRuntimeBridge,
+} from "../domain/types";
+import type { ArpgDungeonCombatCommand, ArpgDungeonCombatState } from "../dungeon/combat-authority";
+import type { DungeonManager } from "../dungeon/manager";
+import { buildDungeonNavigation } from "../dungeon/navigation";
+import {
+  applyBreakableObjectDamage,
+  createBreakableObjectPlacements,
+  getUnbrokenBreakablePlacements,
+} from "../dungeon/breakable-objects";
+import { CombatRoomController } from "../dungeon/room-controller";
+import { createRunLootAssignments, rollCombatRoomCache, type RunCacheReward } from "../dungeon/rewards";
+import {
+  getRunShardReward,
+  getSpecialRoomEncounter,
+  isWithinSpecialRoomInteractionRange,
+  resolveSpecialRoomChoice,
+  type SpecialRoomChoiceId,
+  type SpecialRoomEncounter,
+} from "../dungeon/special-rooms";
+import type { DungeonRoom } from "../dungeon/types";
+import { snapshotArpgRunCheckpoint, type ArpgRunCheckpoint } from "../dungeon/run-checkpoint";
+import { DungeonWorldRuntime } from "./dungeon-world";
+import { ArpgAudio, type ArpgSoundCue } from "./arpg-audio";
+import { acceptServerConfirmedCombatResponse } from "./visual-events";
+import { getEnemyMovementIntent, type EnemyCombatRole } from "./enemy-behavior";
+import { getCurupiraBossPattern, getCurupiraBossPhase } from "./boss-patterns";
+import { readBrowserGamepad, type GamepadFrame } from "./gamepad";
+import { pickGroupMember } from "./group-member";
+import { findGridPath, type GridNavigation, type WorldPoint } from "../navigation/grid-path";
+import type { Rarity } from "../../domain/creatures";
+import {
+  CHEST_LOOT_RARITY_PRESENTATION,
+  claimChestLootVisualSlot,
+  findChestLootLandingPoint,
+  getChestLootVisualDetails,
+} from "./chest-loot-presentation";
+import {
+  CARTOGRAPHER_PLAYER_FRAME_SIZE,
+  CARTOGRAPHER_PLAYER_SCALE,
+  CARTOGRAPHER_PLAYER_TEXTURE,
+  createCartographerAvatarSpritesheet,
+  playCartographerPlayerAnimation,
+  registerCartographerPlayerAnimations,
+  type CartographerPlayerAction,
+} from "./player-sprites";
+import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
+import {
+  getArpgEnemyAnimationProfile,
+  isArpgEnemyAnimationProfile,
+  playArpgEnemyAnimation,
+  registerArpgEnemyAnimations,
+  type ArpgEnemyAnimation,
+  type ArpgEnemyAnimationProfile,
+} from "./enemy-sprites";
+import {
+  alignTreasureChestToGround,
+  getTreasureChestFrameBounds,
+  registerTreasureChestAnimation,
+  TREASURE_CHEST_ASSET_PATH,
+  TREASURE_CHEST_DISPLAY_SCALE,
+  TREASURE_CHEST_OPEN_ANIMATION_KEY,
+  TREASURE_CHEST_TEXTURE,
+} from "./treasure-chest-sprites";
+
+type PhaserModule = typeof import("phaser");
+type ArcadeSprite = import("phaser").Physics.Arcade.Sprite;
+type Key = import("phaser").Input.Keyboard.Key;
+
+type KeyMap = {
+  up: Key;
+  down: Key;
+  left: Key;
+  right: Key;
+  dash: Key;
+  interact: Key;
+  one: Key;
+  two: Key;
+};
+type ClickPointer = Pick<import("phaser").Input.Pointer, "button" | "wasTouch" | "worldX" | "worldY">;
+type ChestPresentationPhase = "rise" | "pause" | "fall" | "contact" | "waiting-choice" | "cache";
+type ChestLootPresentation = {
+  id: number;
+  kind: "loot" | "cache";
+  roomId: string | null;
+  itemId: string;
+  rarity: Rarity | null;
+  phase: ChestPresentationPhase;
+  chest: import("phaser").GameObjects.Sprite;
+  item: import("phaser").GameObjects.Image | null;
+  shadow: import("phaser").GameObjects.Ellipse | null;
+  effects: import("phaser").GameObjects.GameObject[];
+  tweens: import("phaser").Tweens.Tween[];
+  timers: import("phaser").Time.TimerEvent[];
+  visualSlot: { claimed: boolean };
+  itemSpawnCount: number;
+  landingPoint: WorldPoint;
+  loot: DungeonLoot | null;
+  resolved: boolean;
+};
+const CACHE_FRAGMENT_FEEDBACK = { color: 0x9bcf69, sparkleCount: 6, outlineCount: 1 };
+type SpecialRoomAnchor = {
+  encounter: SpecialRoomEncounter;
+  x: number;
+  y: number;
+  display: import("phaser").GameObjects.Container;
+  prompt: import("phaser").GameObjects.Text;
+};
+
+const WORLD_WIDTH = 1280;
+const WORLD_HEIGHT = 720;
+const PLAYER_BASE_HP = 120;
+const PLAYER_BASE_SPEED = 220;
+const DASH_SPEED = 610;
+const DASH_MS = 170;
+const DASH_COOLDOWN_MS = 820;
+const ABILITY_COLORS = {
+  fire: 0xff6b33,
+  water: 0x73d8ff,
+  nature: 0x81c66c,
+  storm: 0x9edcff,
+  spirit: 0xc9a9ff,
+} as const;
+export function createArpgDungeonScene(
+  Phaser: PhaserModule,
+  bridge: ArpgRuntimeBridge,
+  dungeon: ArpgDungeonRuntimeConfig,
+  loadout: ArpgLoadout = DEFAULT_ARPG_LOADOUT,
+  lootPlan: readonly DungeonLoot[] = dungeon.createLootPlan(),
+  dungeonManager?: DungeonManager,
+  checkpoint?: ArpgRunCheckpoint,
+  avatarConfig: AvatarConfig = DEFAULT_AVATAR_CONFIG,
+) {
+  const startingArmor = ARPG_ARMOR_BY_ID.get(checkpoint?.armorId ?? loadout.armorId) ?? ARPG_ARMORS[0];
+  const selectedRelic = ARPG_RELIC_BY_ID.get(loadout.relicId)
+    ?? ARPG_RELIC_BY_ID.get(STARTER_ARPG_RELIC_ID)!;
+  const selectedCards = loadout.abilityIds.map((id) =>
+    ARPG_ABILITY_CARD_BY_ID.get(id) ?? MATA_CARDS[0]
+  ) as [typeof MATA_CARDS[number], typeof MATA_CARDS[number]];
+
+  return class ArpgDungeonScene extends Phaser.Scene {
+    private player!: ArcadeSprite;
+    private enemies!: import("phaser").Physics.Arcade.Group;
+    private projectiles!: import("phaser").Physics.Arcade.Group;
+    private enemyProjectiles!: import("phaser").Physics.Arcade.Group;
+    private benchmarkParticleEmitter: import("phaser").GameObjects.Particles.ParticleEmitter | null = null;
+    private breakableObjects!: import("phaser").Physics.Arcade.Group;
+    private breakableRooms = new Set<string>();
+    private pendingEnemySpawns = new Map<ArcadeSprite, { activateAt: number; scaleX: number; scaleY: number }>();
+    private keys!: KeyMap;
+    private gamepadPressedButtons = new Set<number>();
+    private gamepad: GamepadFrame = {
+      connected: false, moveX: 0, moveY: 0, aimX: 0, aimY: 0,
+      attack: false, dashPressed: false,
+      interactPressed: false,
+      abilityPressed: [false, false],
+    };
+    private hp = Math.max(0, Math.min(checkpoint?.maxHp ?? PLAYER_BASE_HP + startingArmor.maxHpBonus, checkpoint?.playerHp ?? PLAYER_BASE_HP + startingArmor.maxHpBonus));
+    private maxHp = checkpoint?.maxHp ?? PLAYER_BASE_HP + startingArmor.maxHpBonus;
+    private roomIndex = 0;
+    private roomWaves = dungeon.createRoomPlan();
+    private dungeonWorld: DungeonWorldRuntime | null = null;
+    private navigation: GridNavigation | null = null;
+    private clickPath: WorldPoint[] = [];
+    private clickPathIndex = 0;
+    private suppressDesktopAttackUntil = 0;
+    private audio: ArpgAudio | null = null;
+    private proceduralRoomId: string | null = dungeonManager?.getCurrentRoom().id ?? null;
+    private proceduralController: CombatRoomController | null = null;
+    private proceduralWaveTransitionScheduled = false;
+    private serverCombatState: ArpgDungeonCombatState | null = checkpoint?.serverCombatState ?? null;
+    private serverCombatActionSequence = 0;
+    private serverCombatLastRequestAt = 0;
+    private serverCombatRequestsInFlight = 0;
+    private serverActionPending = false;
+    private readonly serverDefeatedEnemyIds = new Set<string>();
+    private readonly serverProjectileVisuals = new Map<string, import("phaser").GameObjects.Arc>();
+    private readonly serverHazardVisuals = new Map<string, import("phaser").GameObjects.Shape>();
+    private serverProjectileRoomId: string | null = null;
+    private serverHazardRoomId: string | null = null;
+    private readonly runLootAssignments = dungeonManager ? createRunLootAssignments(dungeonManager.getGraph()) : {};
+    private readonly brokenBreakableIds = new Set(checkpoint?.brokenBreakableIds ?? []);
+    private chestLoot: DungeonLoot | null = null;
+    private chestRoomId: string | null = null;
+    private chestLootIndex: number | null = null;
+    private chestCacheReward: Extract<RunCacheReward, { kind: "cache" }> | null = null;
+    private exitPortal: import("phaser").GameObjects.Container | null = null;
+    private exitPortalAvailable = checkpoint?.exitPortalAvailable ?? false;
+    private xpEarned = checkpoint?.xpEarned ?? 0;
+    private currentWeaponId = checkpoint?.weaponId ?? loadout.weaponId;
+    private currentArmorId = checkpoint?.armorId ?? startingArmor.id;
+    private runLoot: ArpgRunLootEntry[] = checkpoint?.runLoot.map((item) => ({ ...item })) ?? [];
+    private runShards = checkpoint?.runShards ?? 0;
+    private pendingLoot: DungeonLoot | null = null;
+    private pendingRoomChoice: ArpgRoomChoiceState | null = null;
+    private readonly specialRoomAnchors = new Map<string, SpecialRoomAnchor>();
+    private runMoveSpeedBonus = checkpoint?.runMoveSpeedBonus ?? 0;
+    private runBasicDamageMultiplier = checkpoint?.runBasicDamageMultiplier ?? 1;
+    private chest: import("phaser").GameObjects.Sprite | null = null;
+    private chestPresentation: ChestLootPresentation | null = null;
+    private nextChestPresentationId = 1;
+    private chestPhysicsPausedByPresentation = false;
+    private chestPrompt: import("phaser").GameObjects.Text | null = null;
+    private dungeonDebugText: import("phaser").GameObjects.Text | null = null;
+    private playerLifecycleEvents: Array<{ event: string; sceneTime: number; stack?: string }> = [];
+    private activeCurupiraRootBarriers = 0;
+    private chestAvailable = false;
+    private chestOpening = false;
+    private nextAttackAt = 0;
+    private basicAttackCounter = 0;
+    private nextDashAt = 0;
+    private nextPlayerDamageAt = 0;
+    private dashingUntil = 0;
+    private moveVector = new Phaser.Math.Vector2();
+    private aimVector = new Phaser.Math.Vector2(1, 0);
+    private dashVector = new Phaser.Math.Vector2(1, 0);
+    private abilityReadyAt: Record<string, number> = Object.fromEntries(
+      selectedCards.map((card) => [card.id, 0]),
+    );
+    private lastHudAt = 0;
+    private runEnded = false;
+    private victory = false;
+    private roomTransitionScheduled = false;
+    private playerActionUntil = 0;
+
+    constructor() {
+      super(dungeon.sceneKey);
+    }
+
+    preload() {
+      this.load.image(ARPG_ASSET_MANIFEST.runtimeTextureKeys.dungeonBackground, dungeon.background);
+      this.load.spritesheet(
+        TREASURE_CHEST_TEXTURE,
+        TREASURE_CHEST_ASSET_PATH,
+        getArpgSpriteSheetFrameConfig(ARPG_ASSET_MANIFEST.props.treasureChest),
+      );
+      this.load.spritesheet(CARTOGRAPHER_PLAYER_TEXTURE, createCartographerAvatarSpritesheet(avatarConfig), {
+        ...getArpgSpriteSheetFrameConfig(ARPG_ASSET_MANIFEST.player),
+      });
+      this.load.spritesheet(
+        ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreatures.textureKey,
+        ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreatures.path,
+        getArpgSpriteSheetFrameConfig(ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreatures),
+      );
+      this.load.spritesheet(
+        ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreaturesSecond.textureKey,
+        ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreaturesSecond.path,
+        getArpgSpriteSheetFrameConfig(ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreaturesSecond),
+      );
+      for (const profile of new Set(Object.values(dungeon.enemyAnimations ?? {}).filter(isArpgEnemyAnimationProfile))) {
+        const definition = getArpgEnemyAnimationProfile(profile);
+        this.load.spritesheet(definition.textureKey, definition.path, getArpgSpriteSheetFrameConfig(definition));
+      }
+    }
+    create() {
+      this.cameras.main.setBackgroundColor("#102018");
+      const audio = new ArpgAudio(dungeonManager?.getGraph().regionId ?? dungeon.id);
+      this.audio = audio;
+      audio.setEnabled(bridge.getSoundEnabled());
+      const offSoundEnabled = bridge.onSoundEnabled((enabled) => audio.setEnabled(enabled));
+      const disposeAudio = () => {
+        offSoundEnabled();
+        audio.destroy();
+        if (this.audio === audio) this.audio = null;
+      };
+      this.events.once("shutdown", disposeAudio);
+      this.events.once("destroy", disposeAudio);
+      this.events.once("shutdown", () => this.clearChestPresentation(false));
+      this.events.once("destroy", () => this.clearChestPresentation(false));
+      this.events.once("shutdown", () => this.clearServerProjectileVisuals());
+      this.events.once("destroy", () => this.clearServerProjectileVisuals());
+      this.events.once("shutdown", () => this.clearServerHazardVisuals());
+      this.events.once("destroy", () => this.clearServerHazardVisuals());
+      this.createRuntimeTextures();
+      registerCartographerPlayerAnimations(this);
+      registerTreasureChestAnimation(this);
+      for (const profile of new Set(Object.values(dungeon.enemyAnimations ?? {}).filter(isArpgEnemyAnimationProfile))) {
+        const { textureKey } = getArpgEnemyAnimationProfile(profile);
+        if (this.textures.exists(textureKey)) registerArpgEnemyAnimations(this, profile);
+      }
+
+      let playerStart = { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
+      if (dungeonManager) {
+        this.registry.set("dungeonGraph", dungeonManager.getGraph());
+        this.dungeonWorld = new DungeonWorldRuntime(
+          this,
+          dungeonManager.getGraph(),
+          (locked) => this.playSound(locked ? "door-close" : "door-open"),
+        ).build();
+        this.navigation = buildDungeonNavigation(dungeonManager.getGraph(), this.dungeonWorld.layout);
+        const currentRoom = dungeonManager.getCurrentRoom();
+        playerStart = this.dungeonWorld.getRoomCenter(currentRoom.id);
+        if (checkpoint?.serverCombatState?.roomId === currentRoom.id) {
+          const layout = this.dungeonWorld.layout.rooms[currentRoom.id];
+          playerStart = {
+            x: layout.left + checkpoint.serverCombatState.playerX,
+            y: layout.top + checkpoint.serverCombatState.playerY,
+          };
+        }
+      } else {
+        this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+        this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+        const background = this.add.image(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, "dungeon-arena");
+        background.setDisplaySize(WORLD_WIDTH, WORLD_HEIGHT);
+        background.setAlpha(0.78);
+        this.drawRoomFrame();
+      }
+
+      this.player = this.physics.add.sprite(playerStart.x, playerStart.y, CARTOGRAPHER_PLAYER_TEXTURE, 0);
+      this.player.setScale(CARTOGRAPHER_PLAYER_SCALE);
+      this.player.setDepth(10);
+      this.player.setCollideWorldBounds(true);
+      const playerBodyWidth = 22 / CARTOGRAPHER_PLAYER_SCALE;
+      const playerBodyHeight = 28 / CARTOGRAPHER_PLAYER_SCALE;
+      this.player.setSize(playerBodyWidth, playerBodyHeight)
+        .setOffset((CARTOGRAPHER_PLAYER_FRAME_SIZE - playerBodyWidth) / 2, 65);
+      playCartographerPlayerAnimation(this.player, "idle");
+      this.dungeonWorld?.attachPlayer(this.player);
+
+      this.enemies = this.physics.add.group();
+      this.projectiles = this.physics.add.group({ maxSize: 320 });
+      this.enemyProjectiles = this.physics.add.group({ maxSize: 320 });
+      this.breakableObjects = this.physics.add.group({ maxSize: 36 });
+      this.dungeonWorld?.attachEnemies(this.enemies);
+
+      this.physics.add.overlap(
+        this.projectiles,
+        this.enemies,
+        (projectile, enemy) => this.handleProjectileHit(projectile as ArcadeSprite, enemy as ArcadeSprite),
+      );
+      this.physics.add.overlap(
+        this.projectiles,
+        this.breakableObjects,
+        (objectA, objectB) => {
+          const projectile = pickGroupMember(
+            (candidate) => this.projectiles.contains(candidate),
+            objectA as ArcadeSprite,
+            objectB as ArcadeSprite,
+          );
+          const breakable = pickGroupMember(
+            (candidate) => this.breakableObjects.contains(candidate),
+            objectA as ArcadeSprite,
+            objectB as ArcadeSprite,
+          );
+          if (projectile && breakable) this.handleProjectileBreakableHit(projectile, breakable);
+        },
+      );
+      this.physics.add.overlap(
+        this.enemyProjectiles,
+        this.player,
+        (objectA, objectB) => {
+          const projectile = pickGroupMember(
+            (candidate) => this.enemyProjectiles.contains(candidate),
+            objectA as ArcadeSprite,
+            objectB as ArcadeSprite,
+          );
+          if (projectile) this.handleEnemyProjectileHit(projectile);
+        },
+      );
+
+      this.keys = this.input.keyboard!.addKeys({
+        up: "W", down: "S", left: "A", right: "D",
+        dash: "SPACE", interact: "E",
+        one: "ONE", two: "TWO",
+      }) as KeyMap;
+
+      this.game.canvas.oncontextmenu = (event) => event.preventDefault();
+      this.input.mouse?.disableContextMenu();
+      this.input.on("pointerdown", this.setClickDestination, this);
+      this.events.once("shutdown", () => this.input.off("pointerdown", this.setClickDestination, this));
+      this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+      if (dungeonManager && this.dungeonWorld) {
+        this.dungeonWorld.focusCamera(dungeonManager.getCurrentRoom().id);
+        this.createDungeonDebugOverlay();
+        if (checkpoint) {
+          const room = dungeonManager.getCurrentRoom();
+          if (checkpoint.exitPortalAvailable) this.createExitPortal(room);
+          else if (checkpoint.rewardRoomId === room.id) this.spawnProceduralReward(room, this.time.now);
+          else if (room.id !== dungeonManager.getGraph().startRoomId && room.state !== "cleared") {
+            this.activateProceduralRoom(room, this.time.now);
+          }
+          bridge.emitMessage(`Run retomada em ${this.proceduralRoomLabel(room)}. Clique ou toque no chão para andar; WASD e joystick continuam disponíveis.`);
+        } else {
+          bridge.emitMessage(`Expedição gerada: ${dungeon.name}. Clique ou toque no chão para andar; atravesse uma porta para explorar a run.`);
+        }
+      } else {
+        this.spawnCurrentRoom();
+        bridge.emitMessage(`${dungeon.messages.intro} Clique ou toque no chão para andar; WASD também funciona.`);
+      }
+      this.emitHud(0);
+      this.emitRunCheckpoint();
+    }
+    update(time: number) {
+      if (this.runEnded) return;
+
+      const gamepadRead = readBrowserGamepad(this.gamepadPressedButtons);
+      this.gamepad = gamepadRead.frame;
+      this.gamepadPressedButtons = gamepadRead.pressedButtons;
+
+      const lootDecision = bridge.consumeLootDecision();
+      if (this.pendingLoot && lootDecision) this.resolvePendingLoot(lootDecision, time);
+      const roomChoice = bridge.consumeRoomChoice();
+      if (this.pendingRoomChoice && roomChoice) this.resolvePendingRoomChoice(roomChoice, time);
+      if (this.pendingLoot || this.pendingRoomChoice || this.chestOpening) {
+        this.player.setVelocity(0, 0);
+        this.updateTreasureChestPrompt();
+        if (time - this.lastHudAt >= 100) {
+          this.emitHud(time);
+          this.lastHudAt = time;
+        }
+        return;
+      }
+
+      this.cleanupExpiredProjectiles(time);
+      this.handleMovement(time);
+      if (dungeonManager && this.dungeonWorld) this.updateProceduralRoom(time);
+      this.syncServerCombatHeartbeat(time);
+      this.activatePendingEnemySpawns(time);
+      this.handleCombatInput(time);
+      this.updateEnemies(time);
+      this.checkRoomProgress(time);
+      this.updateTreasureChestPrompt();
+
+      if (time - this.lastHudAt >= 100) {
+        this.emitHud(time);
+        this.lastHudAt = time;
+      }
+    }
+
+    private createRuntimeTextures() {
+      const graphics = this.add.graphics();
+
+      graphics.fillStyle(0x29472f, 1);
+      graphics.fillRect(5, 9, 27, 23);
+      graphics.fillStyle(0x4f7d43, 1);
+      graphics.fillRect(2, 5, 10, 9);
+      graphics.fillRect(12, 2, 10, 10);
+      graphics.fillRect(24, 5, 10, 9);
+      graphics.fillStyle(0xf4d56b, 1);
+      graphics.fillRect(10, 17, 4, 4);
+      graphics.fillRect(23, 17, 4, 4);
+      graphics.fillStyle(0x18271d, 1);
+      graphics.fillRect(8, 32, 7, 4);
+      graphics.fillRect(22, 32, 7, 4);
+      graphics.generateTexture("arpg-enemy", 36, 36);
+      graphics.clear();
+
+      graphics.fillStyle(0xffffff, 1);
+      graphics.fillRect(3, 3, 7, 7);
+      graphics.generateTexture("arpg-projectile", 13, 13);
+
+      graphics.clear();
+      graphics.fillStyle(0x64402a, 1);
+      graphics.fillRect(5, 8, 30, 28);
+      graphics.fillStyle(0xa96f3e, 1);
+      graphics.fillRect(8, 11, 24, 22);
+      graphics.fillStyle(0xd8a45d, 1);
+      graphics.fillRect(9, 12, 22, 3);
+      graphics.lineStyle(3, 0x59351f, 1);
+      graphics.strokeRect(5, 8, 30, 28);
+      graphics.lineBetween(9, 13, 31, 32);
+      graphics.lineBetween(31, 13, 9, 32);
+      graphics.generateTexture("arpg-breakable-crate", 40, 40);
+
+      graphics.clear();
+      graphics.fillStyle(0x663a32, 1);
+      graphics.fillRect(14, 5, 12, 6);
+      graphics.fillEllipse(20, 22, 26, 25);
+      graphics.fillStyle(0xb9664b, 1);
+      graphics.fillRect(15, 5, 10, 4);
+      graphics.fillRect(12, 15, 16, 4);
+      graphics.fillStyle(0xd49a69, 1);
+      graphics.fillRect(16, 7, 8, 2);
+      graphics.lineStyle(3, 0x663a32, 1);
+      graphics.strokeEllipse(20, 22, 26, 25);
+      graphics.generateTexture("arpg-breakable-vase", 40, 40);
+
+      graphics.clear();
+      graphics.fillStyle(0x513a25, 1);
+      graphics.fillRect(18, 27, 5, 10);
+      graphics.fillStyle(0x3e713c, 1);
+      graphics.fillEllipse(12, 18, 19, 19);
+      graphics.fillStyle(0x548b45, 1);
+      graphics.fillEllipse(24, 14, 19, 18);
+      graphics.fillStyle(0x6ba24d, 1);
+      graphics.fillEllipse(19, 9, 17, 15);
+      graphics.fillStyle(0x9cb85d, 1);
+      graphics.fillRect(12, 14, 4, 3);
+      graphics.fillRect(23, 11, 4, 3);
+      graphics.generateTexture("arpg-breakable-shrub", 40, 40);
+
+      graphics.clear();
+      graphics.fillStyle(0x514652, 1);
+      graphics.fillRect(8, 27, 24, 8);
+      graphics.fillStyle(0x918398, 1);
+      graphics.fillRect(12, 20, 16, 8);
+      graphics.fillStyle(0x89c6cb, 1);
+      graphics.fillPoints([
+        { x: 20, y: 3 }, { x: 29, y: 15 }, { x: 20, y: 25 }, { x: 11, y: 15 },
+      ], true);
+      graphics.fillStyle(0xc7ecdb, 0.92);
+      graphics.fillTriangle(20, 5, 20, 22, 27, 15);
+      graphics.lineStyle(2, 0x31525a, 1);
+      graphics.strokeRect(8, 27, 24, 8);
+      graphics.generateTexture("arpg-breakable-relic", 40, 40);
+
+      graphics.clear();
+      graphics.fillStyle(0x3f9690, 1);
+      graphics.fillPoints([
+        { x: 12, y: 1 }, { x: 22, y: 10 }, { x: 12, y: 23 }, { x: 2, y: 10 },
+      ], true);
+      graphics.fillStyle(0xc7f1bf, 0.96);
+      graphics.fillTriangle(12, 2, 12, 18, 20, 10);
+      graphics.lineStyle(2, 0x285f5f, 1);
+      graphics.strokePoints([
+        { x: 12, y: 1 }, { x: 22, y: 10 }, { x: 12, y: 23 }, { x: 2, y: 10 }, { x: 12, y: 1 },
+      ]);
+      graphics.generateTexture("arpg-run-fragment", 24, 24);
+
+      const generateLootTexture = (key: string, draw: () => void) => {
+        graphics.clear();
+        draw();
+        graphics.generateTexture(key, 32, 32);
+      };
+      generateLootTexture("arpg-loot-sword", () => {
+        graphics.fillStyle(0x332c31, 1);
+        graphics.fillRect(20, 1, 8, 7);
+        graphics.fillRect(16, 7, 8, 7);
+        graphics.fillRect(12, 13, 8, 7);
+        graphics.fillRect(8, 19, 8, 7);
+        graphics.fillRect(4, 24, 8, 6);
+        graphics.fillStyle(0xdce8dc, 1);
+        graphics.fillRect(22, 3, 4, 4);
+        graphics.fillRect(18, 9, 4, 4);
+        graphics.fillRect(14, 15, 4, 4);
+        graphics.fillRect(10, 21, 4, 4);
+        graphics.fillStyle(0x67482d, 1);
+        graphics.fillRect(2, 25, 13, 4);
+        graphics.fillRect(5, 22, 4, 10);
+        graphics.fillStyle(0xe2ba68, 1);
+        graphics.fillRect(5, 23, 3, 3);
+      });
+      generateLootTexture("arpg-loot-bow", () => {
+        graphics.fillStyle(0x342c2e, 1);
+        graphics.fillRect(22, 1, 6, 5);
+        graphics.fillRect(26, 5, 5, 9);
+        graphics.fillRect(27, 13, 5, 8);
+        graphics.fillRect(23, 20, 6, 7);
+        graphics.fillRect(18, 25, 7, 6);
+        graphics.fillStyle(0x9f6739, 1);
+        graphics.fillRect(23, 3, 3, 3);
+        graphics.fillRect(27, 7, 3, 6);
+        graphics.fillRect(28, 15, 3, 5);
+        graphics.fillRect(24, 22, 3, 4);
+        graphics.fillRect(20, 27, 4, 3);
+        graphics.lineStyle(1, 0xd9d2bd, 1);
+        graphics.lineBetween(20, 2, 20, 30);
+        graphics.fillStyle(0xe6c878, 1);
+        graphics.fillRect(17, 14, 6, 3);
+      });
+      generateLootTexture("arpg-loot-staff", () => {
+        graphics.fillStyle(0x342d35, 1);
+        graphics.fillRect(7, 18, 7, 7);
+        graphics.fillRect(12, 13, 7, 7);
+        graphics.fillRect(17, 8, 7, 7);
+        graphics.fillRect(22, 3, 7, 7);
+        graphics.fillStyle(0x96704a, 1);
+        graphics.fillRect(9, 20, 3, 4);
+        graphics.fillRect(14, 15, 3, 4);
+        graphics.fillRect(19, 10, 3, 4);
+        graphics.fillRect(24, 5, 3, 4);
+        graphics.fillStyle(0x382c43, 1);
+        graphics.fillRect(18, 1, 12, 11);
+        graphics.fillStyle(0xbba1df, 1);
+        graphics.fillPoints([{ x: 24, y: 1 }, { x: 29, y: 6 }, { x: 24, y: 11 }, { x: 19, y: 6 }], true);
+        graphics.fillStyle(0xf4e4ff, 1);
+        graphics.fillRect(23, 3, 3, 3);
+      });
+      generateLootTexture("arpg-loot-breastplate", () => {
+        graphics.fillStyle(0x332e32, 1);
+        graphics.fillRect(5, 3, 8, 5);
+        graphics.fillRect(19, 3, 8, 5);
+        graphics.fillRect(4, 7, 24, 6);
+        graphics.fillRect(6, 12, 20, 12);
+        graphics.fillRect(9, 23, 14, 6);
+        graphics.fillStyle(0x8b735c, 1);
+        graphics.fillRect(7, 8, 18, 4);
+        graphics.fillRect(9, 13, 14, 8);
+        graphics.fillRect(11, 22, 10, 5);
+        graphics.fillStyle(0xe2c98d, 1);
+        graphics.fillRect(14, 9, 4, 12);
+        graphics.fillRect(10, 14, 3, 3);
+        graphics.fillRect(19, 14, 3, 3);
+      });
+      generateLootTexture("arpg-loot-mantle", () => {
+        graphics.fillStyle(0x342d3a, 1);
+        graphics.fillRect(10, 3, 12, 6);
+        graphics.fillRect(7, 8, 18, 5);
+        graphics.fillRect(6, 12, 20, 8);
+        graphics.fillRect(4, 19, 24, 8);
+        graphics.fillRect(8, 26, 16, 4);
+        graphics.fillStyle(0x725584, 1);
+        graphics.fillRect(12, 5, 8, 3);
+        graphics.fillRect(9, 10, 14, 4);
+        graphics.fillRect(8, 15, 16, 4);
+        graphics.fillRect(7, 21, 18, 4);
+        graphics.fillStyle(0xd9bded, 1);
+        graphics.fillRect(14, 10, 4, 13);
+        graphics.fillRect(13, 24, 6, 3);
+      });
+      graphics.destroy();
+    }
+
+    private drawRoomFrame() {
+      const frame = this.add.graphics();
+      frame.lineStyle(10, 0x221511, 0.9);
+      frame.strokeRoundedRect(18, 18, WORLD_WIDTH - 36, WORLD_HEIGHT - 36, 28);
+      frame.lineStyle(3, 0xb58a52, 0.6);
+      frame.strokeRoundedRect(28, 28, WORLD_WIDTH - 56, WORLD_HEIGHT - 56, 24);
+      frame.setDepth(3);
+    }
+
+    private handleMovement(time: number) {
+      const touch = bridge.getInput();
+      let moveX = touch.moveX + this.gamepad.moveX;
+      let moveY = touch.moveY + this.gamepad.moveY;
+
+      if (this.keys.left.isDown) moveX -= 1;
+      if (this.keys.right.isDown) moveX += 1;
+      if (this.keys.up.isDown) moveY -= 1;
+      if (this.keys.down.isDown) moveY += 1;
+
+      const move = this.moveVector.set(moveX, moveY);
+      if (move.lengthSq() > 0.01) {
+        this.clearClickPath();
+      } else if (this.clickPathIndex < this.clickPath.length) {
+        while (this.clickPathIndex < this.clickPath.length) {
+          const target = this.clickPath[this.clickPathIndex];
+          const dx = target.x - this.player.x;
+          const dy = target.y - this.player.y;
+          const distance = Math.hypot(dx, dy);
+          if (distance > 16) {
+            move.set(dx / distance, dy / distance);
+            break;
+          }
+          this.clickPathIndex += 1;
+        }
+        if (this.clickPathIndex >= this.clickPath.length) this.clearClickPath();
+      }
+      if (move.lengthSq() > 1) move.normalize();
+
+      const dashPressed = Phaser.Input.Keyboard.JustDown(this.keys.dash)
+        || bridge.consumeDash()
+        || this.gamepad.dashPressed;
+      if (dashPressed && time >= this.nextDashAt) {
+        const source = move.lengthSq() > 0 ? move : this.resolveAimVector();
+        const dashArmor = ARPG_ARMOR_BY_ID.get(this.currentArmorId) ?? ARPG_ARMORS[0];
+        this.dashVector.copy(source).normalize();
+        if (bridge.isServerAuthoritativeCombat() && this.proceduralController && this.proceduralRoomId) {
+          if (!this.serverActionPending) {
+            this.submitServerCombatCommand(this.proceduralRoomId, "dash", time, undefined, {
+              x: this.dashVector.x,
+              y: this.dashVector.y,
+            });
+          }
+        } else {
+          this.dashingUntil = time + DASH_MS;
+          this.nextDashAt = time + getArmorDashCooldownMs(dashArmor, DASH_COOLDOWN_MS);
+          this.playPlayerAction("dodge", time, DASH_MS);
+          this.flashPlayer(0xcaf4d2, 150);
+        }
+      }
+
+      if (time < this.dashingUntil) {
+        this.player.setVelocity(this.dashVector.x * DASH_SPEED, this.dashVector.y * DASH_SPEED);
+        return;
+      }
+
+      const armor = ARPG_ARMOR_BY_ID.get(this.currentArmorId) ?? ARPG_ARMORS[0];
+      const speed = PLAYER_BASE_SPEED + armor.moveSpeedBonus + this.runMoveSpeedBonus;
+      this.player.setVelocity(move.x * speed, move.y * speed);
+      if (time < this.playerActionUntil) return;
+      if (move.lengthSq() < 0.001) {
+        playCartographerPlayerAnimation(this.player, "idle");
+      } else if (Math.abs(move.x) > Math.abs(move.y)) {
+        playCartographerPlayerAnimation(this.player, move.x < 0 ? "walk-left" : "walk-right");
+      } else {
+        playCartographerPlayerAnimation(this.player, move.y < 0 ? "walk-up" : "walk-down");
+      }
+    }
+
+    private resolveAimVector() {
+      const gamepadMagnitude = Math.abs(this.gamepad.aimX) + Math.abs(this.gamepad.aimY);
+      if (gamepadMagnitude > 0.1) {
+        return this.aimVector.set(this.gamepad.aimX, this.gamepad.aimY).normalize();
+      }
+      const touch = bridge.getInput();
+      if (touch.attack || Math.abs(touch.aimX) + Math.abs(touch.aimY) > 0.1) {
+        return this.aimVector.set(touch.aimX, touch.aimY).normalize();
+      }
+      const pointer = this.input.activePointer;
+      this.aimVector.set(pointer.worldX - this.player.x, pointer.worldY - this.player.y);
+      return this.aimVector.lengthSq() > 0.001 ? this.aimVector.normalize() : this.aimVector.set(1, 0);
+    }
+
+    private setClickDestination(pointer: ClickPointer) {
+      if (!this.navigation || !dungeonManager || !this.dungeonWorld) return false;
+      if (pointer.button !== 0 && !pointer.wasTouch) return false;
+      if (this.pendingLoot || this.pendingRoomChoice || this.chestOpening || this.runEnded) return false;
+
+      const destination = { x: pointer.worldX, y: pointer.worldY };
+      const currentRoom = dungeonManager.getCurrentRoom();
+      const targetRoom = this.dungeonWorld.findRoomAt(destination.x, destination.y, 28);
+      const lockedRoom = currentRoom.state === "combat";
+      if (lockedRoom && targetRoom?.id !== currentRoom.id) return false;
+
+      const path = findGridPath(this.navigation, this.player, destination, {
+        allowedRoomId: lockedRoom ? currentRoom.id : undefined,
+      });
+      this.clickPath = path?.slice(1) ?? [];
+      this.clickPathIndex = 0;
+      this.suppressDesktopAttackUntil = this.time.now + 180;
+      return Boolean(path?.length);
+    }
+
+    private clearClickPath() {
+      this.clickPath = [];
+      this.clickPathIndex = 0;
+    }
+
+    private handleCombatInput(time: number) {
+      const input = bridge.getInput();
+      const pointer = this.input.activePointer;
+      const desktopAttack = !pointer.wasTouch
+        && pointer.isDown
+        && pointer.leftButtonDown()
+        && time >= this.suppressDesktopAttackUntil;
+      if ((desktopAttack || input.attack || this.gamepad.attack) && time >= this.nextAttackAt) {
+        this.performBasicAttack(time);
+      }
+
+      if (
+        Phaser.Input.Keyboard.JustDown(this.keys.interact)
+        || bridge.consumeInteract()
+        || this.gamepad.interactPressed
+      ) {
+        if (this.chestAvailable) this.tryOpenChest(time);
+        else if (this.exitPortalAvailable) this.tryUseExitPortal(time);
+        else this.tryInteractSpecialRoom(time);
+      }
+
+      const abilityKeys = [this.keys.one, this.keys.two] as const;
+      if (pointer.rightButtonDown()) this.castAbility(1, time);
+      abilityKeys.forEach((key, index) => {
+        const slot = index as 0 | 1;
+        if (
+          Phaser.Input.Keyboard.JustDown(key)
+          || bridge.consumeAbility(slot)
+          || this.gamepad.abilityPressed[slot]
+        ) {
+          this.castAbility(slot, time);
+        }
+      });
+    }
+
+    private performBasicAttack(time: number) {
+      const weapon = ARPG_WEAPON_BY_ID.get(this.currentWeaponId) ?? ARPG_WEAPONS[0];
+      if (bridge.isServerAuthoritativeCombat() && this.proceduralController && this.proceduralRoomId) {
+        if (!this.serverActionPending) this.submitServerCombatCommand(this.proceduralRoomId, "basic_attack", time);
+        return;
+      }
+      this.playSound("attack");
+      const body = this.player.body as import("phaser").Physics.Arcade.Body | null;
+      const moving = (body?.velocity.lengthSq() ?? 0) > 64;
+      this.basicAttackCounter += 1;
+      const proc = getWeaponAttackProc(weapon, this.basicAttackCounter);
+      const basicDamage = Math.max(1, Math.round(weapon.damage * this.runBasicDamageMultiplier));
+      this.nextAttackAt = time + getWeaponAttackIntervalMs(weapon, moving);
+      this.playPlayerAction("attack", time, 300);
+      const aim = this.resolveCombatAim();
+      if (weapon.kind === "sword") {
+        const x = this.player.x + aim.x * 42;
+        const y = this.player.y + aim.y * 42;
+        this.damageEnemiesInRadius(x, y, weapon.range, basicDamage, false);
+        if (proc.cleaveMultiplier > 0) {
+          this.damageEnemiesInRadius(
+            x,
+            y,
+            Math.round(weapon.range * 1.25),
+            Math.max(1, Math.round(basicDamage * proc.cleaveMultiplier)),
+            false,
+          );
+          this.spawnPulse(x, y, Math.round(weapon.range * 1.18), ABILITY_COLORS.water);
+        } else {
+          this.spawnPulse(x, y, weapon.range, 0xd9e7b5);
+        }
+        return;
+      }
+
+      const tint = weapon.element === "spirit" ? 0xc9a9ff : weapon.element === "water" ? 0x73d8ff : 0xe7d48b;
+      this.fireProjectile(aim, basicDamage, weapon.projectileSpeed ?? 560, tint, 900, proc.piercing);
+
+      if (proc.echoMultiplier > 0) {
+        this.fireProjectile(
+          aim.clone().rotate(0.12),
+          Math.max(1, Math.round(basicDamage * proc.echoMultiplier)),
+          weapon.projectileSpeed ?? 560,
+          0xdfc7ff,
+          900,
+          false,
+        );
+        bridge.emitMessage(`${weapon.name}: Eco Espiritual.`);
+      }
+      if (proc.restoreHp > 0) {
+        this.hp = Math.min(this.maxHp, this.hp + proc.restoreHp);
+        this.flashPlayer(ABILITY_COLORS.water, 150);
+        bridge.emitMessage(`${weapon.name}: Eco Restaurador recupera vida.`);
+      }
+    }
+    private resolveCombatAim() {
+      const gamepadMagnitude = Math.abs(this.gamepad.aimX) + Math.abs(this.gamepad.aimY);
+      if (gamepadMagnitude > 0.1) {
+        return this.aimVector.set(this.gamepad.aimX, this.gamepad.aimY).normalize();
+      }
+
+      const touch = bridge.getInput();
+      const touchMagnitude = Math.abs(touch.aimX) + Math.abs(touch.aimY);
+      if (touchMagnitude > 0.1) {
+        return this.aimVector.set(touch.aimX, touch.aimY).normalize();
+      }
+
+      if (touch.attack || this.gamepad.attack) {
+        const nearest = this.findNearestEnemy();
+        if (nearest) {
+          return this.aimVector.set(nearest.x - this.player.x, nearest.y - this.player.y).normalize();
+        }
+      }
+
+      const pointer = this.input.activePointer;
+      this.aimVector.set(pointer.worldX - this.player.x, pointer.worldY - this.player.y);
+      return this.aimVector.lengthSq() > 0.001 ? this.aimVector.normalize() : this.aimVector.set(1, 0);
+    }
+
+    private findNearestEnemy(): ArcadeSprite | null {
+      let nearest: ArcadeSprite | null = null;
+      let nearestDistanceSq = Number.POSITIVE_INFINITY;
+      this.enemies.getChildren().forEach((child) => {
+        const enemy = child as ArcadeSprite;
+        if (!enemy.active || !enemy.getData("spawnReady")) return;
+        const dx = enemy.x - this.player.x;
+        const dy = enemy.y - this.player.y;
+        const distanceSq = dx * dx + dy * dy;
+        if (distanceSq < nearestDistanceSq) {
+          nearest = enemy;
+          nearestDistanceSq = distanceSq;
+        }
+      });
+      return nearest;
+    }
+
+    private castAbility(slot: 0 | 1, time: number) {
+      const card = selectedCards[slot];
+      if (!card) return;
+      if (time < this.abilityReadyAt[card.id]) return;
+      if (bridge.isServerAuthoritativeCombat() && this.proceduralController && this.proceduralRoomId) {
+        if (!this.serverActionPending) this.submitServerCombatCommand(this.proceduralRoomId, "ability", time, slot);
+        return;
+      }
+      this.playSound("ability");
+      const armor = ARPG_ARMOR_BY_ID.get(this.currentArmorId) ?? ARPG_ARMORS[0];
+      this.abilityReadyAt[card.id] = time + getRelicAbilityCooldownMs(
+        selectedRelic,
+        getArmorAbilityCooldownMs(armor, card.cooldownMs),
+      );
+      this.playPlayerAction("attack", time, 300);
+      const aim = this.resolveCombatAim();
+      const color = ABILITY_COLORS[card.element];
+
+      if (card.behavior === "projectile" || card.behavior === "piercing-projectile") {
+        this.fireProjectile(
+          aim,
+          card.damage,
+          card.projectileSpeed ?? 700,
+          color,
+          1050,
+          card.behavior === "piercing-projectile",
+        );
+      } else if (card.behavior === "self-area") {
+        const radius = card.radius ?? 140;
+        const roots = card.kind === "control";
+        this.damageEnemiesInRadius(
+          this.player.x,
+          this.player.y,
+          radius,
+          card.damage,
+          roots,
+          roots ? time + (card.durationMs ?? 1400) : 0,
+        );
+        this.spawnPulse(this.player.x, this.player.y, radius, color);
+      } else if (card.behavior === "targeted-control") {
+        const radius = card.radius ?? 150;
+        const x = this.player.x + aim.x * 150;
+        const y = this.player.y + aim.y * 150;
+        this.damageEnemiesInRadius(x, y, radius, card.damage, true, time + (card.durationMs ?? 1600));
+        this.spawnPulse(x, y, radius, color);
+      } else if (card.behavior === "renewal") {
+        this.hp = Math.min(this.maxHp, this.hp + (card.restoreHp ?? 40));
+        this.spawnPulse(this.player.x, this.player.y, card.radius ?? 105, color);
+        this.flashPlayer(color, 220);
+      }
+
+      bridge.emitMessage(`${card.name} ativada.`);
+      this.emitHud(time);
+    }
+    private fireProjectile(
+      direction: import("phaser").Math.Vector2,
+      damage: number,
+      speed: number,
+      tint: number,
+      lifeMs: number,
+      piercing: boolean,
+    ) {
+      const projectile = this.projectiles.get(this.player.x, this.player.y, "arpg-projectile") as ArcadeSprite | null;
+      if (!projectile) return;
+      projectile.setActive(true).setVisible(true).setTint(tint).setDepth(11);
+      projectile.body!.enable = true;
+      projectile.setCircle(5, 1, 1);
+      projectile.setVelocity(direction.x * speed, direction.y * speed);
+      projectile.setData("damage", damage);
+      projectile.setData("expiresAt", this.time.now + lifeMs);
+      projectile.setData("piercing", piercing);
+      projectile.setData("hitIds", new Set<string>());
+    }
+
+    private fireEnemyProjectile(
+      enemy: ArcadeSprite,
+      direction: import("phaser").Math.Vector2,
+      damage: number,
+      speed: number,
+      tint: number,
+      lifeMs = 1800,
+    ) {
+      if (bridge.isServerAuthoritativeCombat()) return;
+      const projectile = this.enemyProjectiles.get(enemy.x, enemy.y, "arpg-projectile") as ArcadeSprite | null;
+      if (!projectile) return;
+      projectile.setActive(true).setVisible(true).setTint(tint).setDepth(11);
+      projectile.body!.enable = true;
+      projectile.setCircle(5, 1, 1);
+      projectile.setVelocity(direction.x * speed, direction.y * speed);
+      projectile.setData("damage", damage);
+      projectile.setData("expiresAt", this.time.now + lifeMs);
+    }
+
+    private cleanupExpiredProjectiles(time: number) {
+      [this.projectiles, this.enemyProjectiles].forEach((group) => {
+        group.getChildren().forEach((child) => {
+          const projectile = child as ArcadeSprite;
+          if (!projectile.active) return;
+          if (time >= Number(projectile.getData("expiresAt"))) {
+            this.recycleProjectile(projectile);
+          }
+        });
+      });
+    }
+
+    private recycleProjectile(projectile: ArcadeSprite) {
+      projectile.setActive(false).setVisible(false).setVelocity(0, 0);
+      if (projectile.body) projectile.body.enable = false;
+    }
+
+    private clearEnemyProjectiles() {
+      this.enemyProjectiles.getChildren().forEach((child) => {
+        this.recycleProjectile(child as ArcadeSprite);
+      });
+    }
+
+    private handleProjectileHit(projectile: ArcadeSprite, enemy: ArcadeSprite) {
+      if (!projectile.active || !enemy.active || !enemy.getData("spawnReady")) return;
+      const hitIds = projectile.getData("hitIds") as Set<string>;
+      const enemyId = String(enemy.getData("runtimeId"));
+      if (hitIds.has(enemyId)) return;
+      hitIds.add(enemyId);
+      this.damageEnemy(enemy, Number(projectile.getData("damage")) || 0);
+      if (!projectile.getData("piercing")) this.recycleProjectile(projectile);
+    }
+    private handleEnemyProjectileHit(projectile: ArcadeSprite) {
+      if (!this.enemyProjectiles.contains(projectile) || !projectile.active || this.runEnded) return;
+      const time = this.time.now;
+      if (time < this.dashingUntil) {
+        this.recycleProjectile(projectile);
+        return;
+      }
+      if (time >= this.nextPlayerDamageAt) {
+        this.applyPlayerDamage(Number(projectile.getData("damage")) || 8, time);
+      }
+      this.recycleProjectile(projectile);
+    }
+
+    private damageEnemiesInRadius(
+      x: number,
+      y: number,
+      radius: number,
+      damage: number,
+      root: boolean,
+      rootedUntil = 0,
+    ) {
+      this.damageBreakablesInRadius(x, y, radius, damage);
+      this.enemies.getChildren().forEach((child) => {
+        const enemy = child as ArcadeSprite;
+        if (!enemy.active || !enemy.getData("spawnReady")) return;
+        if (Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y) > radius) return;
+        this.damageEnemy(enemy, damage);
+        if (root && enemy.active) enemy.setData("rootedUntil", rootedUntil);
+      });
+    }
+
+    private damageEnemy(enemy: ArcadeSprite, damage: number) {
+      if (bridge.isServerAuthoritativeCombat() && this.proceduralController) return;
+      this.playSound("enemy-hit");
+      const nextHp = Math.max(0, Number(enemy.getData("hp")) - damage);
+      enemy.setData("hp", nextHp);
+      enemy.setAlpha(0.45);
+      this.time.delayedCall(80, () => enemy.active && enemy.setAlpha(1));
+
+      if (nextHp > 0) return;
+      const baseXp = Number(enemy.getData("rewardXp")) || 0;
+      this.xpEarned += Math.round(baseXp * getRelicXpMultiplier(selectedRelic));
+      this.runShards += getRunShardReward(baseXp);
+      this.spawnPulse(enemy.x, enemy.y, 34, Number(enemy.getData("tint")) || 0xffffff);
+      const animationProfile = enemy.getData("animationProfile");
+      if (isArpgEnemyAnimationProfile(animationProfile)) {
+        if (enemy.getData("defeatPending")) return;
+        enemy.setData("defeatPending", true);
+        enemy.setData("spawnReady", false);
+        enemy.setVelocity(0, 0);
+        if (enemy.body) enemy.body.enable = false;
+        this.playTrackedEnemyAnimation(enemy, animationProfile, "defeat", true);
+        this.time.delayedCall(700, () => {
+          if (!enemy.scene) return;
+          enemy.disableBody(true, true);
+          if (dungeonManager && this.proceduralController) {
+            this.proceduralController.enemyDefeated();
+          }
+        });
+        return;
+      }
+      enemy.disableBody(true, true);
+      if (dungeonManager && this.proceduralController) {
+        this.proceduralController.enemyDefeated();
+      }
+    }
+
+    private spawnPulse(x: number, y: number, radius: number, color: number) {
+      const ring = this.add.circle(x, y, Math.max(12, radius * 0.15));
+      ring.setStrokeStyle(4, color, 0.9).setDepth(12);
+      this.tweens.add({
+        targets: ring,
+        radius,
+        alpha: 0,
+        duration: 360,
+        ease: "Quad.easeOut",
+        onComplete: () => ring.destroy(),
+      });
+    }
+    private updateProceduralRoom(time: number) {
+      if (!dungeonManager || !this.dungeonWorld) return;
+      const roomAtPlayer = this.dungeonWorld.findRoomAt(this.player.x, this.player.y, 28);
+      if (!roomAtPlayer) return;
+
+      if (roomAtPlayer.id !== this.proceduralRoomId) {
+        try {
+          const entered = dungeonManager.enterRoom(roomAtPlayer.id);
+          this.clearClickPath();
+          this.proceduralRoomId = entered.id;
+          this.proceduralController = null;
+          this.proceduralWaveTransitionScheduled = false;
+          this.dungeonWorld.focusCamera(entered.id);
+          this.emitRunCheckpoint();
+          this.activateProceduralRoom(entered, time);
+        } catch {
+          return;
+        }
+      }
+
+      const room = dungeonManager.getCurrentRoom();
+      if (room.id !== roomAtPlayer.id) return;
+      if (!this.proceduralController && room.state === "active") {
+        this.activateProceduralRoom(room, time);
+      }
+
+      const controller = this.proceduralController;
+      if (!controller) return;
+      const snapshot = controller.snapshot();
+      if (snapshot.state !== "wave_complete" || this.proceduralWaveTransitionScheduled) return;
+
+      this.proceduralWaveTransitionScheduled = true;
+      this.clearEnemyProjectiles();
+      this.time.delayedCall(520, () => {
+        if (!this.proceduralController || !dungeonManager || !this.dungeonWorld || this.runEnded) return;
+        const next = this.proceduralController.completeWave();
+        this.proceduralWaveTransitionScheduled = false;
+        if (next.state === "cleared") {
+          const cleared = dungeonManager.clearRoom(room.id);
+          this.proceduralController = null;
+          this.spawnProceduralReward(cleared, this.time.now);
+          return;
+        }
+        this.spawnProceduralWave(room, next.waveIndex + 1, this.time.now);
+      });
+    }
+
+    private activateProceduralRoom(room: DungeonRoom, time: number) {
+      if (!dungeonManager || !this.dungeonWorld) return;
+      this.ensureBreakableObjects(room);
+      if (room.state === "cleared") {
+        this.dungeonWorld.setDoorsLocked(room.id, false);
+        bridge.emitMessage(`${this.proceduralRoomLabel(room)} já foi concluída.`);
+        return;
+      }
+
+      this.audio?.setMusicMode(room.type === "boss" ? "boss" : "exploration");
+
+      if (room.waves.length > 0) {
+        dungeonManager.startCombat(room.id);
+        const controller = new CombatRoomController(room.waves.length, false);
+        controller.enter();
+        this.proceduralController = controller;
+        this.dungeonWorld.setDoorsLocked(room.id, true);
+        this.spawnProceduralWave(room, 0, time);
+        if (bridge.isServerAuthoritativeCombat()) {
+          if (this.serverCombatState?.roomId === room.id && ["victory", "defeat"].includes(this.serverCombatState.status)) {
+            this.applyServerCombatState(this.serverCombatState, "sync", time);
+          } else {
+            this.submitServerCombatCommand(room.id, "sync", time);
+          }
+        }
+        return;
+      }
+
+      if (room.type === "treasure") {
+        this.spawnProceduralReward(room, time);
+        return;
+      }
+
+      const encounter = getSpecialRoomEncounter(dungeon.id, room.type);
+      if (encounter) {
+        this.playSound("special-room");
+        this.ensureSpecialRoomAnchor(room, encounter);
+        this.dungeonWorld.setDoorsLocked(room.id, false);
+        bridge.emitMessage(`${encounter.title}: aproxime-se do ponto marcado e pressione E para interagir.`);
+        this.emitHud(time);
+        return;
+      }
+
+      if (room.type !== "start") dungeonManager.clearRoom(room.id);
+      this.dungeonWorld.setDoorsLocked(room.id, false);
+    }
+
+    private ensureBreakableObjects(room: DungeonRoom) {
+      if (!this.dungeonWorld || this.breakableRooms.has(room.id)) return;
+      this.breakableRooms.add(room.id);
+      const graph = dungeonManager?.getGraph();
+      const layout = this.dungeonWorld.layout.rooms[room.id];
+      if (!graph || !layout) return;
+
+      const placements = getUnbrokenBreakablePlacements(
+        createBreakableObjectPlacements(graph.seed, room, graph.regionId),
+        this.brokenBreakableIds,
+      );
+      for (const placement of placements) {
+        const object = this.breakableObjects.create(
+          layout.left + placement.x,
+          layout.top + placement.y,
+          `arpg-breakable-${placement.kind}`,
+        ) as ArcadeSprite | null;
+        if (!object) continue;
+        object.setDepth(8).setScale(0.92).setCircle(15, 5, 5);
+        const body = object.body as import("phaser").Physics.Arcade.Body | null;
+        if (body) body.immovable = true;
+        object.setData("breakableId", placement.id);
+        object.setData("roomId", room.id);
+        object.setData("kind", placement.kind);
+        object.setData("hitPoints", placement.hitPoints);
+      }
+    }
+
+    private handleProjectileBreakableHit(projectile: ArcadeSprite, object: ArcadeSprite) {
+      if (!projectile.active || !object.active) return;
+      const hitIds = (projectile.getData("hitIds") as Set<string> | undefined) ?? new Set<string>();
+      const breakableId = `breakable:${String(object.getData("breakableId"))}`;
+      if (hitIds.has(breakableId)) return;
+      hitIds.add(breakableId);
+      projectile.setData("hitIds", hitIds);
+      this.damageBreakableObject(object, Number(projectile.getData("damage")) || 1);
+      if (!projectile.getData("piercing")) this.recycleProjectile(projectile);
+    }
+
+    private damageBreakablesInRadius(x: number, y: number, radius: number, damage: number) {
+      this.breakableObjects.getChildren().forEach((child) => {
+        const object = child as ArcadeSprite;
+        if (!object.active || object.getData("roomId") !== this.proceduralRoomId) return;
+        if (Phaser.Math.Distance.Between(x, y, object.x, object.y) > radius + 18) return;
+        this.damageBreakableObject(object, damage);
+      });
+    }
+
+    private damageBreakableObject(object: ArcadeSprite, damage: number) {
+      const breakableId = String(object.getData("breakableId"));
+      if (!object.active || this.brokenBreakableIds.has(breakableId)) return;
+      const hitPoints = applyBreakableObjectDamage(Number(object.getData("hitPoints")), damage);
+      object.setData("hitPoints", hitPoints);
+      if (hitPoints > 0) {
+        this.playSound("breakable-hit");
+        object.setTintFill(0xffdda0);
+        this.time.delayedCall(95, () => {
+          if (object.active) object.clearTint();
+        });
+        return;
+      }
+
+      const kind = String(object.getData("kind"));
+      const debrisColor = kind === "shrub" ? 0x7dac56
+        : kind === "relic" ? 0x83c5c4
+          : kind === "vase" ? 0xd18a62
+            : 0xd3a365;
+      this.playSound("breakable-break");
+      this.spawnPulse(object.x, object.y, 30, debrisColor);
+      for (let index = 0; index < 6; index += 1) {
+        const angle = (Math.PI * 2 * index) / 6;
+        const debris = this.add.rectangle(object.x, object.y, 5, 5, debrisColor).setDepth(12);
+        this.tweens.add({
+          targets: debris,
+          x: object.x + Math.cos(angle) * 24,
+          y: object.y + Math.sin(angle) * 24,
+          alpha: 0,
+          scale: 0.35,
+          duration: 240,
+          onComplete: () => debris.destroy(),
+        });
+      }
+      this.brokenBreakableIds.add(breakableId);
+      this.runShards += 1;
+      const fragment = this.add.image(object.x, object.y - 8, "arpg-run-fragment")
+        .setDepth(13)
+        .setScale(0.7);
+      this.tweens.add({
+        targets: fragment,
+        y: fragment.y - 28,
+        alpha: 0,
+        scale: 0.2,
+        duration: 520,
+        ease: "Quad.easeOut",
+        onComplete: () => fragment.destroy(),
+      });
+      object.disableBody(true, true);
+      this.playSound("loot");
+      bridge.emitMessage("Fragmento da run recolhido: +1.");
+      this.emitRunCheckpoint();
+      this.emitHud(this.time.now);
+    }
+
+    private resolvePendingRoomChoice(choiceIdRaw: string, time: number) {
+      if (!this.pendingRoomChoice || !dungeonManager || !this.dungeonWorld) return;
+      const option = this.pendingRoomChoice.options.find((item) => item.id === choiceIdRaw);
+      if (!option) return;
+      if (option.costShards > this.runShards) {
+        bridge.emitMessage(`Fragmentos insuficientes: ${option.costShards} necessários.`);
+        return;
+      }
+
+      const result = resolveSpecialRoomChoice(dungeon.id, choiceIdRaw as SpecialRoomChoiceId);
+      this.runShards = Math.max(0, this.runShards + result.shardsDelta);
+      this.hp = Math.max(1, Math.min(this.maxHp, this.hp + result.hpDelta));
+      this.runMoveSpeedBonus = Math.max(this.runMoveSpeedBonus, result.moveSpeedBonus);
+      this.runBasicDamageMultiplier = Math.max(this.runBasicDamageMultiplier, result.basicDamageMultiplier);
+
+      const room = dungeonManager.getCurrentRoom();
+      dungeonManager.clearRoom(room.id);
+      const completedAnchor = this.specialRoomAnchors.get(room.id);
+      completedAnchor?.display.setAlpha(0.42);
+      completedAnchor?.prompt.setText("RESOLVIDO");
+      this.dungeonWorld.setDoorsLocked(room.id, false);
+      this.pendingRoomChoice = null;
+      bridge.emitMessage(result.message);
+      this.emitRunCheckpoint();
+      this.emitHud(time);
+    }
+
+    private ensureSpecialRoomAnchor(room: DungeonRoom, encounter: SpecialRoomEncounter) {
+      if (!this.dungeonWorld || this.specialRoomAnchors.has(room.id)) return;
+      const layout = this.dungeonWorld.layout.rooms[room.id];
+      if (!layout) return;
+
+      const marker = this.add.container(layout.centerX, layout.centerY).setDepth(8);
+      const art = this.add.graphics();
+      const sea = dungeon.id === "arquipelago-das-mares";
+      const mountain = dungeon.id === "montanhas-runicas";
+      const stone = sea ? 0x426b76 : mountain ? 0x64798b : 0x68624e;
+      const shade = sea ? 0x1b3b47 : mountain ? 0x334452 : 0x35392f;
+      const accent = sea ? 0x76d4d1 : mountain ? 0x9edcff : 0xb7d77a;
+      const warm = sea ? 0xf0bf73 : mountain ? 0xe5f2ff : 0xf2bd62;
+
+      art.fillStyle(0x101a1d, 0.34);
+      art.fillEllipse(0, 42, 208, 62);
+      art.fillStyle(shade, 1);
+      art.fillEllipse(0, 34, 168, 46);
+      art.fillStyle(stone, 1);
+      art.fillEllipse(0, 30, 132, 34);
+
+      if (encounter.type === "rest") {
+        art.fillStyle(0x6a4530, 1);
+        art.fillRect(-48, 11, 96, 12);
+        art.fillRect(-40, 1, 80, 10);
+        art.fillStyle(warm, 1);
+        art.fillTriangle(0, -37, -17, 4, 17, 4);
+        art.fillStyle(0xff7b43, 1);
+        art.fillTriangle(0, -22, -10, 5, 10, 5);
+        art.fillStyle(0xffe59a, 1);
+        art.fillTriangle(0, -13, -4, 2, 4, 2);
+        art.fillStyle(accent, 0.9);
+        art.fillRect(-68, 23, 15, 6);
+        art.fillRect(53, 23, 15, 6);
+      } else if (encounter.type === "shop") {
+        art.fillStyle(shade, 1);
+        art.fillRect(-58, -48, 116, 12);
+        art.fillStyle(accent, 1);
+        art.fillTriangle(-70, -47, 0, -94, 70, -47);
+        art.fillStyle(warm, 1);
+        art.fillRect(-56, -46, 112, 7);
+        art.fillStyle(0x714831, 1);
+        art.fillRect(-67, -2, 134, 15);
+        art.fillStyle(stone, 1);
+        art.fillRect(-56, 12, 112, 13);
+        art.fillStyle(0x8c5f44, 1);
+        art.fillRect(-49, 25, 9, 24);
+        art.fillRect(40, 25, 9, 24);
+        art.fillStyle(warm, 1);
+        art.fillCircle(0, -23, 13);
+        art.fillStyle(shade, 1);
+        art.fillTriangle(-20, -30, 0, -56, 20, -30);
+        art.fillRect(-13, -22, 26, 22);
+        art.fillStyle(sea ? 0x8de2c4 : mountain ? 0xbde6ff : 0xc1cf83, 1);
+        art.fillRect(-36, 0, 12, 18);
+        art.fillRect(24, 0, 12, 18);
+      } else {
+        art.fillStyle(shade, 1);
+        art.fillRect(-36, -42, 72, 84);
+        art.fillStyle(stone, 1);
+        art.fillRect(-29, -51, 58, 14);
+        art.fillRect(-29, 28, 58, 17);
+        art.fillStyle(accent, 1);
+        art.fillTriangle(0, -83, -19, -46, 19, -46);
+        art.fillStyle(warm, 0.95);
+        art.fillCircle(0, -59, 8);
+        art.fillStyle(sea ? 0x4fbab9 : mountain ? 0x8bc9f2 : 0x91bb5e, 0.72);
+        art.fillEllipse(0, 5, 22, 31);
+      }
+
+      marker.add(art);
+      const prompt = this.add.text(0, -116, "INTERAGIR", {
+        color: "#fff0bf",
+        fontFamily: "monospace",
+        fontSize: "12px",
+        backgroundColor: "#241d18",
+        padding: { x: 7, y: 4 },
+      }).setOrigin(0.5);
+      marker.add(prompt);
+      this.specialRoomAnchors.set(room.id, {
+        encounter,
+        x: layout.centerX,
+        y: layout.centerY,
+        display: marker,
+        prompt,
+      });
+    }
+
+    private tryInteractSpecialRoom(time: number) {
+      if (!dungeonManager || !this.dungeonWorld) return;
+      const room = dungeonManager.getCurrentRoom();
+      const anchor = this.specialRoomAnchors.get(room.id);
+      if (!anchor || room.state !== "active") return;
+      if (!isWithinSpecialRoomInteractionRange(this.player.x, this.player.y, anchor.x, anchor.y)) {
+        bridge.emitMessage("Aproxime-se do ponto marcado para interagir com a sala especial.");
+        return;
+      }
+
+      this.playPlayerAction("interact", time, 520);
+      this.pendingRoomChoice = anchor.encounter;
+      this.dungeonWorld.setDoorsLocked(room.id, true);
+      bridge.emitMessage(`Você se aproxima de ${anchor.encounter.title.toLocaleLowerCase("pt-BR")} e avalia suas opções.`);
+      this.emitHud(time);
+    }
+
+    private spawnProceduralWave(room: DungeonRoom, waveIndex: number, time: number) {
+      if (!this.proceduralController || !this.dungeonWorld) return;
+      const wave = room.waves[waveIndex];
+      if (!wave?.length) return;
+      const snapshot = this.proceduralController.startNextWave(wave.length);
+      const points = this.dungeonWorld.getEnemySpawnPoints(room.id, wave.length);
+      wave.forEach((enemyId, index) => {
+        const point = points[index] ?? this.dungeonWorld!.getRoomCenter(room.id);
+        this.spawnEnemyWithTelegraph(enemyId, `${room.id}:${snapshot.waveIndex}:${index}`, point.x, point.y, index * 80);
+      });
+      bridge.emitMessage(
+        room.type === "boss"
+          ? dungeon.messages.bossIntro
+          : `${this.proceduralRoomLabel(room)} · onda ${snapshot.waveIndex + 1}/${snapshot.waveCount}.`,
+      );
+      this.emitHud(time);
+    }
+
+    private syncServerCombatHeartbeat(time: number) {
+      if (
+        !bridge.isServerAuthoritativeCombat()
+        || !this.proceduralController
+        || !this.proceduralRoomId
+        || this.serverCombatState?.roomId === this.proceduralRoomId
+          && ["victory", "defeat"].includes(this.serverCombatState.status)
+        || this.serverCombatRequestsInFlight > 0
+        || time - this.serverCombatLastRequestAt < 420
+      ) return;
+      this.submitServerCombatCommand(this.proceduralRoomId, "sync", time);
+    }
+
+    private submitServerCombatCommand(
+      roomId: string,
+      kind: ArpgDungeonCombatCommand["kind"],
+      time: number,
+      abilitySlot?: 0 | 1,
+      dashDirection?: { x: number; y: number },
+    ) {
+      if (!bridge.isServerAuthoritativeCombat() || !this.dungeonWorld) return;
+      if (
+        this.serverCombatState?.roomId === roomId
+        && ["victory", "defeat"].includes(this.serverCombatState.status)
+      ) return;
+      const layout = this.dungeonWorld.layout.rooms[roomId];
+      if (!layout) return;
+      const aim = kind === "dash" && dashDirection ? dashDirection : this.resolveCombatAim();
+      const command: ArpgDungeonCombatCommand = {
+        actionId: `${roomId}:${Date.now().toString(36)}:${++this.serverCombatActionSequence}`,
+        kind,
+        playerX: Phaser.Math.Clamp(this.player.x - layout.left, 0, layout.width - 1),
+        playerY: Phaser.Math.Clamp(this.player.y - layout.top, 0, layout.height - 1),
+        aimX: aim.x,
+        aimY: aim.y,
+        ...(abilitySlot === undefined ? {} : { abilitySlot }),
+      };
+      if (kind !== "sync") this.serverActionPending = true;
+      this.serverCombatLastRequestAt = time;
+      this.serverCombatRequestsInFlight += 1;
+      void acceptServerConfirmedCombatResponse({
+        request: () => bridge.submitEncounterCommand(roomId, command),
+        isSceneActive: () => this.scene.isActive(),
+        getPreviousState: () => this.serverCombatState,
+        command,
+        abilityId: command.abilitySlot === undefined ? undefined : selectedCards[command.abilitySlot].id,
+        worldOrigin: { x: layout.left, y: layout.top },
+        applyState: (result) => {
+          const previous = this.serverCombatState;
+          this.applyServerCombatState(result.state, kind, time);
+          if (kind === "basic_attack" && result.state.attackCount > (previous?.attackCount ?? 0)) {
+            this.playSound("attack");
+            this.playPlayerAction("attack", time, 300);
+          }
+          if (kind === "ability" && command.abilitySlot !== undefined) {
+            const powerId = selectedCards[command.abilitySlot].id;
+            if ((result.state.nextAbilityAtMs[powerId] ?? 0) > (previous?.nextAbilityAtMs[powerId] ?? 0)) {
+              this.playSound("ability");
+              this.playPlayerAction("attack", time, 300);
+            }
+          }
+          if (kind === "dash" && result.state.nextDashAtMs > (previous?.nextDashAtMs ?? 0)) {
+            this.playPlayerAction("dodge", time, DASH_MS);
+            this.flashPlayer(0xcaf4d2, 150);
+          }
+        },
+        emit: (event) => bridge.emitVisualEvent(event),
+      })
+        .catch((error: unknown) => {
+          if (!this.scene.isActive()) return;
+          bridge.emitMessage(error instanceof Error ? error.message : "O servidor não confirmou a ação de combate.");
+        })
+        .finally(() => {
+          this.serverCombatRequestsInFlight = Math.max(0, this.serverCombatRequestsInFlight - 1);
+          if (kind !== "sync") this.serverActionPending = false;
+        });
+    }
+
+    private applyServerCombatState(state: ArpgDungeonCombatState, commandKind: ArpgDungeonCombatCommand["kind"], time: number) {
+      const previousHp = this.hp;
+      const previousServerState = this.serverCombatState;
+      const previousServerTotal = previousServerState
+        ? previousServerState.baseRunShards + previousServerState.runShards
+        : state.baseRunShards;
+      const serverBaseIncrease = previousServerState
+        ? Math.max(0, state.baseRunShards - previousServerState.baseRunShards)
+        : 0;
+      const pendingBreakableShards = Math.max(0, this.runShards - previousServerTotal - serverBaseIncrease);
+      this.serverCombatState = state;
+      this.hp = state.playerHp;
+      this.basicAttackCounter = state.attackCount;
+      this.nextAttackAt = time + Math.max(0, state.nextAttackAtMs - state.serverTimeMs);
+      this.nextDashAt = time + Math.max(0, state.nextDashAtMs - state.serverTimeMs);
+      this.dashingUntil = time + Math.max(0, state.dashUntilMs - state.serverTimeMs);
+      for (const card of selectedCards) {
+        const remainingMs = Math.max(0, (state.nextAbilityAtMs[card.id] ?? state.serverTimeMs) - state.serverTimeMs);
+        this.abilityReadyAt[card.id] = time + remainingMs;
+      }
+      this.xpEarned = state.baseXpEarned + state.xpEarned;
+      this.runShards = state.baseRunShards + state.runShards + pendingBreakableShards;
+      const layout = this.dungeonWorld?.layout.rooms[state.roomId];
+      if (layout) {
+        this.syncServerProjectileVisuals(state, layout);
+        this.syncServerHazardVisuals(state, layout);
+      }
+      if (layout && (commandKind === "sync" || commandKind === "dash") && this.proceduralRoomId === state.roomId) {
+        this.player.setPosition(layout.left + state.playerX, layout.top + state.playerY);
+      }
+      if (previousHp > state.playerHp) {
+        this.playSound("player-hit");
+        this.playPlayerAction("hit", time, 250);
+        this.flashPlayer(0xff7a72, 160);
+        this.cameras.main.shake(90, 0.0025);
+      }
+
+      for (const serverEnemy of state.enemies) {
+        const enemy = this.enemies.getChildren().find((child) => (
+          String((child as ArcadeSprite).getData("runtimeId")) === serverEnemy.id
+        )) as ArcadeSprite | undefined;
+        if (!enemy) continue;
+        enemy.setData("hp", serverEnemy.hp);
+        enemy.setData("maxHp", serverEnemy.maxHp);
+        const previousPhase = Number(enemy.getData("serverBossPhase")) || 1;
+        const previousPatternIndex = Number(enemy.getData("serverBossPatternIndex")) || 0;
+        enemy.setData("phase", serverEnemy.bossPhase);
+        enemy.setData("serverBossPhase", serverEnemy.bossPhase);
+        enemy.setData("bossPatternIndex", serverEnemy.bossPatternIndex);
+        enemy.setData("serverBossPatternIndex", serverEnemy.bossPatternIndex);
+        enemy.setData("lastBossPattern", serverEnemy.bossPattern);
+        if (serverEnemy.bossPhase !== previousPhase && serverEnemy.definitionId === "boss") {
+          bridge.emitMessage(serverEnemy.bossPhase === 2 ? dungeon.messages.phaseTwo : dungeon.messages.phaseThree);
+          this.spawnPulse(enemy.x, enemy.y, 110, dungeon.colors.phase);
+        }
+        if (
+          serverEnemy.definitionId === "boss"
+          && serverEnemy.bossPatternIndex > previousPatternIndex
+          && enemy.active
+        ) {
+          this.playSound("boss");
+          this.playEnemyAction(enemy, "attack", time, 760);
+          if (serverEnemy.bossPattern?.startsWith("decoy")) this.summonCurupiraDecoys(enemy);
+        }
+        if (!serverEnemy.alive) {
+          this.defeatEnemyFromServer(enemy, serverEnemy.id);
+        } else if (enemy.active && enemy.getData("spawnReady") && layout && serverEnemy.waveIndex === state.waveIndex) {
+          enemy.setPosition(layout.left + serverEnemy.x, layout.top + serverEnemy.y);
+        }
+      }
+      this.emitHud(time);
+      if (state.status === "defeat") this.finishRun(false, time);
+    }
+
+    private syncServerProjectileVisuals(
+      state: ArpgDungeonCombatState,
+      layout: NonNullable<DungeonWorldRuntime["layout"]["rooms"][string]>,
+    ) {
+      if (this.serverProjectileRoomId !== state.roomId) {
+        this.clearServerProjectileVisuals();
+        this.serverProjectileRoomId = state.roomId;
+      }
+      const currentIds = new Set(state.projectiles.map((projectile) => projectile.id));
+      for (const [id, visual] of this.serverProjectileVisuals) {
+        if (currentIds.has(id)) continue;
+        this.tweens.killTweensOf(visual);
+        this.tweens.add({ targets: visual, alpha: 0, scale: 0.25, duration: 90, onComplete: () => visual.destroy() });
+        this.serverProjectileVisuals.delete(id);
+      }
+      for (const projectile of state.projectiles) {
+        const x = layout.left + projectile.x;
+        const y = layout.top + projectile.y;
+        const visual = this.serverProjectileVisuals.get(projectile.id);
+        if (!visual) {
+          const created = this.add.circle(x, y, projectile.radius, dungeon.colors.projectile, 0.9)
+            .setStrokeStyle(2, 0xf4e7c8, 0.8)
+            .setDepth(11);
+          this.serverProjectileVisuals.set(projectile.id, created);
+          continue;
+        }
+        this.tweens.killTweensOf(visual);
+        this.tweens.add({ targets: visual, x, y, duration: 360, ease: "Linear" });
+      }
+    }
+
+    private clearServerProjectileVisuals() {
+      for (const visual of this.serverProjectileVisuals.values()) {
+        this.tweens.killTweensOf(visual);
+        visual.destroy();
+      }
+      this.serverProjectileVisuals.clear();
+      this.serverProjectileRoomId = null;
+    }
+
+    private syncServerHazardVisuals(
+      state: ArpgDungeonCombatState,
+      layout: NonNullable<DungeonWorldRuntime["layout"]["rooms"][string]>,
+    ) {
+      if (this.serverHazardRoomId !== state.roomId) {
+        this.clearServerHazardVisuals();
+        this.serverHazardRoomId = state.roomId;
+      }
+      const currentIds = new Set(state.hazards.map((hazard) => hazard.id));
+      for (const [id, visual] of this.serverHazardVisuals) {
+        if (currentIds.has(id)) continue;
+        this.tweens.killTweensOf(visual);
+        this.tweens.add({ targets: visual, alpha: 0, duration: 90, onComplete: () => visual.destroy() });
+        this.serverHazardVisuals.delete(id);
+      }
+
+      for (const hazard of state.hazards) {
+        let visual = this.serverHazardVisuals.get(hazard.id);
+        const color = hazard.pattern.includes("ice") || hazard.pattern.includes("frost") || hazard.pattern.includes("whiteout")
+          ? dungeon.colors.phaseThree
+          : hazard.pattern.includes("tide") || hazard.pattern.includes("undertow") || hazard.pattern.includes("current")
+            ? dungeon.colors.phaseTwo
+            : hazard.pattern.includes("phase") || hazard.pattern.includes("teleport")
+              ? dungeon.colors.phaseThree
+              : dungeon.colors.phaseTwo;
+        const x = layout.left + hazard.x;
+        const y = layout.top + hazard.y;
+        if (!visual) {
+          visual = hazard.shape === "circle"
+            ? this.add.circle(x, y, hazard.radius, color, 0.11)
+            : this.add.rectangle(x, y, hazard.width, hazard.height, color, 0.14).setRotation(hazard.angle);
+          visual.setStrokeStyle(3, color, 0.92).setDepth(6);
+          this.serverHazardVisuals.set(hazard.id, visual);
+        } else {
+          visual.setPosition(x, y);
+        }
+        const activeRootBarrier = hazard.pattern === "root-arena"
+          && state.serverTimeMs >= hazard.detonateAtMs
+          && state.serverTimeMs < hazard.activeUntilMs;
+        visual.setFillStyle(activeRootBarrier ? 0x694731 : color, activeRootBarrier ? 0.96 : 0.12);
+        visual.setStrokeStyle(3, activeRootBarrier ? 0x91ab5a : color, activeRootBarrier ? 1 : 0.92);
+        if (activeRootBarrier) {
+          visual.setAlpha(1);
+          this.tweens.killTweensOf(visual);
+          continue;
+        }
+        const remainingMs = Math.max(80, hazard.detonateAtMs - state.serverTimeMs);
+        this.tweens.killTweensOf(visual);
+        this.tweens.add({ targets: visual, alpha: 0.56, duration: remainingMs, ease: "Sine.easeIn" });
+      }
+    }
+
+    private clearServerHazardVisuals() {
+      for (const visual of this.serverHazardVisuals.values()) {
+        this.tweens.killTweensOf(visual);
+        visual.destroy();
+      }
+      this.serverHazardVisuals.clear();
+      this.serverHazardRoomId = null;
+    }
+
+    private defeatEnemyFromServer(enemy: ArcadeSprite, runtimeId: string) {
+      if (!enemy.active || this.serverDefeatedEnemyIds.has(runtimeId)) return;
+      this.serverDefeatedEnemyIds.add(runtimeId);
+      this.pendingEnemySpawns.delete(enemy);
+      enemy.setData("hp", 0);
+      enemy.setData("defeatPending", true);
+      enemy.setData("spawnReady", false);
+      enemy.setVelocity(0, 0);
+      if (enemy.body) enemy.body.enable = false;
+      const profile = enemy.getData("animationProfile");
+      if (isArpgEnemyAnimationProfile(profile)) {
+        this.playTrackedEnemyAnimation(enemy, profile, "defeat", true);
+        this.time.delayedCall(700, () => {
+          if (!enemy.scene) return;
+          enemy.disableBody(true, true);
+          this.proceduralController?.enemyDefeated();
+        });
+        return;
+      }
+      enemy.disableBody(true, true);
+      this.proceduralController?.enemyDefeated();
+    }
+
+    private spawnProceduralReward(room: DungeonRoom, time: number) {
+      if (!this.dungeonWorld || this.chestAvailable || this.pendingLoot) return;
+      this.playSound("chest");
+      const lootIndex = this.runLootAssignments[room.id];
+      const loot = typeof lootIndex === "number" ? lootPlan[lootIndex] ?? null : null;
+      const cache = loot ? null : rollCombatRoomCache(dungeonManager?.getGraph().seed ?? "local", room.id);
+      if (!loot && room.type !== "combat" && room.type !== "start") {
+        throw new Error(`A sala ${room.id} não possui a recompensa assinada esperada.`);
+      }
+      if (!loot && cache?.kind !== "cache") {
+        dungeonManager?.clearRoom(room.id);
+        this.dungeonWorld.setDoorsLocked(room.id, false);
+        bridge.emitMessage(`${this.proceduralRoomLabel(room)} concluída. Nenhum baú surgiu desta vez.`);
+        this.emitRunCheckpoint();
+        this.emitHud(time);
+        return;
+      }
+      dungeonManager?.clearRoom(room.id);
+      this.dungeonWorld.setDoorsLocked(room.id, true);
+      const center = this.dungeonWorld.getRoomCenter(room.id);
+      this.clearEnemyProjectiles();
+      this.chestAvailable = true;
+      this.chestLoot = loot;
+      this.chestRoomId = room.id;
+      this.chestLootIndex = typeof lootIndex === "number" ? lootIndex : null;
+      this.chestCacheReward = cache?.kind === "cache" ? cache : null;
+      this.destroyTreasureChestPrompt();
+      this.chest?.destroy();
+      this.chestOpening = false;
+      this.chest = this.createTreasureChest(center.x, center.y + 80, 0.75).setAlpha(0);
+      this.tweens.add({ targets: this.chest, scale: TREASURE_CHEST_DISPLAY_SCALE, alpha: 1, y: center.y + 78, duration: 260, ease: "Back.easeOut" });
+      const ring = this.add.circle(center.x, center.y + 80, 20, loot ? 0xf0c961 : 0x8fc56b, 0.2).setDepth(7);
+      this.tweens.add({ targets: ring, scale: 2.3, alpha: 0, duration: 420, onComplete: () => ring.destroy() });
+      bridge.emitMessage(loot
+        ? "Recompensa da sala. Aproxime-se do baú e pressione E para abrir."
+        : "Um pequeno cache de viagem apareceu. Aproxime-se e pressione E para recolher.");
+      this.emitRunCheckpoint();
+      this.emitHud(time);
+    }
+
+    private proceduralRoomLabel(room: DungeonRoom) {
+      if (room.type === "boss") return "Sala do boss";
+      if (room.type === "elite") return "Sala de elite";
+      if (room.type === "treasure") return "Sala do tesouro";
+      return `Sala ${room.distanceFromStart + 1}`;
+    }
+
+    private spawnEnemyInstance(enemyId: string, runtimeId: string, x: number, y: number) {
+      const definition = dungeon.enemies[enemyId];
+      if (!definition) return null;
+      const enemy = this.enemies.get(x, y, "arpg-enemy") as ArcadeSprite | null;
+      if (!enemy) return null;
+      const folkloreFrame = dungeon.enemyFrames[enemyId];
+      const folkloreAtlas = dungeon.enemyAtlas?.[enemyId] ?? "folklore-atlas";
+      const animation = dungeon.enemyAnimations?.[enemyId];
+      enemy.setActive(true).setVisible(true).setDepth(9).setAlpha(1);
+      enemy.anims.stop();
+      enemy.body!.enable = true;
+      if (isArpgEnemyAnimationProfile(animation)) {
+        const { scale } = getArpgEnemyAnimationProfile(animation);
+        const sourceRadius = definition.radius / scale;
+        const { textureKey, frameWidth } = getArpgEnemyAnimationProfile(animation);
+        enemy.setTexture(textureKey, 0).setScale(scale).clearTint();
+        enemy.setCircle(
+          sourceRadius,
+          frameWidth / 2 - sourceRadius,
+          frameWidth / 2 - sourceRadius,
+        );
+      } else if (typeof folkloreFrame === "number") {
+        const scale = enemyId === "boss" ? 0.48 : enemyId === "miniBoss" ? 0.42 : 0.34;
+        const sourceRadius = definition.radius / scale;
+        enemy.setTexture(folkloreAtlas, folkloreFrame).setScale(scale).clearTint();
+        enemy.setCircle(sourceRadius, 125 - sourceRadius, 125 - sourceRadius);
+      } else {
+        const displaySize = Math.max(34, definition.radius * 2.1);
+        enemy.setTexture("arpg-enemy").setScale(1).setDisplaySize(displaySize, displaySize).setTint(definition.tint);
+        enemy.setCircle(14, 4, 4);
+      }
+      enemy.setData("runtimeId", runtimeId);
+      enemy.setData("animationHistory", []);
+      enemy.setData("definitionId", enemyId);
+      enemy.setData("hp", definition.maxHp);
+      enemy.setData("maxHp", definition.maxHp);
+      enemy.setData("speed", definition.moveSpeed);
+      enemy.setData("contactDamage", definition.contactDamage);
+      enemy.setData("rewardXp", definition.rewardXp);
+      enemy.setData("combatRole", definition.combatRole ?? "melee");
+      enemy.setData("tint", definition.tint);
+      enemy.setData("radius", definition.radius);
+      enemy.setData("nextContactAt", 0);
+      enemy.setData("nextSpecialAt", this.time.now + 1500);
+      enemy.setData("phase", 1);
+      enemy.setData("bossPatternIndex", 0);
+      enemy.setData("nextRootBarrierAt", 0);
+      enemy.setData("rootedUntil", 0);
+      enemy.setData("spawnReady", true);
+      enemy.setData("animationProfile", animation ?? null);
+      enemy.setData("actionAnimationUntil", 0);
+      enemy.setData("movementReadyAt", this.time.now + 420);
+      enemy.setData("defeatPending", false);
+      if (isArpgEnemyAnimationProfile(animation)) {
+        this.playTrackedEnemyAnimation(enemy, animation, "idle", true);
+      }
+      return enemy;
+    }
+
+    private spawnEnemyWithTelegraph(enemyId: string, runtimeId: string, x: number, y: number, staggerMs: number) {
+      const definition = dungeon.enemies[enemyId];
+      const enemy = this.spawnEnemyInstance(enemyId, runtimeId, x, y);
+      if (!definition || !enemy) return;
+
+      const tint = definition.tint;
+      const ring = this.add.circle(x, y, 13, tint, 0.12).setStrokeStyle(3, tint, 0.92).setDepth(8);
+      const root = this.add.rectangle(x, y, 8, 26, tint, 0.86).setAngle(-32).setDepth(8);
+      const leaf = this.add.rectangle(x + 8, y - 4, 7, 16, 0xa6c76a, 0.82).setAngle(28).setDepth(8);
+      this.tweens.add({
+        targets: [ring, root, leaf],
+        scale: { from: 0.5, to: 2.2 },
+        alpha: { from: 0.92, to: 0 },
+        duration: 420,
+        delay: staggerMs,
+        ease: "Quad.easeOut",
+        onComplete: () => {
+          ring.destroy();
+          root.destroy();
+          leaf.destroy();
+        },
+      });
+
+      const scaleX = enemy.scaleX;
+      const scaleY = enemy.scaleY;
+      enemy.setVisible(false).setAlpha(0).setScale(scaleX * 0.58, scaleY * 0.58);
+      enemy.setData("spawnReady", false);
+      if (enemy.body) enemy.body.enable = false;
+      this.pendingEnemySpawns.set(enemy, {
+        activateAt: this.time.now + staggerMs + 310,
+        scaleX,
+        scaleY,
+      });
+    }
+
+    private activatePendingEnemySpawns(time: number) {
+      for (const [enemy, spawn] of this.pendingEnemySpawns) {
+        if (time < spawn.activateAt) continue;
+        this.pendingEnemySpawns.delete(enemy);
+        if (this.runEnded || !enemy.scene) continue;
+        enemy.setActive(true).setVisible(true).setAlpha(0.1).setScale(spawn.scaleX * 0.58, spawn.scaleY * 0.58);
+        enemy.setData("spawnReady", true);
+        enemy.setData("movementReadyAt", time + 420);
+        if (enemy.body) enemy.body.enable = true;
+        this.tweens.add({
+          targets: enemy,
+          alpha: 1,
+          scaleX: spawn.scaleX,
+          scaleY: spawn.scaleY,
+          duration: 220,
+          ease: "Back.easeOut",
+        });
+      }
+    }
+
+    private spawnCurrentRoom() {
+      this.roomTransitionScheduled = false;
+      const wave = this.roomWaves[this.roomIndex] ?? this.roomWaves[0];
+      const points = [
+        [180, 160], [1100, 150], [210, 560], [1060, 555],
+        [640, 120], [640, 610], [350, 350], [930, 350],
+      ];
+
+      wave.forEach((enemyId, index) => {
+        const definition = dungeon.enemies[enemyId];
+        if (!definition) return;
+        const point = points[index % points.length];
+        const enemy = this.enemies.get(point[0], point[1], "arpg-enemy") as ArcadeSprite | null;
+        if (!enemy) return;
+        const folkloreFrame = dungeon.enemyFrames[enemyId];
+        const folkloreAtlas = dungeon.enemyAtlas?.[enemyId] ?? "folklore-atlas";
+        const animation = dungeon.enemyAnimations?.[enemyId];
+        enemy.setActive(true).setVisible(true).setDepth(9).setAlpha(1);
+        enemy.anims.stop();
+        enemy.body!.enable = true;
+        if (isArpgEnemyAnimationProfile(animation)) {
+          const { scale } = getArpgEnemyAnimationProfile(animation);
+          const sourceRadius = definition.radius / scale;
+          const { textureKey, frameWidth } = getArpgEnemyAnimationProfile(animation);
+          enemy.setTexture(textureKey, 0).setScale(scale).clearTint();
+          enemy.setCircle(sourceRadius, frameWidth / 2 - sourceRadius, frameWidth / 2 - sourceRadius);
+        } else if (typeof folkloreFrame === "number") {
+          const scale = enemyId === "boss" ? 0.48 : enemyId === "miniBoss" ? 0.42 : 0.34;
+          const sourceRadius = definition.radius / scale;
+          enemy.setTexture(folkloreAtlas, folkloreFrame).setScale(scale).clearTint();
+          enemy.setCircle(sourceRadius, 125 - sourceRadius, 125 - sourceRadius);
+        } else {
+          const displaySize = Math.max(34, definition.radius * 2.1);
+          enemy.setTexture("arpg-enemy").setScale(1).setDisplaySize(displaySize, displaySize).setTint(definition.tint);
+          enemy.setCircle(14, 4, 4);
+        }
+        enemy.setData("runtimeId", `${this.roomIndex}:${index}:${enemyId}`);
+        enemy.setData("animationHistory", []);
+        enemy.setData("definitionId", enemyId);
+        enemy.setData("hp", definition.maxHp);
+        enemy.setData("maxHp", definition.maxHp);
+        enemy.setData("speed", definition.moveSpeed);
+        enemy.setData("contactDamage", definition.contactDamage);
+        enemy.setData("combatRole", definition.combatRole ?? "melee");
+        enemy.setData("rewardXp", definition.rewardXp);
+        enemy.setData("tint", definition.tint);
+        enemy.setData("radius", definition.radius);
+        enemy.setData("nextContactAt", 0);
+        enemy.setData("nextSpecialAt", this.time.now + 1500);
+        enemy.setData("phase", 1);
+        enemy.setData("rootedUntil", 0);
+        enemy.setData("animationProfile", animation ?? null);
+        enemy.setData("actionAnimationUntil", 0);
+        enemy.setData("movementReadyAt", this.time.now + 420);
+        enemy.setData("defeatPending", false);
+        if (isArpgEnemyAnimationProfile(animation)) {
+          this.playTrackedEnemyAnimation(enemy, animation, "idle", true);
+        }
+      });
+
+      this.player.setPosition(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+      bridge.emitMessage(
+        this.roomIndex === this.roomWaves.length - 1
+          ? dungeon.messages.bossIntro
+          : `Sala ${this.roomIndex + 1}: elimine a onda para avançar.`,
+      );
+    }
+    private updateEnemies(time: number) {
+      this.enemies.getChildren().forEach((child) => {
+        const enemy = child as ArcadeSprite;
+        if (!enemy.active || !enemy.getData("spawnReady")) return;
+
+        const definitionId = String(enemy.getData("definitionId"));
+        this.updateEnemyMovement(enemy, definitionId, time);
+        this.updateEnemySpecial(enemy, definitionId, time);
+        this.updateEnemyAnimation(enemy, time);
+        const distance = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+        const contactRange = Math.max(36, (Number(enemy.getData("radius")) || 18) + 18);
+        const nextContactAt = Number(enemy.getData("nextContactAt")) || 0;
+        if (distance <= contactRange && time >= nextContactAt && time >= this.dashingUntil && time >= this.nextPlayerDamageAt) {
+          enemy.setData("nextContactAt", time + (definitionId === "boss" ? 980 : 650));
+          if (definitionId !== "boss") this.playEnemyAction(enemy, "attack", time, 320);
+          this.applyPlayerDamage(Number(enemy.getData("contactDamage")) || 8, time);
+        }
+      });
+    }
+
+    private updateEnemyMovement(enemy: ArcadeSprite, definitionId: string, time: number) {
+      if (time < (Number(enemy.getData("movementReadyAt")) || 0)) {
+        enemy.setVelocity(0, 0);
+        return;
+      }
+      const rootedUntil = Number(enemy.getData("rootedUntil")) || 0;
+      if (time < rootedUntil) {
+        enemy.setVelocity(0, 0);
+        return;
+      }
+
+      let speed = Number(enemy.getData("speed")) || 80;
+      if (definitionId === "boss") {
+        const hp = Number(enemy.getData("hp"));
+        const maxHp = Math.max(1, Number(enemy.getData("maxHp")));
+        const ratio = hp / maxHp;
+        if (ratio < 0.66) speed += 24;
+        if (ratio < 0.33) speed += 32;
+      }
+
+      const role = String(enemy.getData("combatRole") ?? "melee") as EnemyCombatRole;
+      if (definitionId === "boss" || (definitionId === "miniBoss" && role !== "caster")) {
+        this.physics.moveToObject(enemy, this.player, speed);
+        return;
+      }
+
+      if (role === "charger") {
+        const chargeStartsAt = Number(enemy.getData("chargeStartsAt")) || 0;
+        const chargeEndsAt = Number(enemy.getData("chargeEndsAt")) || 0;
+        if (time < chargeEndsAt) {
+          if (time < chargeStartsAt) {
+            enemy.setVelocity(0, 0);
+          } else {
+            const directionX = Number(enemy.getData("chargeDirectionX")) || 0;
+            const directionY = Number(enemy.getData("chargeDirectionY")) || 0;
+            enemy.setVelocity(directionX * speed * 3.8, directionY * speed * 3.8);
+          }
+          return;
+        }
+        if (chargeEndsAt > 0) {
+          enemy.setData("chargeStartsAt", 0);
+          enemy.setData("chargeEndsAt", 0);
+        }
+      }
+
+      const distance = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+      const intent = getEnemyMovementIntent(role, distance);
+      if (intent === "approach") {
+        this.physics.moveToObject(enemy, this.player, speed);
+      } else if (intent === "retreat") {
+        const direction = new Phaser.Math.Vector2(enemy.x - this.player.x, enemy.y - this.player.y).normalize();
+        enemy.setVelocity(direction.x * speed, direction.y * speed);
+      } else {
+        enemy.setVelocity(0, 0);
+      }
+    }
+
+    private updateEnemyAnimation(enemy: ArcadeSprite, time: number) {
+      const profile = enemy.getData("animationProfile");
+      if (!isArpgEnemyAnimationProfile(profile)) return;
+      enemy.setFlipX(this.player.x < enemy.x);
+      if (time < (Number(enemy.getData("actionAnimationUntil")) || 0)) return;
+      const velocity = enemy.body?.velocity;
+      const animation = velocity && velocity.lengthSq() > 64 ? "walk" : "idle";
+      this.playTrackedEnemyAnimation(enemy, profile, animation);
+    }
+
+    private playTrackedEnemyAnimation(
+      enemy: import("phaser").GameObjects.Sprite,
+      profile: ArpgEnemyAnimationProfile,
+      animation: ArpgEnemyAnimation,
+      restart = false,
+    ) {
+      const animationKey = `${profile}-${animation}`;
+      const animationChanged = restart || enemy.anims.currentAnim?.key !== animationKey;
+      playArpgEnemyAnimation(enemy, profile, animation, restart);
+      if (!animationChanged || enemy.anims.currentAnim?.key !== animationKey) return;
+      const existingHistory = enemy.getData("animationHistory");
+      const history = Array.isArray(existingHistory) ? existingHistory as string[] : [];
+      if (!history.includes(animationKey)) {
+        enemy.setData("animationHistory", [...history, animationKey].slice(-8));
+      }
+    }
+
+    private playEnemyAction(enemy: ArcadeSprite, animation: ArpgEnemyAnimation, time: number, durationMs: number) {
+      const profile = enemy.getData("animationProfile");
+      if (!isArpgEnemyAnimationProfile(profile)) return;
+      enemy.setData("actionAnimationUntil", time + durationMs);
+      this.playTrackedEnemyAnimation(enemy, profile, animation, true);
+    }
+
+    private updateEnemySpecial(enemy: ArcadeSprite, definitionId: string, time: number) {
+      if (bridge.isServerAuthoritativeCombat()) return;
+      const nextSpecialAt = Number(enemy.getData("nextSpecialAt")) || 0;
+      const role = String(enemy.getData("combatRole") ?? "melee") as EnemyCombatRole;
+      if (definitionId === "miniBoss" && role === "caster") {
+        if (time < nextSpecialAt) return;
+        const distance = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+        if (distance <= 500) {
+          const damage = Number(enemy.getData("contactDamage")) || 18;
+          this.telegraphAreaStrike(this.player.x, this.player.y, 104, damage, dungeon.colors.miniBoss, 620);
+          bridge.emitMessage(dungeon.messages.miniBossWarning);
+        }
+        enemy.setData("nextSpecialAt", time + (distance > 500 ? 420 : 2650));
+        return;
+      }
+      if (definitionId !== "miniBoss" && definitionId !== "boss") {
+        if (role === "melee" || time < nextSpecialAt) return;
+        const distance = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+        const tint = Number(enemy.getData("tint")) || dungeon.colors.projectile;
+        const aim = new Phaser.Math.Vector2(this.player.x - enemy.x, this.player.y - enemy.y).normalize();
+
+        if (role === "charger") {
+          const chargeStartsAt = time + 360;
+          const chargeEndsAt = chargeStartsAt + 420;
+          enemy.setData("chargeDirectionX", aim.x);
+          enemy.setData("chargeDirectionY", aim.y);
+          enemy.setData("chargeStartsAt", chargeStartsAt);
+          enemy.setData("chargeEndsAt", chargeEndsAt);
+          enemy.setData("nextSpecialAt", chargeEndsAt + 1850);
+          this.telegraphCharge(enemy, aim, tint);
+        } else if (role === "ranged") {
+          if (distance <= 580 && distance >= 100) {
+            this.spawnPulse(enemy.x, enemy.y, 24, tint);
+            this.fireEnemyProjectile(enemy, aim, 7, 285, tint, 2100);
+          }
+          enemy.setData("nextSpecialAt", time + (distance > 580 ? 380 : 1750));
+        } else if (role === "caster") {
+          if (distance <= 470) {
+            this.telegraphAreaStrike(this.player.x, this.player.y, 78, 9, tint, 650);
+          }
+          enemy.setData("nextSpecialAt", time + (distance > 470 ? 400 : 2750));
+        } else if (role === "elite") {
+          if (distance <= 590 && distance >= 120) {
+            this.spawnPulse(enemy.x, enemy.y, 34, tint);
+            for (const spread of [-0.2, 0, 0.2]) {
+              this.fireEnemyProjectile(enemy, aim.clone().rotate(spread), 6, 315, tint, 1900);
+            }
+          }
+          enemy.setData("nextSpecialAt", time + (distance > 590 ? 380 : 2350));
+        }
+        return;
+      }
+
+      if (time < nextSpecialAt) return;
+      if (definitionId === "boss") {
+        this.playSound("boss");
+        this.playEnemyAction(enemy, "attack", time, 760);
+      }
+
+      if (definitionId === "miniBoss") {
+        enemy.setData("nextSpecialAt", time + 2600);
+        this.telegraphAreaStrike(enemy.x, enemy.y, 165, 18, dungeon.colors.miniBoss, 520);
+        bridge.emitMessage(dungeon.messages.miniBossWarning);
+        return;
+      }
+
+      const hp = Number(enemy.getData("hp"));
+      const maxHp = Math.max(1, Number(enemy.getData("maxHp")));
+      const ratio = hp / maxHp;
+      const previousPhase = Math.max(1, Math.min(3, Number(enemy.getData("phase")) || 1)) as 1 | 2 | 3;
+      let patternIndex = Number(enemy.getData("bossPatternIndex")) || 0;
+      const phase = dungeon.id === "mata-encantada"
+        ? getCurupiraBossPhase(previousPhase, patternIndex, ratio)
+        : ratio < 0.33 ? 3 : ratio < 0.66 ? 2 : 1;
+      if (phase !== previousPhase) {
+        enemy.setData("phase", phase);
+        patternIndex = 0;
+        enemy.setData("bossPatternIndex", 0);
+        bridge.emitMessage(phase === 2 ? dungeon.messages.phaseTwo : dungeon.messages.phaseThree);
+        this.spawnPulse(enemy.x, enemy.y, 110, dungeon.colors.phase);
+      }
+
+      if (dungeon.id === "mata-encantada") {
+        enemy.setData("bossPatternIndex", patternIndex + 1);
+        const pattern = getCurupiraBossPattern(phase, patternIndex);
+        enemy.setData("lastBossPattern", pattern);
+        if (pattern === "bow-volley") {
+          this.fireBossVolley(enemy, 3, 0.14);
+          enemy.setData("nextSpecialAt", time + 2050);
+        } else if (pattern === "roots-burst") {
+          bridge.emitMessage("Raízes rompem sob seus pés — mova-se antes do impacto!");
+          this.fireBossVolley(enemy, 3, 0.14);
+          this.telegraphCurupiraRootBurst(this.player.x, this.player.y, 13, 760);
+          enemy.setData("nextSpecialAt", time + 2150);
+        } else if (pattern === "decoy-ambush") {
+          this.summonCurupiraDecoys(enemy);
+          this.teleportBoss(enemy);
+          bridge.emitMessage("Rastros falsos cruzam a arena. O Curupira prepara uma emboscada!");
+          this.telegraphCurupiraRootBurst(this.player.x, this.player.y, 16, 680);
+          enemy.setData("nextSpecialAt", time + 1900);
+        } else if (pattern === "decoy-volley") {
+          this.summonCurupiraDecoys(enemy);
+          this.fireBossVolley(enemy, 4, 0.18);
+          enemy.setData("nextSpecialAt", time + 1950);
+        } else if (pattern === "root-arena") {
+          this.createCurupiraRootBarriers(enemy, time);
+          this.fireBossVolley(enemy, 4, 0.2);
+          enemy.setData("nextSpecialAt", time + 2050);
+        } else {
+          this.teleportBoss(enemy);
+          this.fireBossVolley(enemy, 5, 0.2);
+          this.telegraphAreaStrike(this.player.x, this.player.y, 88, 18, dungeon.colors.phaseThree, 680);
+          enemy.setData("nextSpecialAt", time + 1750);
+        }
+        return;
+      }
+
+      if (phase === 1) {
+        this.fireBossVolley(enemy, 3, 0.14);
+        enemy.setData("nextSpecialAt", time + 2200);
+      } else if (phase === 2) {
+        this.telegraphAreaStrike(this.player.x, this.player.y, 100, 16, dungeon.colors.phaseTwo, 760);
+        enemy.setData("nextSpecialAt", time + 2000);
+      } else {
+        this.teleportBoss(enemy);
+        this.fireBossVolley(enemy, 5, 0.18);
+        this.telegraphAreaStrike(this.player.x, this.player.y, 88, 18, dungeon.colors.phaseThree, 700);
+        enemy.setData("nextSpecialAt", time + 1650);
+      }
+    }
+
+    private fireBossVolley(enemy: ArcadeSprite, count: number, spread: number) {
+      const base = new Phaser.Math.Vector2(
+        this.player.x - enemy.x,
+        this.player.y - enemy.y,
+      ).normalize();
+      const center = (count - 1) / 2;
+      for (let index = 0; index < count; index += 1) {
+        const direction = base.clone().rotate((index - center) * spread);
+        this.fireEnemyProjectile(enemy, direction, 13, 330, dungeon.colors.projectile, 2200);
+      }
+      bridge.emitMessage(dungeon.messages.bossVolley);
+    }
+
+    private summonCurupiraDecoys(enemy: ArcadeSprite) {
+      const profile = dungeon.enemyAnimations?.boss;
+      if (!isArpgEnemyAnimationProfile(profile)) return;
+      const definition = getArpgEnemyAnimationProfile(profile);
+      const dx = this.player.x - enemy.x;
+      const dy = this.player.y - enemy.y;
+      const length = Math.hypot(dx, dy) || 1;
+      const perpendicularX = -dy / length;
+      const perpendicularY = dx / length;
+      const roomLayout = dungeonManager && this.dungeonWorld
+        ? this.dungeonWorld.layout.rooms[dungeonManager.getCurrentRoom().id]
+        : null;
+      const left = (roomLayout?.left ?? 0) + 80;
+      const top = (roomLayout?.top ?? 0) + 80;
+      const right = (roomLayout ? roomLayout.left + roomLayout.width : WORLD_WIDTH) - 80;
+      const bottom = (roomLayout ? roomLayout.top + roomLayout.height : WORLD_HEIGHT) - 80;
+
+      for (const side of [-1, 1]) {
+        const x = Phaser.Math.Clamp(enemy.x + perpendicularX * 136 * side, left, right);
+        const y = Phaser.Math.Clamp(enemy.y + perpendicularY * 136 * side, top, bottom);
+        const decoy = this.add.sprite(x, y, definition.textureKey, 0)
+          .setOrigin(enemy.originX, enemy.originY)
+          .setDisplaySize(enemy.displayWidth, enemy.displayHeight)
+          .setFlipX(enemy.flipX)
+          .setTint(dungeon.colors.phaseTwo)
+          .setAlpha(0.62)
+          .setDepth(enemy.depth + 0.1);
+        const trail = this.add.ellipse(x, y + 26, 76, 22, dungeon.colors.phaseTwo, 0.34)
+          .setStrokeStyle(2, 0xe8d59b, 0.74)
+          .setDepth(enemy.depth - 0.1);
+        this.playTrackedEnemyAnimation(decoy, profile, "walk", true);
+        this.spawnPulse(x, y, 64, dungeon.colors.phaseTwo);
+        this.tweens.add({
+          targets: decoy,
+          x: Phaser.Math.Clamp(x + perpendicularX * 74 * side + dx / length * 36, left, right),
+          y: Phaser.Math.Clamp(y + perpendicularY * 74 * side + dy / length * 36, top, bottom),
+          alpha: 0,
+          duration: 920,
+          ease: "Sine.easeIn",
+          onComplete: () => decoy.destroy(),
+        });
+        this.tweens.add({ targets: trail, alpha: 0, scaleX: 1.7, duration: 920, onComplete: () => trail.destroy() });
+      }
+      this.playSound("boss");
+    }
+
+    private telegraphCurupiraRootBurst(x: number, y: number, damage: number, delayMs: number) {
+      const radius = 86;
+      const marker = this.add.circle(x, y, radius, dungeon.colors.phaseTwo, 0.08)
+        .setStrokeStyle(4, dungeon.colors.phaseTwo, 0.86)
+        .setDepth(6);
+      const roots = Array.from({ length: 6 }, (_, index) => {
+        const angle = index * Math.PI / 3;
+        return this.add.rectangle(
+          x + Math.cos(angle) * 42,
+          y + Math.sin(angle) * 42,
+          8,
+          42,
+          0x8d6544,
+          0.34,
+        ).setRotation(angle).setDepth(7);
+      });
+      this.tweens.add({ targets: marker, alpha: 0.35, duration: delayMs, ease: "Sine.easeIn" });
+      this.tweens.add({ targets: roots, alpha: 0.96, scaleY: 1.12, duration: delayMs, ease: "Back.easeOut" });
+      this.time.delayedCall(delayMs, () => {
+        marker.destroy();
+        roots.forEach((root) => root.destroy());
+        if (this.runEnded) return;
+        this.spawnPulse(x, y, radius, dungeon.colors.phaseTwo);
+        if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) <= radius && this.time.now >= this.dashingUntil) {
+          this.applyPlayerDamage(damage, this.time.now);
+        }
+      });
+    }
+
+    private createCurupiraRootBarriers(enemy: ArcadeSprite, time: number) {
+      const readyAt = Number(enemy.getData("nextRootBarrierAt")) || 0;
+      if (time < readyAt || !dungeonManager || !this.dungeonWorld) return;
+      enemy.setData("nextRootBarrierAt", time + 5200);
+      const roomLayout = this.dungeonWorld.layout.rooms[dungeonManager.getCurrentRoom().id];
+      const candidates = [
+        { x: roomLayout.centerX - 140, y: roomLayout.centerY + 62, width: 150, height: 18 },
+        { x: roomLayout.centerX + 142, y: roomLayout.centerY - 62, width: 18, height: 146 },
+      ];
+
+      candidates.forEach((candidate) => {
+        if (
+          Phaser.Math.Distance.Between(candidate.x, candidate.y, this.player.x, this.player.y) < 104
+          || Phaser.Math.Distance.Between(candidate.x, candidate.y, enemy.x, enemy.y) < 104
+        ) return;
+        const warning = this.add.rectangle(candidate.x, candidate.y, candidate.width, candidate.height, dungeon.colors.phaseTwo, 0.12)
+          .setStrokeStyle(3, dungeon.colors.phaseTwo, 0.9)
+          .setDepth(7);
+        this.tweens.add({ targets: warning, alpha: 0.74, duration: 360, yoyo: true, repeat: 0 });
+        this.time.delayedCall(380, () => {
+          warning.destroy();
+          if (this.runEnded || !enemy.active || Number(enemy.getData("hp")) <= 0) return;
+          const root = this.add.rectangle(candidate.x, candidate.y, candidate.width, candidate.height, 0x694731, 1)
+            .setStrokeStyle(3, 0x91ab5a, 1)
+            .setDepth(8);
+          this.physics.add.existing(root, true);
+          const playerCollider = this.physics.add.collider(this.player, root);
+          const enemyCollider = this.physics.add.collider(this.enemies, root);
+          this.activeCurupiraRootBarriers += 1;
+          const leafA = this.add.rectangle(candidate.x - candidate.width / 3, candidate.y - 8, 22, 8, 0x8eb658, 0.95)
+            .setAngle(-24).setDepth(9);
+          const leafB = this.add.rectangle(candidate.x + candidate.width / 3, candidate.y + 8, 18, 7, 0xacc76b, 0.9)
+            .setAngle(24).setDepth(9);
+          this.time.delayedCall(1720, () => {
+            playerCollider.destroy();
+            enemyCollider.destroy();
+            this.activeCurupiraRootBarriers = Math.max(0, this.activeCurupiraRootBarriers - 1);
+            root.destroy();
+            leafA.destroy();
+            leafB.destroy();
+          });
+        });
+      });
+      bridge.emitMessage("Raízes antigas atravessam a arena e bloqueiam algumas rotas por instantes!");
+      this.playSound("boss");
+    }
+
+    private teleportBoss(enemy: ArcadeSprite) {
+      const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+      const distance = Phaser.Math.Between(210, 310);
+      const roomLayout = dungeonManager && this.dungeonWorld
+        ? this.dungeonWorld.layout.rooms[dungeonManager.getCurrentRoom().id]
+        : null;
+      const left = roomLayout?.left ?? 0;
+      const top = roomLayout?.top ?? 0;
+      const right = roomLayout ? roomLayout.left + roomLayout.width : WORLD_WIDTH;
+      const bottom = roomLayout ? roomLayout.top + roomLayout.height : WORLD_HEIGHT;
+      const margin = 84;
+      const x = Phaser.Math.Clamp(this.player.x + Math.cos(angle) * distance, left + margin, right - margin);
+      const y = Phaser.Math.Clamp(this.player.y + Math.sin(angle) * distance, top + margin, bottom - margin);
+      this.spawnPulse(enemy.x, enemy.y, 55, dungeon.colors.phase);
+      enemy.setPosition(x, y);
+      this.spawnPulse(x, y, 72, dungeon.colors.phase);
+    }
+
+    private telegraphCharge(enemy: ArcadeSprite, direction: import("phaser").Math.Vector2, color: number) {
+      const length = 300;
+      const warning = this.add.rectangle(
+        enemy.x + direction.x * length / 2,
+        enemy.y + direction.y * length / 2,
+        length,
+        12,
+        color,
+        0.34,
+      ).setRotation(direction.angle()).setDepth(8);
+      this.tweens.add({
+        targets: warning,
+        alpha: 0,
+        duration: 360,
+        ease: "Quad.easeOut",
+        onComplete: () => warning.destroy(),
+      });
+    }
+
+    private telegraphAreaStrike(
+      x: number,
+      y: number,
+      radius: number,
+      damage: number,
+      color: number,
+      delayMs: number,
+    ) {
+      const marker = this.add.circle(x, y, radius, color, 0.08)
+        .setStrokeStyle(4, color, 0.8)
+        .setDepth(6);
+      this.tweens.add({ targets: marker, alpha: 0.32, duration: delayMs, ease: "Sine.easeIn" });
+      this.time.delayedCall(delayMs, () => {
+        marker.destroy();
+        if (this.runEnded) return;
+        this.spawnPulse(x, y, radius, color);
+        const distance = Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y);
+        if (distance <= radius && this.time.now >= this.dashingUntil) {
+          this.applyPlayerDamage(damage, this.time.now);
+        }
+      });
+    }
+
+    private applyPlayerDamage(rawDamage: number, time: number) {
+      if (bridge.isServerAuthoritativeCombat() && this.proceduralController) return;
+      this.playSound("player-hit");
+      const armor = ARPG_ARMOR_BY_ID.get(this.currentArmorId) ?? ARPG_ARMORS[0];
+      const body = this.player.body as import("phaser").Physics.Arcade.Body | null;
+      const moving = (body?.velocity.lengthSq() ?? 0) > 64;
+      const armorReduction = getArmorMovingDefenseBonus(armor, moving);
+      const damage = Math.max(1, rawDamage - armor.defenseBonus - armorReduction);
+      this.hp = Math.max(0, this.hp - damage);
+      this.nextPlayerDamageAt = time + 260;
+      this.playPlayerAction("hit", time, 250);
+      this.flashPlayer(0xff7a72, 160);
+      this.cameras.main.shake(90, 0.0025);
+      const retaliationDamage = getArmorRetaliationDamage(armor);
+      if (retaliationDamage > 0) {
+        this.damageEnemiesInRadius(this.player.x, this.player.y, 96, retaliationDamage, false);
+        this.spawnPulse(this.player.x, this.player.y, 96, 0x61a7c7);
+      }
+      if (this.hp <= 0) this.finishRun(false, time);
+    }
+    private checkRoomProgress(time: number) {
+      if (dungeonManager && this.dungeonWorld) return;
+      if (this.roomTransitionScheduled || this.runEnded) return;
+      if (this.enemies.countActive(true) > 0) return;
+
+      if (this.roomIndex >= this.roomWaves.length - 1) {
+        this.finishRun(true, time);
+        return;
+      }
+
+      if (!this.chestAvailable) {
+        this.spawnRewardChest(time);
+      }
+    }
+
+    private spawnRewardChest(time: number) {
+      this.clearEnemyProjectiles();
+      this.chestAvailable = true;
+      this.chestOpening = false;
+      this.playSound("chest");
+      this.chestLoot = lootPlan[this.roomIndex] ?? null;
+      this.chestRoomId = null;
+      this.chestCacheReward = null;
+      this.destroyTreasureChestPrompt();
+      this.chest?.destroy();
+      this.chest = this.createTreasureChest(WORLD_WIDTH / 2, WORLD_HEIGHT / 2 + 110);
+      bridge.emitMessage("Sala limpa. Aproxime-se do baú e pressione E para abrir.");
+      this.emitHud(time);
+    }
+
+    private createTreasureChest(x: number, y: number, initialScale = 1) {
+      const chest = this.add.sprite(x, y, TREASURE_CHEST_TEXTURE, 0)
+        .setScale(TREASURE_CHEST_DISPLAY_SCALE * initialScale)
+        .setDepth(8);
+      alignTreasureChestToGround(chest);
+      chest.on("animationupdate", () => alignTreasureChestToGround(chest));
+      this.chestPrompt = this.add.text(x, y, "[E] Abrir", {
+        color: "#fff0bf",
+        fontFamily: "monospace",
+        fontSize: "12px",
+        backgroundColor: "#241d18",
+        padding: { x: 7, y: 4 },
+      }).setOrigin(0.5).setDepth(14).setVisible(false);
+      return chest;
+    }
+
+    private updateTreasureChestPrompt() {
+      if (!this.chestAvailable || !this.chest || !this.chestPrompt || this.pendingLoot) {
+        this.chestPrompt?.setVisible(false);
+        return;
+      }
+
+      const inRange = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.chest.x, this.chest.y) <= 136;
+      const { top, baseline } = getTreasureChestFrameBounds(Number(this.chest.frame.name));
+      this.chestPrompt.setText(this.chestOpening ? "Abrindo…" : "[E] Abrir");
+      this.chestPrompt.setPosition(
+        this.chest.x,
+        this.chest.y
+          - (baseline - top) * this.chest.scaleY
+          - this.chestPrompt.height / 2
+          - 10,
+      );
+      this.chestPrompt.setVisible(inRange || this.chestOpening);
+    }
+
+    private destroyTreasureChestPrompt() {
+      this.chestPrompt?.destroy();
+      this.chestPrompt = null;
+    }
+
+    private tryOpenChest(time: number) {
+      if (!this.chestAvailable || !this.chest || this.chestOpening) return;
+      const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.chest.x, this.chest.y);
+      if (distance > 136) {
+        bridge.emitMessage("Chegue mais perto do baú para interagir.");
+        return;
+      }
+      this.playPlayerAction("interact", time, 520);
+      this.playSound("chest");
+      this.clearClickPath();
+      bridge.clearGameplayInput();
+      this.player.setVelocity(0, 0);
+      this.chestPhysicsPausedByPresentation = !this.physics.world.isPaused;
+      if (this.chestPhysicsPausedByPresentation) this.physics.world.pause();
+      const openingChest = this.chest;
+      this.chestOpening = true;
+      openingChest.once("animationcomplete", () => {
+        if (this.chest !== openingChest || !this.chestAvailable || !this.chestOpening) return;
+        this.beginChestLootPresentation(this.time.now);
+      });
+      openingChest.play(TREASURE_CHEST_OPEN_ANIMATION_KEY);
+    }
+
+    private beginChestLootPresentation(time: number) {
+      const chest = this.chest;
+      if (!this.chestAvailable || !this.chestOpening || !chest || this.chestPresentation) return;
+
+      const loot = this.chestLoot ?? (!dungeonManager ? lootPlan[this.roomIndex] ?? null : null);
+      const cacheReward = this.chestCacheReward;
+      if (!loot && !cacheReward) {
+        this.chestOpening = false;
+        chest.anims.stop();
+        chest.setFrame(0);
+        alignTreasureChestToGround(chest);
+        this.resumeChestPresentationPhysics();
+        bridge.emitMessage("Este baú não possui uma recompensa atribuída.");
+        this.emitHud(time);
+        return;
+      }
+      if (loot) this.chestLoot = loot;
+
+      const roomId = this.chestRoomId;
+      const landingPoint = this.navigation && roomId
+        ? findChestLootLandingPoint(this.navigation, roomId, chest)
+        : { x: chest.x, y: chest.y + 24 };
+      if (!landingPoint) {
+        this.chestOpening = false;
+        chest.anims.stop();
+        chest.setFrame(0);
+        alignTreasureChestToGround(chest);
+        this.resumeChestPresentationPhysics();
+        bridge.emitMessage("Não há um espaço seguro ao lado do baú para a recompensa.");
+        this.emitHud(time);
+        return;
+      }
+
+      const details = loot ? getChestLootVisualDetails(loot) : null;
+      const presentation: ChestLootPresentation = {
+        id: this.nextChestPresentationId++,
+        kind: loot ? "loot" : "cache",
+        roomId,
+        itemId: details?.id ?? "arpg-run-fragment",
+        rarity: details?.rarity ?? null,
+        phase: "rise",
+        chest,
+        item: null,
+        shadow: this.add.ellipse(landingPoint.x, landingPoint.y, 24, 8, 0x10150f, 0.55)
+          .setDepth(7).setAlpha(0.2),
+        effects: [],
+        tweens: [],
+        timers: [],
+        visualSlot: { claimed: false },
+        itemSpawnCount: 0,
+        landingPoint,
+        loot,
+        resolved: false,
+      };
+      this.chestPresentation = presentation;
+      if (!claimChestLootVisualSlot(presentation.visualSlot)) return;
+      presentation.itemSpawnCount += 1;
+      const texture = details ? `arpg-loot-${details.silhouette}` : "arpg-run-fragment";
+      presentation.item = this.add.image(chest.x, chest.y - 28, texture)
+        .setDisplaySize(loot ? 32 : 24, loot ? 32 : 24)
+        .setAlpha(0)
+        .setDepth(12);
+      if (details) this.audio?.playLootReveal(details.rarity);
+
+      const item = presentation.item;
+      const rise = this.tweens.add({
+        targets: item,
+        y: chest.y - 84,
+        alpha: 1,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 260,
+        ease: "Quad.easeOut",
+        onComplete: () => {
+          if (!this.isCurrentChestPresentation(presentation)) return;
+          presentation.phase = "pause";
+          this.scheduleChestPresentationTimer(presentation, 80, () => this.beginChestLootFall(presentation));
+        },
+      });
+      presentation.tweens.push(rise);
+      this.updateTreasureChestPrompt();
+      this.emitHud(time);
+    }
+
+    private isCurrentChestPresentation(presentation: ChestLootPresentation) {
+      return this.chestPresentation === presentation
+        && this.chest === presentation.chest
+        && presentation.item?.active === true
+        && !presentation.resolved;
+    }
+
+    private scheduleChestPresentationTimer(
+      presentation: ChestLootPresentation,
+      delay: number,
+      callback: () => void,
+    ) {
+      const timer = this.time.delayedCall(delay, () => {
+        if (!this.isCurrentChestPresentation(presentation)) return;
+        callback();
+      });
+      presentation.timers.push(timer);
+    }
+
+    private beginChestLootFall(presentation: ChestLootPresentation) {
+      const item = presentation.item;
+      if (!item || !this.isCurrentChestPresentation(presentation)) return;
+      presentation.phase = "fall";
+      const floor = presentation.landingPoint;
+      const fall = this.tweens.add({
+        targets: item,
+        x: floor.x,
+        y: floor.y - item.displayHeight / 2,
+        duration: 260,
+        ease: "Quad.easeIn",
+        onComplete: () => {
+          if (!this.isCurrentChestPresentation(presentation)) return;
+          presentation.phase = "contact";
+          this.createChestLandingEffects(presentation);
+          const contact = this.tweens.add({
+            targets: item,
+            scaleX: 1.14,
+            scaleY: 0.84,
+            duration: 80,
+            yoyo: true,
+            ease: "Sine.easeOut",
+            onUpdate: () => {
+              if (this.isCurrentChestPresentation(presentation)) {
+                item.y = presentation.landingPoint.y - item.displayHeight / 2;
+              }
+            },
+            onComplete: () => {
+              if (!this.isCurrentChestPresentation(presentation)) return;
+              item.setScale(1);
+              item.y = presentation.landingPoint.y - item.displayHeight / 2;
+              this.completeChestLootPresentation(presentation);
+            },
+          });
+          presentation.tweens.push(contact);
+        },
+      });
+      presentation.tweens.push(fall);
+    }
+
+    private createChestLandingEffects(presentation: ChestLootPresentation) {
+      const style = presentation.rarity
+        ? CHEST_LOOT_RARITY_PRESENTATION[presentation.rarity]
+        : CACHE_FRAGMENT_FEEDBACK;
+      const item = presentation.item;
+      if (!item) return;
+      for (let index = 0; index < style.outlineCount; index += 1) {
+        const centerX = Math.round(item.x);
+        const centerY = Math.round(item.y);
+        const width = 34 + index * 6;
+        const height = 24 + index * 4;
+        const left = centerX - width / 2;
+        const right = centerX + width / 2;
+        const top = centerY - height / 2;
+        const bottom = centerY + height / 2;
+        const cut = 5 + index;
+        const outline = this.add.graphics().setDepth(13);
+        outline.lineStyle(2, style.color, 0.82);
+        outline.strokePoints([
+          { x: left + cut, y: top }, { x: right - cut, y: top },
+          { x: right, y: top + cut }, { x: right, y: bottom - cut },
+          { x: right - cut, y: bottom }, { x: left + cut, y: bottom },
+          { x: left, y: bottom - cut }, { x: left, y: top + cut },
+        ], true);
+        presentation.effects.push(outline);
+        const tween = this.tweens.add({
+          targets: outline,
+          y: -4,
+          alpha: { from: 0.8, to: 0 },
+          duration: 440 + index * 90,
+          repeat: 0,
+          delay: index * 70,
+          onComplete: () => outline.destroy(),
+        });
+        presentation.tweens.push(tween);
+      }
+      for (let index = 0; index < style.sparkleCount; index += 1) {
+        const angle = (Math.PI * 2 * index) / style.sparkleCount;
+        const radius = 17 + (index % 3) * 5;
+        const x = Math.round(item.x + Math.cos(angle) * radius);
+        const y = Math.round(item.y + Math.sin(angle) * radius * 0.72);
+        const sparkle = this.add.rectangle(x, y, index % 3 === 0 ? 3 : 2, index % 3 === 0 ? 3 : 2, style.color)
+          .setDepth(13);
+        presentation.effects.push(sparkle);
+        const tween = this.tweens.add({
+          targets: sparkle,
+          y: Math.round(y - 4 - (index % 3) * 2),
+          alpha: { from: 0.9, to: 0 },
+          duration: 320 + (index % 4) * 80,
+          repeat: 0,
+          delay: index * 27,
+          onComplete: () => sparkle.destroy(),
+        });
+        presentation.tweens.push(tween);
+      }
+    }
+
+    private completeChestLootPresentation(presentation: ChestLootPresentation) {
+      if (!this.isCurrentChestPresentation(presentation)) return;
+      presentation.phase = presentation.kind === "loot" ? "waiting-choice" : "cache";
+      presentation.resolved = true;
+      this.resolveOpenedChest(this.time.now, presentation);
+    }
+
+    private resolveOpenedChest(time: number, presentation: ChestLootPresentation) {
+      if (!this.chestAvailable || this.chest !== presentation.chest || !presentation.resolved) return;
+      this.chestOpening = false;
+
+      if (presentation.kind === "cache") {
+        const reward = this.chestCacheReward;
+        if (!reward) return;
+        const room = presentation.roomId ? dungeonManager?.getRoom(presentation.roomId) : null;
+        this.chestAvailable = false;
+        this.destroyTreasureChestPrompt();
+        this.clearChestPresentation(true);
+        this.chest?.destroy();
+        this.chest = null;
+        this.chestRoomId = null;
+        this.chestCacheReward = null;
+        this.playSound("loot");
+        this.runShards += reward.shards;
+        this.hp = Math.min(this.maxHp, this.hp + reward.healing);
+        if (room) this.dungeonWorld?.setDoorsLocked(room.id, false);
+        this.spawnPulse(this.player.x, this.player.y, 88, 0x9bcf69);
+        if (room?.type === "boss") this.createExitPortal(room);
+        bridge.emitMessage(`Cache recolhido: +${reward.shards} fragmentos${reward.healing ? ` e +${reward.healing} HP` : ""}.`);
+        this.emitRunCheckpoint();
+        this.emitHud(time);
+        return;
+      }
+
+      const loot = presentation.loot;
+      if (!loot) return;
+      this.pendingLoot = loot;
+      bridge.emitMessage(`${loot.label} encontrado. Compare com seu equipamento atual antes de avançar.`);
+      this.updateTreasureChestPrompt();
+      this.emitHud(time);
+    }
+
+    private resumeChestPresentationPhysics() {
+      if (!this.chestPhysicsPausedByPresentation) return;
+      this.chestPhysicsPausedByPresentation = false;
+      if (this.physics.world.isPaused) this.physics.world.resume();
+    }
+
+    private clearChestPresentation(resumePhysics = true) {
+      const presentation = this.chestPresentation;
+      if (presentation) {
+        presentation.timers.forEach((timer) => timer.remove(false));
+        presentation.tweens.forEach((tween) => {
+          tween.stop();
+          this.tweens.remove(tween);
+        });
+        presentation.effects.forEach((effect) => effect.destroy());
+        presentation.shadow?.destroy();
+        presentation.item?.destroy();
+        if (this.chestPresentation === presentation) this.chestPresentation = null;
+      }
+      if (resumePhysics) this.resumeChestPresentationPhysics();
+      else this.chestPhysicsPausedByPresentation = false;
+    }
+
+    private resolvePendingLoot(decision: "equip" | "keep", time: number) {
+      const loot = this.pendingLoot;
+      if (!loot) return;
+      this.pendingLoot = null;
+      this.chestAvailable = false;
+      this.chestOpening = false;
+      this.destroyTreasureChestPrompt();
+      this.clearChestPresentation(true);
+      this.chest?.destroy();
+      this.chest = null;
+      this.playSound("loot");
+      this.runLoot.push({ id: loot.id, kind: loot.kind, quantity: 1, label: loot.label });
+      if (decision === "equip") this.applyRoomLoot(loot);
+
+      if (this.chestRoomId && dungeonManager && this.dungeonWorld) {
+        const roomId = this.chestRoomId;
+        const relicHeal = getRelicChestHeal(selectedRelic);
+        this.hp = Math.min(this.maxHp, this.hp + 14 + relicHeal);
+        const room = dungeonManager.getRoom(roomId);
+        if (room && room.state !== "cleared") dungeonManager.clearRoom(room.id);
+        if (room) this.dungeonWorld.setDoorsLocked(room.id, false);
+        this.chestLoot = null;
+        this.chestRoomId = null;
+        this.chestLootIndex = null;
+        this.chestCacheReward = null;
+        const relicNote = relicHeal > 0 ? ` ${selectedRelic.name} recuperou +${relicHeal} HP.` : "";
+        const choiceNote = decision === "equip" ? `${loot.label} equipado.` : `${loot.label} guardado; equipamento atual mantido.`;
+        if (room?.type === "boss") {
+          this.createExitPortal(room);
+          bridge.emitMessage(`${choiceNote} O Curupira deixou uma recompensa. Entre no portal e pressione E para voltar à Guilda.`);
+          this.emitHud(time);
+          return;
+        }
+        bridge.emitMessage(`${choiceNote}${relicNote} Continue pela dungeon.`);
+        this.emitRunCheckpoint();
+        this.emitHud(time);
+        return;
+      }
+
+      this.roomTransitionScheduled = true;
+      const relicHeal = getRelicChestHeal(selectedRelic);
+      this.hp = Math.min(this.maxHp, this.hp + 14 + relicHeal);
+      this.roomIndex += 1;
+      const relicNote = relicHeal > 0 ? ` ${selectedRelic.name} recuperou +${relicHeal} HP.` : "";
+      const choiceNote = decision === "equip" ? `${loot.label} equipado.` : `${loot.label} guardado; equipamento atual mantido.`;
+      bridge.emitMessage(`${choiceNote}${relicNote} Avançando para a sala ${this.roomIndex + 1}.`);
+      this.emitHud(time);
+      this.time.delayedCall(900, () => this.spawnCurrentRoom());
+    }
+
+    private createExitPortal(room: DungeonRoom) {
+      if (!this.dungeonWorld) return;
+      this.playSound("portal");
+      this.exitPortal?.destroy(true);
+      const center = this.dungeonWorld.getRoomCenter(room.id);
+      const x = center.x;
+      const y = center.y;
+      const outer = this.add.ellipse(0, 0, 88, 116, 0x30213c, 0.78).setStrokeStyle(6, dungeon.colors.phase, 0.95);
+      const inner = this.add.ellipse(0, 0, 54, 82, dungeon.colors.phaseTwo, 0.44).setStrokeStyle(3, 0xf2db9d, 0.9);
+      const core = this.add.ellipse(0, 0, 24, 58, dungeon.colors.phaseThree, 0.72);
+      this.exitPortal = this.add.container(x, y, [outer, inner, core]).setDepth(8);
+      this.tweens.add({ targets: outer, angle: 360, duration: 4200, repeat: -1 });
+      this.tweens.add({ targets: inner, scaleX: { from: 0.92, to: 1.1 }, alpha: { from: 0.45, to: 0.92 }, duration: 740, yoyo: true, repeat: -1 });
+      this.tweens.add({ targets: core, scaleX: { from: 0.74, to: 1.08 }, alpha: { from: 0.52, to: 0.96 }, duration: 560, yoyo: true, repeat: -1 });
+      this.exitPortalAvailable = true;
+      bridge.emitMessage("Loot recolhido. Aproxime-se do portal e pressione E para voltar à Guilda.");
+      this.emitRunCheckpoint();
+      this.emitHud(this.time.now);
+    }
+
+    private tryUseExitPortal(time: number) {
+      if (!this.exitPortalAvailable || !this.exitPortal) return;
+      const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.exitPortal.x, this.exitPortal.y);
+      if (distance > 160) {
+        bridge.emitMessage("Aproxime-se do portal de saída.");
+        return;
+      }
+      this.playPlayerAction("interact", time, 280);
+      this.finishRun(true, time);
+    }
+
+    private applyRoomLoot(loot: DungeonLoot) {
+      if (loot.kind === "weapon") {
+        this.currentWeaponId = loot.id;
+        this.basicAttackCounter = 0;
+        return;
+      }
+
+      const previousArmor = ARPG_ARMOR_BY_ID.get(this.currentArmorId) ?? ARPG_ARMORS[0];
+      const nextArmor = ARPG_ARMOR_BY_ID.get(loot.id) ?? previousArmor;
+      const hpDelta = nextArmor.maxHpBonus - previousArmor.maxHpBonus;
+      this.currentArmorId = nextArmor.id;
+      this.maxHp = Math.max(PLAYER_BASE_HP, this.maxHp + hpDelta);
+      this.hp = Math.min(this.maxHp, Math.max(1, this.hp + Math.max(0, hpDelta)));
+    }
+
+    private finishRun(victory: boolean, time: number) {
+      if (this.runEnded) return;
+      this.runEnded = true;
+      this.victory = victory;
+      this.clearChestPresentation(true);
+      this.chestAvailable = false;
+      this.chestOpening = false;
+      this.destroyTreasureChestPrompt();
+      this.chest?.destroy();
+      this.chest = null;
+      this.audio?.setMusicMode("exploration");
+      this.playSound(victory ? "victory" : "defeat");
+      this.playPlayerAction(victory ? "victory" : "ko", time, 1200);
+      this.pendingEnemySpawns.clear();
+      this.exitPortalAvailable = false;
+      this.exitPortal?.destroy(true);
+      this.exitPortal = null;
+      this.clearEnemyProjectiles();
+      this.clearServerProjectileVisuals();
+      this.clearServerHazardVisuals();
+      this.player.setVelocity(0, 0);
+      this.enemies.getChildren().forEach((child) => (child as ArcadeSprite).setVelocity(0, 0));
+      bridge.emitMessage(victory ? dungeon.messages.victory : dungeon.messages.defeat);
+      const state = this.buildHudState(time);
+      bridge.emitHud(state);
+      this.emitRunCheckpoint();
+      bridge.emitRunEnd(state);
+    }
+
+    private emitRunCheckpoint() {
+      if (!dungeonManager) return;
+      const room = dungeonManager.getCurrentRoom();
+      bridge.emitRunCheckpoint(snapshotArpgRunCheckpoint({
+        currentRoomId: room.id,
+        visitedRoomIds: dungeonManager.getVisitedRoomIds(),
+        clearedRoomIds: dungeonManager.getClearedRoomIds(),
+        brokenBreakableIds: [...this.brokenBreakableIds].sort(),
+        playerHp: Math.max(0, Math.round(this.hp)),
+        maxHp: Math.max(1, Math.round(this.maxHp)),
+        weaponId: this.currentWeaponId,
+        armorId: this.currentArmorId,
+        xpEarned: Math.max(0, Math.round(this.xpEarned)),
+        runShards: Math.max(0, Math.round(this.runShards)),
+        runLoot: this.runLoot.map((item) => ({ ...item })),
+        rewardRoomId: this.chestRoomId,
+        exitPortalAvailable: this.exitPortalAvailable || (this.runEnded && this.victory),
+        runMoveSpeedBonus: this.runMoveSpeedBonus,
+        runBasicDamageMultiplier: this.runBasicDamageMultiplier,
+      }));
+    }
+
+    private playSound(cue: ArpgSoundCue) {
+      this.audio?.play(cue);
+    }
+
+    private playPlayerAction(animation: CartographerPlayerAction, time: number, duration: number) {
+      this.playerActionUntil = Math.max(this.playerActionUntil, time + duration);
+      playCartographerPlayerAnimation(this.player, animation, true);
+    }
+
+    private flashPlayer(color: number, duration: number) {
+      this.player.setTint(color);
+      this.time.delayedCall(duration, () => this.player.active && this.player.clearTint());
+    }
+
+    private buildDungeonMap(): ArpgDungeonMapState | null {
+      if (!dungeonManager) return null;
+      const current = dungeonManager.getCurrentRoom();
+      const visibleRooms = dungeonManager.getVisibleRooms();
+      const visitedRoomIds = new Set(dungeonManager.getVisitedRoomIds());
+      const visibleIds = new Set(visibleRooms.map((room) => room.id));
+      return {
+        currentRoomId: current.id,
+        rooms: visibleRooms.map((room) => {
+          const state: ArpgMiniMapRoomState = room.state === "unvisited" ? "discovered" : room.state;
+          const revealType = visitedRoomIds.has(room.id) || room.state === "cleared" || room.type === "start";
+          return {
+            id: room.id,
+            gridX: room.gridX,
+            gridY: room.gridY,
+            type: revealType ? room.type : "unknown",
+            state,
+            connections: Object.values(room.connections)
+              .filter((id): id is string => typeof id === "string" && visibleIds.has(id)),
+          };
+        }),
+      };
+    }
+
+    private buildHudState(time: number): ArpgHudState {
+      const proceduralRoom = dungeonManager?.getCurrentRoom();
+      const proceduralRoomCount = dungeonManager ? Object.keys(dungeonManager.getGraph().rooms).length : null;
+      return {
+        nowMs: time,
+        hp: this.hp,
+        maxHp: this.maxHp,
+        room: proceduralRoom ? proceduralRoom.distanceFromStart + 1 : this.roomIndex + 1,
+        roomCount: proceduralRoomCount ?? this.roomWaves.length,
+        enemiesRemaining: this.enemies?.countActive(true) ?? 0,
+        weaponId: this.currentWeaponId,
+        armorId: this.currentArmorId,
+        relicId: selectedRelic.id,
+        dungeonMap: this.buildDungeonMap(),
+        runShards: this.runShards,
+        chestAvailable: this.chestAvailable && !this.chestOpening && !this.pendingLoot,
+        exitPortalAvailable: this.exitPortalAvailable,
+        pendingLoot: this.pendingLoot
+          ? { id: this.pendingLoot.id, kind: this.pendingLoot.kind, quantity: 1, label: this.pendingLoot.label }
+          : null,
+        pendingRoomChoice: this.pendingRoomChoice,
+        runLoot: [...this.runLoot],
+        abilityIds: loadout.abilityIds,
+        dashReadyAt: Math.max(time, this.nextDashAt),
+        abilityReadyAt: { ...this.abilityReadyAt },
+        xpEarned: this.xpEarned,
+        runEnded: this.runEnded,
+        victory: this.victory,
+      };
+    }
+
+    private emitHud(time: number) {
+      this.updateDungeonDebugOverlay();
+      bridge.emitHud(this.buildHudState(time));
+    }
+
+    private readDungeonDebugState() {
+      const graph = dungeonManager?.getGraph() ?? null;
+      const room = dungeonManager?.getCurrentRoom() ?? null;
+      const bounds = room ? this.dungeonWorld?.layout.rooms[room.id] ?? null : null;
+      return {
+        seed: graph?.seed ?? null,
+        runShards: this.runShards,
+        startRoomId: graph?.startRoomId ?? null,
+        bossRoomId: graph?.bossRoomId ?? null,
+        rooms: graph
+          ? Object.values(graph.rooms).map((item) => ({
+            id: item.id,
+            gridX: item.gridX,
+            gridY: item.gridY,
+            type: item.type,
+            templateId: item.templateId,
+            state: item.state,
+            distanceFromStart: item.distanceFromStart,
+            connections: { ...item.connections },
+          }))
+          : [],
+        room: room ? {
+          id: room.id,
+          gridX: room.gridX,
+          gridY: room.gridY,
+          type: room.type,
+          templateId: room.templateId,
+          state: room.state,
+        } : null,
+        specialRoomAnchor: room && this.specialRoomAnchors.has(room.id)
+          ? {
+            x: Math.round(this.specialRoomAnchors.get(room.id)!.x),
+            y: Math.round(this.specialRoomAnchors.get(room.id)!.y),
+          }
+          : null,
+        doors: room
+          ? Object.entries(room.connections)
+            .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+            .map(([direction, targetRoomId]) => ({ direction, targetRoomId }))
+          : [],
+        doorStates: room ? this.dungeonWorld?.getDoorDebugStates(room.id) ?? [] : [],
+        ambient: this.dungeonWorld?.getAmbientDebugState() ?? null,
+        wave: this.proceduralController?.snapshot() ?? null,
+        activeCurupiraRootBarriers: this.activeCurupiraRootBarriers,
+        runtime: {
+          sceneTime: this.time?.now ?? null,
+          sceneActive: this.scene?.isActive(this.scene.key) ?? false,
+          scenePaused: this.scene?.isPaused() ?? false,
+          sceneStatus: this.sys?.settings.status ?? null,
+          gameRunning: this.game?.isRunning ?? false,
+          runEnded: this.runEnded,
+          victory: this.victory,
+          pendingLootKind: this.pendingLoot?.kind ?? null,
+          pendingRoomChoice: this.pendingRoomChoice?.title ?? null,
+          gamepad: { connected: this.gamepad.connected, moveX: this.gamepad.moveX, moveY: this.gamepad.moveY },
+        },
+        enemiesActive: this.enemies?.getChildren().filter((child) => {
+          const enemy = child as ArcadeSprite;
+          return enemy.active && enemy.getData("spawnReady");
+        }).length ?? 0,
+        enemyPositions: this.enemies?.getChildren().filter((child) => {
+          const enemy = child as ArcadeSprite;
+          return enemy.active && enemy.getData("spawnReady") && !enemy.getData("defeatPending");
+        }).map((child) => {
+          const enemy = child as ArcadeSprite;
+          return {
+            runtimeId: String(enemy.getData("runtimeId")),
+            definitionId: String(enemy.getData("definitionId")),
+            x: Math.round(enemy.x),
+            y: Math.round(enemy.y),
+            animation: enemy.anims.currentAnim?.key ?? null,
+            defeatPending: Boolean(enemy.getData("defeatPending")),
+          };
+        }) ?? [],
+        animatedEnemies: this.enemies?.getChildren().filter((child) => {
+          const enemy = child as ArcadeSprite;
+          return enemy.active && typeof enemy.getData("animationProfile") === "string";
+        }).map((child) => {
+          const enemy = child as ArcadeSprite;
+          return {
+            runtimeId: String(enemy.getData("runtimeId")),
+            definitionId: String(enemy.getData("definitionId")),
+            x: Math.round(enemy.x),
+            y: Math.round(enemy.y),
+            animation: enemy.anims.currentAnim?.key ?? null,
+            animationHistory: Array.isArray(enemy.getData("animationHistory"))
+              ? [...enemy.getData("animationHistory") as string[]]
+              : [],
+            frame: enemy.frame.name,
+            defeatPending: Boolean(enemy.getData("defeatPending")),
+            phase: enemy.getData("phase") ?? null,
+            bossPattern: enemy.getData("lastBossPattern") ?? null,
+          };
+        }) ?? [],
+        pendingSpawns: this.pendingEnemySpawns.size,
+        breakables: this.breakableObjects?.getChildren().map((child) => {
+          const object = child as ArcadeSprite;
+          return {
+            id: String(object.getData("breakableId")),
+            roomId: String(object.getData("roomId")),
+            kind: String(object.getData("kind")),
+            hitPoints: Number(object.getData("hitPoints")),
+            active: object.active,
+            x: Math.round(object.x),
+            y: Math.round(object.y),
+          };
+        }) ?? [],
+        playerInEnemyGroup: this.enemies?.contains(this.player) ?? false,
+        playerInProjectileGroups: Boolean(this.projectiles?.contains(this.player) || this.enemyProjectiles?.contains(this.player)),
+        playerLifecycleEvents: [...this.playerLifecycleEvents],
+        player: this.player ? {
+          x: Math.round(this.player.x),
+          y: Math.round(this.player.y),
+          active: this.player.active,
+          bodyEnabled: this.player.body?.enable ?? false,
+          velocityX: Math.round(this.player.body?.velocity.x ?? 0),
+          velocityY: Math.round(this.player.body?.velocity.y ?? 0),
+        } : null,
+        chestPresentation: this.chestPresentation
+          ? {
+            id: this.chestPresentation.id,
+            kind: this.chestPresentation.kind,
+            roomId: this.chestPresentation.roomId,
+            phase: this.chestPresentation.phase,
+            itemId: this.chestPresentation.itemId,
+            rarity: this.chestPresentation.rarity,
+            x: Math.round(this.chestPresentation.item?.x ?? this.chestPresentation.landingPoint.x),
+            y: Math.round(this.chestPresentation.item?.y ?? this.chestPresentation.landingPoint.y),
+            itemCount: this.chestPresentation.item?.active && this.chestPresentation.item.visible ? 1 : 0,
+            itemSpawnCount: this.chestPresentation.itemSpawnCount,
+          }
+          : null,
+        chest: this.chestAvailable && this.chest
+          ? {
+            x: Math.round(this.chest.x),
+            y: Math.round(this.chest.y),
+            animation: this.chest.anims.currentAnim?.key ?? null,
+            frame: Number(this.chest.frame.name),
+            opening: this.chestOpening,
+            frameWidth: this.chest.frame.width,
+            frameHeight: this.chest.frame.height,
+            displayWidth: this.chest.displayWidth,
+            displayHeight: this.chest.displayHeight,
+          }
+          : null,
+        exitPortal: this.exitPortalAvailable && this.exitPortal
+          ? { x: Math.round(this.exitPortal.x), y: Math.round(this.exitPortal.y) }
+          : null,
+        bounds: bounds ? {
+          x: bounds.left,
+          y: bounds.top,
+          width: bounds.width,
+          height: bounds.height,
+        } : null,
+      };
+    }
+
+    private createDungeonDebugOverlay() {
+      if (!dungeonManager || typeof window === "undefined") return;
+      const searchParams = new URLSearchParams(window.location.search);
+      const debugEnabled = searchParams.get("debugDungeon") === "1";
+      const performanceEnabled = searchParams.get("performanceBenchmark") === "1";
+      if (!debugEnabled && !performanceEnabled) return;
+
+      if (debugEnabled) {
+        const recordPlayerLifecycleEvent = (event: string) => {
+          this.playerLifecycleEvents.push({
+            event,
+            sceneTime: this.time?.now ?? 0,
+            stack: new Error().stack?.split("\n").slice(2, 7).join("\n"),
+          });
+          if (this.playerLifecycleEvents.length > 12) this.playerLifecycleEvents.shift();
+        };
+        const setActive = this.player.setActive.bind(this.player);
+        this.player.setActive = ((active: boolean) => {
+          if (!active) recordPlayerLifecycleEvent("setActive(false)");
+          return setActive(active);
+        }) as typeof this.player.setActive;
+        const disableBody = this.player.disableBody.bind(this.player);
+        this.player.disableBody = ((disableGameObject?: boolean, hideGameObject?: boolean) => {
+          recordPlayerLifecycleEvent(`disableBody(${Boolean(disableGameObject)},${Boolean(hideGameObject)})`);
+          return disableBody(disableGameObject, hideGameObject);
+        }) as typeof this.player.disableBody;
+        const destroyPlayer = this.player.destroy.bind(this.player);
+        this.player.destroy = ((fromScene?: boolean) => {
+          recordPlayerLifecycleEvent(`destroy(${Boolean(fromScene)})`);
+          return destroyPlayer(fromScene);
+        }) as typeof this.player.destroy;
+        this.events.once("shutdown", () => recordPlayerLifecycleEvent("scene shutdown"));
+        this.events.once("destroy", () => recordPlayerLifecycleEvent("scene destroy"));
+        this.dungeonDebugText = this.add.text(14, WORLD_HEIGHT - 126, "", {
+          color: "#f4e6c1",
+          backgroundColor: "#11180ddd",
+          fontFamily: "monospace",
+          fontSize: "13px",
+          padding: { x: 7, y: 5 },
+        }).setScrollFactor(0).setDepth(1000);
+      }
+
+      const debugWindow = window as Window & {
+        __cardRealmsDungeonDebug?: () => object;
+        __cardRealmsDungeonDebugOverlay?: (visible: boolean) => void;
+        __cardRealmsDungeonMoveToWorld?: (x: number, y: number) => boolean;
+        __cardRealmsDungeonSetPerformanceLoad?: (load: { enemies: number; projectiles: number; particles: number }) => object;
+        __cardRealmsDungeonGetPerformanceState?: () => object;
+      };
+      const debugReader = () => this.readDungeonDebugState();
+      const debugOverlay = (visible: boolean) => this.dungeonDebugText?.setVisible(visible);
+      const debugMover = (x: number, y: number) => this.setClickDestination({
+        button: 0,
+        wasTouch: false,
+        worldX: x,
+        worldY: y,
+      });
+      const performanceLoad = (load: { enemies: number; projectiles: number; particles: number }) =>
+        this.setPerformanceLoad(load);
+      const performanceState = () => this.readPerformanceState();
+      if (debugEnabled) {
+        debugWindow.__cardRealmsDungeonDebug = debugReader;
+        debugWindow.__cardRealmsDungeonDebugOverlay = debugOverlay;
+        debugWindow.__cardRealmsDungeonMoveToWorld = debugMover;
+      }
+      if (performanceEnabled) {
+        debugWindow.__cardRealmsDungeonSetPerformanceLoad = performanceLoad;
+        debugWindow.__cardRealmsDungeonGetPerformanceState = performanceState;
+      }
+      this.events.once("destroy", () => {
+        if (debugEnabled && debugWindow.__cardRealmsDungeonDebug === debugReader) delete debugWindow.__cardRealmsDungeonDebug;
+        if (debugEnabled && debugWindow.__cardRealmsDungeonDebugOverlay === debugOverlay) delete debugWindow.__cardRealmsDungeonDebugOverlay;
+        if (debugEnabled && debugWindow.__cardRealmsDungeonMoveToWorld === debugMover) delete debugWindow.__cardRealmsDungeonMoveToWorld;
+        if (performanceEnabled && debugWindow.__cardRealmsDungeonSetPerformanceLoad === performanceLoad) {
+          delete debugWindow.__cardRealmsDungeonSetPerformanceLoad;
+        }
+        if (performanceEnabled && debugWindow.__cardRealmsDungeonGetPerformanceState === performanceState) {
+          delete debugWindow.__cardRealmsDungeonGetPerformanceState;
+        }
+      });
+    }
+
+    private setPerformanceLoad(load: { enemies: number; projectiles: number; particles: number }) {
+      const requested = {
+        enemies: Math.trunc(load.enemies),
+        projectiles: Math.trunc(load.projectiles),
+        particles: Math.trunc(load.particles),
+      };
+      if (
+        !Object.values(requested).every(Number.isFinite)
+        || requested.enemies < 0 || requested.enemies > 50
+        || requested.projectiles < 0 || requested.projectiles > 300
+        || requested.particles < 0 || requested.particles > 300
+      ) throw new Error("Carga de benchmark fora dos limites permitidos.");
+
+      this.benchmarkParticleEmitter?.destroy();
+      this.benchmarkParticleEmitter = null;
+      this.pendingEnemySpawns.clear();
+      this.enemies.getChildren().forEach((child) => {
+        const enemy = child as ArcadeSprite;
+        enemy.setActive(false).setVisible(false).setVelocity(0, 0);
+        if (enemy.body) enemy.body.enable = false;
+      });
+      [this.projectiles, this.enemyProjectiles].forEach((group) => {
+        group.getChildren().forEach((child) => this.recycleProjectile(child as ArcadeSprite));
+      });
+
+      const room = dungeonManager?.getCurrentRoom();
+      const bounds = room ? this.dungeonWorld?.layout.rooms[room.id] : null;
+      if (!room || !bounds) throw new Error("A carga de benchmark requer uma sala ativa.");
+      const enemyId = room.waves.flat().find((id) => Boolean(dungeon.enemies[id]))
+        ?? Object.keys(dungeon.enemies).find((id) => dungeon.enemies[id]?.combatRole === "melee")
+        ?? Object.keys(dungeon.enemies)[0];
+      if (requested.enemies > 0 && !enemyId) throw new Error("A sala ativa não possui criatura para benchmark.");
+      const columns = Math.ceil(Math.sqrt(Math.max(1, requested.enemies)));
+      const rows = Math.ceil(requested.enemies / columns);
+      const inset = 48;
+      for (let index = 0; index < requested.enemies; index += 1) {
+        const column = index % columns;
+        const row = Math.floor(index / columns);
+        const x = bounds.left + inset + ((column + 0.5) / columns) * (bounds.width - inset * 2);
+        const y = bounds.top + inset + ((row + 0.5) / rows) * (bounds.height - inset * 2);
+        const enemy = this.spawnEnemyInstance(enemyId!, `benchmark:${index}`, x, y);
+        if (!enemy) throw new Error(`Não foi possível criar criatura de benchmark ${index + 1}.`);
+        enemy.setData("performanceBenchmark", true);
+        enemy.setData("hp", 1_000_000);
+        enemy.setData("maxHp", 1_000_000);
+        enemy.setData("contactDamage", 0);
+        enemy.setData("nextSpecialAt", this.time.now + 60_000);
+      }
+
+      for (let index = 0; index < requested.projectiles; index += 1) {
+        const column = index % 25;
+        const row = Math.floor(index / 25);
+        const x = bounds.left + inset + ((column + 0.5) / 25) * (bounds.width - inset * 2);
+        const y = bounds.top + inset + ((row + 0.5) / Math.max(1, Math.ceil(requested.projectiles / 25))) * (bounds.height - inset * 2);
+        const projectile = this.projectiles.get(x, y, "arpg-projectile") as ArcadeSprite | null;
+        if (!projectile) throw new Error(`O pool de projéteis não comporta ${requested.projectiles} instâncias.`);
+        const angle = index * 2.399963229728653;
+        projectile.setActive(true).setVisible(true).setTint(0xd9eeff).setDepth(11);
+        projectile.body!.enable = true;
+        projectile.setCircle(5, 1, 1);
+        projectile.setVelocity(Math.cos(angle) * 92, Math.sin(angle) * 92);
+        projectile.setData("damage", 0);
+        projectile.setData("expiresAt", this.time.now + 60_000);
+        projectile.setData("piercing", true);
+        projectile.setData("hitIds", new Set<string>());
+      }
+
+      if (requested.particles > 0) {
+        this.benchmarkParticleEmitter = this.add.particles(0, 0, "arpg-projectile", {
+          angle: { min: 0, max: 360 },
+          speed: { min: 35, max: 110 },
+          lifespan: { min: 5_000, max: 6_000 },
+          scale: { start: 0.8, end: 0.1 },
+          alpha: { start: 0.85, end: 0 },
+          maxParticles: requested.particles,
+          blendMode: "ADD",
+          name: "performance-benchmark-particles",
+        }).setDepth(12);
+        this.benchmarkParticleEmitter.explode(requested.particles, this.player.x, this.player.y);
+      }
+
+      return {
+        requested,
+        ...this.readPerformanceState(),
+      };
+    }
+
+    private readPerformanceState() {
+      return {
+        actual: {
+          enemies: this.enemies.getChildren().filter((child) => {
+            const enemy = child as ArcadeSprite;
+            return enemy.active && enemy.getData("spawnReady");
+          }).length,
+          projectiles: this.projectiles.getChildren().filter((child) => (child as ArcadeSprite).active).length,
+          particles: this.benchmarkParticleEmitter?.getAliveParticleCount() ?? 0,
+        },
+        rendererType: this.game.renderer.type,
+        physicsFps: this.physics.world.fps,
+      };
+    }
+
+    private updateDungeonDebugOverlay() {
+      if (!this.dungeonDebugText) return;
+      const state = this.readDungeonDebugState();
+      const room = state.room;
+      const wave = state.wave;
+      this.dungeonDebugText.setText([
+        `SEED ${state.seed ?? "—"}`,
+        room ? `ROOM ${room.id} (${room.gridX},${room.gridY}) ${room.type} · ${room.state}` : "ROOM —",
+        `DOORS ${state.doors.map((door) => `${door.direction}:${door.targetRoomId}`).join("  ") || "—"}`,
+        `WAVE ${wave ? `${wave.waveIndex + 1}/${wave.waveCount} ${wave.state} · ${wave.enemiesAlive} vivos` : "—"}`,
+        `ENEMIES ${state.enemiesActive} · SPAWNING ${state.pendingSpawns} · PLAYER ${state.player?.x ?? "—"},${state.player?.y ?? "—"}`,
+        state.bounds ? `BOUNDS ${state.bounds.x},${state.bounds.y} ${state.bounds.width}×${state.bounds.height}` : "BOUNDS —",
+      ]);
+    }
+  };
+}

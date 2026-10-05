@@ -28,7 +28,8 @@ describe("apresentação da batalha", () => {
         message: "Ataque acertou.",
         die: 5,
         damage: 70,
-        attackId: "iara-1",
+        abilityId: "iara-song",
+        abilitySlot: 0,
       },
       {
         id: "ko-1",
@@ -41,8 +42,8 @@ describe("apresentação da batalha", () => {
 
     const sequence = toBattlePresentationEvents(events);
     expect(sequence.map((event) => event.kind)).toEqual(["energy", "roll", "attack", "ko"]);
-    expect(sequence[1]).toMatchObject({ kind: "roll", die: 5, attackId: "iara-1" });
-    expect(sequence[2]).toMatchObject({ die: 5, damage: 70, attackId: "iara-1" });
+    expect(sequence[1]).toMatchObject({ kind: "roll", die: 5, abilityId: "iara-song", abilitySlot: 0 });
+    expect(sequence[2]).toMatchObject({ die: 5, damage: 70, abilityId: "iara-song", abilitySlot: 0 });
   });
 
   it("modo rápido reduz duração sem eliminar feedback", () => {

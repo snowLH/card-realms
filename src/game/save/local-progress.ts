@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_REFUGE_FURNITURE, REFUGE_FURNITURE_KEYS, REFUGE_THEMES } from "@/game/refuge";
 
 export const LOCAL_PROGRESS_KEY = "card-realms:progress:v4";
 const V3_PROGRESS_KEY = "card-realms:progress:v3";
@@ -21,6 +22,24 @@ export const DEFAULT_AVATAR_CONFIG: AvatarConfig = {
   outfit: "traveler",
   armor: "none",
   accent: "gold",
+};
+
+const RefugeProgressSchema = z.object({
+  companionId: z.string().min(1).max(80).nullable(),
+  theme: z.enum(REFUGE_THEMES),
+  furniture: z.array(z.object({
+    id: z.string().min(1).max(100),
+    itemKey: z.enum(REFUGE_FURNITURE_KEYS),
+    x: z.number().min(8).max(92),
+    y: z.number().min(24).max(88),
+    rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
+  })).max(12),
+});
+
+const DEFAULT_LOCAL_REFUGE = {
+  companionId: null,
+  theme: "cartographer" as const,
+  furniture: DEFAULT_REFUGE_FURNITURE.map((item) => ({ ...item })),
 };
 
 const LocalProgressSchema = z.object({
@@ -47,6 +66,7 @@ const LocalProgressSchema = z.object({
   }),
   equipmentIds: z.array(z.string().min(1).max(80)).max(100),
   avatar: AvatarConfigSchema,
+  refuge: RefugeProgressSchema.default(DEFAULT_LOCAL_REFUGE),
 });
 
 export type LocalProgress = z.infer<typeof LocalProgressSchema>;
@@ -60,9 +80,10 @@ export const DEFAULT_LOCAL_PROGRESS: LocalProgress = {
   currentAreaId: "roots-gate",
   visitedAreaIds: ["roots-gate"],
   mapPositions: { roots: { x: 4, y: 20 } },
-  energy: { fire: 0, water: 0, nature: 0, storm: 0, spirit: 0 },
+  energy: { fire: 12, water: 12, nature: 12, storm: 12, spirit: 12 },
   equipmentIds: [],
   avatar: DEFAULT_AVATAR_CONFIG,
+  refuge: DEFAULT_LOCAL_REFUGE,
 };
 
 function unique(values: string[]) {
@@ -107,6 +128,7 @@ export function loadLocalProgress(
       energy: value.energy ?? DEFAULT_LOCAL_PROGRESS.energy,
       equipmentIds: value.equipmentIds ?? DEFAULT_LOCAL_PROGRESS.equipmentIds,
       avatar: value.avatar ?? DEFAULT_AVATAR_CONFIG,
+      refuge: value.refuge ?? DEFAULT_LOCAL_REFUGE,
     });
     return { ...migrated, openedTreasures: unique(migrated.openedTreasures) };
   } catch {

@@ -401,7 +401,7 @@ export function LocalExploration({
                 setInteraction(null);
                 onBattle({ kind: "wild", regionId: region.id, creatureId: encounterCreature.id });
               }}><Swords /> Iniciar batalha de cartas</Button>
-              <small>Vencer rende moedas e experiência. Novas cartas continuam exclusivas de baús e recompensas especiais.</small>
+              <small>As batalhas rendem moedas e experiência. Novos poderes podem ser comprados e equipados no Arquivo de Poderes da Guilda.</small>
             </>
           ) : null}
         </aside>

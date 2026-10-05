@@ -12,7 +12,6 @@ export function BattleTopbar({
   round,
   status,
   playerTurn,
-  forcedSwitch,
   opponentName,
   soundEnabled,
   onToggleSound,
@@ -26,7 +25,6 @@ export function BattleTopbar({
   round: number;
   status: BattleState["status"];
   playerTurn: boolean;
-  forcedSwitch: boolean;
   opponentName: string;
   soundEnabled: boolean;
   onToggleSound: () => void;
@@ -48,9 +46,7 @@ export function BattleTopbar({
   const turnLabel = status === "finished"
     ? "Batalha concluída"
     : playerTurn
-      ? forcedSwitch
-        ? "Escolha a próxima criatura"
-        : "Seu turno"
+      ? "Seu turno"
       : `Turno de ${opponentName}`;
 
   return (

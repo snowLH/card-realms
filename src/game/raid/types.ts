@@ -1,12 +1,18 @@
-import type { BattleSide, BattleTerrain } from "../battle";
+import type { ActiveStatus, BattleSide, BattleTerrain } from "../battle";
 import type { Element, EnergyPool } from "../domain/elements";
+import type { AvatarConfig } from "../save/local-progress";
 
 export const RAID_MIN_PLAYERS = 2 as const;
 export const RAID_MAX_PLAYERS = 5 as const;
 export const RAID_BOSS_ID = "raid-boss" as const;
+export const RAID_STATE_VERSION = 2 as const;
+export const RAID_GAMEPLAY_VERSION = 2 as const;
+
+export type RaidGameplayMode = "avatar" | "arpg" | "legacy";
 
 export type RaidStatus = "active" | "victory" | "defeat";
 export type RaidPhase = 1 | 2 | 3;
+export type RaidAbilityIds = [string, string];
 
 export type RaidContribution = {
   actions: number;
@@ -24,7 +30,6 @@ export type RaidPlayerState = {
   seat: number;
   side: BattleSide;
   eliminated: boolean;
-  needsSwitch: boolean;
   contribution: RaidContribution;
 };
 
@@ -36,6 +41,7 @@ export type RaidBossState = {
   hp: number;
   maxHp: number;
   shield: number;
+  statuses: ActiveStatus[];
   phase: RaidPhase;
   speed: number;
   enraged: boolean;
@@ -53,18 +59,17 @@ export type RaidLogKind =
   | "turn_started"
   | "energy_drawn"
   | "energy_attached"
-  | "power_drawn"
-  | "power_equipped"
-  | "creature_switched"
-  | "evolution_started"
-  | "evolution_completed"
-  | "die_rolled"
+  | "ability_used"
   | "attack_hit"
   | "attack_miss"
   | "critical"
+  | "healed"
+  | "shielded"
+  | "status_applied"
+  | "status_tick"
+  | "defeated"
   | "boss_attack"
   | "boss_area_attack"
-  | "creature_ko"
   | "player_eliminated"
   | "phase_changed"
   | "terrain_activated"
@@ -82,18 +87,20 @@ export type RaidLogEntry = {
   message: string;
   die?: number;
   damage?: number;
-  attackId?: string;
+  abilityId?: string;
+  abilitySlot?: 0 | 1;
+  effect?: ActiveStatus["effect"] | "heal" | "shield";
   targetIds?: string[];
   phase?: RaidPhase;
   terrainElement?: Element;
-  creatureIndex?: number;
+  terrainTurns?: number;
   energyCardId?: string;
   energyElement?: Element;
-  powerCardId?: string;
 };
 
 export type RaidState = {
-  version: 1;
+  version: typeof RAID_STATE_VERSION;
+  eventSequence: number;
   roomId: string;
   eventId: string;
   bossCreatureId: string;
@@ -117,8 +124,8 @@ export type RaidPlayerSetup = {
   id: string;
   name: string;
   seat: number;
-  teamIds: readonly string[];
-  evolutionStages?: readonly number[];
+  avatarConfig: AvatarConfig;
+  abilityIds: readonly string[];
   energy?: EnergyPool;
 };
 

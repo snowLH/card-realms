@@ -111,6 +111,13 @@ const BattleHistorySchema = z.object({
   finishedAt: z.string(),
 });
 
+const ArpgLoadoutSchema = z.object({
+  weaponId: z.string().min(1),
+  armorId: z.string().min(1),
+  relicId: z.string().min(1),
+  abilityIds: z.tuple([z.string().min(1), z.string().min(1)]),
+});
+
 export const RemotePlayerSnapshotSchema = z.object({
   version: z.literal(1),
   profile: ProfileSchema,
@@ -123,6 +130,7 @@ export const RemotePlayerSnapshotSchema = z.object({
     quantity: z.number().int().nonnegative(),
     metadata: JsonObjectSchema,
   })),
+  arpgLoadout: ArpgLoadoutSchema.optional(),
   exploration: z.array(ExplorationSchema),
   missions: z.array(MissionSchema),
   achievements: z.array(AchievementSchema),

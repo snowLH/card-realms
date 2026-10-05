@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { BATTLE_VERSION } from "@/game/battle";
 import type { BattleState } from "@/game/types";
 
 type TokenPayload = {
@@ -55,7 +56,7 @@ export function verifyBattleState(token: string): BattleState {
       decipher.final(),
     ]).toString("utf8");
     const payload = JSON.parse(decrypted) as TokenPayload;
-    if (payload.version !== 2 || payload.expiresAt < Date.now() || payload.state.version !== 2) {
+    if (payload.version !== 2 || payload.expiresAt < Date.now() || payload.state.version !== BATTLE_VERSION) {
       throw new Error("Versão ou validade incorreta.");
     }
     return payload.state;

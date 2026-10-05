@@ -27,13 +27,13 @@ export async function GET(
       actorId,
     );
     const visible = room.state ? visibleRaidState(room.state, actorId) : null;
-    const [{ data: reward }, { data: roomEvents }] = await Promise.all([
+    const [{ data: eventReward }, { data: roomEvents }, { data: historicalRewards }] = await Promise.all([
       admin
         .from("raid_reward_ledger")
-        .select("creature_card_id,granted_at")
+        .select("coins_awarded,xp_awarded,granted_at")
         .eq("event_id", event.id)
         .eq("player_id", actorId)
-        .eq("reward_type", "mythical_reward")
+        .eq("reward_type", "currency_reward")
         .maybeSingle(),
       admin
         .from("raid_room_events")
@@ -41,6 +41,12 @@ export async function GET(
         .eq("room_id", room.id)
         .order("sequence", { ascending: false })
         .limit(40),
+      admin
+        .from("raid_reward_ledger")
+        .select("reward_type,creature_card_id,ability_card_id,coins_awarded,xp_awarded,granted_at")
+        .eq("event_id", event.id)
+        .eq("player_id", actorId)
+        .order("granted_at", { ascending: false }),
     ]);
     return NextResponse.json({
       room: {
@@ -50,6 +56,8 @@ export async function GET(
         inviteCode: room.invite_code,
         status: room.status,
         version: room.version,
+        gameplayMode: room.gameplay_mode,
+        gameplayVersion: room.gameplay_version,
       },
       event,
       participants: participants.map((participant) => ({
@@ -63,12 +71,15 @@ export async function GET(
       })),
       state: visible?.state ?? null,
       hidden: visible?.hidden ?? {},
+      gameplayMode: room.gameplay_mode,
       events: (roomEvents ?? []).slice().reverse(),
-      mythicalReward: {
-        obtained: Boolean(reward),
-        creatureCardId: reward?.creature_card_id ?? null,
-        grantedAt: reward?.granted_at ?? null,
+      eventReward: {
+        obtained: Boolean(eventReward),
+        coinsAwarded: Number(eventReward?.coins_awarded ?? 0),
+        xpAwarded: Number(eventReward?.xp_awarded ?? 0),
+        grantedAt: eventReward?.granted_at ?? null,
       },
+      historicalRewards: historicalRewards ?? [],
       authority: "server",
     });
   } catch (caught) {

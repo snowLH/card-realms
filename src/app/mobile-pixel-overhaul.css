@@ -604,6 +604,11 @@
       linear-gradient(180deg, #dce7ec 0 44px, #171013 44px 100%) !important;
   }
 
+  .avatar-battle {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
   .battle-topbar {
     height: 44px !important;
     min-height: 44px !important;
@@ -1421,6 +1426,21 @@
     gap: 4px !important;
   }
 
+  .village-catalog-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .village-catalog-card {
+    grid-template-columns: 42px minmax(0,1fr) !important;
+    gap: 8px !important;
+    padding: 8px !important;
+  }
+
+  .village-catalog-card > button {
+    min-height: 42px !important;
+  }
+
   .pvp-columns {
     grid-template-columns: 1fr !important;
     gap: 8px !important;
@@ -1539,4 +1559,53 @@
   .pvp-row__actions > * {
     flex: 1 1 auto;
   }
+}
+
+/* Three-stage folklore evolution ledger. */
+.bestiary-evolution-line {
+  display: grid;
+  gap: 9px;
+  margin-top: 16px;
+  border: 2px solid #94613b;
+  background: rgba(255, 244, 205, .32);
+  padding: 10px;
+}
+.bestiary-evolution-line__stages {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.bestiary-evolution-line__stages article {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  gap: 4px;
+  border: 2px solid #9a7047;
+  background: rgba(255, 245, 212, .48);
+  padding: 7px 5px;
+  text-align: center;
+}
+.bestiary-evolution-line__stages article.is-current {
+  border-color: #2e6c52;
+  background: rgba(177, 211, 136, .58);
+  box-shadow: inset 0 0 0 2px rgba(239, 244, 188, .72);
+}
+.bestiary-evolution-line__stages .pixel-creature {
+  width: 72px;
+  height: 72px;
+}
+.bestiary-evolution-line__stages article > span {
+  color: #895a37;
+  font: 900 6px var(--font-game);
+}
+.bestiary-evolution-line__stages article > strong {
+  max-width: 100%;
+  font: 1000 8px var(--font-game);
+  overflow-wrap: anywhere;
+}
+.bestiary-evolution-line__stages article > small,
+.bestiary-evolution-line > p {
+  color: #72533c;
+  font-size: 7px;
+  line-height: 1.35;
 }

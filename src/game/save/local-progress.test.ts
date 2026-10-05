@@ -79,6 +79,28 @@ describe("save local versionado", () => {
     });
   });
 
+  it("mantém a decoração do Refúgio neste aparelho e migra saves v4 anteriores", () => {
+    const saved = { ...DEFAULT_LOCAL_PROGRESS, coins: 470 };
+    const previousVersionFour = { ...saved } as Partial<typeof saved>;
+    delete previousVersionFour.refuge;
+    const storage = memoryStorage({
+      [LOCAL_PROGRESS_KEY]: JSON.stringify(previousVersionFour),
+    });
+
+    expect(loadLocalProgress(storage).refuge).toEqual(DEFAULT_LOCAL_PROGRESS.refuge);
+
+    const refuge = {
+      companionId: null,
+      theme: "forest" as const,
+      furniture: [
+        ...DEFAULT_LOCAL_PROGRESS.refuge.furniture,
+        { id: "books-1", itemKey: "books" as const, x: 50, y: 60, rotation: 0 as const },
+      ],
+    };
+    saveLocalProgress(storage, { ...DEFAULT_LOCAL_PROGRESS, refuge });
+    expect(loadLocalProgress(storage).refuge).toEqual(refuge);
+  });
+
   it("isola o cache de cada conta do progresso do visitante", () => {
     const accountId = "00000000-0000-4000-8000-000000000001";
     const storage = memoryStorage({

@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { AvatarConfigSchema, DEFAULT_AVATAR_CONFIG } from "@/game/save/local-progress";
 import { CreateChallengeSchema, RespondChallengeSchema } from "@/game/pvp";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { acceptPvpChallenge } from "@/server/pvp/setup";
+import { validateArpgAbilityOwnership } from "@/server/arpg/ability-ownership";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,34 +37,62 @@ export async function GET() {
     return NextResponse.json({ error: "Não foi possível carregar os desafios." }, { status: 503 });
   }
 
-  let friends: Array<{ id: string; name: string; hasActiveTeam: boolean }> = [];
+  let friends: Array<{ id: string; name: string; hasCombatReady: boolean }> = [];
+  let playerReady = false;
   if (isSupabaseAdminConfigured()) {
     const admin = createAdminClient();
-    const { data: relationships } = await admin
-      .from("friendships")
-      .select("requester_id,addressee_id")
-      .eq("status", "accepted")
-      .or(`requester_id.eq.${auth.userId},addressee_id.eq.${auth.userId}`);
+    const [
+      { data: relationships },
+      { data: ownProfile },
+      { data: ownLoadout },
+    ] = await Promise.all([
+      admin
+        .from("friendships")
+        .select("requester_id,addressee_id")
+        .eq("status", "accepted")
+        .or(`requester_id.eq.${auth.userId},addressee_id.eq.${auth.userId}`),
+      admin.from("profiles").select("avatar_config").eq("id", auth.userId).maybeSingle(),
+      admin.from("player_arpg_loadouts").select("ability_ids").eq("user_id", auth.userId).maybeSingle(),
+    ]);
+    const ownAvatar = AvatarConfigSchema.safeParse(ownProfile?.avatar_config ?? DEFAULT_AVATAR_CONFIG);
+    const ownAbilities = ownLoadout
+      ? z.tuple([z.string().min(1), z.string().min(1)]).safeParse(ownLoadout.ability_ids)
+      : null;
+    const ownOwnership = ownAbilities?.success
+      ? await validateArpgAbilityOwnership(admin, auth.userId, { abilityIds: ownAbilities.data })
+      : null;
+    playerReady = ownAvatar.success && Boolean(ownOwnership?.valid);
+
     const friendIds = [...new Set((relationships ?? []).map((relationship) =>
       relationship.requester_id === auth.userId
         ? relationship.addressee_id
         : relationship.requester_id,
     ))];
     if (friendIds.length > 0) {
-      const [{ data: profiles }, { data: teams }] = await Promise.all([
-        admin.from("profiles").select("id,display_name").in("id", friendIds),
-        admin.from("teams").select("user_id").in("user_id", friendIds).eq("is_active", true),
+      const [{ data: profiles }, { data: loadouts }] = await Promise.all([
+        admin.from("profiles").select("id,display_name,avatar_config").in("id", friendIds),
+        admin.from("player_arpg_loadouts").select("user_id,ability_ids").in("user_id", friendIds),
       ]);
-      const ready = new Set((teams ?? []).map((team) => team.user_id));
-      friends = (profiles ?? []).map((profile) => ({
-        id: profile.id,
-        name: profile.display_name,
-        hasActiveTeam: ready.has(profile.id),
+      const loadoutById = new Map((loadouts ?? []).map((row) => [row.user_id, row]));
+      friends = await Promise.all((profiles ?? []).map(async (profile) => {
+        const row = loadoutById.get(profile.id);
+        const parsedAvatar = AvatarConfigSchema.safeParse(profile.avatar_config ?? DEFAULT_AVATAR_CONFIG);
+        const parsedAbilities = row
+          ? z.tuple([z.string().min(1), z.string().min(1)]).safeParse(row.ability_ids)
+          : null;
+        const ownership = parsedAbilities?.success
+          ? await validateArpgAbilityOwnership(admin, profile.id, { abilityIds: parsedAbilities.data })
+          : null;
+        return {
+          id: profile.id,
+          name: profile.display_name,
+          hasCombatReady: parsedAvatar.success && Boolean(ownership?.valid),
+        };
       }));
     }
   }
 
-  return NextResponse.json({ challenges: data, friends, authority: "supabase" });
+  return NextResponse.json({ challenges: data, friends, playerReady, authority: "supabase" });
 }
 
 export async function POST(request: Request) {

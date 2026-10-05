@@ -1,61 +1,36 @@
 import { z } from "zod";
 
+const CanonicalUuidSchema = z.string().uuid().transform((value) => value.toLowerCase());
+
 export const CreateChallengeSchema = z.strictObject({
-  addresseeId: z.string().uuid(),
+  addresseeId: CanonicalUuidSchema,
 });
 
 export const RespondChallengeSchema = z.discriminatedUnion("response", [
-  z.strictObject({ challengeId: z.string().uuid(), response: z.literal("accept") }),
-  z.strictObject({ challengeId: z.string().uuid(), response: z.literal("decline") }),
-  z.strictObject({ challengeId: z.string().uuid(), response: z.literal("cancel") }),
+  z.strictObject({ challengeId: CanonicalUuidSchema, response: z.literal("accept") }),
+  z.strictObject({ challengeId: CanonicalUuidSchema, response: z.literal("decline") }),
+  z.strictObject({ challengeId: CanonicalUuidSchema, response: z.literal("cancel") }),
 ]);
 
 const VersionedAction = {
-  battleId: z.string().uuid(),
+  battleId: CanonicalUuidSchema,
   expectedVersion: z.number().int().positive(),
-  actionId: z.string().uuid(),
+  actionId: CanonicalUuidSchema,
 };
 
 export const PvpActionSchema = z.discriminatedUnion("action", [
   z.strictObject({
     ...VersionedAction,
     action: z.literal("attach"),
-    creatureIndex: z.number().int().min(0).max(5),
     cardId: z.string().min(8).max(120),
   }),
   z.strictObject({
     ...VersionedAction,
-    action: z.literal("switch"),
-    creatureIndex: z.number().int().min(0).max(5),
+    action: z.literal("ability"),
+    slot: z.union([z.literal(0), z.literal(1)]),
   }),
-  z.strictObject({
-    ...VersionedAction,
-    action: z.literal("draw_power"),
-  }),
-  z.strictObject({
-    ...VersionedAction,
-    action: z.literal("equip_power"),
-    creatureIndex: z.number().int().min(0).max(5),
-    cardId: z.string().min(8).max(160),
-    slot: z.number().int().min(0).max(3).optional(),
-  }),
-  z.strictObject({
-    ...VersionedAction,
-    action: z.literal("attack"),
-    attackId: z.string().min(3).max(100),
-  }),
-  z.strictObject({
-    ...VersionedAction,
-    action: z.literal("evolve"),
-  }),
-  z.strictObject({
-    ...VersionedAction,
-    action: z.literal("pass"),
-  }),
-  z.strictObject({
-    ...VersionedAction,
-    action: z.literal("concede"),
-  }),
+  z.strictObject({ ...VersionedAction, action: z.literal("pass") }),
+  z.strictObject({ ...VersionedAction, action: z.literal("concede") }),
 ]);
 
 export type PvpAction = z.infer<typeof PvpActionSchema>;

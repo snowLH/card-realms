@@ -1,51 +1,48 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_AVATAR_CONFIG } from "../save/local-progress";
 import { createPvpBattle } from "../battle";
 import { visiblePvpState } from "./visibility";
 
-const firstTeam = [
-  "boitata", "iara", "curupira", "saci-perere", "black-shuck", "boto-cor-de-rosa",
-] as const;
-const secondTeam = [
-  "fenix", "kelpie", "caipora", "raiju", "domovoi", "carbunclo",
-] as const;
+const firstPlayer = {
+  id: "player-a",
+  name: "Ana",
+  avatarConfig: DEFAULT_AVATAR_CONFIG,
+  abilityIds: ["boitata-flame", "ancestral-roots"] as const,
+};
+const secondPlayer = {
+  id: "player-b",
+  name: "Beto",
+  avatarConfig: { ...DEFAULT_AVATAR_CONFIG, outfit: "ranger" as const },
+  abilityIds: ["iara-song", "kelpie-surge"] as const,
+};
+
+function battle() {
+  return createPvpBattle(
+    "00000000-0000-4000-8000-000000000001",
+    firstPlayer,
+    secondPlayer,
+    () => 0.25,
+  );
+}
 
 describe("visibilidade do estado PVP", () => {
   it("oculta mão e baralho do adversário sem alterar o estado autoritativo", () => {
-    const state = createPvpBattle(
-      "00000000-0000-4000-8000-000000000001",
-      { id: "player-a", name: "Ana", teamIds: firstTeam },
-      { id: "player-b", name: "Beto", teamIds: secondTeam },
-      () => 0.25,
-    );
-
+    const state = battle();
     const visible = visiblePvpState(state, "player-a");
     const visibleOpponent = visible.state.sides.find((side) => side.id === "player-b")!;
     const authoritativeOpponent = state.sides.find((side) => side.id === "player-b")!;
 
-    expect(visible.hidden).toEqual({
-      opponentHandCount: 5,
-      opponentDeckCount: 25,
-      opponentPowerHandCount: 3,
-      opponentPowerDeckCount: 21,
-    });
+    expect(visible.hidden).toEqual({ opponentHandCount: 5, opponentDeckCount: 25 });
     expect(visibleOpponent.energyHand).toEqual([]);
     expect(visibleOpponent.energyDeck).toEqual([]);
-    expect(visibleOpponent.powerHand).toEqual([]);
-    expect(visibleOpponent.powerDeck).toEqual([]);
+    expect(visibleOpponent.abilityIds).toEqual(secondPlayer.abilityIds);
     expect(authoritativeOpponent.energyHand).toHaveLength(5);
     expect(authoritativeOpponent.energyDeck).toHaveLength(25);
-    expect(authoritativeOpponent.powerHand).toHaveLength(3);
-    expect(authoritativeOpponent.powerDeck).toHaveLength(21);
   });
 
-  it("sincroniza Evolução e Terreno sem revelar recursos ocultos", () => {
-    const state = createPvpBattle(
-      "00000000-0000-4000-8000-000000000001",
-      { id: "player-a", name: "Ana", teamIds: firstTeam },
-      { id: "player-b", name: "Beto", teamIds: secondTeam },
-      () => 0.25,
-    );
-    state.sides[0].team[0].evolutionStage = 1;
+  it("sincroniza avatar, poderes e terreno sem revelar recursos ocultos", () => {
+    const state = battle();
+    state.sides[0].abilityCooldowns[1] = 2;
     state.terrain = {
       element: "fire",
       sourceSideId: "player-a",
@@ -54,20 +51,19 @@ describe("visibilidade do estado PVP", () => {
     };
 
     const visible = visiblePvpState(state, "player-b");
+    const visibleOpponent = visible.state.sides.find((side) => side.id === "player-a")!;
 
-    expect(visible.state.sides[0].team[0].evolutionStage).toBe(1);
+    expect(visibleOpponent.avatarConfig).toEqual(firstPlayer.avatarConfig);
+    expect(visibleOpponent.abilityIds).toEqual(firstPlayer.abilityIds);
+    expect(visibleOpponent.abilityCooldowns).toEqual([0, 2]);
     expect(visible.state.terrain).toEqual(state.terrain);
-    expect(visible.state.sides[0].energyHand).toEqual([]);
-    expect(visible.state.sides[0].energyDeck).toEqual([]);
+    expect(visibleOpponent.energyHand).toEqual([]);
+    expect(visibleOpponent.energyDeck).toEqual([]);
+    expect("team" in visibleOpponent).toBe(false);
   });
 
   it("remove tokens internos de replay e IDs derivados da resposta serializada", () => {
-    const state = createPvpBattle(
-      "00000000-0000-4000-8000-000000000001",
-      { id: "player-a", name: "Ana", teamIds: firstTeam },
-      { id: "player-b", name: "Beto", teamIds: secondTeam },
-      () => 0.25,
-    );
+    const state = battle();
     state.processedActionIds = ["private-action-token"];
     state.log[0].id = "private-action-token:0";
 
@@ -80,13 +76,6 @@ describe("visibilidade do estado PVP", () => {
   });
 
   it("recusa projetar uma batalha para quem não participa", () => {
-    const state = createPvpBattle(
-      "00000000-0000-4000-8000-000000000001",
-      { id: "player-a", name: "Ana", teamIds: firstTeam },
-      { id: "player-b", name: "Beto", teamIds: secondTeam },
-      () => 0.25,
-    );
-
-    expect(() => visiblePvpState(state, "intruso")).toThrow("não participa");
+    expect(() => visiblePvpState(battle(), "intruso")).toThrow("não participa");
   });
 });

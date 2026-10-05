@@ -63,7 +63,7 @@ export function CharacterAvatar2D({
         `character-avatar-2d--accent-${config.accent}`,
       )}
       role="img"
-      aria-label="Personagem cartógrafo em pixel art 2D"
+      aria-label="Avatar personalizado em pixel art 2D"
     >
       <span className="avatar-shadow" />
       <span className="avatar-cape" />
@@ -91,10 +91,16 @@ export function CharacterCreator2D({
   initial,
   ownedEquipment,
   onSave,
+  eyebrowLabel = "Personagem 2D",
+  title = "Seu Cartógrafo",
+  helperText = "Roupas e armaduras especiais aparecem em baús das regiões.",
 }: {
   initial?: AvatarConfig;
   ownedEquipment: string[];
   onSave: (config: AvatarConfig) => Promise<void> | void;
+  eyebrowLabel?: string;
+  title?: string;
+  helperText?: string;
 }) {
   const [config, setConfig] = useState(initial ?? DEFAULT_AVATAR_CONFIG);
   const [tab, setTab] = useState<ChoiceKey>("skin");
@@ -130,10 +136,10 @@ export function CharacterCreator2D({
   return (
     <section className="character-creator" aria-labelledby="character-creator-title">
       <div className="character-creator__preview">
-        <span className="view-eyebrow">Personagem 2D</span>
-        <h2 id="character-creator-title">Seu Cartógrafo</h2>
+        <span className="view-eyebrow">{eyebrowLabel}</span>
+        <h2 id="character-creator-title">{title}</h2>
         <CharacterAvatar2D config={config} />
-        <p>Roupas e armaduras especiais aparecem em baús das regiões.</p>
+        <p>{helperText}</p>
       </div>
       <div className="character-creator__book">
         <nav className="character-creator__tabs" aria-label="Categorias do personagem">

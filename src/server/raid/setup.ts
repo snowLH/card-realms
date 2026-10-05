@@ -1,7 +1,9 @@
 import "server-only";
 
 import { randomInt } from "node:crypto";
+import { ARPG_ABILITY_CARD_IDS } from "@/game/arpg/content/ability-cards";
 import { createRaidState, RaidStateSchema, resolveRaidBossTurn, type RaidPlayerSetup } from "@/game/raid";
+import { AvatarConfigSchema } from "@/game/save/local-progress";
 import type { EnergyPool } from "@/game/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadRaidRoom, RaidRoomAccessError } from "./rooms";
@@ -19,6 +21,9 @@ export async function startRaidRoom(roomId: string, actorId: string) {
   }
   if (room.status !== "lobby") {
     throw new RaidRoomAccessError("A sala já foi iniciada ou encerrada.");
+  }
+  if (room.gameplay_mode !== "avatar" || room.gameplay_version !== 2) {
+    throw new RaidRoomAccessError("Esta sala não usa a versão atual da Raid por avatar.");
   }
   if (participants.length < event.min_players || participants.length > event.max_players) {
     throw new RaidRoomAccessError(`A Raid precisa de ${event.min_players} a ${event.max_players} jogadores.`);
@@ -49,21 +54,24 @@ export async function startRaidRoom(roomId: string, actorId: string) {
   }
 
   const raidPlayers: RaidPlayerSetup[] = participants.map((participant) => {
-    const snapshot = Array.isArray(participant.team_snapshot)
-      ? participant.team_snapshot as Array<{ catalogId?: unknown; evolutionStage?: unknown }>
-      : [];
-    const teamIds = snapshot
-      .map((member) => typeof member.catalogId === "string" ? member.catalogId : "")
-      .filter(Boolean);
-    if (teamIds.length !== 6) {
-      throw new RaidRoomAccessError(`${participant.name} não possui uma equipe ativa válida de seis criaturas.`);
+    const snapshot = participant.combat_snapshot && typeof participant.combat_snapshot === "object"
+      && !Array.isArray(participant.combat_snapshot)
+      ? participant.combat_snapshot as Record<string, unknown>
+      : {};
+    const avatarConfig = AvatarConfigSchema.safeParse(snapshot.avatarConfig);
+    const abilityIds = Array.isArray(snapshot.abilityIds) ? snapshot.abilityIds : [];
+    if (!avatarConfig.success
+      || abilityIds.length !== 2
+      || abilityIds.some((id) => typeof id !== "string" || !ARPG_ABILITY_CARD_IDS.has(id))
+      || abilityIds[0] === abilityIds[1]) {
+      throw new RaidRoomAccessError(`${participant.name} precisa de avatar salvo e dois poderes próprios no Arquivo.`);
     }
     return {
       id: participant.user_id,
       name: participant.name,
       seat: participant.seat,
-      teamIds,
-      evolutionStages: snapshot.map((member) => Math.max(0, Math.min(2, Number(member.evolutionStage) || 0))),
+      avatarConfig: avatarConfig.data,
+      abilityIds: [abilityIds[0] as string, abilityIds[1] as string],
       energy: pools.get(participant.user_id),
     };
   });

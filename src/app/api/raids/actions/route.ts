@@ -1,4 +1,5 @@
 import { randomInt, randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
@@ -7,13 +8,9 @@ import {
   RaidRuleError,
   RaidStateSchema,
   attachRaidEnergy,
-  drawRaidPower,
-  equipRaidPower,
-  evolveRaidCreature,
   passRaidTurn,
-  resolveRaidAttack,
+  resolveRaidAbility,
   resolveRaidBossTurn,
-  switchRaidCreature,
   visibleRaidEvents,
   visibleRaidState,
 } from "@/game/raid";
@@ -39,6 +36,45 @@ export async function POST(request: Request) {
     }
 
     const { admin, room } = await loadRaidRoom(action.roomId, actorId);
+    if (room.gameplay_mode !== "avatar" || room.gameplay_version !== 2) {
+      throw new RaidRoomAccessError("Esta sala não aceita ações do modo clássico por avatar.");
+    }
+    const actionType = action.action === "attach" ? "attach_energy" : action.action;
+    const { data: previous, error: previousError } = await admin
+      .from("raid_actions")
+      .select("action_type,payload,result")
+      .eq("room_id", action.roomId)
+      .eq("user_id", actorId)
+      .eq("client_action_id", action.actionId)
+      .maybeSingle();
+    if (previousError) {
+      return NextResponse.json({ error: "Não foi possível confirmar a ação anterior." }, { status: 503 });
+    }
+    if (previous) {
+      if (previous.action_type !== actionType || !isDeepStrictEqual(previous.payload, action)) {
+        return NextResponse.json({ error: "ID de ação já usado com outro conteúdo." }, { status: 409 });
+      }
+      const stored = previous.result as { state?: unknown; events?: unknown; version?: unknown } | null;
+      const storedState = RaidStateSchema.parse(stored?.state);
+      const storedEvents = z.array(RaidLogEntrySchema).parse(stored?.events ?? []);
+      let reward: unknown = null;
+      if (storedState.status === "victory") {
+        const { data: rewardData, error: rewardError } = await admin.rpc("grant_raid_mythic_rewards", {
+          target_room_id: action.roomId,
+        });
+        if (!rewardError) reward = rewardData;
+      }
+      const visible = visibleRaidState(storedState, actorId);
+      return NextResponse.json({
+        state: visible.state,
+        events: visibleRaidEvents(storedEvents),
+        hidden: visible.hidden,
+        version: stored?.version ?? room.version,
+        reward,
+        authority: "server",
+        gameplayMode: room.gameplay_mode,
+      });
+    }
     if (!room.state || room.status !== "active") {
       throw new RaidRuleError("A Raid não está ativa.");
     }
@@ -50,25 +86,17 @@ export async function POST(request: Request) {
     }
 
     let resolved = action.action === "attach"
-      ? attachRaidEnergy(room.state, actorId, action.creatureIndex, action.cardId, action.actionId)
-      : action.action === "draw_power"
-        ? drawRaidPower(room.state, actorId, action.actionId)
-        : action.action === "equip_power"
-          ? equipRaidPower(room.state, actorId, action.creatureIndex, action.cardId, action.slot, action.actionId)
-          : action.action === "switch"
-            ? switchRaidCreature(room.state, actorId, action.creatureIndex, action.actionId)
-            : action.action === "attack"
-              ? resolveRaidAttack(room.state, actorId, action.attackId, randomInt(1, 7), action.actionId)
-              : action.action === "evolve"
-                ? evolveRaidCreature(room.state, actorId, action.actionId)
-                : passRaidTurn(room.state, actorId, action.actionId);
+      ? attachRaidEnergy(room.state, actorId, action.cardId, action.actionId)
+      : action.action === "ability"
+        ? resolveRaidAbility(room.state, actorId, action.slot, randomInt(1, 7), randomInt(1, 101), action.actionId)
+        : passRaidTurn(room.state, actorId, action.actionId);
 
     const combinedEvents = [...resolved.events];
     let bossStep = 0;
     while (
       resolved.state.status === "active"
       && resolved.state.turn.actorKind === "boss"
-      && bossStep < 2
+      && bossStep < room.state.players.length + 1
     ) {
       const bossActionId = `${action.actionId}:boss:${bossStep + 1}`;
       const boss = resolveRaidBossTurn(resolved.state, randomInt(0, 1000000), bossActionId);
@@ -84,7 +112,6 @@ export async function POST(request: Request) {
     }));
     z.array(RaidLogEntrySchema).parse(publicEvents);
 
-    const actionType = action.action === "attach" ? "attach_energy" : action.action;
     const { data: committed, error: commitError } = await admin.rpc("commit_raid_action", {
       target_room_id: action.roomId,
       acting_user_id: actorId,
@@ -124,6 +151,7 @@ export async function POST(request: Request) {
       version: stored?.version ?? room.version + 1,
       reward,
       authority: "server",
+      gameplayMode: room.gameplay_mode,
     });
   } catch (caught) {
     if (caught instanceof RaidRoomAccessError) {

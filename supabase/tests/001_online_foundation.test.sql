@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(45);
+select plan(50);
 
 select has_table('public', 'battles', 'authoritative battles table exists');
 select has_table('public', 'pvp_challenges', 'PVP challenges table exists');
@@ -91,6 +91,31 @@ select ok(
 select ok(
   has_function_privilege('authenticated', 'public.save_world_position(text,integer,integer)', 'execute'),
   'authenticated may invoke the bounded position RPC'
+);
+select has_table('public', 'player_arpg_loadouts', 'ARPG loadout table exists');
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.player_arpg_loadouts'::regclass),
+  'ARPG loadouts keep RLS enabled'
+);
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'private.arpg_raid_loadout_snapshot(uuid)',
+    'execute'
+  ),
+  'authenticated cannot call the ARPG Raid snapshot authority directly'
+);
+select ok(
+  has_function_privilege(
+    'service_role',
+    'private.arpg_raid_loadout_snapshot(uuid)',
+    'execute'
+  ),
+  'service_role may freeze the ARPG loadout for a Raid'
+);
+select ok(
+  has_function_privilege('authenticated', 'public.create_raid_room(uuid)', 'execute'),
+  'authenticated may enter the narrow Raid lobby RPC which snapshots loadout server-side'
 );
 select ok(
   exists (

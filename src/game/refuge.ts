@@ -13,6 +13,22 @@ export const REFUGE_FURNITURE_KEYS = [
 
 export type RefugeFurnitureKey = (typeof REFUGE_FURNITURE_KEYS)[number];
 
+export const REFUGE_FURNITURE_UNLOCK_ITEM_KEYS: Partial<Record<RefugeFurnitureKey, string>> = {
+  books: "refuge-furniture-books",
+  chest: "refuge-furniture-chest",
+  "map-stand": "refuge-furniture-map-stand",
+};
+
+export const REFUGE_COSMETIC_ITEM_KEYS = Object.values(REFUGE_FURNITURE_UNLOCK_ITEM_KEYS);
+
+export function isRefugeFurnitureUnlocked(
+  itemKey: RefugeFurnitureKey,
+  ownedItemKeys: readonly string[],
+) {
+  const requiredItemKey = REFUGE_FURNITURE_UNLOCK_ITEM_KEYS[itemKey];
+  return !requiredItemKey || ownedItemKeys.includes(requiredItemKey);
+}
+
 export type RefugeFurniturePlacement = {
   id: string;
   itemKey: RefugeFurnitureKey;

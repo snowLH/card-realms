@@ -1,254 +1,171 @@
 import { describe, expect, it } from "vitest";
-import { CREATURE_BY_ID } from "./content";
-import { ELEMENTS, type BattleState, type Element } from "./types";
+import { BattleStateSchema } from "./battle/schema";
 import {
   GameRuleError,
   attachEnergy,
   concedeBattle,
   createDemoBattle,
   createPvpBattle,
-  getActive,
   getSide,
   passTurn,
   planNpcTurn,
-  resolveAttack,
-  switchActiveCreature,
+  resolveAbility,
 } from "./engine";
+import { DEFAULT_AVATAR_CONFIG } from "./save/local-progress";
+import { ELEMENTS } from "./types";
 
 const fixedRandom = () => 0.417;
+const abilities = ["boitata-flame", "ancestral-roots"] as const;
 
 function battle(id: string) {
-  return createDemoBattle(id, fixedRandom);
+  return createDemoBattle(id, fixedRandom, DEFAULT_AVATAR_CONFIG, abilities);
 }
 
-function ensureCardInHand(state: BattleState, sideId: string, element: Element) {
+function ensureCardInHand(state: ReturnType<typeof battle>, sideId: string, element?: (typeof ELEMENTS)[number]) {
   const side = getSide(state, sideId);
-  const inHand = side.energyHand.find((card) => card.element === element);
+  const inHand = side.energyHand.find((card) => element === undefined || card.element === element);
   if (inHand) return inHand.id;
-  const deckIndex = side.energyDeck.findIndex((card) => card.element === element);
-  if (deckIndex < 0) throw new Error(`No ${element} card available`);
-  const [card] = side.energyDeck.splice(deckIndex, 1);
+  const deckIndex = side.energyDeck.findIndex((card) => element === undefined || card.element === element);
+  const [card] = deckIndex >= 0 ? side.energyDeck.splice(deckIndex, 1) : [];
+  if (!card) throw new Error("No energy card available");
+  card.zone = "hand";
   side.energyHand.push(card);
   return card.id;
 }
 
-function attachElement(
-  state: BattleState,
-  sideId: string,
-  creatureIndex: number,
-  element: Element,
-  actionId: string,
-) {
-  const cardId = ensureCardInHand(state, sideId, element);
-  return attachEnergy(state, sideId, creatureIndex, cardId, actionId).state;
-}
+const pvpPlayers = [
+  {
+    id: "00000000-0000-4000-8000-000000000002",
+    name: "Ana",
+    avatarConfig: DEFAULT_AVATAR_CONFIG,
+    abilityIds: ["boitata-flame", "ancestral-roots"] as const,
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000003",
+    name: "Beto",
+    avatarConfig: { ...DEFAULT_AVATAR_CONFIG, outfit: "ranger" as const },
+    abilityIds: ["iara-song", "kelpie-surge"] as const,
+  },
+] as const;
 
-describe("motor de combate Card Realms v2", () => {
+describe("motor de batalha por avatar", () => {
   it("possui exatamente cinco elementos-base", () => {
     expect(ELEMENTS).toEqual(["fire", "water", "nature", "storm", "spirit"]);
   });
 
-  it("mantém exatamente seis cartas de criatura em cada lado", () => {
-    const state = battle("six-card-team");
-    expect(state.sides[0].team).toHaveLength(6);
-    expect(state.sides[1].team).toHaveLength(6);
+  it("cria dois lados avatar com exatamente dois poderes permanentes", () => {
+    const state = battle("avatar-battle");
+
+    expect(state.version).toBe(3);
+    expect(state.sides).toHaveLength(2);
+    expect(state.sides.every((side) => side.abilityIds.length === 2)).toBe(true);
+    expect(state.sides.every((side) => side.avatarConfig.skin === "copper")).toBe(true);
+    expect(state.sides.every((side) => !("team" in side))).toBe(true);
+    expect(getSide(state, "player-one").abilityIds).toEqual(abilities);
   });
 
-  it("permite que a primeira jornada comece somente com a carta escolhida", () => {
-    const state = createDemoBattle("starter-only", fixedRandom, ["iara"]);
-    expect(state.sides[0].team.map((card) => card.catalogId)).toEqual(["iara"]);
-    expect(state.sides[1].team).toHaveLength(1);
-  });
+  it("monta um baralho equilibrado com a energia disponível no inventário", () => {
+    const inventory = { fire: 12, water: 12, nature: 12, storm: 12, spirit: 12 };
+    const state = createDemoBattle("balanced-inventory", fixedRandom, DEFAULT_AVATAR_CONFIG, abilities, inventory);
+    const cards = [...state.sides[0].energyHand, ...state.sides[0].energyDeck];
 
-  it("inicia cada lado com 30 energias e mão de cinco sem inventar elementos fora da equipe", () => {
-    const state = battle("energy-deck");
-    for (const side of state.sides) {
-      expect(side.energyHand).toHaveLength(5);
-      expect(side.energyDeck).toHaveLength(25);
-      expect([...side.energyHand, ...side.energyDeck]).toHaveLength(30);
-    }
-
-    const playerCards = [...state.sides[0].energyHand, ...state.sides[0].energyDeck];
+    expect(cards).toHaveLength(30);
     for (const element of ELEMENTS) {
-      expect(playerCards.filter((card) => card.element === element)).toHaveLength(6);
+      expect(cards.filter((card) => card.element === element)).toHaveLength(6);
     }
-
-    const opponentElements = new Set(
-      state.sides[1].team.map((card) => CREATURE_BY_ID.get(card.catalogId)!.element),
-    );
-    const opponentCards = [...state.sides[1].energyHand, ...state.sides[1].energyDeck];
-    expect(opponentCards.every((card) => opponentElements.has(card.element))).toBe(true);
   });
 
-  it("só anexa cartas presentes na mão e limita uma anexação normal por turno", () => {
-    let state = battle("attachment-limit");
-    state = attachElement(state, "player-one", 0, "fire", "attach-1");
-    const secondCard = ensureCardInHand(state, "player-one", "fire");
-    expect(() => attachEnergy(state, "player-one", 0, secondCard, "attach-2")).toThrow(
-      "uma Energia anexada por turno",
-    );
-    const attached = getActive(getSide(state, "player-one")).attachedEnergy;
-    expect(attached).toHaveLength(1);
-    expect(attached[0]).toMatchObject({
+  it("só anexa uma carta da mão ao personagem por turno", () => {
+    const initial = battle("attachment-limit");
+    const firstCardId = ensureCardInHand(initial, "player-one");
+    const first = attachEnergy(initial, "player-one", firstCardId, "attach-1");
+    const player = getSide(first.state, "player-one");
+    const secondCardId = ensureCardInHand(first.state, "player-one");
+
+    expect(player.attachedEnergy).toHaveLength(1);
+    expect(player.attachedEnergy[0]).toMatchObject({
       ownerId: "player-one",
       zone: "attached",
-      attachedTo: getActive(getSide(state, "player-one")).instanceId,
+      attachedTo: "player-one",
       status: "ready",
     });
-    expect(state.turn.sideId).toBe("player-one");
+    expect(() => attachEnergy(first.state, "player-one", secondCardId, "attach-2"))
+      .toThrow("Você já vinculou Energia neste turno");
   });
 
-  it("consome energia mesmo quando o ataque falha", () => {
-    let state = battle("failed-roll");
-    state = attachElement(state, "player-one", 0, "fire", "attach");
-    const result = resolveAttack(state, "player-one", "boitata-1", 1, 100, "attack");
+  it("resolve um poder equipado e gasta Energia focada mesmo quando o dado falha", () => {
+    const initial = battle("failed-roll");
+    const fireCardId = ensureCardInHand(initial, "player-one", "fire");
+    const attached = attachEnergy(initial, "player-one", fireCardId, "attach-fire").state;
+    const result = resolveAbility(attached, "player-one", 0, 1, 100, "miss");
     const player = getSide(result.state, "player-one");
-    expect(player.team[0].attachedEnergy).toHaveLength(0);
+
+    expect(result.events.some((event) => event.kind === "attack_miss" && event.abilityId === "boitata-flame")).toBe(true);
+    expect(player.attachedEnergy).toHaveLength(0);
     expect(player.energyDiscard.some((card) => card.element === "fire")).toBe(true);
   });
 
-  it("aplica defesa ao dano e crítico no resultado seis", () => {
-    let normal = battle("defense");
-    normal = attachElement(normal, "player-one", 0, "fire", "attach-normal");
-    const before = getActive(getSide(normal, "warden-aya")).hp;
-    const normalResult = resolveAttack(normal, "player-one", "boitata-1", 5, 100, "normal");
-    const normalDamage = before - getActive(getSide(normalResult.state, "warden-aya")).hp;
-    expect(normalDamage).toBeGreaterThan(0);
-    expect(normalDamage).toBeLessThan(22);
+  it("rejeita ações fora do turno e não repete um ID já processado", () => {
+    const initial = battle("turn-and-replay");
+    expect(() => passTurn(initial, "warden-aya", "out-of-turn")).toThrow("Aguarde o seu turno");
+    const passed = passTurn(initial, "player-one", "pass-action");
 
-    let critical = battle("critical");
-    critical = attachElement(critical, "player-one", 0, "fire", "attach-critical");
-    const criticalBefore = getActive(getSide(critical, "warden-aya")).hp;
-    const criticalResult = resolveAttack(critical, "player-one", "boitata-1", 6, 100, "critical");
-    const criticalDamage = criticalBefore - getActive(getSide(criticalResult.state, "warden-aya")).hp;
-    expect(criticalDamage).toBeGreaterThan(normalDamage);
-    expect(criticalResult.events.some((event) => event.kind === "critical")).toBe(true);
+    expect(passed.state.turn.sideId).toBe("warden-aya");
+    expect(passed.events.some((event) => event.kind === "passed")).toBe(true);
+    expect(() => passTurn(passed.state, "warden-aya", "pass-action")).toThrow(GameRuleError);
   });
 
-  it("executa efeitos de ataque em vez de deixá-los apenas no texto", () => {
-    let state = battle("status-effect");
-    state = attachElement(state, "player-one", 0, "fire", "attach");
-    const result = resolveAttack(state, "player-one", "boitata-1", 5, 1, "burn");
-    const target = getActive(getSide(result.state, "warden-aya"));
-    expect(target.statuses.some((status) => status.effect === "burn")).toBe(true);
-    expect(result.events.some((event) => event.kind === "status_applied")).toBe(true);
-  });
+  it("planeja jogadas da IA somente usando os dois poderes e a Energia em sua mão", () => {
+    const state = battle("npc-plan");
+    state.turn.sideId = "warden-aya";
+    const plan = planNpcTurn(state, "warden-aya");
 
-  it("faz a troca voluntária consumir a ação principal e encerrar o turno", () => {
-    const state = battle("voluntary-switch");
-    const result = switchActiveCreature(state, "player-one", 1, "switch");
-    expect(getSide(result.state, "player-one").activeIndex).toBe(1);
-    expect(result.state.turn.sideId).toBe("warden-aya");
-    expect(() => switchActiveCreature(result.state, "player-one", 2, "switch-again")).toThrow("Aguarde o seu turno.");
-  });
-
-  it("exige escolha explícita após derrota e não cobra a ação principal da troca forçada", () => {
-    let state = battle("forced-switch");
-    state = attachElement(state, "player-one", 0, "fire", "attach");
-    getActive(getSide(state, "warden-aya")).hp = 1;
-    const defeated = resolveAttack(state, "player-one", "boitata-1", 6, 100, "knockout");
-    expect(defeated.state.turn.sideId).toBe("warden-aya");
-    expect(defeated.state.turn.phase).toBe("forced_switch");
-
-    const switched = switchActiveCreature(defeated.state, "warden-aya", 1, "forced-choice");
-    expect(switched.state.turn.sideId).toBe("warden-aya");
-    expect(switched.state.turn.phase).toBe("main");
-    expect(switched.events[0].kind).toBe("forced_switch");
-  });
-
-  it("bloqueia troca voluntária quando a criatura está enraizada", () => {
-    const state = battle("rooted-switch");
-    getActive(getSide(state, "player-one")).statuses.push({
-      effect: "rooted",
-      turns: 1,
-      sourceAttackId: "test",
-    });
-    expect(() => switchActiveCreature(state, "player-one", 1, "switch")).toThrow("enraizada");
+    expect(plan.attachEnergyCardId).toBe(getSide(state, "warden-aya").energyHand[0]?.id);
+    expect([0, 1]).toContain(plan.abilitySlot);
   });
 
   it("encerra PVP por desistência mesmo fora do turno do desistente", () => {
-    const state = createPvpBattle(
-      "00000000-0000-4000-8000-000000000010",
-      { id: "00000000-0000-4000-8000-000000000011", name: "Ana", teamIds: ["boitata"] },
-      { id: "00000000-0000-4000-8000-000000000012", name: "Beto", teamIds: ["iara"] },
-      () => 0.9,
-    );
+    const state = createPvpBattle("pvp-concede", pvpPlayers[0], pvpPlayers[1], () => 0.9);
     const quitter = state.sides.find((side) => side.id !== state.turn.sideId)!;
     const winner = state.sides.find((side) => side.id === state.turn.sideId)!;
     const result = concedeBattle(state, quitter.id, "concede-test");
+
     expect(result.state.status).toBe("finished");
     expect(result.state.winnerId).toBe(winner.id);
     expect(result.events.map((event) => event.kind)).toEqual(["conceded", "battle_end"]);
   });
 
-  it("oferece a ação de passar para nunca travar um turno", () => {
-    const result = passTurn(battle("pass"), "player-one", "pass-action");
-    expect(result.state.turn.sideId).toBe("warden-aya");
-    expect(result.events.some((event) => event.kind === "passed")).toBe(true);
-  });
-
-  it("planeja anexos e ataque da IA a partir das cartas que ela realmente possui", () => {
-    const state = battle("npc-plan");
-    state.turn.sideId = "warden-aya";
-    const side = getSide(state, "warden-aya");
-    side.turnsStarted = 1;
-    ensureCardInHand(state, side.id, "fire");
-    const plan = planNpcTurn(state, side.id);
-    expect(plan.attachments.length).toBeLessThanOrEqual(1);
-    expect(plan.attackId).toBeTruthy();
-  });
-
-  it("rejeita uma ação idempotente já processada", () => {
-    let state = battle("idempotency");
-    state = attachElement(state, "player-one", 0, "fire", "same-action");
-    expect(() => passTurn(state, "player-one", "same-action")).toThrow(GameRuleError);
-  });
-
-  it("rejeita ação fora do turno e um segundo ataque do mesmo jogador", () => {
-    const initial = battle("turn-cheat");
-    expect(() => passTurn(initial, "warden-aya", "out-of-turn")).toThrow("Aguarde o seu turno");
-
-    const prepared = attachElement(initial, "player-one", 0, "fire", "attach-for-attack");
-    const firstAttack = resolveAttack(prepared, "player-one", "boitata-1", 5, 100, "attack-once");
-    expect(() => resolveAttack(
-      firstAttack.state,
-      "player-one",
-      "boitata-1",
-      6,
-      1,
-      "attack-twice",
-    )).toThrow("Aguarde o seu turno");
-  });
-
-  it("inicia PVP com dois jogadores, seis criaturas e primeiro turno sorteado no servidor", () => {
-    const state = createPvpBattle(
-      "00000000-0000-4000-8000-000000000001",
-      {
-        id: "00000000-0000-4000-8000-000000000002",
-        name: "Ana",
-        teamIds: ["boitata", "iara", "curupira", "saci-perere", "black-shuck", "boto-cor-de-rosa"],
-      },
-      {
-        id: "00000000-0000-4000-8000-000000000003",
-        name: "Beto",
-        teamIds: ["fenix", "kelpie", "caipora", "raiju", "domovoi", "carbunclo"],
-      },
-      () => 0.75,
-    );
+  it("inicia PVP com avatares, dois poderes por participante e primeiro turno sorteado", () => {
+    const state = createPvpBattle("pvp-start", pvpPlayers[0], pvpPlayers[1], () => 0.75);
 
     expect(state.mode).toBe("pvp");
-    expect(state.sides.every((side) => side.kind === "player" && side.team.length === 6)).toBe(true);
-    expect(state.turn.sideId).toBe("00000000-0000-4000-8000-000000000003");
+    expect(state.sides.map((side) => side.id)).toEqual([pvpPlayers[0].id, pvpPlayers[1].id]);
+    expect(state.sides.map((side) => side.abilityIds)).toEqual([
+      ["boitata-flame", "ancestral-roots"],
+      ["iara-song", "kelpie-surge"],
+    ]);
+    expect(state.sides.every((side) => side.kind === "player" && side.abilityIds.length === 2)).toBe(true);
+    expect(state.turn.sideId).toBe(pvpPlayers[1].id);
+    expect(state.log[0].message).toContain("um personagem e dois poderes cada");
   });
 
-  it("impede que o PVP seja criado com o mesmo jogador nos dois lados", () => {
-    const setup = {
-      id: "00000000-0000-4000-8000-000000000002",
-      name: "Ana",
-      teamIds: ["boitata", "iara", "curupira", "saci-perere", "black-shuck", "boto-cor-de-rosa"] as const,
+  it("impede loadouts repetidos/incompletos e o mesmo jogador nos dois lados", () => {
+    expect(() => createPvpBattle("pvp-duplicate", {
+      ...pvpPlayers[0], abilityIds: ["boitata-flame", "boitata-flame"],
+    }, pvpPlayers[1], fixedRandom)).toThrow(GameRuleError);
+    expect(() => createPvpBattle("pvp-incomplete", {
+      ...pvpPlayers[0], abilityIds: ["boitata-flame"],
+    }, pvpPlayers[1], fixedRandom)).toThrow(GameRuleError);
+    expect(() => createPvpBattle("pvp-self", pvpPlayers[0], pvpPlayers[0], fixedRandom)).toThrow(GameRuleError);
+  });
+
+  it("o estado de combate rejeita campos de equipe legada", () => {
+    const state = createPvpBattle("pvp-no-team", pvpPlayers[0], pvpPlayers[1], fixedRandom);
+    const forged = {
+      ...state,
+      sides: state.sides.map((side) => ({ ...side, team: [] })),
     };
 
-    expect(() => createPvpBattle("pvp-self", setup, setup, fixedRandom)).toThrow(GameRuleError);
+    expect(BattleStateSchema.safeParse(forged).success).toBe(false);
   });
 });
-

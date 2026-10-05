@@ -4,31 +4,28 @@ import { z } from "zod";
 import {
   GameRuleError,
   attachEnergy,
+  concedeBattle,
   createDemoBattle,
   createEncounterBattle,
-  drawPowerCard,
-  equipPowerCard,
-  evolveActiveCreature,
-  passTurn,
-  planNpcTurn,
-  getSide,
+  getDefaultOpponentAbilityIds,
   getOpponent,
-  resolveAttack,
-  switchActiveCreature,
+  getSide,
+  passTurn,
+  playNpcTurn,
+  resolveAbility,
 } from "@/game/engine";
 import { CREATURES, CREATURE_BY_ID, REGIONS } from "@/game/catalog";
 import { LOCAL_MAPS } from "@/game/exploration/maps";
 import { RemotePlayerSnapshotSchema } from "@/game/player";
-import { ELEMENTS, type BattleActionResult, type BattleEncounter, type BattleReward, type BattleState, type EnergyPool } from "@/game/types";
-import {
-  assertTokenUnused,
-  consumeToken,
-  signBattleState,
-  verifyBattleState,
-} from "@/lib/game-token";
+import { DEFAULT_AVATAR_CONFIG } from "@/game/save/local-progress";
+import { GuestBattleSetupSchema } from "@/game/battle/guest-setup";
+import { STARTER_ARPG_ABILITY_IDS } from "@/game/arpg/content/ability-cards";
+import type { BattleActionResult, BattleEncounter, BattleReward, BattleState, EnergyPool } from "@/game/types";
+import { assertTokenUnused, consumeToken, signBattleState, verifyBattleState } from "@/lib/game-token";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
+import { validateArpgAbilityOwnership } from "@/server/arpg/ability-ownership";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,84 +36,41 @@ const EnergyPoolSchema = z.object({
   nature: z.number().int().nonnegative().max(9999),
   storm: z.number().int().nonnegative().max(9999),
   spirit: z.number().int().nonnegative().max(9999),
-});
+}).strict();
 
 const EncounterSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("wild"), regionId: z.string().min(1).max(80), creatureId: z.string().min(1).max(80) }),
-  z.object({ kind: z.literal("npc"), regionId: z.string().min(1).max(80), npcId: z.string().min(1).max(80) }),
-  z.object({ kind: z.literal("sanctuary"), regionId: z.string().min(1).max(80), areaId: z.string().min(1).max(80) }),
-  z.object({ kind: z.literal("boss"), regionId: z.string().min(1).max(80), areaId: z.string().min(1).max(80) }),
+  z.strictObject({ kind: z.literal("wild"), regionId: z.string().min(1).max(80), creatureId: z.string().min(1).max(80) }),
+  z.strictObject({ kind: z.literal("npc"), regionId: z.string().min(1).max(80), npcId: z.string().min(1).max(80) }),
+  z.strictObject({ kind: z.literal("sanctuary"), regionId: z.string().min(1).max(80), areaId: z.string().min(1).max(80) }),
+  z.strictObject({ kind: z.literal("boss"), regionId: z.string().min(1).max(80), areaId: z.string().min(1).max(80) }),
 ]);
 
+const VersionedAction = {
+  token: z.string().min(20),
+  actionId: z.string().min(4).max(100),
+};
+
 const requestSchema = z.discriminatedUnion("action", [
-  z.object({
+  z.strictObject({
     action: z.literal("start"),
     encounter: EncounterSchema.optional(),
     playerEnergy: EnergyPoolSchema.optional(),
+    guestSetup: GuestBattleSetupSchema.optional(),
   }),
-  z.object({
-    action: z.literal("attach"),
-    token: z.string().min(20),
-    actionId: z.string().min(4).max(100),
-    creatureIndex: z.number().int().min(0).max(5),
-    cardId: z.string().min(8).max(120),
-  }),
-  z.object({
-    action: z.literal("switch"),
-    token: z.string().min(20),
-    actionId: z.string().min(4).max(100),
-    creatureIndex: z.number().int().min(0).max(5),
-  }),
-  z.object({
-    action: z.literal("draw_power"),
-    token: z.string().min(20),
-    actionId: z.string().min(4).max(100),
-  }),
-  z.object({
-    action: z.literal("equip_power"),
-    token: z.string().min(20),
-    actionId: z.string().min(4).max(100),
-    creatureIndex: z.number().int().min(0).max(5),
-    cardId: z.string().min(8).max(160),
-    slot: z.number().int().min(0).max(3).optional(),
-  }),
-  z.object({
-    action: z.literal("evolve"),
-    token: z.string().min(20),
-    actionId: z.string().min(4).max(100),
-  }),
-  z.object({
-    action: z.literal("attack"),
-    token: z.string().min(20),
-    actionId: z.string().min(4).max(100),
-    attackId: z.string().min(3).max(100),
-  }),
-  z.object({
-    action: z.literal("pass"),
-    token: z.string().min(20),
-    actionId: z.string().min(4).max(100),
-  }),
+  z.strictObject({ ...VersionedAction, action: z.literal("attach"), cardId: z.string().min(8).max(120) }),
+  z.strictObject({ ...VersionedAction, action: z.literal("ability"), slot: z.number().int().min(0).max(1) }),
+  z.strictObject({ ...VersionedAction, action: z.literal("pass") }),
+  z.strictObject({ ...VersionedAction, action: z.literal("concede") }),
 ]);
 
 const BattleRewardSchema = z.object({
   coins: z.number().int().nonnegative(),
   xp: z.number().int().nonnegative(),
-  creatureId: z.string().nullable().default(null),
   replayed: z.boolean().optional(),
 });
 
-function response(
-  state: BattleState,
-  events = state.log.slice(-1),
-  reward?: BattleReward,
-) {
-  return NextResponse.json({
-    state,
-    events,
-    token: signBattleState(state),
-    reward,
-    authority: "server",
-  });
+function response(state: BattleState, events = state.log.slice(-1), reward?: BattleReward) {
+  return NextResponse.json({ state, events, token: signBattleState(state), reward, authority: "server" });
 }
 
 async function authenticatedPlayerId() {
@@ -131,26 +85,29 @@ async function loadAuthenticatedBattleContext() {
   const supabase = await createClient();
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
   if (claimsError || typeof claimsData?.claims?.sub !== "string") return null;
+  const playerId = claimsData.claims.sub;
   const { data, error } = await supabase.rpc("get_my_player_snapshot");
-  if (error) throw new Error("Não foi possível carregar seu progresso para a batalha.");
+  if (error) throw new Error("Não foi possível carregar seu perfil para a batalha.");
   const snapshot = RemotePlayerSnapshotSchema.parse(data);
-  const team = snapshot.teams.find((candidate) => candidate.isActive);
-  const orderedMembers = team?.members
-    .slice()
-    .sort((left, right) => left.slot - right.slot) ?? [];
-  const memberIds = orderedMembers.map((member) => member.playerCreatureId);
-  const { data: evolutionRows } = memberIds.length > 0
-    ? await supabase
-        .from("player_creatures")
-        .select("id,evolution_stage")
-        .in("id", memberIds)
-    : { data: [] as Array<{ id: string; evolution_stage: number }> };
-  const evolutionById = new Map(
-    (evolutionRows ?? []).map((row) => [row.id, Number(row.evolution_stage) || 0]),
-  );
+  if (snapshot.profile.id !== playerId || !snapshot.arpgLoadout) {
+    throw new Error("Salve seu personagem e equipe dois poderes no Arquivo antes de batalhar.");
+  }
+  const abilityIds = snapshot.arpgLoadout.abilityIds;
+  const ownership = await validateArpgAbilityOwnership(createAdminClient(), playerId, { abilityIds });
+  if (!ownership.valid) {
+    if (ownership.reason === "inventory_unavailable") {
+      throw new Error("Não foi possível confirmar a posse dos poderes equipados.");
+    }
+    if (ownership.reason === "invalid_abilities") {
+      throw new Error("Equipe exatamente dois poderes válidos e diferentes para batalhar.");
+    }
+    throw new Error("Um dos poderes equipados não pertence à sua conta.");
+  }
   return {
-    teamIds: orderedMembers.map((member) => member.catalogId),
-    evolutionStages: orderedMembers.map((member) => evolutionById.get(member.playerCreatureId) ?? 0),
+    playerId,
+    name: snapshot.profile.displayName,
+    avatarConfig: snapshot.profile.avatarConfig,
+    abilityIds,
     energy: snapshot.energy as EnergyPool,
     currentRegionId: snapshot.world.currentRegionId,
   };
@@ -158,28 +115,31 @@ async function loadAuthenticatedBattleContext() {
 
 function encounterSetup(
   encounter: BattleEncounter,
-  playerTeamIds: readonly string[],
-  currentRegionId?: string,
+  player: { avatarConfig: typeof DEFAULT_AVATAR_CONFIG; abilityIds: readonly string[]; currentRegionId?: string } | null,
 ) {
-  if (currentRegionId && encounter.regionId !== currentRegionId) {
+  if (player?.currentRegionId && encounter.regionId !== player.currentRegionId) {
     throw new GameRuleError("Este encontro não pertence à região atual da conta.");
   }
   const map = LOCAL_MAPS[encounter.regionId];
   const region = REGIONS.find((candidate) => candidate.id === encounter.regionId);
   if (!map || !region) throw new GameRuleError("A região do encontro é inválida.");
+  const playerSettings = {
+    regionId: encounter.regionId,
+    playerAvatarConfig: player?.avatarConfig ?? DEFAULT_AVATAR_CONFIG,
+    playerAbilityIds: player?.abilityIds ?? STARTER_ARPG_ABILITY_IDS,
+  };
 
   if (encounter.kind === "wild") {
     const creature = CREATURE_BY_ID.get(encounter.creatureId);
-    if (!creature || creature.regionId !== encounter.regionId) {
-      throw new GameRuleError("A criatura encontrada não pertence a esta região.");
-    }
+    if (!creature || creature.regionId !== encounter.regionId) throw new GameRuleError("O inimigo encontrado não pertence a esta região.");
     return {
+      ...playerSettings,
       mode: "wild" as const,
       opponentId: `wild:${creature.id}`,
       opponentName: creature.name,
-      opponentTeamIds: [creature.id],
-      playerTeamIds,
-      startMessage: `Um encontro selvagem começou contra ${creature.name}.`,
+      opponentAbilityIds: getDefaultOpponentAbilityIds(creature.id),
+      opponentHp: Math.max(110, creature.hp * 2),
+      startMessage: `Um encontro começou contra ${creature.name}.`,
     };
   }
 
@@ -187,90 +147,67 @@ function encounterSetup(
     const npc = map.npcs.find((candidate) => candidate.id === encounter.npcId);
     if (!npc) throw new GameRuleError("Este viajante não pertence à região atual.");
     const regional = CREATURES.filter((creature) => creature.regionId === encounter.regionId);
-    if (regional.length === 0) throw new GameRuleError("O viajante ainda não possui uma equipe válida.");
-    const start = Math.max(0, map.npcs.findIndex((candidate) => candidate.id === npc.id));
-    const size = Math.max(1, Math.min(playerTeamIds.length, 6));
-    const opponentTeamIds = Array.from({ length: size }, (_, index) =>
-      regional[(start + index) % regional.length].id
-    );
+    if (regional.length === 0) throw new GameRuleError("Esta região ainda não possui inimigos válidos.");
+    const order = Math.max(0, map.npcs.findIndex((candidate) => candidate.id === npc.id));
+    const enemy = regional[order % regional.length];
     return {
+      ...playerSettings,
       mode: "npc" as const,
       opponentId: `npc:${npc.id}`,
       opponentName: npc.name,
-      opponentTeamIds,
-      playerTeamIds,
-      startMessage: `${npc.name} aceitou o duelo de treino em ${region.name}.`,
+      opponentAbilityIds: getDefaultOpponentAbilityIds(enemy.id),
+      opponentHp: 150,
+      startMessage: `${npc.name} aceitou o duelo em ${region.name}.`,
     };
   }
 
   const area = region.areas?.find((candidate) => candidate.id === encounter.areaId);
-  if (!area || area.activity !== encounter.kind) {
-    throw new GameRuleError("A área não corresponde ao tipo de batalha solicitado.");
-  }
+  if (!area || area.activity !== encounter.kind) throw new GameRuleError("A área não corresponde ao tipo de batalha solicitado.");
   const regional = CREATURES.filter((creature) => creature.regionId === encounter.regionId);
-  if (regional.length === 0) throw new GameRuleError("Esta área ainda não possui adversários válidos.");
-  const size = Math.max(1, Math.min(playerTeamIds.length, 6));
-  const opponentTeamIds = encounter.kind === "boss"
-    ? [...regional].slice(-size).map((creature) => creature.id)
-    : regional.slice(0, size).map((creature) => creature.id);
+  if (regional.length === 0) throw new GameRuleError("Esta área ainda não possui inimigos válidos.");
+  const enemy = encounter.kind === "boss" ? regional.at(-1)! : regional[0];
   return {
+    ...playerSettings,
     mode: encounter.kind,
     opponentId: `${encounter.kind}:${area.id}`,
     opponentName: area.name,
     opponentKind: encounter.kind === "boss" ? "boss" as const : "npc" as const,
-    opponentTeamIds,
-    playerTeamIds,
+    opponentAbilityIds: getDefaultOpponentAbilityIds(enemy.id),
+    opponentHp: encounter.kind === "boss" ? Math.max(260, enemy.hp * 4) : 175,
     startMessage: `${area.name} iniciou uma ${encounter.kind === "boss" ? "batalha de guardião" : "provação de santuário"}.`,
   };
 }
 
-async function recordBattleMissionEvents(
-  state: BattleState,
-  events: BattleActionResult["events"],
-) {
+async function recordBattleMissionEvents(state: BattleState, events: BattleActionResult["events"]) {
   const playerId = await authenticatedPlayerId();
   if (!playerId) return;
-
   const opponent = getOpponent(state, "player-one");
-  const regionId = opponent.id === "warden-aya"
-    ? "roots"
-    : opponent.id.startsWith("boss:roots-")
-      ? "roots"
-      : CREATURE_BY_ID.get(opponent.team[0]?.catalogId ?? "")?.regionId ?? null;
-  const missionEvents = [...events];
+  const missionEvents: Array<BattleActionResult["events"][number] | Record<string, unknown>> = [...events];
   if (state.status === "finished" && state.winnerId === "player-one") {
     missionEvents.push({
       id: `${state.id}:mission:victory`,
       turn: state.turn.number,
       actorId: "player-one",
-      kind: "battle_victory" as never,
+      kind: "battle_victory",
       message: "Vitória registrada para o progresso de missões.",
     });
   }
-
   const admin = createAdminClient();
   const { error } = await admin.rpc("record_mission_events", {
     target_player_id: playerId,
     target_events: missionEvents,
-    target_context: {
-      regionId,
-      opponentId: opponent.id,
-      mode: state.mode,
-    },
+    target_context: { regionId: state.regionId ?? null, opponentId: opponent.id, mode: state.mode },
   });
-  if (error) {
-    console.error("Falha ao registrar progresso de missão.", error.code);
-  }
+  if (error) console.error("Falha ao registrar progresso de missão.", error.code);
 }
 
 async function claimStoryReward(battleId: string): Promise<BattleReward | undefined> {
   const playerId = await authenticatedPlayerId();
   if (!playerId) return undefined;
-  const parsedBattleId = z.string().uuid().parse(battleId);
   const admin = createAdminClient();
   const { data, error } = await admin.rpc("claim_story_battle_reward", {
     target_player_id: playerId,
-    target_battle_id: parsedBattleId,
+    target_battle_id: z.string().uuid().parse(battleId),
   });
   if (error) {
     console.error("Falha ao registrar recompensa da batalha.", error.code);
@@ -279,216 +216,53 @@ async function claimStoryReward(battleId: string): Promise<BattleReward | undefi
   return BattleRewardSchema.parse(data);
 }
 
-function performNpcTurn(state: BattleState, actionId: string): BattleActionResult {
-  const side = getSide(state, state.turn.sideId);
-  if (side.kind !== "npc" && side.kind !== "boss") throw new GameRuleError("Não é o turno do oponente.");
-
-  let working = state;
-  const events: BattleActionResult["events"] = [];
-
-  if (side.powerDrawsRemaining > 0) {
-    const drawnPower = drawPowerCard(working, side.id, `${actionId}:draw-power`);
-    working = drawnPower.state;
-    events.push(...drawnPower.events);
-
-    const refreshedSide = getSide(working, side.id);
-    const activeCreature = refreshedSide.team[refreshedSide.activeIndex];
-    const activeDefinition = CREATURE_BY_ID.get(activeCreature.catalogId);
-    const compatiblePower = refreshedSide.powerHand.find((card) =>
-      activeDefinition
-      && card.element === activeDefinition.element
-      && !activeCreature.equippedPowerIds.includes(card.attackId)
-    );
-    if (compatiblePower && activeCreature.equippedPowerIds.length < 4) {
-      const equippedPower = equipPowerCard(
-        working,
-        side.id,
-        refreshedSide.activeIndex,
-        compatiblePower.id,
-        undefined,
-        `${actionId}:equip-power`,
-      );
-      working = equippedPower.state;
-      events.push(...equippedPower.events);
-    }
-  }
-
-  let plan = planNpcTurn(working, side.id);
-  if (plan.forcedSwitchIndex !== undefined) {
-    const switched = switchActiveCreature(
-      working,
-      side.id,
-      plan.forcedSwitchIndex,
-      `${actionId}:forced-switch`,
-    );
-    working = switched.state;
-    events.push(...switched.events);
-    plan = planNpcTurn(working, side.id);
-  }
-
-  if (plan.evolve) {
-    const evolved = evolveActiveCreature(
-      working,
-      side.id,
-      `${actionId}:evolve`,
-    );
-    working = evolved.state;
-    events.push(...evolved.events);
-    plan = planNpcTurn(working, side.id);
-  }
-
-  for (const [index, attachment] of plan.attachments.entries()) {
-    const attached = attachEnergy(
-      working,
-      side.id,
-      attachment.creatureIndex,
-      attachment.cardId,
-      `${actionId}:attach:${index}`,
-    );
-    working = attached.state;
-    events.push(...attached.events);
-  }
-
-  if (plan.attackId) {
-    const attacked = resolveAttack(
-      working,
-      side.id,
-      plan.attackId,
-      randomInt(1, 7),
-      randomInt(1, 101),
-      `${actionId}:attack`,
-    );
-    working = attacked.state;
-    events.push(...attacked.events);
-    return { state: working, events };
-  }
-
-  const passed = passTurn(working, side.id, `${actionId}:pass`);
-  events.push(...passed.events);
-  return { state: passed.state, events };
-}
-
 export async function POST(request: Request) {
   try {
     const parsed = requestSchema.parse(await request.json());
     if (parsed.action === "start") {
       const authenticated = await loadAuthenticatedBattleContext();
-      const playerTeamIds = authenticated?.teamIds ?? undefined;
-      if (authenticated && authenticated.teamIds.length === 0) {
-        throw new GameRuleError("Escolha sua primeira carta antes de entrar em combate.");
-      }
+      const guestSetup = authenticated ? undefined : parsed.guestSetup;
       const random = () => randomInt(0, 0x1000000) / 0x1000000;
       const playerEnergy = authenticated?.energy ?? parsed.playerEnergy;
-      if (playerEnergy && ELEMENTS.every((element) => playerEnergy[element] === 0)) {
-        throw new GameRuleError("Você ainda não possui cartas de energia para batalhar.");
-      }
+      const playerSettings = {
+        playerAvatarConfig: authenticated?.avatarConfig ?? guestSetup?.avatarConfig,
+        playerAbilityIds: authenticated?.abilityIds ?? guestSetup?.abilityIds,
+        playerEnergy,
+      };
       const state = parsed.encounter
         ? createEncounterBattle(
             randomUUID(),
-            {
-              ...encounterSetup(
-                parsed.encounter,
-                playerTeamIds ?? ["boitata"],
-                authenticated?.currentRegionId,
-              ),
-              playerEnergy,
-              playerEvolutionStages: authenticated?.evolutionStages,
-            },
+            { ...encounterSetup(parsed.encounter, authenticated), ...playerSettings },
             random,
           )
         : createDemoBattle(
             randomUUID(),
             random,
-            playerTeamIds,
-            playerEnergy,
+            playerSettings.playerAvatarConfig,
+            playerSettings.playerAbilityIds,
+            playerSettings.playerEnergy,
           );
-      if (!parsed.encounter && authenticated?.evolutionStages) {
-        const playerSide = getSide(state, "player-one");
-        playerSide.team.forEach((creature, index) => {
-          const stage = authenticated.evolutionStages[index] ?? 0;
-          if (stage <= 0) return;
-          const definition = CREATURE_BY_ID.get(creature.catalogId);
-          if (!definition) return;
-          const normalizedStage: 0 | 1 | 2 = stage >= 2 ? 2 : 1;
-          creature.evolutionStage = normalizedStage;
-          const evolvedHp = definition.hp + Math.floor(definition.hp * 0.15 * normalizedStage);
-          creature.maxHp = evolvedHp;
-          creature.hp = evolvedHp;
-        });
-      }
       return response(state, state.log);
     }
 
     assertTokenUnused(parsed.token);
     const state = verifyBattleState(parsed.token);
     const actor = getSide(state, state.turn.sideId);
-    if (actor.kind !== "player") {
-      throw new GameRuleError("O estado recebido não está aguardando uma ação do jogador.");
-    }
+    if (actor.kind !== "player") throw new GameRuleError("A batalha ainda está aguardando uma ação do oponente.");
+
     let result: BattleActionResult;
-
-    switch (parsed.action) {
-      case "attach":
-        result = attachEnergy(
-          state,
-          state.turn.sideId,
-          parsed.creatureIndex,
-          parsed.cardId,
-          parsed.actionId,
-        );
-        break;
-      case "switch":
-        result = switchActiveCreature(
-          state,
-          state.turn.sideId,
-          parsed.creatureIndex,
-          parsed.actionId,
-        );
-        break;
-      case "draw_power":
-        result = drawPowerCard(
-          state,
-          state.turn.sideId,
-          parsed.actionId,
-        );
-        break;
-      case "equip_power":
-        result = equipPowerCard(
-          state,
-          state.turn.sideId,
-          parsed.creatureIndex,
-          parsed.cardId,
-          parsed.slot,
-          parsed.actionId,
-        );
-        break;
-      case "evolve":
-        result = evolveActiveCreature(
-          state,
-          state.turn.sideId,
-          parsed.actionId,
-        );
-        break;
-      case "attack":
-        result = resolveAttack(
-          state,
-          state.turn.sideId,
-          parsed.attackId,
-          randomInt(1, 7),
-          randomInt(1, 101),
-          parsed.actionId,
-        );
-        break;
-      case "pass":
-        result = passTurn(state, state.turn.sideId, parsed.actionId);
-        break;
+    if (parsed.action === "attach") {
+      result = attachEnergy(state, actor.id, parsed.cardId, parsed.actionId);
+    } else if (parsed.action === "ability") {
+      result = resolveAbility(state, actor.id, parsed.slot, randomInt(1, 7), randomInt(1, 101), parsed.actionId);
+    } else if (parsed.action === "concede") {
+      result = concedeBattle(state, actor.id, parsed.actionId);
+    } else {
+      result = passTurn(state, actor.id, parsed.actionId);
     }
 
-    if (
-      result.state.status === "active" &&
-      getSide(result.state, result.state.turn.sideId).kind === "npc"
-    ) {
-      const npcResult = performNpcTurn(result.state, `${parsed.actionId}:npc`);
+    if (result.state.status === "active" && getSide(result.state, result.state.turn.sideId).kind !== "player") {
+      const npcResult = playNpcTurn(result.state, result.state.turn.sideId, `${parsed.actionId}:npc`, () => randomInt(0, 0x1000000) / 0x1000000);
       result = { state: npcResult.state, events: [...result.events, ...npcResult.events] };
     }
 
@@ -499,14 +273,11 @@ export async function POST(request: Request) {
     consumeToken(parsed.token);
     return response(result.state, result.events, reward);
   } catch (error) {
-    const message =
-      error instanceof z.ZodError
-        ? "A solicitação de batalha é inválida."
-        : error instanceof Error
-          ? error.message
-          : "Não foi possível processar a ação.";
-    const status = error instanceof GameRuleError ? 409 : 400;
-    return NextResponse.json({ error: message }, { status });
+    const message = error instanceof z.ZodError
+      ? "A solicitação de batalha é inválida."
+      : error instanceof Error
+        ? error.message
+        : "Não foi possível processar a ação.";
+    return NextResponse.json({ error: message }, { status: error instanceof GameRuleError ? 409 : 400 });
   }
 }
-

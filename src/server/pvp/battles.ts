@@ -11,6 +11,13 @@ export class PvpBattleAccessError extends Error {
   }
 }
 
+export class PvpBattleHistoricalError extends Error {
+  constructor() {
+    super("Esta partida usava equipes antigas de seis criaturas e foi preservada apenas no histórico.");
+    this.name = "PvpBattleHistoricalError";
+  }
+}
+
 export async function loadAuthoritativePvpBattle(battleId: string, actorId: string) {
   const admin = createAdminClient();
   const { data: participant, error: participantError } = await admin
@@ -29,6 +36,10 @@ export async function loadAuthoritativePvpBattle(battleId: string, actorId: stri
     .single();
   if (battleError || !battle) throw new PvpBattleAccessError();
 
+  const rawState = battle.state && typeof battle.state === "object" && !Array.isArray(battle.state)
+    ? battle.state as Record<string, unknown>
+    : null;
+  if (rawState?.version === 2 && rawState.mode === "pvp") throw new PvpBattleHistoricalError();
   const parsed = BattleStateSchema.safeParse(battle.state);
   if (!parsed.success || parsed.data.id !== battleId || parsed.data.mode !== "pvp") {
     throw new Error("Estado persistido de batalha incompatível.");

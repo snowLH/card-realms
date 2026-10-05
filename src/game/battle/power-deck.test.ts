@@ -1,108 +1,42 @@
 import { describe, expect, it } from "vitest";
-import {
-  createDemoBattle,
-  drawPowerCard,
-  equipPowerCard,
-  getSide,
-  resolveAttack,
-} from "./engine";
+import { DEFAULT_AVATAR_CONFIG } from "../save/local-progress";
+import { createDemoBattle, getSide, resolveAbility } from "./engine";
 
 const fixedRandom = () => 0.27;
-const fireEnergy = { fire: 12, water: 0, nature: 0, storm: 0, spirit: 0 };
+const abilityIds = ["boitata-flame", "ancestral-roots"] as const;
 
-describe("Baralho de Poder autoritativo", () => {
-  it("permite uma compra por turno e registra o evento", () => {
-    const state = createDemoBattle("power-draw", fixedRandom, ["boitata"], fireEnergy);
-    const before = getSide(state, "player-one");
+describe("poderes permanentes do personagem", () => {
+  it("mantém exatamente dois poderes distintos nos espaços fixos", () => {
+    const state = createDemoBattle("two-powers", fixedRandom, DEFAULT_AVATAR_CONFIG, abilityIds);
+    const player = getSide(state, "player-one");
 
-    const first = drawPowerCard(state, "player-one", "draw-one");
-    const after = getSide(first.state, "player-one");
-
-    expect(before.powerHand).toHaveLength(3);
-    expect(after.powerHand).toHaveLength(4);
-    expect(after.powerDrawsRemaining).toBe(0);
-    expect(first.events.map((event) => event.kind)).toEqual(["power_drawn"]);
-    expect(() => drawPowerCard(first.state, "player-one", "draw-two")).toThrow(
-      "já comprou uma Carta de Poder",
-    );
+    expect(player.abilityIds).toEqual(["boitata-flame", "ancestral-roots"]);
+    expect(player.abilityCooldowns).toEqual([0, 0]);
+    expect("powerHand" in player).toBe(false);
+    expect("powerDeck" in player).toBe(false);
   });
 
-  it("equipa um poder compatível e o remove da mão", () => {
-    let state = createDemoBattle("power-equip", fixedRandom, ["boitata"], fireEnergy);
-    state = drawPowerCard(state, "player-one", "draw").state;
-    const player = getSide(state, "player-one");
-    const candidate = player.powerHand.find(
-      (card) => !player.team[0].equippedPowerIds.includes(card.attackId),
-    );
-    expect(candidate).toBeTruthy();
-
-    const result = equipPowerCard(
-      state,
-      "player-one",
-      0,
-      candidate!.id,
-      undefined,
-      "equip",
-    );
-    const updated = getSide(result.state, "player-one");
-
-    expect(updated.team[0].equippedPowerIds).toContain(candidate!.attackId);
-    expect(updated.powerHand.some((card) => card.id === candidate!.id)).toBe(false);
-    expect(updated.powerDiscard.some((card) => card.id === candidate!.id)).toBe(true);
-    expect(result.events[0].kind).toBe("power_equipped");
+  it("não cria batalha com menos de dois poderes, duplicatas ou IDs desconhecidos", () => {
+    expect(() => createDemoBattle("one-power", fixedRandom, DEFAULT_AVATAR_CONFIG, ["boitata-flame"]))
+      .toThrow("exatamente dois poderes válidos e diferentes");
+    expect(() => createDemoBattle("duplicate-power", fixedRandom, DEFAULT_AVATAR_CONFIG, ["boitata-flame", "boitata-flame"]))
+      .toThrow("exatamente dois poderes válidos e diferentes");
+    expect(() => createDemoBattle("unknown-power", fixedRandom, DEFAULT_AVATAR_CONFIG, ["boitata-flame", "missing-power"]))
+      .toThrow("exatamente dois poderes válidos e diferentes");
   });
 
-  it("rejeita ataque que não está equipado", () => {
-    const state = createDemoBattle("power-attack", fixedRandom, ["boitata"], fireEnergy);
-    const player = getSide(state, "player-one");
-    const unequipped = player.powerHand.find(
-      (card) => !player.team[0].equippedPowerIds.includes(card.attackId),
-    );
-    expect(unequipped).toBeTruthy();
+  it("resolve somente um dos dois espaços e registra o poder usado", () => {
+    const state = createDemoBattle("ability-slot", fixedRandom, DEFAULT_AVATAR_CONFIG, abilityIds);
+    const result = resolveAbility(state, "player-one", 1, 5, 100, "roots");
+    const player = getSide(result.state, "player-one");
 
-    expect(() =>
-      resolveAttack(
-        state,
-        "player-one",
-        unequipped!.attackId,
-        6,
-        1,
-        "forged-attack",
-      ),
-    ).toThrow("não está equipado");
-  });
-
-  it("exige escolher um slot quando a criatura já possui quatro poderes", () => {
-    const state = createDemoBattle("power-slots", fixedRandom, ["boitata"], fireEnergy);
-    const player = getSide(state, "player-one");
-    const distinct = [player.team[0].equippedPowerIds[0]];
-    for (const card of [...player.powerHand, ...player.powerDeck]) {
-      if (!distinct.includes(card.attackId)) distinct.push(card.attackId);
-      if (distinct.length === 5) break;
-    }
-    expect(distinct).toHaveLength(5);
-    player.team[0].equippedPowerIds = distinct.slice(0, 4);
-
-    const targetCard = [...player.powerHand, ...player.powerDeck].find(
-      (card) => card.attackId === distinct[4],
-    )!;
-    if (!player.powerHand.some((card) => card.id === targetCard.id)) {
-      player.powerDeck = player.powerDeck.filter((card) => card.id !== targetCard.id);
-      player.powerHand.push(targetCard);
-    }
-
-    expect(() =>
-      equipPowerCard(state, "player-one", 0, targetCard.id, undefined, "equip-full"),
-    ).toThrow("qual dos quatro poderes");
-
-    const replaced = equipPowerCard(
-      state,
-      "player-one",
-      0,
-      targetCard.id,
-      2,
-      "equip-replace",
-    );
-    expect(getSide(replaced.state, "player-one").team[0].equippedPowerIds[2]).toBe(distinct[4]);
+    expect(result.events[0]).toMatchObject({
+      kind: "ability_used",
+      abilityId: "ancestral-roots",
+      abilitySlot: 1,
+    });
+    expect(player.abilityCooldowns[1]).toBeGreaterThan(0);
+    expect(() => resolveAbility(state, "player-one", 2, 5, 100, "invalid-slot"))
+      .toThrow("Escolha um dos dois poderes equipados");
   });
 });

@@ -57,13 +57,11 @@ type OwnedCreature = RemotePlayerSnapshot["collection"][number];
 export function CollectionView({
   ownedCatalogIds,
   collection = [],
-  teamMemberIds = [],
   coins = 0,
   onEvolve,
 }: {
   ownedCatalogIds?: string[];
   collection?: OwnedCreature[];
-  teamMemberIds?: string[];
   coins?: number;
   onEvolve?: (instanceId: string) => Promise<void>;
 }) {
@@ -122,9 +120,7 @@ export function CollectionView({
     .slice()
     .sort((left, right) => right.evolutionStage - left.evolutionStage || left.acquiredAt.localeCompare(right.acquiredAt));
   const primaryInstance = selectedInstances[0] ?? null;
-  const freeCopies = selectedInstances.filter(
-    (item) => item.instanceId !== primaryInstance?.instanceId && !teamMemberIds.includes(item.instanceId),
-  );
+  const freeCopies = selectedInstances.filter((item) => item.instanceId !== primaryInstance?.instanceId);
   const stage = primaryInstance?.evolutionStage ?? 0;
   const evolutionCost = stage === 0 ? 150 : 300;
   const canEvolve = Boolean(
@@ -259,6 +255,23 @@ export function CollectionView({
                 <span key={attack.id}><strong>{attack.name}</strong><small>{attack.damage} dano · dado {attack.minRoll}+</small></span>
               ))}
             </div>
+
+            {selected.evolutionLine ? (
+              <div className="bestiary-evolution-line">
+                <span className="view-eyebrow">LINHA EVOLUTIVA · 3 ESTÁGIOS</span>
+                <div className="bestiary-evolution-line__stages">
+                  {selected.evolutionLine.map((entry) => (
+                    <article key={entry.stage} className={cn(entry.stage === stage && "is-current")}>
+                      <span>ESTÁGIO {entry.stage + 1}</span>
+                      <PixelCreature sprite={entry.sprite} label={entry.name} />
+                      <strong>{entry.name}</strong>
+                      <small>{entry.stage < 2 ? "Adaptação Card Realms" : "Forma final do Bestiário"}</small>
+                    </article>
+                  ))}
+                </div>
+                <p>As duas formas anteriores são adaptações do jogo; a terceira preserva a criatura folclórica final.</p>
+              </div>
+            ) : null}
 
             {primaryInstance ? (
               <div className="collection-evolution">

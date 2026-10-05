@@ -1,21 +1,19 @@
-import type { AttackEffect, StatusEffect } from "../domain/creatures";
+import type { StatusEffect } from "../domain/creatures";
 import type { Element } from "../domain/elements";
+import type { AvatarConfig } from "../save/local-progress";
 
-export const TEAM_SIZE = 6 as const;
+export const BATTLE_VERSION = 3 as const;
+export const ABILITY_SLOT_COUNT = 2 as const;
 export const ENERGY_DECK_SIZE = 30 as const;
 export const OPENING_HAND_SIZE = 5 as const;
 export const DRAW_PER_TURN = 2 as const;
 export const ATTACHMENTS_PER_TURN = 1 as const;
-export const POWER_DECK_SIZE = 24 as const;
-export const POWER_DRAWS_PER_TURN = 1 as const;
-export const MAX_EQUIPPED_POWERS = 4 as const;
 
-export type Team<T> = T[];
+export type AbilityIds = [string, string];
 
 export type BattleReward = {
   coins: number;
   xp: number;
-  creatureId: string | null;
   replayed?: boolean;
 };
 
@@ -37,54 +35,36 @@ export type EnergyCard = {
   status: "ready" | "spent";
 };
 
-export type PowerCard = {
-  id: string;
-  attackId: string;
-  element: Element;
-};
-
 export type ActiveStatus = {
   effect: StatusEffect;
   turns: number;
   amount?: number;
-  sourceAttackId: string;
+  sourceAbilityId: string;
 };
 
-export type BattleCreature = {
-  instanceId: string;
-  catalogId: string;
-  hp: number;
-  maxHp: number;
-  shield: number;
-  attachedEnergy: EnergyCard[];
-  statuses: ActiveStatus[];
-  defeated: boolean;
-  evolutionStage?: 0 | 1 | 2;
-  equippedPowerIds: string[];
-};
-
+/** One player-authored avatar or one server-authored opponent in battle. */
 export type BattleSide = {
   id: string;
   name: string;
   kind: "player" | "npc" | "boss";
-  team: Team<BattleCreature>;
-  activeIndex: number;
+  avatarConfig: AvatarConfig;
+  abilityIds: AbilityIds;
+  abilityCooldowns: [number, number];
+  element: Element;
+  hp: number;
+  maxHp: number;
+  shield: number;
+  statuses: ActiveStatus[];
+  attachedEnergy: EnergyCard[];
   energyDeck: EnergyCard[];
   energyHand: EnergyCard[];
   energyDiscard: EnergyCard[];
   attachmentsRemaining: number;
-  powerDeck: PowerCard[];
-  powerHand: PowerCard[];
-  powerDiscard: PowerCard[];
-  powerDrawsRemaining: number;
   turnsStarted: number;
 };
 
-export type TurnPhase = "main" | "forced_switch";
-
 export type BattleTurn = {
   sideId: string;
-  phase: TurnPhase;
   number: number;
   round: number;
 };
@@ -101,10 +81,7 @@ export type BattleLogKind =
   | "turn_started"
   | "energy_drawn"
   | "energy_attached"
-  | "power_drawn"
-  | "power_equipped"
-  | "creature_switched"
-  | "forced_switch"
+  | "ability_used"
   | "attack_hit"
   | "attack_miss"
   | "critical"
@@ -115,8 +92,6 @@ export type BattleLogKind =
   | "passed"
   | "conceded"
   | "defeated"
-  | "evolution_started"
-  | "evolution_completed"
   | "terrain_activated"
   | "terrain_expired"
   | "battle_end";
@@ -129,23 +104,21 @@ export type BattleLogEntry = {
   message: string;
   die?: number;
   damage?: number;
-  attackId?: string;
-  effect?: AttackEffect["type"];
-  creatureIndex?: number;
-  evolutionStage?: 0 | 1 | 2;
+  abilityId?: string;
+  abilitySlot?: 0 | 1;
+  effect?: StatusEffect | "heal" | "shield";
   terrainElement?: Element;
   terrainTurns?: number;
-  powerCardId?: string;
-  powerSlot?: number;
   energyCardId?: string;
   energyElement?: Element;
 };
 
 export type BattleState = {
-  version: 2;
+  version: typeof BATTLE_VERSION;
   id: string;
   mode: "wild" | "npc" | "pvp" | "sanctuary" | "boss";
   status: "active" | "finished";
+  regionId?: string;
   turn: BattleTurn;
   sides: [BattleSide, BattleSide];
   winnerId?: string;
@@ -160,4 +133,3 @@ export type BattleActionResult = {
 };
 
 export type RandomSource = () => number;
-

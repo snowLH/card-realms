@@ -3,7 +3,7 @@
 import { LockKeyhole, Shield, Swords, Zap } from "lucide-react";
 import type { CSSProperties, MouseEventHandler } from "react";
 import { ELEMENT_META } from "@/game/catalog";
-import type { BattleCreature, CreatureDefinition } from "@/game/types";
+import type { CreatureDefinition } from "@/game/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -20,7 +20,6 @@ const rarityNames = {
 
 export function CreatureCard({
   creature,
-  battle,
   compact = false,
   active = false,
   disabled = false,
@@ -29,7 +28,6 @@ export function CreatureCard({
   className,
 }: {
   creature: CreatureDefinition;
-  battle?: BattleCreature;
   compact?: boolean;
   active?: boolean;
   disabled?: boolean;
@@ -42,8 +40,8 @@ export function CreatureCard({
     "--element": element.color,
     "--element-glow": element.glow,
   } as CSSProperties;
-  const currentHp = battle?.hp ?? creature.hp;
-  const hpPercent = (currentHp / (battle?.maxHp ?? creature.hp)) * 100;
+  const currentHp = creature.hp;
+  const hpPercent = 100;
   const isUnowned = owned === false;
 
   const content = isUnowned ? (
@@ -70,11 +68,10 @@ export function CreatureCard({
       <div className="creature-card__art">
         <PixelCreature sprite={creature.sprite} label={creature.name} />
         {active ? <span className="creature-card__active">ATIVA</span> : null}
-        {battle?.defeated ? <span className="creature-card__defeated">INDISPONÍVEL</span> : null}
       </div>
       <Progress
         value={hpPercent}
-        label={`Vida de ${creature.name}: ${currentHp} de ${battle?.maxHp ?? creature.hp}`}
+        label={`Vida de ${creature.name}: ${currentHp} de ${creature.hp}`}
         className="mt-2 h-2"
         indicatorClassName={hpPercent <= 30 ? "bg-red-400" : "bg-[var(--element)]"}
       />
@@ -84,10 +81,7 @@ export function CreatureCard({
             {element.name}
           </Badge>
           <span className="text-[10px] font-bold text-muted-foreground">
-            {battle
-              ? battle.attachedEnergy.length
-              : creature.attacks.length}{" "}
-            EN
+            {creature.attacks.length} ataques
           </span>
         </div>
       ) : (

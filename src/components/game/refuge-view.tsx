@@ -26,6 +26,7 @@ import {
   REFUGE_FURNITURE_KEYS,
   REFUGE_THEMES,
   isRefugeFurnitureKey,
+  isRefugeFurnitureUnlocked,
   isRefugeTheme,
   resolveRefugeResident,
   type RefugeFurnitureKey,
@@ -42,7 +43,9 @@ type RefugeHouse = RemotePlayerSnapshot["house"];
 
 type RefugeViewProps = {
   ownedCatalogIds?: string[];
+  ownedItemKeys?: string[];
   house?: RefugeHouse;
+  savedLayout?: RefugeSavePayload;
   source?: ProgressSource;
   onSave?: (payload: RefugeSavePayload) => Promise<void>;
 };
@@ -71,10 +74,10 @@ function FurnitureIcon({ itemKey }: { itemKey: RefugeFurnitureKey }) {
   return <Map />;
 }
 
-function parseFurniture(house: RefugeHouse): RefugeFurniturePlacement[] {
+function parseFurniture(house: RefugeHouse, savedLayout?: RefugeSavePayload): RefugeFurniturePlacement[] {
   const raw = house?.layout?.furniture;
   if (!Array.isArray(raw)) {
-    return DEFAULT_REFUGE_FURNITURE.map((item) => ({ ...item }));
+    return (savedLayout?.furniture ?? DEFAULT_REFUGE_FURNITURE).map((item) => ({ ...item }));
   }
 
   return raw.flatMap((entry, index) => {
@@ -96,8 +99,9 @@ function parseFurniture(house: RefugeHouse): RefugeFurniturePlacement[] {
   });
 }
 
-function resolveTheme(house: RefugeHouse): RefugeTheme {
-  return isRefugeTheme(house?.theme) ? house.theme : "cartographer";
+function resolveTheme(house: RefugeHouse, savedLayout?: RefugeSavePayload): RefugeTheme {
+  if (isRefugeTheme(house?.theme)) return house.theme;
+  return savedLayout?.theme ?? "cartographer";
 }
 
 function nextRotation(rotation: RefugeFurniturePlacement["rotation"]) {
@@ -109,7 +113,9 @@ function nextRotation(rotation: RefugeFurniturePlacement["rotation"]) {
 
 export function RefugeView({
   ownedCatalogIds = [],
+  ownedItemKeys = [],
   house = null,
+  savedLayout,
   source = "local",
   onSave,
 }: RefugeViewProps) {
@@ -121,9 +127,10 @@ export function RefugeView({
   );
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [companionId, setCompanionId] = useState<string | null>(() => resolveRefugeResident(house?.layout?.residentCreatureId, ownedCatalogIds));
-  const [theme, setTheme] = useState<RefugeTheme>(() => resolveTheme(house));
-  const [furniture, setFurniture] = useState<RefugeFurniturePlacement[]>(() => parseFurniture(house));
+  const [companionId, setCompanionId] = useState<string | null>(() =>
+    resolveRefugeResident(house?.layout?.residentCreatureId ?? savedLayout?.companionId, ownedCatalogIds));
+  const [theme, setTheme] = useState<RefugeTheme>(() => resolveTheme(house, savedLayout));
+  const [furniture, setFurniture] = useState<RefugeFurniturePlacement[]>(() => parseFurniture(house, savedLayout));
   const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
   const [status, setStatus] = useState("");
 
@@ -132,12 +139,12 @@ export function RefugeView({
     ? CREATURE_BY_ID.get(companionId)
     : undefined;
   const selectedFurniture = furniture.find((item) => item.id === selectedFurnitureId) ?? null;
-  const canPersist = source === "supabase" && Boolean(onSave);
+  const canPersist = Boolean(onSave);
 
   function resetDraft() {
-    setCompanionId(resolveRefugeResident(house?.layout?.residentCreatureId, ownedCatalogIds));
-    setTheme(resolveTheme(house));
-    setFurniture(parseFurniture(house));
+    setCompanionId(resolveRefugeResident(house?.layout?.residentCreatureId ?? savedLayout?.companionId, ownedCatalogIds));
+    setTheme(resolveTheme(house, savedLayout));
+    setFurniture(parseFurniture(house, savedLayout));
     setSelectedFurnitureId(null);
     setStatus("");
   }
@@ -153,6 +160,10 @@ export function RefugeView({
   }
 
   function addFurniture(itemKey: RefugeFurnitureKey) {
+    if (!isRefugeFurnitureUnlocked(itemKey, ownedItemKeys)) {
+      setStatus("Este móvel cosmético pode ser adquirido no Mercador da Guilda.");
+      return;
+    }
     if (furniture.length >= 12) {
       setStatus("O Refúgio comporta até 12 móveis decorativos por enquanto.");
       return;
@@ -189,7 +200,7 @@ export function RefugeView({
       await onSave({ companionId, theme, furniture });
       setEditing(false);
       setSelectedFurnitureId(null);
-      setStatus("Refúgio salvo na sua conta.");
+      setStatus(source === "supabase" ? "Refúgio salvo na sua conta." : "Refúgio salvo neste aparelho.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Não foi possível salvar o Refúgio.");
     } finally {
@@ -318,14 +329,17 @@ export function RefugeView({
           </section>
 
           <section className="refuge-editor__section">
-            <div className="refuge-editor__title"><Armchair /><div><strong>Móveis</strong><span>Adicione, mova, gire ou remova objetos.</span></div></div>
+            <div className="refuge-editor__title"><Armchair /><div><strong>Móveis</strong><span>Os móveis especiais são cosméticos adquiridos no Mercador.</span></div></div>
             <div className="refuge-furniture-palette">
-              {REFUGE_FURNITURE_KEYS.map((itemKey) => (
-                <button type="button" key={itemKey} onClick={() => addFurniture(itemKey)}>
-                  <FurnitureIcon itemKey={itemKey} />
-                  <span>{FURNITURE_LABELS[itemKey]}</span>
-                </button>
-              ))}
+              {REFUGE_FURNITURE_KEYS.map((itemKey) => {
+                const unlocked = isRefugeFurnitureUnlocked(itemKey, ownedItemKeys);
+                return (
+                  <button type="button" key={itemKey} disabled={!unlocked} onClick={() => addFurniture(itemKey)}>
+                    <FurnitureIcon itemKey={itemKey} />
+                    <span>{FURNITURE_LABELS[itemKey]}{unlocked ? "" : " · Mercador"}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {selectedFurniture ? (
@@ -358,7 +372,7 @@ export function RefugeView({
 
           <footer className="refuge-editor__footer">
             <div>
-              <strong>{canPersist ? "Alterações serão salvas na sua conta." : "Entre com uma conta para salvar o Refúgio."}</strong>
+              <strong>{source === "supabase" ? "Alterações serão salvas na sua conta." : "Alterações serão salvas neste aparelho."}</strong>
               {status ? <span>{status}</span> : null}
             </div>
             <Button onClick={() => void saveRefuge()} disabled={!canPersist || saving}>

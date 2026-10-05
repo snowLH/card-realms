@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { visiblePvpState } from "@/game/pvp";
 import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
-import { loadAuthoritativePvpBattle, PvpBattleAccessError } from "@/server/pvp/battles";
+import { loadAuthoritativePvpBattle, PvpBattleAccessError, PvpBattleHistoricalError } from "@/server/pvp/battles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +35,9 @@ export async function GET(
   } catch (error) {
     if (error instanceof PvpBattleAccessError) {
       return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+    if (error instanceof PvpBattleHistoricalError) {
+      return NextResponse.json({ error: error.message }, { status: 410 });
     }
     return NextResponse.json({ error: "Estado persistido de batalha incompatível." }, { status: 500 });
   }

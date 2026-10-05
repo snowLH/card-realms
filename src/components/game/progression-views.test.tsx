@@ -42,7 +42,7 @@ describe("telas de progressão da conta", () => {
       />,
     );
 
-    expect(screen.getAllByText("Iara").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Gota de Iara").length).toBeGreaterThan(0);
     expect(screen.queryByText("Boitatá")).not.toBeInTheDocument();
     expect(screen.getByText("1/6 cartas selecionadas")).toBeInTheDocument();
     expect(screen.getAllByText("Espaço vazio")).toHaveLength(5);

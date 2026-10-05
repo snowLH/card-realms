@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { ARPG_MERCHANT_PRODUCT_KEYS } from "@/game/arpg/content/merchant-catalog";
 import { RemotePlayerSnapshotSchema } from "@/game/player";
-import { REFUGE_FURNITURE_KEYS, REFUGE_THEMES } from "@/game/refuge";
+import {
+  REFUGE_FURNITURE_KEYS,
+  REFUGE_FURNITURE_UNLOCK_ITEM_KEYS,
+  REFUGE_THEMES,
+} from "@/game/refuge";
 import { BATTLE_BOARD_IDS } from "@/game/battle/presentation";
 import { ELEMENTS } from "@/game/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -36,6 +41,10 @@ const mutationSchema = z.discriminatedUnion("action", [
     action: z.literal("buy_energy"),
     element: z.enum(ELEMENTS),
     quantity: z.union([z.literal(1), z.literal(5)]),
+  }),
+  z.object({
+    action: z.literal("buy_merchant_item"),
+    itemKey: z.string().min(1).max(80).refine((itemKey) => ARPG_MERCHANT_PRODUCT_KEYS.has(itemKey)),
   }),
   z.object({
     action: z.literal("choose_starter"),
@@ -227,6 +236,29 @@ export async function PATCH(request: Request) {
     }
 
     if (payload.action === "save_refuge") {
+      const requiredCosmeticKeys = [...new Set(payload.furniture
+        .map((item) => REFUGE_FURNITURE_UNLOCK_ITEM_KEYS[item.itemKey])
+        .filter((itemKey): itemKey is string => Boolean(itemKey)))];
+      if (requiredCosmeticKeys.length > 0) {
+        const { data: ownedCosmetics, error: cosmeticsError } = await auth.supabase
+          .from("inventory_items")
+          .select("item_key,quantity")
+          .eq("user_id", auth.userId)
+          .in("item_key", requiredCosmeticKeys);
+        if (cosmeticsError) {
+          return NextResponse.json({ error: "Não foi possível validar os cosméticos do Refúgio." }, { status: 503 });
+        }
+        const ownedCosmeticKeys = new Set((ownedCosmetics ?? [])
+          .filter((item) => item.quantity > 0)
+          .map((item) => item.item_key));
+        if (requiredCosmeticKeys.some((itemKey) => !ownedCosmeticKeys.has(itemKey))) {
+          return NextResponse.json(
+            { error: "Compre os móveis especiais no Mercador antes de usá-los no Refúgio." },
+            { status: 409 },
+          );
+        }
+      }
+
       if (payload.companionId) {
         const { data: owned, error: ownedError } = await auth.supabase
           .from("player_creatures")
@@ -306,6 +338,10 @@ export async function PATCH(request: Request) {
                 target_element: payload.element,
                 target_quantity: payload.quantity,
               })
+            : payload.action === "buy_merchant_item"
+              ? auth.supabase.rpc("purchase_arpg_merchant_item", {
+                  target_item_key: payload.itemKey,
+                })
             : payload.action === "choose_starter"
               ? auth.supabase.rpc("choose_starter_card", { target_creature_id: payload.creatureId })
               : auth.supabase.rpc("activate_team", { target_team_id: payload.teamId });

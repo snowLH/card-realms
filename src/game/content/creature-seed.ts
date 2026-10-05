@@ -4,6 +4,8 @@ export type CreatureSeed = Omit<CreatureDefinition, "attacks" | "sprite"> & {
   moves: [string, string, string];
   spriteIndex: number;
   spriteSheet?: string;
+  spriteColumns?: number;
+  spriteRows?: number;
 };
 
 export const DEFAULT_SPRITE_SHEET = "/art/folklore-creatures-five-elements.png";
@@ -53,17 +55,17 @@ const attackFactory: Record<Element, (seed: CreatureSeed) => CreatureDefinition[
 };
 
 export function materializeCreatureSeeds(seeds: readonly CreatureSeed[]): CreatureDefinition[] {
-  return seeds.map(({ moves, spriteIndex, spriteSheet = DEFAULT_SPRITE_SHEET, ...seed }) => {
-    const completeSeed = { ...seed, moves, spriteIndex, spriteSheet } as CreatureSeed;
+  return seeds.map(({ moves, spriteIndex, spriteSheet = DEFAULT_SPRITE_SHEET, spriteColumns = SPRITE_COLUMNS, spriteRows = SPRITE_ROWS, ...seed }) => {
+    const completeSeed = { ...seed, moves, spriteIndex, spriteSheet, spriteColumns, spriteRows } as CreatureSeed;
     return {
       ...seed,
       attacks: attackFactory[seed.element](completeSeed),
       sprite: {
         sheet: spriteSheet,
-        column: spriteIndex % SPRITE_COLUMNS,
-        row: Math.floor(spriteIndex / SPRITE_COLUMNS),
-        columns: SPRITE_COLUMNS,
-        rows: SPRITE_ROWS,
+        column: spriteIndex % spriteColumns,
+        row: Math.floor(spriteIndex / spriteColumns),
+        columns: spriteColumns,
+        rows: spriteRows,
       },
     };
   });

@@ -40,11 +40,11 @@ export function StarterChoice() {
         <header className="starter-choice__header">
           <span className="starter-choice__mark"><Sparkles /></span>
           <div>
-            <span className="view-eyebrow">Primeiro vínculo</span>
-            <h1 id="starter-title">Escolha sua primeira carta</h1>
+            <span className="view-eyebrow">Coleção de Aurória</span>
+            <h1 id="starter-title">Conheça os seres do folclore</h1>
             <p>
-              Ela começa sua coleção e entra na sua equipe. Outras cartas serão reveladas
-              somente ao abrir baús e recompensas especiais.
+              Estas criaturas fazem parte da sua coleção. Seu personagem é o avatar,
+              e os dois poderes iniciais ficam disponíveis no Arquivo da Guilda.
             </p>
           </div>
         </header>
@@ -80,12 +80,12 @@ export function StarterChoice() {
         <footer className="starter-choice__footer">
           <p>
             {selectedId
-              ? `${CREATURE_BY_ID.get(selectedId)!.name} será sua primeira companheira de jornada.`
-              : "Selecione uma carta para conhecer seus atributos e confirmar."}
+              ? `${CREATURE_BY_ID.get(selectedId)!.name} será a primeira criatura da sua coleção.`
+              : "Selecione uma carta para conhecer seus atributos e adicioná-la à coleção."}
           </p>
           <Button size="lg" onClick={confirmChoice} disabled={!selectedId || busy}>
             {busy ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
-            Confirmar primeira carta
+            Adicionar à coleção
           </Button>
         </footer>
 

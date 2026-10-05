@@ -1,81 +1,17 @@
 import { describe, expect, it } from "vitest";
-import {
-  createDemoBattle,
-  evolveActiveCreature,
-  getSide,
-  passTurn,
-  resolveAttack,
-} from "./engine";
+import { DEFAULT_AVATAR_CONFIG } from "../save/local-progress";
+import { createDemoBattle, getSide, passTurn, resolveAbility } from "./engine";
 
 const fixedRandom = () => 0.12;
+const abilities = ["boitata-flame", "ancestral-roots"] as const;
 
-function prepareAttachedEnergy(count: number) {
-  const state = createDemoBattle(
-    "evolution-terrain-test",
-    fixedRandom,
-    ["boitata"],
-    { fire: 12, water: 0, nature: 0, storm: 0, spirit: 0 },
-  );
-  const player = getSide(state, "player-one");
-  const cards = player.energyHand.splice(0, count);
-  player.team[0].attachedEnergy.push(...cards);
-  return state;
+function battle() {
+  return createDemoBattle("terrain-test", fixedRandom, DEFAULT_AVATAR_CONFIG, abilities);
 }
 
-function equipSignaturePower(state: ReturnType<typeof prepareAttachedEnergy>) {
-  const player = getSide(state, "player-one");
-  if (!player.team[0].equippedPowerIds.includes("boitata-3")) {
-    player.team[0].equippedPowerIds.push("boitata-3");
-  }
-  return state;
-}
-
-describe("evolução autoritativa", () => {
-  it("consome duas energias, altera o snapshot e emite início/fim", () => {
-    const state = prepareAttachedEnergy(2);
-    state.turn.round = 2;
-    const beforeMax = getSide(state, "player-one").team[0].maxHp;
-
-    const result = evolveActiveCreature(state, "player-one", "evolve-action");
-    const evolved = getSide(result.state, "player-one").team[0];
-
-    expect(evolved.evolutionStage).toBe(1);
-    expect(evolved.maxHp).toBeGreaterThan(beforeMax);
-    expect(evolved.shield).toBe(12);
-    expect(evolved.attachedEnergy).toHaveLength(0);
-    expect(getSide(result.state, "player-one").energyDiscard).toHaveLength(2);
-    expect(result.events.map((event) => event.kind)).toEqual([
-      "evolution_started",
-      "evolution_completed",
-    ]);
-    expect(result.state.processedActionIds).toContain("evolve-action");
-  });
-
-  it("não permite evoluir duas vezes a mesma criatura", () => {
-    const state = prepareAttachedEnergy(2);
-    state.turn.round = 2;
-    const first = evolveActiveCreature(state, "player-one", "evolve-one");
-    const evolved = getSide(first.state, "player-one").team[0];
-    const extra = getSide(first.state, "player-one").energyHand.splice(0, 2);
-    evolved.attachedEnergy.push(...extra);
-
-    expect(() => evolveActiveCreature(first.state, "player-one", "evolve-two")).toThrow(
-      "já evoluiu",
-    );
-  });
-});
-
-describe("terreno autoritativo", () => {
-  it("ataque de assinatura ativa terreno por três turnos futuros", () => {
-    const state = equipSignaturePower(prepareAttachedEnergy(3));
-    const result = resolveAttack(
-      state,
-      "player-one",
-      "boitata-3",
-      6,
-      1,
-      "signature-attack",
-    );
+describe("terreno da batalha por avatar", () => {
+  it("um crítico de um dos poderes ativa o terreno do seu elemento", () => {
+    const result = resolveAbility(battle(), "player-one", 0, 6, 100, "critical");
 
     expect(result.state.terrain).toMatchObject({
       element: "fire",
@@ -84,10 +20,11 @@ describe("terreno autoritativo", () => {
       expiresAfterTurn: 4,
     });
     expect(result.events.some((event) => event.kind === "terrain_activated")).toBe(true);
+    expect(result.events.find((event) => event.kind === "critical")?.abilityId).toBe("boitata-flame");
   });
 
-  it("terreno do mesmo elemento aumenta o dano de forma determinística", () => {
-    const base = prepareAttachedEnergy(1);
+  it("o terreno do mesmo elemento aumenta o dano de forma determinística", () => {
+    const base = battle();
     const withTerrain = structuredClone(base);
     withTerrain.terrain = {
       element: "fire",
@@ -96,45 +33,27 @@ describe("terreno autoritativo", () => {
       expiresAfterTurn: 4,
     };
 
-    const baseResult = resolveAttack(
-      base,
-      "player-one",
-      "boitata-1",
-      5,
-      100,
-      "base-damage",
-    );
-    const terrainResult = resolveAttack(
-      withTerrain,
-      "player-one",
-      "boitata-1",
-      5,
-      100,
-      "terrain-damage",
-    );
-
+    const baseResult = resolveAbility(base, "player-one", 0, 5, 100, "base-damage");
+    const terrainResult = resolveAbility(withTerrain, "player-one", 0, 5, 100, "terrain-damage");
     const baseDamage = baseResult.events.find((event) => event.kind === "attack_hit")?.damage ?? 0;
     const terrainDamage = terrainResult.events.find((event) => event.kind === "attack_hit")?.damage ?? 0;
+
     expect(terrainDamage).toBeGreaterThan(baseDamage);
   });
 
-  it("terreno expira por evento autoritativo no turno correto", () => {
-    const state = equipSignaturePower(prepareAttachedEnergy(3));
-    let working = resolveAttack(
-      state,
-      "player-one",
-      "boitata-3",
-      6,
-      1,
-      "terrain-start",
-    ).state;
+  it("o terreno expira quando o turno ultrapassa seu limite", () => {
+    let state = resolveAbility(battle(), "player-one", 0, 6, 100, "terrain-start").state;
+    const expiryEvents = [] as ReturnType<typeof passTurn>["events"];
 
-    working = passTurn(working, working.turn.sideId, "pass-2").state;
-    working = passTurn(working, working.turn.sideId, "pass-3").state;
-    const expiry = passTurn(working, working.turn.sideId, "pass-4");
+    for (let index = 0; index < 3; index += 1) {
+      const result = passTurn(state, state.turn.sideId, `pass-${index + 1}`);
+      state = result.state;
+      expiryEvents.push(...result.events);
+    }
 
-    expect(expiry.state.turn.number).toBe(5);
-    expect(expiry.state.terrain).toBeUndefined();
-    expect(expiry.events.some((event) => event.kind === "terrain_expired")).toBe(true);
+    expect(state.turn.number).toBe(5);
+    expect(state.terrain).toBeUndefined();
+    expect(expiryEvents.some((event) => event.kind === "terrain_expired")).toBe(true);
+    expect(getSide(state, "player-one").abilityIds).toEqual(abilities);
   });
 });

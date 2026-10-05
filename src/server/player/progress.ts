@@ -5,6 +5,8 @@ import {
   RemotePlayerSnapshotSchema,
   type PlayerBootstrap,
 } from "@/game/player";
+import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
+import { normalizeLegacyArpgLoadout } from "@/game/arpg/domain/loadout-schema";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,12 +26,17 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
     id: subject,
     email: typeof claims?.email === "string" ? claims.email : null,
   };
-  const [snapshotResult, profileResult, worldResult, evolutionResult, missionResult] = await Promise.all([
+  const [snapshotResult, profileResult, worldResult, evolutionResult, missionResult, arpgLoadoutResult] = await Promise.all([
     supabase.rpc("get_my_player_snapshot"),
     supabase.from("profiles").select("avatar_config").single(),
     supabase.from("player_world_state").select("current_area_id,visited_area_ids,map_positions").single(),
     supabase.from("player_creatures").select("id,evolution_stage"),
     supabase.from("missions").select("id,objective,enabled").eq("enabled", true),
+    supabase
+      .from("player_arpg_loadouts")
+      .select("weapon_id,armor_id,relic_id,ability_ids")
+      .eq("user_id", subject)
+      .maybeSingle(),
   ]);
   const { data, error } = snapshotResult;
   if (error) {
@@ -59,6 +66,15 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
   const rawCollection = Array.isArray(raw?.collection) ? raw.collection : [];
   const rawTeams = Array.isArray(raw?.teams) ? raw.teams : [];
   const rawMissions = Array.isArray(raw?.missions) ? raw.missions : [];
+  const arpgRow = arpgLoadoutResult.error ? null : arpgLoadoutResult.data;
+  const arpgLoadout = arpgRow
+    ? normalizeLegacyArpgLoadout({
+        weaponId: arpgRow.weapon_id,
+        armorId: arpgRow.armor_id,
+        relicId: arpgRow.relic_id,
+        abilityIds: arpgRow.ability_ids,
+      }, DEFAULT_ARPG_LOADOUT)
+    : DEFAULT_ARPG_LOADOUT;
   const enriched = raw
     ? {
         ...raw,
@@ -72,6 +88,7 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
           visitedAreaIds: worldResult.data?.visited_area_ids ?? [],
           mapPositions: worldResult.data?.map_positions ?? {},
         },
+        arpgLoadout,
         collection: rawCollection.map((entry) => {
           const creature = entry as Record<string, unknown>;
           return {

@@ -13,6 +13,7 @@ import {
 import { useMemo, useState } from "react";
 import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
 import type { ProgressSource, RemotePlayerSnapshot } from "@/game/player";
+import { resolveCreatureEvolutionStage } from "@/game/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PixelCreature } from "./pixel-creature";
@@ -130,6 +131,7 @@ export function TeamView({
           const instanceId = members[index];
           const owned = instanceId ? ownedById.get(instanceId) : null;
           const definition = owned ? CREATURE_BY_ID.get(owned.catalogId) : null;
+          const presentation = definition && owned ? resolveCreatureEvolutionStage(definition, owned.evolutionStage) : null;
           const isSelected = selectedSlot === index;
           return (
             <article
@@ -151,8 +153,8 @@ export function TeamView({
                 </span>
                 {definition && owned ? (
                   <>
-                    <PixelCreature sprite={definition.sprite} label={definition.name} />
-                    <strong>{definition.name}</strong>
+                    <PixelCreature sprite={presentation?.sprite ?? definition.sprite} label={presentation?.name ?? definition.name} />
+                    <strong>{presentation?.name ?? definition.name}</strong>
                     <small>
                       {ELEMENT_META[definition.element].name}
                       {owned.evolutionStage > 0 ? " · Vínculo " + owned.evolutionStage : ""}
@@ -200,6 +202,7 @@ export function TeamView({
           {collection.map((owned) => {
             const definition = CREATURE_BY_ID.get(owned.catalogId);
             if (!definition) return null;
+            const presentation = resolveCreatureEvolutionStage(definition, owned.evolutionStage);
             const alreadyUsed = members.includes(owned.instanceId) && members[selectedSlot ?? -1] !== owned.instanceId;
             return (
               <button
@@ -209,9 +212,9 @@ export function TeamView({
                 className={cn("team-builder-owned-card", alreadyUsed && "is-used")}
                 onClick={() => chooseCreature(owned.instanceId)}
               >
-                <PixelCreature sprite={definition.sprite} label={definition.name} />
+                <PixelCreature sprite={presentation.sprite} label={presentation.name} />
                 <div>
-                  <strong>{definition.name}</strong>
+                  <strong>{presentation.name}</strong>
                   <span>{ELEMENT_META[definition.element].name} · {definition.role}</span>
                   <small>
                     {owned.evolutionStage > 0 ? "Vínculo " + owned.evolutionStage + " · " : ""}

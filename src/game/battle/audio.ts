@@ -186,26 +186,13 @@ export function playBattleSfx(kind: BattlePresentationKind) {
     return;
   }
 
-  if (kind === "switch" || kind === "forcedSwitch" || kind === "enter") {
+  if (kind === "enter") {
     tone(280, .16, { endFrequency: 510, type: "triangle", gain: .035 });
     return;
   }
 
   if (kind === "status") {
     tone(680, .18, { endFrequency: 480, type: "sine", gain: .028 });
-    return;
-  }
-
-  if (kind === "evolutionStart") {
-    tone(220, .32, { endFrequency: 660, type: "triangle", gain: .045 });
-    tone(330, .38, { endFrequency: 990, type: "sine", gain: .03, delay: .12 });
-    return;
-  }
-
-  if (kind === "evolutionComplete") {
-    tone(392, .24, { endFrequency: 784, type: "triangle", gain: .055 });
-    tone(523, .32, { endFrequency: 1046, type: "sine", gain: .04, delay: .12 });
-    tone(659, .36, { endFrequency: 1318, type: "triangle", gain: .032, delay: .24 });
     return;
   }
 

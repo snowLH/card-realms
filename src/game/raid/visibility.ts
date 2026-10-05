@@ -3,8 +3,6 @@ import type { RaidLogEntry, RaidState } from "./types";
 export type RaidHiddenResources = Record<string, {
   energyHandCount: number;
   energyDeckCount: number;
-  powerHandCount: number;
-  powerDeckCount: number;
 }>;
 
 export function visibleRaidState(state: RaidState, playerId: string) {
@@ -19,13 +17,9 @@ export function visibleRaidState(state: RaidState, playerId: string) {
     hidden[player.id] = {
       energyHandCount: player.side.energyHand.length,
       energyDeckCount: player.side.energyDeck.length,
-      powerHandCount: player.side.powerHand.length,
-      powerDeckCount: player.side.powerDeck.length,
     };
     player.side.energyHand = [];
     player.side.energyDeck = [];
-    player.side.powerHand = [];
-    player.side.powerDeck = [];
   }
   visible.processedActionIds = [];
   return { state: visible, hidden };

@@ -20,16 +20,56 @@ async function authenticated() {
   return { ok: true, supabase, userId } as const;
 }
 
+async function findCurrentRaidRoom(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+) {
+  const { data: participations } = await supabase
+    .from("raid_participants")
+    .select("room_id,joined_at")
+    .eq("user_id", userId)
+    .order("joined_at", { ascending: false })
+    .limit(8);
+  const roomIds = [...new Set((participations ?? []).map((entry) => entry.room_id))];
+  if (!roomIds.length) return null;
+
+  const { data: rooms } = await supabase
+    .from("raid_rooms")
+    .select("id,event_id,status,version,gameplay_mode,gameplay_version,created_at")
+    .in("id", roomIds)
+    .neq("gameplay_mode", "legacy")
+    .in("status", ["lobby", "active"]);
+  const room = (rooms ?? []).sort((left, right) => {
+    if (left.status !== right.status) return left.status === "active" ? -1 : 1;
+    return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+  })[0];
+  if (!room) return null;
+
+  return {
+    roomId: room.id,
+    eventId: room.event_id,
+    status: room.status,
+    version: room.version,
+    gameplayMode: room.gameplay_mode as "avatar" | "arpg" | "legacy",
+    gameplayVersion: room.gameplay_version,
+  };
+}
+
 export async function GET() {
   const auth = await authenticated();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const [{ data: schedule, error: scheduleError }, { data: rewards }] = await Promise.all([
+  const [
+    { data: schedule, error: scheduleError },
+    { data: rewards },
+    activeRoom,
+  ] = await Promise.all([
     auth.supabase.rpc("get_raid_schedule"),
     auth.supabase
       .from("raid_reward_ledger")
-      .select("event_id,reward_type,creature_card_id,granted_at")
+      .select("event_id,reward_type,creature_card_id,ability_card_id,coins_awarded,xp_awarded,granted_at")
       .eq("player_id", auth.userId),
+    findCurrentRaidRoom(auth.supabase, auth.userId),
   ]);
 
   if (scheduleError) {
@@ -43,6 +83,7 @@ export async function GET() {
   return NextResponse.json({
     schedule: schedule ?? [],
     rewards: rewards ?? [],
+    activeRoom,
     serverAuthority: true,
   });
 }
@@ -63,8 +104,8 @@ export async function POST(request: Request) {
 
     const { data, error } = await auth.supabase.rpc(rpc.name, rpc.args);
     if (error) {
-      const message = error.message.includes("equipe")
-        ? "Monte uma equipe ativa com exatamente seis criaturas antes da Raid."
+      const message = error.message.includes("avatar") || error.message.includes("poder")
+        ? "Salve seu avatar e equipe exatamente dois poderes no Arquivo antes da Raid."
         : error.message.includes("cheia")
           ? "A sala da Raid já está cheia."
           : error.message.includes("ativa")

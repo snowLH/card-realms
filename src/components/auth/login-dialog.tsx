@@ -18,9 +18,11 @@ import {
 export function LoginDialog({
   prominent = false,
   label,
+  className,
 }: {
   prominent?: boolean;
   label?: string;
+  className?: string;
 } = {}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -92,7 +94,7 @@ export function LoginDialog({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant={prominent ? "default" : "secondary"} size={prominent ? "lg" : "sm"}>
+        <Button className={className} variant={prominent ? "default" : "secondary"} size={prominent ? "lg" : "sm"}>
           {identity ? <UserRound /> : <LogIn />} {identity?.name ?? label ?? "Entrar"}
         </Button>
       </DialogTrigger>

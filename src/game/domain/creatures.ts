@@ -55,6 +55,16 @@ export type SpriteDefinition = {
   rows: number;
 };
 
+export type EvolutionStageDefinition = {
+  stage: 0 | 1 | 2;
+  name: string;
+  title: string;
+  sprite: SpriteDefinition;
+  adaptation: string;
+};
+
+export type EvolutionLine = [EvolutionStageDefinition, EvolutionStageDefinition, EvolutionStageDefinition];
+
 export type CreatureDefinition = {
   id: string;
   name: string;
@@ -74,4 +84,10 @@ export type CreatureDefinition = {
   obtainableBy: string;
   eventExclusive?: boolean;
   sprite: SpriteDefinition;
+  evolutionLine?: EvolutionLine;
 };
+
+export function resolveCreatureEvolutionStage(definition: CreatureDefinition, stage: number): EvolutionStageDefinition {
+  const normalized: 0 | 1 | 2 = stage >= 2 ? 2 : stage >= 1 ? 1 : 0;
+  return definition.evolutionLine?.[normalized] ?? { stage: normalized, name: definition.name, title: definition.title, sprite: definition.sprite, adaptation: "Forma de apresentação padrão." };
+}

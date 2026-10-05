@@ -1,15 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
 import "./globals.css";
 import "./game-ui.css";
 import "./medieval-theme.css";
 import "./mobile-pixel-overhaul.css";
+import "./arpg.css";
 
 export const metadata: Metadata = {
   title: "Card Realms — Mundo dos Colecionadores",
   description:
-    "Explore regiões elementais, monte seu baralho e enfrente criaturas em batalhas estratégicas.",
+    "ARPG 2D de folclore com dungeons roguelite, cartas-habilidade, suportes, armas, loot e progressão online.",
   applicationName: "Card Realms",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -39,7 +41,10 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${GeistSans.variable} ${GeistMono.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        {children}
+        <ServiceWorkerRegistration />
+      </body>
     </html>
   );
 }

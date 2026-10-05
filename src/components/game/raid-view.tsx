@@ -20,6 +20,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import type { PlayerBootstrap } from "@/game/player";
 import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
+import type { RaidGameplayMode } from "@/game/raid";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,9 @@ type RaidReward = {
   event_id: string;
   reward_type: string;
   creature_card_id: string | null;
+  ability_card_id: string | null;
+  coins_awarded: number;
+  xp_awarded: number;
   granted_at: string;
 };
 
@@ -69,6 +73,8 @@ type RaidRoomResponse = {
     inviteCode: string;
     status: "lobby" | "active" | "victory" | "defeat" | "closed";
     version: number;
+    gameplayMode?: RaidGameplayMode;
+    gameplayVersion?: number;
   };
   event: {
     id: string;
@@ -77,12 +83,15 @@ type RaidRoomResponse = {
     min_players: number;
     max_players: number;
     recommended_level: number;
+    boss_config?: Record<string, unknown>;
   };
+  gameplayMode?: RaidGameplayMode;
   participants: RaidParticipant[];
   state: unknown | null;
-  mythicalReward?: {
+  eventReward?: {
     obtained: boolean;
-    creatureCardId: string | null;
+    coinsAwarded: number;
+    xpAwarded: number;
     grantedAt: string | null;
   };
   error?: string;
@@ -104,12 +113,13 @@ export function RaidView({
   onOpenRaid,
 }: {
   bootstrap: PlayerBootstrap;
-  onOpenRaid: (roomId: string) => void;
+  onOpenRaid: (roomId: string, mode: RaidGameplayMode) => void;
 }) {
   const playerId = bootstrap.identity?.id ?? null;
   const [schedule, setSchedule] = useState<RaidScheduleItem[]>([]);
   const [rewards, setRewards] = useState<RaidReward[]>([]);
   const [roomId, setRoomId] = useState<string | null>(null);
+  const [roomMode, setRoomMode] = useState<RaidGameplayMode>("avatar");
   const [room, setRoom] = useState<RaidRoomResponse | null>(null);
   const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(bootstrap.source === "supabase");
@@ -123,27 +133,41 @@ export function RaidView({
       const payload = (await response.json()) as {
         schedule?: RaidScheduleItem[];
         rewards?: RaidReward[];
+        activeRoom?: {
+          roomId: string;
+          eventId: string;
+          status: "lobby" | "active";
+          version: number;
+          gameplayMode: RaidGameplayMode;
+        } | null;
         error?: string;
       };
       if (!response.ok) throw new Error(payload.error ?? "O calendário de Raids não respondeu.");
       setSchedule(payload.schedule ?? []);
       setRewards(payload.rewards ?? []);
+      if (payload.activeRoom && !roomId) {
+        setRoomMode(payload.activeRoom.gameplayMode);
+        setRoomId(payload.activeRoom.roomId);
+      }
       setError("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "O calendário de Raids não respondeu.");
     } finally {
       setLoading(false);
     }
-  }, [bootstrap.source]);
+  }, [bootstrap.source, roomId]);
 
-  const refreshRoom = useCallback(async (targetRoomId: string) => {
+  const refreshRoom = useCallback(async (targetRoomId: string, targetMode: RaidGameplayMode) => {
     try {
-      const response = await fetch(`/api/raids/rooms/${targetRoomId}`, { cache: "no-store" });
+      const prefix = targetMode === "arpg" ? "/api/arpg/raids" : "/api/raids";
+      const response = await fetch(`${prefix}/rooms/${targetRoomId}`, { cache: "no-store" });
       const payload = (await response.json()) as RaidRoomResponse;
       if (!response.ok) throw new Error(payload.error ?? "A sala da Raid não respondeu.");
+      const resolvedMode = payload.gameplayMode ?? targetMode;
+      setRoomMode(resolvedMode);
       setRoom(payload);
       setError("");
-      if (payload.room.status === "active") onOpenRaid(targetRoomId);
+      if (payload.room.status === "active") onOpenRaid(targetRoomId, resolvedMode);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "A sala da Raid não respondeu.");
     }
@@ -161,13 +185,13 @@ export function RaidView({
 
   useEffect(() => {
     if (!roomId) return;
-    const initial = window.setTimeout(() => void refreshRoom(roomId), 0);
-    const timer = window.setInterval(() => void refreshRoom(roomId), 3_000);
+    const initial = window.setTimeout(() => void refreshRoom(roomId, roomMode), 0);
+    const timer = window.setInterval(() => void refreshRoom(roomId, roomMode), 3_000);
     return () => {
       window.clearTimeout(initial);
       window.clearInterval(timer);
     };
-  }, [refreshRoom, roomId]);
+  }, [refreshRoom, roomId, roomMode]);
 
   useEffect(() => {
     if (!roomId || bootstrap.source !== "supabase") return;
@@ -179,9 +203,9 @@ export function RaidView({
       if (cancelled) return;
       const channel = supabase
         .channel(`raid:room:${roomId}`, { config: { private: true } })
-        .on("broadcast", { event: "INSERT" }, () => void refreshRoom(roomId))
-        .on("broadcast", { event: "UPDATE" }, () => void refreshRoom(roomId))
-        .on("broadcast", { event: "DELETE" }, () => void refreshRoom(roomId))
+        .on("broadcast", { event: "INSERT" }, () => void refreshRoom(roomId, roomMode))
+        .on("broadcast", { event: "UPDATE" }, () => void refreshRoom(roomId, roomMode))
+        .on("broadcast", { event: "DELETE" }, () => void refreshRoom(roomId, roomMode))
         .subscribe();
       removeChannel = () => void supabase.removeChannel(channel);
     }).catch(() => undefined);
@@ -189,7 +213,7 @@ export function RaidView({
       cancelled = true;
       removeChannel?.();
     };
-  }, [bootstrap.source, refreshRoom, roomId]);
+  }, [bootstrap.source, refreshRoom, roomId, roomMode]);
 
   async function lobbyAction(body: Record<string, unknown>) {
     setBusy(true);
@@ -201,15 +225,17 @@ export function RaidView({
         body: JSON.stringify(body),
       });
       const payload = (await response.json()) as {
-        result?: { roomId?: string };
+        result?: { roomId?: string; gameplayMode?: RaidGameplayMode };
         error?: string;
       };
       if (!response.ok) throw new Error(payload.error ?? "A ação da Raid não pôde ser concluída.");
       if (payload.result?.roomId) {
+        const nextMode = payload.result.gameplayMode ?? roomMode;
+        setRoomMode(nextMode);
         setRoomId(payload.result.roomId);
-        await refreshRoom(payload.result.roomId);
+        await refreshRoom(payload.result.roomId, nextMode);
       } else if (roomId) {
-        await refreshRoom(roomId);
+        await refreshRoom(roomId, roomMode);
       }
       return payload.result;
     } catch (caught) {
@@ -225,10 +251,11 @@ export function RaidView({
     setBusy(true);
     setError("");
     try {
-      const response = await fetch(`/api/raids/rooms/${roomId}/start`, { method: "POST" });
+      const prefix = roomMode === "arpg" ? "/api/arpg/raids" : "/api/raids";
+      const response = await fetch(`${prefix}/rooms/${roomId}/start`, { method: "POST" });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(payload.error ?? "A Raid não pôde ser iniciada.");
-      onOpenRaid(roomId);
+      onOpenRaid(roomId, roomMode);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "A Raid não pôde ser iniciada.");
     } finally {
@@ -243,7 +270,7 @@ export function RaidView({
           <div>
             <span className="view-eyebrow">Evento cooperativo</span>
             <h1>Raids Míticas de sábado</h1>
-            <p>Junte de 2 a 5 amigos, enfrente uma criatura Mítica e conquiste a carta do evento.</p>
+            <p>Junte de 2 a 5 amigos, enfrente uma criatura Mítica e receba as moedas e o XP do evento.</p>
           </div>
         </header>
         <div className="raid-empty">
@@ -361,31 +388,35 @@ export function RaidView({
             </div>
 
             <div className="raid-lobby-actions">
-              <Button
-                variant={roomPlayer?.isReady ? "secondary" : "game"}
-                disabled={busy}
-                onClick={() => void lobbyAction({
-                  action: "ready",
-                  roomId: room.room.id,
-                  ready: !roomPlayer?.isReady,
-                })}
-              >
-                {roomPlayer?.isReady ? <X /> : <Check />}
-                {roomPlayer?.isReady ? "Cancelar pronto" : "PRONTO"}
-              </Button>
-
-              {room.room.hostId === playerId ? (
+              {roomMode !== "legacy" ? <>
                 <Button
-                  variant="game"
-                  disabled={busy || !everyoneReady}
-                  onClick={() => void startRaid()}
+                  variant={roomPlayer?.isReady ? "secondary" : "game"}
+                  disabled={busy}
+                  onClick={() => void lobbyAction({
+                    action: "ready",
+                    roomId: room.room.id,
+                    ready: !roomPlayer?.isReady,
+                  })}
                 >
-                  <Play /> INICIAR RAID
+                  {roomPlayer?.isReady ? <X /> : <Check />}
+                  {roomPlayer?.isReady ? "Cancelar pronto" : "PRONTO"}
                 </Button>
-              ) : (
-                <Button variant="secondary" disabled>
-                  <Clock3 /> Aguardando líder
-                </Button>
+
+                {room.room.hostId === playerId ? (
+                  <Button
+                    variant="game"
+                    disabled={busy || !everyoneReady}
+                    onClick={() => void startRaid()}
+                  >
+                    <Play /> INICIAR RAID
+                  </Button>
+                ) : (
+                  <Button variant="secondary" disabled>
+                    <Clock3 /> Aguardando líder
+                  </Button>
+                )}
+              </> : (
+                <span className="raid-lobby-archive-note"><ShieldAlert /> Sala de regras antigas, somente consulta</span>
               )}
 
               <Button
@@ -401,7 +432,11 @@ export function RaidView({
             </div>
 
             <p className="raid-lobby-note">
-              A Raid começa com {room.event.min_players}–{room.event.max_players} jogadores. Cada conta leva sua própria equipe ativa de seis cartas.
+              A Raid começa com {room.event.min_players}–{room.event.max_players} jogadores. {roomMode === "arpg"
+                ? "Cada Cartógrafo entra com seu avatar, dois poderes e Arsenal ARPG salvo na criação da sala."
+                : roomMode === "avatar"
+                  ? "Cada Cartógrafo entra com seu próprio avatar e exatamente dois poderes do Arquivo."
+                  : "Esta sala histórica foi preservada e não aceita novas ações de combate."}
             </p>
           </article>
         </div>
@@ -486,7 +521,7 @@ export function RaidView({
               </div>
               {schedule.map((event) => {
                 const boss = CREATURE_BY_ID.get(event.bossCreatureId);
-                const obtained = rewards.some((reward) => reward.event_id === event.id && reward.reward_type === "mythical_reward");
+                const obtained = rewards.some((reward) => reward.event_id === event.id && reward.reward_type === "currency_reward");
                 return (
                   <div className="raid-calendar-row" key={event.id}>
                     <div className="raid-calendar-row__date">
@@ -502,10 +537,18 @@ export function RaidView({
                     </div>
                     <div>
                       <strong>{event.title}</strong>
-                      <span>{boss ? `${ELEMENT_META[boss.element].name} · ${boss.rarity.toUpperCase()}` : "Boss secreto"}</span>
+                      <span>
+                        {boss ? `${ELEMENT_META[boss.element].name} · ${boss.rarity.toUpperCase()}` : "Boss secreto"}
+                        {typeof event.rewards.coins === "number" ? ` · ${event.rewards.coins} moedas` : ""}
+                        {typeof event.rewards.xp === "number" ? ` · ${event.rewards.xp} XP` : ""}
+                      </span>
                     </div>
                     <span className={cn("raid-calendar-status", `is-${event.status}`)}>
-                      {obtained ? <><Trophy /> Obtida</> : event.status === "active" ? "ATIVA" : event.status === "upcoming" ? "Em breve" : "Encerrada"}
+                      {obtained
+                        ? <><Trophy /> Recompensa recebida</>
+                        : event.status === "active"
+                          ? "ATIVA"
+                          : event.status === "upcoming" ? "Em breve" : "Encerrada"}
                     </span>
                   </div>
                 );
@@ -521,13 +564,13 @@ export function RaidView({
                 <span>01</span><div><strong>Junte 2–5 amigos</strong><p>Crie uma sala e compartilhe o código.</p></div>
               </div>
               <div className="raid-rule">
-                <span>02</span><div><strong>Leve suas seis cartas</strong><p>Energia, Poderes e Evoluções continuam sendo cartas reais.</p></div>
+                <span>02</span><div><strong>Leve seu Arsenal ARPG</strong><p>Arma, armadura, relíquia e 2 ataques próprios entram congelados na sala.</p></div>
               </div>
               <div className="raid-rule">
                 <span>03</span><div><strong>Derrote o Mítico</strong><p>Todos atacam o mesmo HP e atravessam três fases.</p></div>
               </div>
               <div className="raid-rule">
-                <span>04</span><div><strong>Conquiste a carta</strong><p>A primeira vitória elegível garante 1 Mítica por conta naquele evento.</p></div>
+                <span>04</span><div><strong>Receba moedas e XP</strong><p>Participantes elegíveis recebem a recompensa do evento uma única vez.</p></div>
               </div>
             </article>
           </div>

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { PlayerBootstrap } from "@/game/player";
 import type { RegionDefinition } from "@/game/types";
+import { PwaInstallButton } from "@/components/pwa/pwa-install-button";
 
 export function HubView({
   playerName,
@@ -25,7 +26,7 @@ export function HubView({
   xp,
   collectionCount,
   currentRegionDiscoveryCount,
-  teamReady,
+  combatReady,
   currentRegion,
   source,
   treasureClaimed,
@@ -43,7 +44,7 @@ export function HubView({
   xp: number;
   collectionCount: number;
   currentRegionDiscoveryCount: number;
-  teamReady: boolean;
+  combatReady: boolean;
   currentRegion: RegionDefinition;
   source: PlayerBootstrap["source"];
   treasureClaimed: boolean;
@@ -89,9 +90,9 @@ export function HubView({
         <button type="button" className="hub-continue" onClick={onContinue}>
           <span className="hub-continue__icon"><Play fill="currentColor" /></span>
           <span className="hub-continue__copy">
-            <small>Expedição salva</small>
-            <strong>Continuar jornada</strong>
-            <span>{currentRegion.name}</span>
+            <small>Novo núcleo ARPG</small>
+            <strong>Entrar na Mata Encantada</strong>
+            <span>Tempo real · dungeon roguelite</span>
           </span>
           <ArrowRight />
         </button>
@@ -111,11 +112,13 @@ export function HubView({
           <span>
             <small>Partida online</small>
             <strong>Salão de Duelos</strong>
-            <em>{teamReady ? "Equipe de seis pronta" : "Revise sua equipe"}</em>
+            <em>{combatReady ? "Avatar e 2 poderes prontos" : "Prepare avatar e 2 poderes"}</em>
           </span>
           <ArrowRight />
         </button>
       </div>
+
+      <PwaInstallButton />
 
       <div className="hub-section-heading hub-section-heading--rewards">
         <span>Jornada de hoje</span>
@@ -141,9 +144,9 @@ export function HubView({
 
         <button type="button" className="hub-action-card" onClick={onOpenTeam}>
           <span className="hub-action-card__icon"><Layers3 /></span>
-          <small>Equipe ativa</small>
-          <strong>{teamReady ? "6 criaturas" : "Formação básica"}</strong>
-          <span>Preparar estratégia</span>
+          <small>Loadout ARPG</small>
+          <strong>Arsenal</strong>
+          <span>Arma, armadura, relíquia e 2 ataques</span>
           <ArrowRight className="hub-action-card__status" />
         </button>
 
@@ -151,7 +154,7 @@ export function HubView({
           <span className="hub-action-card__icon"><Home /></span>
           <small>Espaço pessoal</small>
           <strong>Seu refúgio</strong>
-          <span>Relíquias e companheiros</span>
+          <span>Sua casa e criaturas da coleção</span>
           <ArrowRight className="hub-action-card__status" />
         </button>
       </div>

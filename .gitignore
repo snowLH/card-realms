@@ -2,6 +2,7 @@
 /node_modules
 /.npm-cache/
 /.agent-browser/
+/.chrome-arpg-smoke/
 
 # next.js
 /.next/

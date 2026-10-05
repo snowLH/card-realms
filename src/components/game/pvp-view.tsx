@@ -22,12 +22,13 @@ type Challenge = {
 type Friend = {
   id: string;
   name: string;
-  hasActiveTeam: boolean;
+  hasCombatReady: boolean;
 };
 
 type LobbyResponse = {
   challenges: Challenge[];
   friends: Friend[];
+  playerReady?: boolean;
   error?: string;
 };
 
@@ -41,6 +42,7 @@ export function PvpView({
   const playerId = bootstrap.identity?.id ?? null;
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [playerReady, setPlayerReady] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(bootstrap.source === "supabase");
   const [error, setError] = useState("");
@@ -53,8 +55,10 @@ export function PvpView({
       if (!response.ok) throw new Error(payload.error ?? "O salão de duelos não respondeu.");
       setChallenges(payload.challenges);
       setFriends(payload.friends ?? []);
+      setPlayerReady(payload.playerReady === true);
       setError("");
     } catch (caught) {
+      setPlayerReady(false);
       setError(caught instanceof Error ? caught.message : "O salão de duelos não respondeu.");
     } finally {
       setLoading(false);
@@ -135,7 +139,7 @@ export function PvpView({
     return (
       <section className="content-view pvp-view">
         <header className="view-heading">
-          <div><span className="view-eyebrow">Duelo online</span><h1>Salão dos Cartógrafos</h1><p>Desafios exigem uma conta online e uma equipe ativa de exatamente seis criaturas.</p></div>
+          <div><span className="view-eyebrow">Duelo online</span><h1>Salão dos Cartógrafos</h1><p>Desafios exigem avatar salvo e exatamente dois poderes próprios equipados no Arquivo.</p></div>
         </header>
         <div className="pvp-empty">
           <ShieldAlert />
@@ -153,12 +157,19 @@ export function PvpView({
   return (
     <section className="content-view pvp-view">
       <header className="view-heading">
-        <div><span className="view-eyebrow">Duelo online</span><h1>Salão dos Cartógrafos</h1><p>Convites entre amigos, equipes congeladas ao aceitar e cada jogada confirmada pelo servidor.</p></div>
+        <div><span className="view-eyebrow">Duelo online</span><h1>Salão dos Cartógrafos</h1><p>Convites entre amigos; avatar e dois poderes próprios ficam congelados ao aceitar, e cada jogada é confirmada pelo servidor.</p></div>
         <Badge className="border-emerald-300/30 bg-emerald-300/10 text-emerald-200"><Radio /> Sincronização ativa</Badge>
       </header>
 
       {error ? <div className="pvp-error" role="alert">{error}</div> : null}
-      {loading ? <div className="pvp-empty"><LoaderCircle className="animate-spin" /><strong>Consultando desafios...</strong></div> : null}
+      {loading ? <div className="pvp-empty" role="status"><LoaderCircle className="animate-spin" /><strong>Consultando desafios...</strong></div> : null}
+      {!loading ? (
+        <div className={playerReady ? "pvp-ready" : "pvp-error"} role="status">
+          {playerReady
+            ? "Seu avatar e seus dois poderes próprios estão prontos para duelar."
+            : "Para desafiar, salve seu avatar e equipe exatamente dois poderes próprios no Arquivo."}
+        </div>
+      ) : null}
 
       {!loading ? <FriendManager onChanged={() => void refresh()} /> : null}
 
@@ -170,7 +181,7 @@ export function PvpView({
               <div className="pvp-row" key={challenge.id}>
                 <div><strong>Desafio de amigo</strong><span><Clock3 /> expira às {new Date(challenge.expires_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span></div>
                 <div className="pvp-row__actions">
-                  <Button size="sm" variant="game" disabled={busyId === challenge.id} onClick={() => void respond(challenge.id, "accept")}><Check /> Aceitar</Button>
+                  <Button size="sm" variant="game" disabled={busyId === challenge.id || !playerReady} onClick={() => void respond(challenge.id, "accept")}><Check /> Aceitar</Button>
                   <Button size="sm" variant="secondary" disabled={busyId === challenge.id} onClick={() => void respond(challenge.id, "decline")}><X /> Recusar</Button>
                 </div>
               </div>
@@ -193,16 +204,16 @@ export function PvpView({
 
       {!loading ? (
         <article className="pvp-panel pvp-panel--wide">
-          <div className="pvp-panel__heading"><Swords /><div><strong>Amigos disponíveis</strong><span>Ambos precisam de equipe ativa com seis criaturas</span></div></div>
+          <div className="pvp-panel__heading"><Swords /><div><strong>Amigos disponíveis</strong><span>Ambos precisam de avatar válido e dois poderes próprios possuídos</span></div></div>
           {friends.map((friend) => {
             const sent = outgoing.find((challenge) => challenge.addressee_id === friend.id);
             return (
               <div className="pvp-row" key={friend.id}>
-                <div><strong>{friend.name}</strong><span>{friend.hasActiveTeam ? "Equipe pronta" : "Equipe incompleta"}</span></div>
+                <div><strong>{friend.name}</strong><span>{friend.hasCombatReady ? "Avatar + 2 poderes prontos" : "Falta avatar ou dois poderes próprios"}</span></div>
                 {sent ? (
                   <Button size="sm" variant="secondary" disabled={busyId === sent.id} onClick={() => void respond(sent.id, "cancel")}><X /> Cancelar convite</Button>
                 ) : (
-                  <Button size="sm" variant="game" disabled={!friend.hasActiveTeam || busyId === friend.id} onClick={() => void createChallenge(friend.id)}><Swords /> Desafiar</Button>
+                  <Button size="sm" variant="game" disabled={!playerReady || !friend.hasCombatReady || busyId === friend.id} onClick={() => void createChallenge(friend.id)}><Swords /> Desafiar</Button>
                 )}
               </div>
             );

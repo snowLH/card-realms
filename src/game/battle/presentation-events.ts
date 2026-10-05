@@ -5,15 +5,12 @@ export type BattlePresentationKind =
   | "turn"
   | "draw"
   | "energy"
-  | "switch"
-  | "forcedSwitch"
   | "roll"
+  | "ability"
   | "attack"
   | "miss"
   | "critical"
   | "status"
-  | "evolutionStart"
-  | "evolutionComplete"
   | "terrainOn"
   | "terrainOff"
   | "ko"
@@ -26,10 +23,9 @@ export type BattlePresentationEvent = {
   message: string;
   die?: number;
   damage?: number;
-  attackId?: string;
+  abilityId?: string;
+  abilitySlot?: 0 | 1;
   effect?: BattleLogEntry["effect"];
-  creatureIndex?: number;
-  evolutionStage?: 0 | 1 | 2;
   terrainElement?: BattleLogEntry["terrainElement"];
   terrainTurns?: number;
   energyCardId?: string;
@@ -41,10 +37,7 @@ const KIND_MAP: Partial<Record<BattleLogEntry["kind"], BattlePresentationKind>> 
   turn_started: "turn",
   energy_drawn: "draw",
   energy_attached: "energy",
-  power_drawn: "draw",
-  power_equipped: "energy",
-  creature_switched: "switch",
-  forced_switch: "forcedSwitch",
+  ability_used: "ability",
   attack_hit: "attack",
   attack_miss: "miss",
   critical: "critical",
@@ -52,8 +45,6 @@ const KIND_MAP: Partial<Record<BattleLogEntry["kind"], BattlePresentationKind>> 
   status_tick: "status",
   healed: "status",
   shielded: "status",
-  evolution_started: "evolutionStart",
-  evolution_completed: "evolutionComplete",
   terrain_activated: "terrainOn",
   terrain_expired: "terrainOff",
   conceded: "end",
@@ -61,14 +52,11 @@ const KIND_MAP: Partial<Record<BattleLogEntry["kind"], BattlePresentationKind>> 
   battle_end: "end",
 };
 
-export function toBattlePresentationEvents(
-  events: readonly BattleLogEntry[],
-): BattlePresentationEvent[] {
+export function toBattlePresentationEvents(events: readonly BattleLogEntry[]): BattlePresentationEvent[] {
   const sequence: BattlePresentationEvent[] = [];
   for (const event of events) {
     const kind = KIND_MAP[event.kind];
     if (!kind) continue;
-
     if (typeof event.die === "number") {
       sequence.push({
         id: `${event.id}:roll`,
@@ -76,10 +64,10 @@ export function toBattlePresentationEvents(
         actorId: event.actorId,
         message: event.message,
         die: event.die,
-        attackId: event.attackId,
+        abilityId: event.abilityId,
+        abilitySlot: event.abilitySlot,
       });
     }
-
     sequence.push({
       id: event.id,
       kind,
@@ -87,10 +75,9 @@ export function toBattlePresentationEvents(
       message: event.message,
       die: event.die,
       damage: event.damage,
-      attackId: event.attackId,
+      abilityId: event.abilityId,
+      abilitySlot: event.abilitySlot,
       effect: event.effect,
-      creatureIndex: event.creatureIndex,
-      evolutionStage: event.evolutionStage,
       terrainElement: event.terrainElement,
       terrainTurns: event.terrainTurns,
       energyCardId: event.energyCardId,
@@ -100,24 +87,18 @@ export function toBattlePresentationEvents(
   return sequence;
 }
 
-export function presentationDuration(
-  kind: BattlePresentationKind,
-  speed: "normal" | "fast" | "very-fast" = "normal",
-) {
+export function presentationDuration(kind: BattlePresentationKind, speed: "normal" | "fast" | "very-fast" = "normal") {
   const base: Record<BattlePresentationKind, number> = {
     enter: 540,
     turn: 520,
     draw: 360,
     energy: 520,
-    switch: 640,
-    forcedSwitch: 520,
     roll: 620,
+    ability: 720,
     attack: 900,
     miss: 760,
     critical: 1040,
     status: 460,
-    evolutionStart: 760,
-    evolutionComplete: 1120,
     terrainOn: 980,
     terrainOff: 620,
     ko: 900,

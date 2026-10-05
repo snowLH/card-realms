@@ -3,8 +3,8 @@ import { CREATURES } from "./creatures";
 import { REGIONS } from "./regions";
 
 describe("expansão regional 2D", () => {
-  it("adiciona exatamente 25 novas criaturas ao bestiário original", () => {
-    expect(CREATURES).toHaveLength(50);
+  it("mantém o segundo atlas e incorpora a expansão solicitada sem duplicar espécies", () => {
+    expect(CREATURES).toHaveLength(124);
     const secondAtlas = CREATURES.filter((creature) => creature.sprite.sheet.includes("second-atlas"));
     expect(secondAtlas).toHaveLength(25);
     expect(new Set(secondAtlas.map((creature) => `${creature.sprite.row}:${creature.sprite.column}`)).size).toBe(25);
