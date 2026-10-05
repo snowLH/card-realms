@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { AvatarConfigSchema, DEFAULT_AVATAR_CONFIG } from "@/game/save/local-progress";
 import { ARPG_ABILITY_CARD_IDS } from "../content/ability-cards";
+import { ARPG_WEAPON_IDS, getDefaultSecondaryArpgWeaponId } from "../content/equipment";
 
 const VersionedRaidAction = {
   roomId: z.string().uuid().transform((id) => id.toLowerCase()),
@@ -14,13 +16,26 @@ const AbilityIdsSchema = z.tuple([AbilityIdSchema, AbilityIdSchema]).superRefine
     context.addIssue({ code: "custom", message: "A Raid exige dois poderes diferentes." });
   }
 });
+const WeaponIdSchema = z.string().refine((id) => ARPG_WEAPON_IDS.has(id), "Arma ARPG inválida.");
 
 export const ArpgRaidLoadoutSchema = z.strictObject({
-  weaponId: z.string().min(1),
+  weaponId: WeaponIdSchema,
+  secondaryWeaponId: WeaponIdSchema.optional(),
   armorId: z.string().min(1),
   relicId: z.string().min(1),
   abilityIds: AbilityIdsSchema,
-});
+}).superRefine((loadout, context) => {
+  if (loadout.secondaryWeaponId === loadout.weaponId) {
+    context.addIssue({
+      code: "custom",
+      message: "A Raid exige duas armas diferentes.",
+      path: ["secondaryWeaponId"],
+    });
+  }
+}).transform((loadout) => ({
+  ...loadout,
+  secondaryWeaponId: loadout.secondaryWeaponId ?? getDefaultSecondaryArpgWeaponId(loadout.weaponId),
+}));
 const InputSchema = z.strictObject({ moveX: Axis, moveY: Axis, aimX: Axis, aimY: Axis });
 const ContributionSchema = z.strictObject({
   actions: z.number().int().nonnegative(),
@@ -32,6 +47,8 @@ const PlayerSchema = z.strictObject({
   id: z.string().uuid().transform((id) => id.toLowerCase()),
   name: z.string().min(1),
   seat: z.number().int().min(1).max(5),
+  // Preserve active v2 raids created before avatar identity was added.
+  avatarConfig: AvatarConfigSchema.default(DEFAULT_AVATAR_CONFIG),
   x: z.number().finite(),
   y: z.number().finite(),
   hp: z.number().int().nonnegative(),

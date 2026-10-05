@@ -16,6 +16,7 @@ function createState(runShards: number): ArpgHudState {
     roomCount: 10,
     enemiesRemaining: 0,
     weaponId: "forest-bow",
+    secondaryWeaponId: "iron-sword",
     armorId: "leather-armor",
     relicId: "cartographer-compass",
     dungeonMap: null,

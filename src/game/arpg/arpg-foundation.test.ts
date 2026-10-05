@@ -188,12 +188,47 @@ describe("fundação ARPG da Mata Encantada", () => {
     expect(ARPG_RELICS.filter((relic) => relic.acquisition.source === "dungeon-clear")).toHaveLength(2);
   });
 
-  it("mantém apenas dois ataques gratuitos e põe os demais no lobby", () => {
-    expect(ARPG_ABILITY_CARDS).toHaveLength(13);
-    expect(new Set(ARPG_ABILITY_CARDS.map((card) => card.id)).size).toBe(13);
+  it("mantém dois poderes iniciais, 37 compráveis e cinco em revisão cultural", () => {
+    expect(ARPG_ABILITY_CARDS).toHaveLength(44);
+    expect(new Set(ARPG_ABILITY_CARDS.map((card) => card.id)).size).toBe(44);
+    expect(ARPG_ABILITY_CARDS.filter((card) => card.purchasable)).toHaveLength(37);
+    expect(ARPG_ABILITY_CARDS.filter((card) => !card.purchasable)).toHaveLength(7);
     expect(STARTER_ARPG_ABILITY_IDS).toEqual(["ancestral-roots", "boitata-flame"]);
     expect(ARPG_ABILITY_CARDS.filter((card) => card.acquisition.source === "starter").map((card) => card.id).sort())
       .toEqual(["ancestral-roots", "boitata-flame"]);
+    const originalCardPrices = {
+      "ancestral-roots": null,
+      "boitata-flame": null,
+      "saci-whirlwind": 120,
+      "iara-song": 240,
+      "caipora-arrow": 80,
+      "kappa-splash": 80,
+      "kelpie-surge": 120,
+      "tengu-gust": 120,
+      "banshee-wail": 180,
+      "medusa-gaze": 320,
+      "kraken-grasp": 320,
+      "simurgh-renewal": 320,
+      "roc-horizon-storm": 500,
+    };
+    const preservedCards = ARPG_ABILITY_CARDS.filter((card) => Object.hasOwn(originalCardPrices, card.id));
+    expect(preservedCards).toHaveLength(13);
+    expect(Object.fromEntries(preservedCards.map((card) => [card.id, card.purchasePrice])))
+      .toEqual(originalCardPrices);
+    const gatedIds = [
+      "sasabonsam-canopy-strike",
+      "manananggal-shadow-sweep",
+      "penanggalan-return-tether",
+      "bunyip-billabong-echo",
+      "taniwha-place-ward",
+    ];
+    const gatedCards = ARPG_ABILITY_CARDS.filter((card) => gatedIds.includes(card.id));
+    expect(gatedCards).toHaveLength(5);
+    expect(gatedCards.every((card) => (
+      !card.purchasable
+      && card.purchasePrice === null
+      && card.acquisition.label === "Aguardando revisão cultural"
+    ))).toBe(true);
     const prices = { common: 80, uncommon: 120, rare: 180, epic: 240, legendary: 320, mythic: 500 };
     for (const card of ARPG_ABILITY_CARDS.filter((entry) => entry.purchasable)) {
       expect(card.acquisition).toEqual({ source: "lobby-shop", label: "Loja do lobby" });

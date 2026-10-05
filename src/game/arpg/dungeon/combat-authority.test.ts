@@ -14,6 +14,7 @@ import {
 const LOADOUT = {
   ...DEFAULT_ARPG_LOADOUT,
   weaponId: "iron-sword",
+  secondaryWeaponId: "forest-bow",
   armorId: "leather-armor",
 };
 
@@ -108,7 +109,7 @@ function findDodgePosition(
 
 function command(state: ArpgDungeonCombatState, options: Partial<{
   actionId: string;
-  kind: "sync" | "basic_attack" | "ability" | "dash";
+  kind: "sync" | "basic_attack" | "ability" | "dash" | "swap_weapon";
   playerX: number;
   playerY: number;
   aimX: number;
@@ -127,6 +128,27 @@ function command(state: ArpgDungeonCombatState, options: Partial<{
 }
 
 describe("server-authoritative ARPG dungeon combat", () => {
+  it("swaps only the two server-validated weapons and preserves both equipped powers", () => {
+    const { graph, state } = startState();
+    const swapped = applyArpgDungeonCombatCommand({
+      state,
+      graph,
+      loadout: LOADOUT,
+      command: command(state, { actionId: "swap-weapon", kind: "swap_weapon" }),
+      nowMs: state.serverTimeMs,
+    });
+
+    expect(swapped).toMatchObject({ weaponId: "forest-bow", secondaryWeaponId: "iron-sword" });
+    expect(LOADOUT.abilityIds).toEqual(DEFAULT_ARPG_LOADOUT.abilityIds);
+    expect(() => applyArpgDungeonCombatCommand({
+      state,
+      graph,
+      loadout: { ...LOADOUT, secondaryWeaponId: "ritual-staff" },
+      command: command(state, { actionId: "forged-weapon-pair", kind: "swap_weapon" }),
+      nowMs: state.serverTimeMs,
+    })).toThrow("As armas do encontro não correspondem ao loadout validado.");
+  });
+
   it("descarta campos de supporter de checkpoints legados ao normalizar", () => {
     const { state } = startState();
     const parsed = ArpgDungeonCombatStateSchema.parse({

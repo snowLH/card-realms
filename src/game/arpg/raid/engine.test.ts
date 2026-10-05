@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_ARPG_LOADOUT } from "../content/mata-encantada";
+import { ARPG_WEAPONS, getDefaultSecondaryArpgWeaponId } from "../content/equipment";
+import { DEFAULT_AVATAR_CONFIG } from "@/game/save/local-progress";
 import { ARPG_ROC_RAID_BOSS } from "./content";
 import {
   ArpgRaidRuleError,
@@ -8,7 +10,7 @@ import {
   createArpgRaidState,
   eligibleArpgRaidRewardPlayerIds,
 } from "./engine";
-import { ArpgRaidActionRequestSchema, ArpgRaidLoadoutSchema } from "./schema";
+import { ArpgRaidActionRequestSchema, ArpgRaidLoadoutSchema, ArpgRaidStateSchema } from "./schema";
 import type { ArpgRaidPlayerSetup } from "./types";
 
 const START = 1_000_000;
@@ -20,6 +22,11 @@ function players(count = 2): ArpgRaidPlayerSetup[] {
     id: `player-${index + 1}`,
     name: `Cartógrafo ${index + 1}`,
     seat: index + 1,
+    avatarConfig: {
+      ...DEFAULT_AVATAR_CONFIG,
+      skin: index === 0 ? "amber" : "umber",
+      hair: index === 0 ? "mohawk" : "waves",
+    },
     loadout: structuredClone(DEFAULT_ARPG_LOADOUT),
   }));
 }
@@ -33,8 +40,42 @@ describe("ARPG Raid authoritative foundation", () => {
     const raid = state(5);
     expect(raid.players).toHaveLength(5);
     expect(raid.players.every((player) => player.loadout.abilityIds.length === 2)).toBe(true);
+    expect(raid.players[0].avatarConfig).toEqual(expect.objectContaining({ skin: "amber", hair: "mohawk" }));
+    expect(raid.players[1].avatarConfig).toEqual(expect.objectContaining({ skin: "umber", hair: "waves" }));
     expect(raid.boss.catalogId).toBe("roc");
     expect(raid.boss.hp).toBe(10_000);
+  });
+
+  it("valida a configuração do avatar no setup e no snapshot autoritativo", () => {
+    const raid = state();
+    const schemaReadyState = structuredClone(raid);
+    const secondWeaponId = ARPG_WEAPONS.find((weapon) => weapon.id !== raid.players[0].loadout.weaponId)!.id;
+    schemaReadyState.players[0].loadout.secondaryWeaponId = secondWeaponId;
+    schemaReadyState.players.forEach((player, index) => {
+      player.id = `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`;
+    });
+    const parsedSnapshot = ArpgRaidStateSchema.parse(schemaReadyState);
+    expect(parsedSnapshot.players[0].avatarConfig).toEqual(players()[0].avatarConfig);
+    expect(parsedSnapshot.players[0].loadout.secondaryWeaponId).toBe(secondWeaponId);
+    expect(ArpgRaidStateSchema.parse(JSON.parse(JSON.stringify(parsedSnapshot)))
+      .players[0].loadout.secondaryWeaponId).toBe(secondWeaponId);
+
+    const invalidAvatarState = structuredClone(schemaReadyState);
+    (invalidAvatarState.players[0].avatarConfig as { hair: string }).hair = "long";
+    expect(ArpgRaidStateSchema.safeParse(invalidAvatarState).success).toBe(false);
+
+    const legacyState = structuredClone(schemaReadyState);
+    delete (legacyState.players[0] as Partial<typeof legacyState.players[number]>).avatarConfig;
+    delete (legacyState.players[0].loadout as { secondaryWeaponId?: string }).secondaryWeaponId;
+    const parsedLegacySnapshot = ArpgRaidStateSchema.parse(legacyState);
+    expect(parsedLegacySnapshot.players[0].avatarConfig).toEqual(DEFAULT_AVATAR_CONFIG);
+    expect(parsedLegacySnapshot.players[0].loadout.secondaryWeaponId)
+      .toBe(getDefaultSecondaryArpgWeaponId(parsedLegacySnapshot.players[0].loadout.weaponId));
+
+    const invalidSetup = players();
+    (invalidSetup[0] as { avatarConfig: unknown }).avatarConfig = { ...DEFAULT_AVATAR_CONFIG, skin: "violet" };
+    expect(() => createArpgRaidState(ROOM_ID, EVENT_ID, invalidSetup, ARPG_ROC_RAID_BOSS, START))
+      .toThrow(ArpgRaidRuleError);
   });
 
   it("rejeita quantidade de participantes fora de 2–5", () => {
@@ -70,6 +111,23 @@ describe("ARPG Raid authoritative foundation", () => {
       ...DEFAULT_ARPG_LOADOUT,
       abilityIds: ["ancestral-roots", "ancestral-roots"],
     }).success).toBe(false);
+    expect(ArpgRaidLoadoutSchema.safeParse({
+      ...DEFAULT_ARPG_LOADOUT,
+      secondaryWeaponId: DEFAULT_ARPG_LOADOUT.weaponId,
+    }).success).toBe(false);
+    expect(ArpgRaidLoadoutSchema.safeParse({
+      ...DEFAULT_ARPG_LOADOUT,
+      secondaryWeaponId: "missing-weapon",
+    }).success).toBe(false);
+  });
+
+  it("normaliza um loadout legado sem segunda arma para uma arma válida e distinta", () => {
+    const legacyLoadout = structuredClone(DEFAULT_ARPG_LOADOUT);
+    delete legacyLoadout.secondaryWeaponId;
+    const parsed = ArpgRaidLoadoutSchema.parse(legacyLoadout);
+
+    expect(parsed.secondaryWeaponId).toBe(getDefaultSecondaryArpgWeaponId(parsed.weaponId));
+    expect(parsed.secondaryWeaponId).not.toBe(parsed.weaponId);
   });
 
   it("aceita apenas dois slots de ataque e não aceita ações de supporter", () => {

@@ -8,6 +8,7 @@ describe("ArpgBridge gameplay input clearing", () => {
     bridge.setAim(1, 1);
     bridge.setAttack(true);
     bridge.queueDash();
+    bridge.queueWeaponSwap();
     bridge.queueInteract();
     bridge.queueAbility(1);
     bridge.queueRoomChoice("spirit-offering");
@@ -17,6 +18,7 @@ describe("ArpgBridge gameplay input clearing", () => {
 
     expect(bridge.getInput()).toEqual({ moveX: 0, moveY: 0, aimX: 0, aimY: 0, attack: false });
     expect(bridge.consumeDash()).toBe(false);
+    expect(bridge.consumeWeaponSwap()).toBe(false);
     expect(bridge.consumeInteract()).toBe(false);
     expect([0, 1].map((slot) => bridge.consumeAbility(slot as 0 | 1))).toEqual([
       false, false,

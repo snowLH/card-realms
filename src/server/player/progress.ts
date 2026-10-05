@@ -34,7 +34,7 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
     supabase.from("missions").select("id,objective,enabled").eq("enabled", true),
     supabase
       .from("player_arpg_loadouts")
-      .select("weapon_id,armor_id,relic_id,ability_ids")
+      .select("weapon_id,secondary_weapon_id,armor_id,relic_id,ability_ids")
       .eq("user_id", subject)
       .maybeSingle(),
   ]);
@@ -70,6 +70,7 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
   const arpgLoadout = arpgRow
     ? normalizeLegacyArpgLoadout({
         weaponId: arpgRow.weapon_id,
+        secondaryWeaponId: arpgRow.secondary_weapon_id,
         armorId: arpgRow.armor_id,
         relicId: arpgRow.relic_id,
         abilityIds: arpgRow.ability_ids,

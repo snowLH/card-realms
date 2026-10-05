@@ -124,6 +124,7 @@ export type ArpgRunCheckpointState = {
   playerHp: number;
   maxHp: number;
   weaponId: string;
+  secondaryWeaponId: string;
   armorId: string;
   xpEarned: number;
   runShards: number;
@@ -136,6 +137,8 @@ export type ArpgRunCheckpointState = {
 
 export type ArpgLoadout = {
   weaponId: string;
+  /** Optional only while reading legacy raid snapshots; new Arsenal writes require it. */
+  secondaryWeaponId?: string;
   armorId: string;
   relicId: string;
   abilityIds: [string, string];
@@ -176,6 +179,7 @@ export type ArpgHudState = {
   roomCount: number;
   enemiesRemaining: number;
   weaponId: string;
+  secondaryWeaponId: string;
   armorId: string;
   relicId: string;
   dungeonMap: ArpgDungeonMapState | null;
@@ -208,6 +212,8 @@ export type ArpgRuntimeBridge = {
   getInput(): Readonly<ArpgInputState>;
   clearGameplayInput(): void;
   consumeDash(): boolean;
+  queueWeaponSwap(): void;
+  consumeWeaponSwap(): boolean;
   consumeInteract(): boolean;
   consumeLootDecision(): "equip" | "keep" | null;
   consumeRoomChoice(): string | null;

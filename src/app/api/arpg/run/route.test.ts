@@ -78,6 +78,7 @@ async function beginPersistedRun(body: unknown = { action: "start", expeditionId
     checkpoint: Record<string, unknown>;
     loadout?: {
       weaponId: string;
+      secondaryWeaponId: string;
       armorId: string;
       relicId: string;
       abilityIds: [string, string];
@@ -255,6 +256,7 @@ describe("/api/arpg/run durable run endpoints", () => {
   it("freezes the database-owned Arsenal loadout into the signed run token and start checkpoint", async () => {
     const savedLoadout = {
       weaponId: "iara-song-staff",
+      secondaryWeaponId: "iron-sword",
       armorId: "ahuizotl-guard-armor",
       relicId: "iara-shell-charm",
       abilityIds: ["saci-whirlwind", "iara-song"],
@@ -262,6 +264,7 @@ describe("/api/arpg/run durable run endpoints", () => {
     loadoutQueryMock.mockResolvedValue({
       data: {
         weapon_id: savedLoadout.weaponId,
+        secondary_weapon_id: savedLoadout.secondaryWeaponId,
         armor_id: savedLoadout.armorId,
         relic_id: savedLoadout.relicId,
         ability_ids: savedLoadout.abilityIds,
@@ -277,6 +280,7 @@ describe("/api/arpg/run durable run endpoints", () => {
 
     const expectedLoadout = {
       weaponId: savedLoadout.weaponId,
+      secondaryWeaponId: savedLoadout.secondaryWeaponId,
       armorId: savedLoadout.armorId,
       relicId: savedLoadout.relicId,
       abilityIds: ["saci-whirlwind", "iara-song"],
@@ -332,6 +336,7 @@ describe("/api/arpg/run durable run endpoints", () => {
   it("resumes with the original signed loadout after the Arsenal changes", async () => {
     const originalLoadout = {
       weaponId: "iara-song-staff",
+      secondaryWeaponId: "iron-sword",
       armorId: "ahuizotl-guard-armor",
       relicId: "iara-shell-charm",
       abilityIds: ["saci-whirlwind", "iara-song"] as [string, string],
@@ -339,6 +344,7 @@ describe("/api/arpg/run durable run endpoints", () => {
     loadoutQueryMock.mockResolvedValue({
       data: {
         weapon_id: originalLoadout.weaponId,
+        secondary_weapon_id: originalLoadout.secondaryWeaponId,
         armor_id: originalLoadout.armorId,
         relic_id: originalLoadout.relicId,
         ability_ids: originalLoadout.abilityIds,
@@ -351,6 +357,7 @@ describe("/api/arpg/run durable run endpoints", () => {
     loadoutQueryMock.mockResolvedValue({
       data: {
         weapon_id: "forest-bow",
+        secondary_weapon_id: "iron-sword",
         armor_id: "leather-armor",
         relic_id: "cartographer-compass",
         ability_ids: ["ancestral-roots", "boitata-flame"],
@@ -380,6 +387,7 @@ describe("/api/arpg/run durable run endpoints", () => {
     expect(resumed.resumed).toBe(true);
     const expectedLoadout = {
       weaponId: originalLoadout.weaponId,
+      secondaryWeaponId: originalLoadout.secondaryWeaponId,
       armorId: originalLoadout.armorId,
       relicId: originalLoadout.relicId,
       abilityIds: ["saci-whirlwind", "iara-song"],
@@ -391,6 +399,7 @@ describe("/api/arpg/run durable run endpoints", () => {
   it("rejects a resumed snapshot if the account no longer owns one of its powers", async () => {
     const originalLoadout = {
       weaponId: "iara-song-staff",
+      secondaryWeaponId: "iron-sword",
       armorId: "ahuizotl-guard-armor",
       relicId: "iara-shell-charm",
       abilityIds: ["saci-whirlwind", "iara-song"] as [string, string],

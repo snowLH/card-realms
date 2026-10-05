@@ -1,14 +1,14 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(28);
 
 select has_column(
   'public', 'battle_participants', 'combat_snapshot',
   'battle participants store frozen avatar and power snapshots'
 );
 select is(
-  (select is_nullable from information_schema.columns
+  (select is_nullable::text from information_schema.columns
    where table_schema = 'public'
      and table_name = 'battle_participants'
      and column_name = 'team_snapshot'),
@@ -81,6 +81,22 @@ values (
 );
 
 set local role authenticated;
+select set_config('request.jwt.claim.sub', '80000000-0000-4000-8000-000000000008', true);
+select lives_ok(
+  $$select public.save_arpg_loadout(
+      'forest-bow', 'leather-armor', 'cartographer-compass',
+      array['ancestral-roots','boitata-flame']::text[]
+    )$$,
+  'the requester saves the two starter powers before challenging'
+);
+select set_config('request.jwt.claim.sub', '90000000-0000-4000-8000-000000000009', true);
+select lives_ok(
+  $$select public.save_arpg_loadout(
+      'forest-bow', 'leather-armor', 'cartographer-compass',
+      array['ancestral-roots','boitata-flame']::text[]
+    )$$,
+  'the addressee saves the two starter powers before accepting'
+);
 select set_config('request.jwt.claim.sub', '80000000-0000-4000-8000-000000000008', true);
 select lives_ok(
   $$select public.create_pvp_challenge('90000000-0000-4000-8000-000000000009')$$,
@@ -349,5 +365,5 @@ select is(
   'the successful v3 action advances the database version once'
 );
 
-select * from finish();
+select * from finish(true);
 rollback;

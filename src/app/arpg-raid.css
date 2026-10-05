@@ -198,27 +198,26 @@
   color: #e9edf0;
 }
 
-.arpg-raid-player__token {
+.arpg-raid-player__avatar {
   display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 3px solid #b78a45;
-  border-radius: 50%;
-  background: #31566c;
-  color: white;
-  font: 1000 10px var(--font-game);
-  box-shadow: 0 4px 10px rgba(5, 4, 6, .45);
+  width: 54px;
+  height: 70px;
+  place-items: end center;
+}
+
+.arpg-raid-player__avatar .character-avatar-2d--compact {
+  width: 48px;
+  height: 66px;
+  transform: none;
+  filter: drop-shadow(4px 5px rgba(5, 4, 6, .58));
 }
 
 .arpg-raid-player .arpg-raid-bar {
   width: 72px;
   height: 6px;
 }
-.arpg-raid-player.is-self .arpg-raid-player__token {
-  border-color: #f2d478;
-  background: #3e7f62;
-  box-shadow: 0 0 0 3px rgba(242, 212, 120, .18), 0 5px 12px rgba(5, 4, 6, .45);
+.arpg-raid-player.is-self .arpg-raid-player__avatar {
+  filter: drop-shadow(0 0 5px rgba(242, 212, 120, .65));
 }
 
 .arpg-raid-player.is-defeated {

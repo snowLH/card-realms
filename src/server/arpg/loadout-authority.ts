@@ -1,6 +1,7 @@
 import "server-only";
 
 import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
+import { getDefaultSecondaryArpgWeaponId } from "@/game/arpg/content/equipment";
 import { STARTER_ARPG_RELIC_ID } from "@/game/arpg/content/relics";
 import type { ArpgLoadout } from "@/game/arpg/domain/types";
 import type { createAdminClient } from "@/lib/supabase/admin";
@@ -22,8 +23,14 @@ export async function validateArpgLoadoutOwnership(
   playerId: string,
   loadout: ArpgLoadout,
 ): Promise<ArpgLoadoutOwnershipResult> {
+  const secondaryWeaponId = loadout.secondaryWeaponId
+    ?? getDefaultSecondaryArpgWeaponId(loadout.weaponId);
+  if (secondaryWeaponId === loadout.weaponId) {
+    return { valid: false, reason: "items_not_owned", missingItemKeys: ["distinct-secondary-weapon"] };
+  }
   const requiredItemKeys = [...new Set([
     ...(loadout.weaponId === DEFAULT_ARPG_LOADOUT.weaponId ? [] : [loadout.weaponId]),
+    ...(secondaryWeaponId === DEFAULT_ARPG_LOADOUT.secondaryWeaponId ? [] : [secondaryWeaponId]),
     ...(loadout.armorId === DEFAULT_ARPG_LOADOUT.armorId ? [] : [loadout.armorId]),
     ...(loadout.relicId === STARTER_ARPG_RELIC_ID ? [] : [loadout.relicId]),
     ...loadout.abilityIds,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { ArpgLoadoutSchema } from "@/game/arpg/domain/loadout-schema";
+import { ArpgLoadoutWriteSchema } from "@/game/arpg/domain/loadout-schema";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -21,13 +21,14 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Entre na conta para salvar o Arsenal." }, { status: 401 });
     }
 
-    const loadout = ArpgLoadoutSchema.parse(await request.json());
+    const loadout = ArpgLoadoutWriteSchema.parse(await request.json());
     if (new Set(loadout.abilityIds).size !== 2) {
       return NextResponse.json({ error: "O loadout contém itens repetidos." }, { status: 400 });
     }
 
     const { data, error } = await auth.supabase.rpc("save_arpg_loadout", {
       target_weapon_id: loadout.weaponId,
+      target_secondary_weapon_id: loadout.secondaryWeaponId,
       target_armor_id: loadout.armorId,
       target_relic_id: loadout.relicId,
       target_ability_ids: loadout.abilityIds,

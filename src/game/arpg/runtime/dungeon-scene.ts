@@ -10,6 +10,7 @@ import {
   getArmorDashCooldownMs,
   getArmorMovingDefenseBonus,
   getArmorRetaliationDamage,
+  getDefaultSecondaryArpgWeaponId,
   getWeaponAttackIntervalMs,
   getWeaponAttackProc,
 } from "../content/equipment";
@@ -107,6 +108,7 @@ type KeyMap = {
   right: Key;
   dash: Key;
   interact: Key;
+  swapWeapon: Key;
   one: Key;
   two: Key;
 };
@@ -221,6 +223,9 @@ export function createArpgDungeonScene(
     private exitPortalAvailable = checkpoint?.exitPortalAvailable ?? false;
     private xpEarned = checkpoint?.xpEarned ?? 0;
     private currentWeaponId = checkpoint?.weaponId ?? loadout.weaponId;
+    private secondaryWeaponId = checkpoint?.secondaryWeaponId
+      ?? loadout.secondaryWeaponId
+      ?? getDefaultSecondaryArpgWeaponId(this.currentWeaponId);
     private currentArmorId = checkpoint?.armorId ?? startingArmor.id;
     private runLoot: ArpgRunLootEntry[] = checkpoint?.runLoot.map((item) => ({ ...item })) ?? [];
     private runShards = checkpoint?.runShards ?? 0;
@@ -394,6 +399,7 @@ export function createArpgDungeonScene(
       this.keys = this.input.keyboard!.addKeys({
         up: "W", down: "S", left: "A", right: "D",
         dash: "SPACE", interact: "E",
+        swapWeapon: "Q",
         one: "ONE", two: "TWO",
       }) as KeyMap;
 
@@ -782,6 +788,10 @@ export function createArpgDungeonScene(
         else this.tryInteractSpecialRoom(time);
       }
 
+      if (Phaser.Input.Keyboard.JustDown(this.keys.swapWeapon) || bridge.consumeWeaponSwap()) {
+        this.swapWeapons(time);
+      }
+
       const abilityKeys = [this.keys.one, this.keys.two] as const;
       if (pointer.rightButtonDown()) this.castAbility(1, time);
       abilityKeys.forEach((key, index) => {
@@ -849,6 +859,20 @@ export function createArpgDungeonScene(
         this.flashPlayer(ABILITY_COLORS.water, 150);
         bridge.emitMessage(`${weapon.name}: Eco Restaurador recupera vida.`);
       }
+    }
+
+    private swapWeapons(time: number) {
+      if (this.currentWeaponId === this.secondaryWeaponId) return;
+      if (bridge.isServerAuthoritativeCombat() && this.proceduralController && this.proceduralRoomId) {
+        if (!this.serverActionPending) this.submitServerCombatCommand(this.proceduralRoomId, "swap_weapon", time);
+        return;
+      }
+
+      [this.currentWeaponId, this.secondaryWeaponId] = [this.secondaryWeaponId, this.currentWeaponId];
+      const weapon = ARPG_WEAPON_BY_ID.get(this.currentWeaponId) ?? ARPG_WEAPONS[0];
+      bridge.emitMessage(`${weapon.name} em uso. Pressione Q para alternar.`);
+      this.emitRunCheckpoint();
+      this.emitHud(time);
     }
     private resolveCombatAim() {
       const gamepadMagnitude = Math.abs(this.gamepad.aimX) + Math.abs(this.gamepad.aimY);
@@ -1531,6 +1555,8 @@ export function createArpgDungeonScene(
         : 0;
       const pendingBreakableShards = Math.max(0, this.runShards - previousServerTotal - serverBaseIncrease);
       this.serverCombatState = state;
+      this.currentWeaponId = state.weaponId;
+      this.secondaryWeaponId = state.secondaryWeaponId;
       this.hp = state.playerHp;
       this.basicAttackCounter = state.attackCount;
       this.nextAttackAt = time + Math.max(0, state.nextAttackAtMs - state.serverTimeMs);
@@ -1555,6 +1581,10 @@ export function createArpgDungeonScene(
         this.playPlayerAction("hit", time, 250);
         this.flashPlayer(0xff7a72, 160);
         this.cameras.main.shake(90, 0.0025);
+      }
+      if (commandKind === "swap_weapon" && previousServerState?.weaponId !== state.weaponId) {
+        const weapon = ARPG_WEAPON_BY_ID.get(state.weaponId) ?? ARPG_WEAPONS[0];
+        bridge.emitMessage(`${weapon.name} em uso. Pressione Q para alternar.`);
       }
 
       for (const serverEnemy of state.enemies) {
@@ -2844,8 +2874,12 @@ export function createArpgDungeonScene(
 
     private applyRoomLoot(loot: DungeonLoot) {
       if (loot.kind === "weapon") {
-        this.currentWeaponId = loot.id;
-        this.basicAttackCounter = 0;
+        if (loot.id === this.secondaryWeaponId) {
+          [this.currentWeaponId, this.secondaryWeaponId] = [this.secondaryWeaponId, this.currentWeaponId];
+        } else if (loot.id !== this.currentWeaponId) {
+          this.secondaryWeaponId = this.currentWeaponId;
+          this.currentWeaponId = loot.id;
+        }
         return;
       }
 
@@ -2897,6 +2931,7 @@ export function createArpgDungeonScene(
         playerHp: Math.max(0, Math.round(this.hp)),
         maxHp: Math.max(1, Math.round(this.maxHp)),
         weaponId: this.currentWeaponId,
+        secondaryWeaponId: this.secondaryWeaponId,
         armorId: this.currentArmorId,
         xpEarned: Math.max(0, Math.round(this.xpEarned)),
         runShards: Math.max(0, Math.round(this.runShards)),
@@ -2957,6 +2992,7 @@ export function createArpgDungeonScene(
         roomCount: proceduralRoomCount ?? this.roomWaves.length,
         enemiesRemaining: this.enemies?.countActive(true) ?? 0,
         weaponId: this.currentWeaponId,
+        secondaryWeaponId: this.secondaryWeaponId,
         armorId: this.currentArmorId,
         relicId: selectedRelic.id,
         dungeonMap: this.buildDungeonMap(),

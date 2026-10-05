@@ -8,6 +8,7 @@ import {
   type ArpgExpeditionId,
 } from "@/game/arpg/content/expeditions";
 import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
+import { getDefaultSecondaryArpgWeaponId } from "@/game/arpg/content/equipment";
 import type { ArpgHudState, ArpgLoadout, ArpgRunCheckpointState } from "@/game/arpg/domain/types";
 import type { ArpgRunCheckpoint } from "@/game/arpg/dungeon/run-checkpoint";
 import type { ArpgDungeonCombatState } from "@/game/arpg/dungeon/combat-authority";
@@ -374,6 +375,8 @@ export function ArpgGame({
         <RunHud state={hud} />
         <TouchControls
           bridge={bridge}
+          weaponId={hud?.weaponId ?? loadout.weaponId}
+          secondaryWeaponId={hud?.secondaryWeaponId ?? loadout.secondaryWeaponId ?? getDefaultSecondaryArpgWeaponId(loadout.weaponId)}
           abilityIds={hud?.abilityIds ?? loadout.abilityIds}
           abilityReadyAt={hud?.abilityReadyAt ?? {}}
           nowMs={hud?.nowMs ?? 0}

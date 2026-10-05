@@ -1,7 +1,9 @@
 "use client";
 
-import { Crosshair, Footprints, Hand, Sparkles } from "lucide-react";
+import { Crosshair, Footprints, Hand, Sparkles, Swords } from "lucide-react";
 import { ARPG_ABILITY_CARD_BY_ID } from "@/game/arpg/content/ability-cards";
+import { ARPG_WEAPONS, getDefaultSecondaryArpgWeaponId } from "@/game/arpg/content/equipment";
+import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
 import { MATA_CARDS } from "@/game/arpg/content/mata-encantada";
 import { CREATURE_BY_ID } from "@/game/catalog";
 import { ArpgBridge } from "@/game/arpg/runtime/bridge";
@@ -27,6 +29,8 @@ function activateFromKeyboard(action: () => void) {
 
 export function TouchControls({
   bridge,
+  weaponId,
+  secondaryWeaponId,
   abilityIds,
   abilityReadyAt,
   nowMs,
@@ -36,6 +40,8 @@ export function TouchControls({
   specialRoomAvailable = false,
 }: {
   bridge: ArpgBridge;
+  weaponId?: string;
+  secondaryWeaponId?: string;
   abilityIds: [string, string];
   abilityReadyAt: Record<string, number>;
   nowMs: number;
@@ -45,6 +51,10 @@ export function TouchControls({
   specialRoomAvailable?: boolean;
 }) {
   const cards = abilityIds.map((id) => ARPG_ABILITY_CARD_BY_ID.get(id) ?? MATA_CARDS[0]);
+  const activeWeaponId = weaponId ?? DEFAULT_ARPG_LOADOUT.weaponId;
+  const reserveWeaponId = secondaryWeaponId ?? getDefaultSecondaryArpgWeaponId(activeWeaponId);
+  const weapon = ARPG_WEAPONS.find((item) => item.id === activeWeaponId) ?? ARPG_WEAPONS[0];
+  const secondaryWeapon = ARPG_WEAPONS.find((item) => item.id === reserveWeaponId) ?? ARPG_WEAPONS[0];
   const dashRemaining = Math.max(0, dashReadyAt - nowMs);
   const dashCooling = dashRemaining > 50;
   const showInteraction = chestAvailable || exitPortalAvailable || specialRoomAvailable;
@@ -117,6 +127,17 @@ export function TouchControls({
         </div>
 
         <div className="arpg-touch__combat">
+          <button
+            type="button"
+            className="arpg-touch__weapon-swap"
+            aria-label={`Trocar arma: atual ${weapon.name}, próxima ${secondaryWeapon.name}`}
+            onPointerDown={() => bridge.queueWeaponSwap()}
+            onClick={activateFromKeyboard(() => bridge.queueWeaponSwap())}
+          >
+            <Swords aria-hidden="true" />
+            <span>Arma: {weapon.name}</span>
+            <small>Trocar por {secondaryWeapon.name}</small>
+          </button>
           <button
             type="button"
             className="arpg-touch__attack"

@@ -34,6 +34,28 @@ describe("TouchControls ability cards", () => {
     expect(screen.getByRole("button", { name: /Chama do Boitatá: Pronta/ })).toHaveClass("is-ready");
   });
 
+  it("shows the active and reserve weapon and queues a quick swap", () => {
+    const bridge = { queueWeaponSwap: vi.fn() } as unknown as ArpgBridge;
+    render(
+      <TouchControls
+        bridge={bridge}
+        weaponId="forest-bow"
+        secondaryWeaponId="iron-sword"
+        abilityIds={["ancestral-roots", "boitata-flame"]}
+        abilityReadyAt={{}}
+        nowMs={0}
+        dashReadyAt={0}
+        chestAvailable={false}
+      />,
+    );
+
+    const swap = screen.getByRole("button", { name: "Trocar arma: atual Arco da Mata, próxima Espada de Ferro" });
+    expect(swap).toHaveTextContent("Arma: Arco da Mata");
+    expect(swap).toHaveTextContent("Trocar por Espada de Ferro");
+    fireEvent.pointerDown(swap);
+    expect(bridge.queueWeaponSwap).toHaveBeenCalledOnce();
+  });
+
   it("shows exactly two attacks and has no support controls", () => {
     const bridge = { queueAbility: vi.fn() } as unknown as ArpgBridge;
     const { container } = render(

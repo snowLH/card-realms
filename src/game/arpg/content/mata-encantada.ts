@@ -218,6 +218,7 @@ export const MATA_ROOM_LOOT_POOLS = [
 
 export const DEFAULT_ARPG_LOADOUT: ArpgLoadout = {
   weaponId: MATA_WEAPONS[1].id,
+  secondaryWeaponId: MATA_WEAPONS[0].id,
   armorId: MATA_ARMORS[0].id,
   relicId: STARTER_ARPG_RELIC_ID,
   abilityIds: [MATA_CARDS[0].id, MATA_CARDS[1].id],

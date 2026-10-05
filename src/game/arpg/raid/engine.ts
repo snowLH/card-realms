@@ -1,5 +1,6 @@
 import { CREATURE_BY_ID } from "@/game/catalog";
 import { elementMultiplier } from "@/game/domain/elements";
+import { AvatarConfigSchema } from "@/game/save/local-progress";
 import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
 import {
   ARPG_ARMORS,
@@ -331,12 +332,17 @@ export function createArpgRaidState(
     .sort((left, right) => left.seat - right.seat)
     .map((setup): ArpgRaidPlayerState => {
       validateLoadout(setup);
+      const avatar = AvatarConfigSchema.safeParse(setup.avatarConfig);
+      if (!avatar.success) {
+        throw new ArpgRaidRuleError(`${setup.name} possui uma configuração de avatar ARPG inválida.`);
+      }
       const armor = ARPG_ARMORS.find((item) => item.id === setup.loadout.armorId)!;
       const spawn = SPAWNS[setup.seat - 1];
       return {
         id: setup.id,
         name: setup.name,
         seat: setup.seat,
+        avatarConfig: { ...avatar.data },
         x: spawn.x,
         y: spawn.y,
         hp: PLAYER_BASE_HP + armor.maxHpBonus,

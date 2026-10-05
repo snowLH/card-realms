@@ -25,6 +25,7 @@ function request(body: unknown) {
 
 const validLoadout = {
   weaponId: "forest-bow",
+  secondaryWeaponId: "iron-sword",
   armorId: "leather-armor",
   relicId: "cartographer-compass",
   abilityIds: ["ancestral-roots", "boitata-flame"],
@@ -43,6 +44,7 @@ describe("PATCH /api/arpg/loadout", () => {
     expect(response.status).toBe(200);
     expect(mocks.rpc).toHaveBeenCalledWith("save_arpg_loadout", {
       target_weapon_id: "forest-bow",
+      target_secondary_weapon_id: "iron-sword",
       target_armor_id: "leather-armor",
       target_relic_id: "cartographer-compass",
       target_ability_ids: ["ancestral-roots", "boitata-flame"],

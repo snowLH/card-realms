@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
 import { STARTER_ARPG_ABILITY_IDS } from "@/game/arpg/content/ability-cards";
@@ -58,6 +58,22 @@ describe("ArpgLoadoutView", () => {
     expect(screen.getByRole("button", { name: /Curupira, Raízes Ancestrais/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Caipora, Flecha da Caipora/ })).not.toBeInTheDocument();
     expect(screen.queryByText("Saldo disponível:")).not.toBeInTheDocument();
+  });
+
+  it("lets the player choose two weapon slots and swap their positions", () => {
+    const { props } = renderLoadout({ focus: "all" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Espaço 2 · Espada de Ferro" }));
+    const weaponSection = screen.getByText("Duas armas").closest("section");
+    expect(weaponSection).not.toBeNull();
+    fireEvent.click(within(weaponSection as HTMLElement).getByRole("button", { name: /RaroArco da Mata/ }));
+
+    expect(props.onChange).toHaveBeenLastCalledWith(expect.objectContaining({
+      weaponId: "iron-sword",
+      secondaryWeaponId: "forest-bow",
+      abilityIds: DEFAULT_ARPG_LOADOUT.abilityIds,
+    }));
+    expect(screen.getByRole("button", { name: "Espaço 2 · Espada de Ferro" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("reuses the shared avatar editor and gives a direct route back to the Guilda", async () => {

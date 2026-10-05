@@ -19,7 +19,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CREATURES, REGIONS } from "@/game/catalog";
 import { ARPG_ABILITY_CARD_BY_ID, ARPG_ABILITY_CARD_IDS } from "@/game/arpg/content/ability-cards";
-import { ARPG_ARMORS, ARPG_WEAPONS } from "@/game/arpg/content/equipment";
+import { ARPG_ARMORS, ARPG_WEAPONS, getDefaultSecondaryArpgWeaponId } from "@/game/arpg/content/equipment";
 import {
   ARPG_MERCHANT_PRODUCT_BY_KEY,
   ARPG_MERCHANT_PRODUCT_KEYS,
@@ -53,6 +53,7 @@ import { cn } from "@/lib/utils";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { ArpgExpeditionSelect } from "@/components/arpg/expedition-select";
 import { ArpgLoadoutView, type ArpgLoadoutFocus } from "@/components/arpg/loadout-view";
+import { ArpgPowerGacha } from "@/components/arpg/power-gacha";
 import { Badge } from "@/components/ui/badge";
 import { CollectionView } from "./collection-view";
 import { HubView } from "./hub-view";
@@ -142,6 +143,7 @@ const ARPG_INVENTORY_ITEM_IDS = new Set([
 function normalizeArpgLoadoutOwnership(loadout: ArpgLoadout, inventoryItemKeys: readonly string[]): ArpgLoadout {
   const owned = new Set([
     DEFAULT_ARPG_LOADOUT.weaponId,
+    DEFAULT_ARPG_LOADOUT.secondaryWeaponId!,
     DEFAULT_ARPG_LOADOUT.armorId,
     STARTER_ARPG_RELIC_ID,
     ...getOwnedArpgAbilityCardIds(inventoryItemKeys),
@@ -150,9 +152,18 @@ function normalizeArpgLoadoutOwnership(loadout: ArpgLoadout, inventoryItemKeys: 
   const abilityIds = loadout.abilityIds.map((id, index) =>
     ARPG_ABILITY_CARD_IDS.has(id) && owned.has(id) ? id : DEFAULT_ARPG_LOADOUT.abilityIds[index]
   ) as [string, string];
+  const weaponId = owned.has(loadout.weaponId) ? loadout.weaponId : DEFAULT_ARPG_LOADOUT.weaponId;
+  const requestedSecondaryWeaponId = loadout.secondaryWeaponId
+    ?? getDefaultSecondaryArpgWeaponId(weaponId);
+  const secondaryWeaponId = requestedSecondaryWeaponId !== weaponId && owned.has(requestedSecondaryWeaponId)
+    ? requestedSecondaryWeaponId
+    : [DEFAULT_ARPG_LOADOUT.secondaryWeaponId, DEFAULT_ARPG_LOADOUT.weaponId]
+      .find((id): id is string => Boolean(id && id !== weaponId && owned.has(id)))
+      ?? getDefaultSecondaryArpgWeaponId(weaponId);
   return {
     ...loadout,
-    weaponId: owned.has(loadout.weaponId) ? loadout.weaponId : DEFAULT_ARPG_LOADOUT.weaponId,
+    weaponId,
+    secondaryWeaponId,
     armorId: owned.has(loadout.armorId) ? loadout.armorId : DEFAULT_ARPG_LOADOUT.armorId,
     relicId: ARPG_RELIC_IDS.has(loadout.relicId) && owned.has(loadout.relicId)
       ? loadout.relicId
@@ -892,7 +903,19 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             onSaveAvatar={handleSaveAvatar}
             onBack={() => void handleBackToHub()}
             onPlay={() => navigate("expeditions")}
-          />
+          >
+            {loadoutFocus === "cards" ? (
+              <ArpgPowerGacha
+                authenticated={bootstrap.source === "supabase"}
+                accountId={bootstrap.identity?.id ?? null}
+                onResult={(result) => {
+                  setCoins(result.coins);
+                  setEquipmentIds((current) => [...new Set([...current, result.itemId])]);
+                  if (bootstrap.source === "supabase") router.refresh();
+                }}
+              />
+            ) : null}
+          </ArpgLoadoutView>
         ) : null}
         {!showWelcome && view === "refuge" ? (
           <RefugeView

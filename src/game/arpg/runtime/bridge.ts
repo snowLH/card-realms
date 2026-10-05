@@ -30,6 +30,7 @@ export class ArpgBridge implements ArpgRuntimeBridge {
   };
 
   private dashQueued = false;
+  private weaponSwapQueued = false;
   private interactQueued = false;
   private lootDecision: "equip" | "keep" | null = null;
   private roomChoice: string | null = null;
@@ -102,12 +103,17 @@ export class ArpgBridge implements ArpgRuntimeBridge {
     this.input.aimY = 0;
     this.input.attack = false;
     this.dashQueued = false;
+    this.weaponSwapQueued = false;
     this.interactQueued = false;
     this.abilityQueued.fill(false);
   }
 
   queueDash() {
     this.dashQueued = true;
+  }
+
+  queueWeaponSwap() {
+    this.weaponSwapQueued = true;
   }
 
   queueInteract() {
@@ -129,6 +135,12 @@ export class ArpgBridge implements ArpgRuntimeBridge {
   consumeDash() {
     const queued = this.dashQueued;
     this.dashQueued = false;
+    return queued;
+  }
+
+  consumeWeaponSwap() {
+    const queued = this.weaponSwapQueued;
+    this.weaponSwapQueued = false;
     return queued;
   }
 

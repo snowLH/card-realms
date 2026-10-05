@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(52);
+select plan(54);
 
 select has_column(
   'public', 'raid_rooms', 'gameplay_mode',
@@ -61,7 +61,7 @@ select ok(
 
 insert into auth.users (id, email) values
   ('ab000000-0000-4000-8000-000000000001', 'raid-authority-host@test.invalid'),
-  ('ab000000-0000-4000-8000-000000000002', 'raid-authority-guest@test.invalid');
+  ('ac000000-0000-4000-8000-000000000002', 'raid-authority-guest@test.invalid');
 
 insert into public.raid_events (
   id, slug, title, boss_creature_id, starts_at, ends_at, min_players,
@@ -93,7 +93,7 @@ select lives_ok(
     )$$,
   'the host saves two owned powers for both Raid modes'
 );
-select set_config('request.jwt.claim.sub', 'ab000000-0000-4000-8000-000000000002', true);
+select set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000002', true);
 select lives_ok(
   $$select public.save_arpg_loadout(
       'forest-bow', 'leather-armor', 'cartographer-compass',
@@ -127,7 +127,7 @@ insert into pg_temp.raid_authority_fixture (
   legacy_active_room_id, legacy_lobby_room_id
 ) values (
   'ab000000-0000-4000-8000-000000000001',
-  'ab000000-0000-4000-8000-000000000002',
+  'ac000000-0000-4000-8000-000000000002',
   'ae000000-0000-4000-8000-000000000001',
   'ae000000-0000-4000-8000-000000000002',
   'ac000000-0000-4000-8000-000000000001',
@@ -144,7 +144,7 @@ set avatar_room_id = (created.payload ->> 'roomId')::uuid,
     avatar_invite_code = created.payload ->> 'inviteCode'
 from created;
 
-select set_config('request.jwt.claim.sub', 'ab000000-0000-4000-8000-000000000002', true);
+select set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000002', true);
 select public.join_raid_room(avatar_invite_code)
 from pg_temp.raid_authority_fixture;
 
@@ -158,14 +158,14 @@ set arpg_room_id = (created.payload ->> 'roomId')::uuid,
     arpg_invite_code = created.payload ->> 'inviteCode'
 from created;
 
-select set_config('request.jwt.claim.sub', 'ab000000-0000-4000-8000-000000000002', true);
+select set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000002', true);
 select public.join_raid_room(arpg_invite_code)
 from pg_temp.raid_authority_fixture;
 
 select set_config('request.jwt.claim.sub', 'ab000000-0000-4000-8000-000000000001', true);
 select public.set_raid_ready(avatar_room_id, true) from pg_temp.raid_authority_fixture;
 select public.set_raid_ready(arpg_room_id, true) from pg_temp.raid_authority_fixture;
-select set_config('request.jwt.claim.sub', 'ab000000-0000-4000-8000-000000000002', true);
+select set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000002', true);
 select public.set_raid_ready(avatar_room_id, true) from pg_temp.raid_authority_fixture;
 select public.set_raid_ready(arpg_room_id, true) from pg_temp.raid_authority_fixture;
 reset role;
@@ -618,6 +618,19 @@ select throws_ok(
   '22023', null,
   'ARPG Raid start rejects a boss that differs from the event'
 );
+select throws_ok(
+  $$select public.start_raid_room(
+      fixture.arpg_room_id,
+      jsonb_set(
+        fixture.arpg_initial_state,
+        '{players,0,loadout,secondaryWeaponId}',
+        '"ritual-staff"'::jsonb,
+        true
+      )
+    ) from pg_temp.raid_authority_fixture as fixture$$,
+  '22023', null,
+  'ARPG Raid start rejects a second weapon that differs from its frozen snapshot'
+);
 select lives_ok(
   $$select public.start_raid_room(fixture.arpg_room_id, fixture.arpg_initial_state)
     from pg_temp.raid_authority_fixture as fixture$$,
@@ -647,6 +660,23 @@ select throws_ok(
   '22023', null,
   'ARPG Raid commits reject supporter IDs in the loadout'
 );
+select throws_ok(
+  $$select public.commit_raid_action(
+      fixture.arpg_room_id, fixture.host_id, 1,
+      'af000000-0000-4000-8000-000000000010', 'input',
+      jsonb_build_object('roomId', fixture.arpg_room_id::text, 'expectedVersion', 1,
+        'actionId', 'af000000-0000-4000-8000-000000000010', 'action', 'input'),
+      jsonb_set(
+        fixture.arpg_initial_state,
+        '{players,0,loadout,secondaryWeaponId}',
+        '"ritual-staff"'::jsonb,
+        true
+      ),
+      '[]'::jsonb
+    ) from pg_temp.raid_authority_fixture as fixture$$,
+  '22023', null,
+  'ARPG Raid commits reject a second weapon that differs from its frozen snapshot'
+);
 select lives_ok(
   $$select public.commit_raid_action(
       fixture.arpg_room_id, fixture.host_id, 1,
@@ -666,5 +696,5 @@ select is(
   'the ARPG commit also advances its room version once'
 );
 
-select * from finish();
+select * from finish(true);
 rollback;

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
 import { ARPG_DUNGEON_CONFIGS } from "../content/dungeons";
-import { ARPG_ARMOR_BY_ID, ARPG_WEAPON_BY_ID, getArmorAbilityCooldownMs, getArmorDashCooldownMs, getArmorMovingDefenseBonus, getWeaponAttackIntervalMs, getWeaponAttackProc } from "../content/equipment";
+import { ARPG_ARMOR_BY_ID, ARPG_WEAPON_BY_ID, getArmorAbilityCooldownMs, getArmorDashCooldownMs, getArmorMovingDefenseBonus, getDefaultSecondaryArpgWeaponId, getWeaponAttackIntervalMs, getWeaponAttackProc } from "../content/equipment";
 import { ARPG_RELIC_BY_ID, getRelicAbilityCooldownMs } from "../content/relics";
 import type { ArpgArmorDefinition, ArpgLoadout } from "../domain/types";
 import { getRunShardReward } from "./special-rooms";
@@ -79,6 +79,7 @@ export const ArpgDungeonCombatStateSchema = z.strictObject({
   playerHp: z.number().int().min(0).max(500),
   maxHp: z.number().int().min(1).max(500),
   weaponId: z.string().min(1).max(80),
+  secondaryWeaponId: z.string().min(1).max(80).optional(),
   armorId: z.string().min(1).max(80),
   attackCount: z.number().int().nonnegative(),
   nextAttackAtMs: z.number().int().nonnegative(),
@@ -107,18 +108,24 @@ export const ArpgDungeonCombatStateSchema = z.strictObject({
     context.addIssue({ code: "custom", path: ["enemies"], message: "Estado de inimigos inconsistente." });
   }
   if (state.waveIndex >= state.waveCount) context.addIssue({ code: "custom", path: ["waveIndex"], message: "Onda inválida." });
-}).transform(({ nextSupportAtMs, nextSupportSwapAtMs, activeSupportIndex, ...state }) => {
+  if (state.secondaryWeaponId === state.weaponId) {
+    context.addIssue({ code: "custom", path: ["secondaryWeaponId"], message: "O encontro exige duas armas diferentes." });
+  }
+}).transform(({ nextSupportAtMs, nextSupportSwapAtMs, activeSupportIndex, secondaryWeaponId, ...state }) => {
   void nextSupportAtMs;
   void nextSupportSwapAtMs;
   void activeSupportIndex;
-  return state;
+  return {
+    ...state,
+    secondaryWeaponId: secondaryWeaponId ?? getDefaultSecondaryArpgWeaponId(state.weaponId),
+  };
 });
 
 export type ArpgDungeonCombatState = z.infer<typeof ArpgDungeonCombatStateSchema>;
 
 export type ArpgDungeonCombatCommand = {
   actionId: string;
-  kind: "sync" | "basic_attack" | "ability" | "dash";
+  kind: "sync" | "basic_attack" | "ability" | "dash" | "swap_weapon";
   playerX: number;
   playerY: number;
   aimX: number;
@@ -260,6 +267,7 @@ export function createArpgDungeonCombatState(options: {
     playerHp: Math.max(0, Math.min(options.maxHp, options.playerHp)),
     maxHp: options.maxHp,
     weaponId: loadout.weaponId,
+    secondaryWeaponId: loadout.secondaryWeaponId ?? getDefaultSecondaryArpgWeaponId(loadout.weaponId),
     armorId: loadout.armorId,
     attackCount: 0,
     nextAttackAtMs: options.nowMs,
@@ -940,7 +948,15 @@ export function applyArpgDungeonCombatCommand(options: {
   if (current.processedActionIds.includes(command.actionId)) return current;
   const { room, config } = getCombatRoom(graph, current.roomId);
   if (current.status === "victory" || current.status === "defeat") throw new ArpgDungeonCombatRuleError("Este encontro já terminou.");
-  if (current.weaponId !== options.loadout.weaponId) throw new ArpgDungeonCombatRuleError("A arma do encontro não corresponde ao loadout validado.");
+  const secondaryWeaponId = options.loadout.secondaryWeaponId
+    ?? getDefaultSecondaryArpgWeaponId(options.loadout.weaponId);
+  if (
+    current.weaponId !== options.loadout.weaponId
+    || current.secondaryWeaponId !== secondaryWeaponId
+    || current.weaponId === current.secondaryWeaponId
+    || !ARPG_WEAPON_BY_ID.has(current.weaponId)
+    || !ARPG_WEAPON_BY_ID.has(current.secondaryWeaponId)
+  ) throw new ArpgDungeonCombatRuleError("As armas do encontro não correspondem ao loadout validado.");
   if (current.armorId !== options.loadout.armorId) throw new ArpgDungeonCombatRuleError("A armadura do encontro não corresponde ao loadout validado.");
   const nextServerTimeMs = Math.min(options.nowMs, current.serverTimeMs + MAX_ADVANCE_MS);
   if (command.kind === "dash" && nextServerTimeMs < current.nextDashAtMs) {
@@ -973,6 +989,8 @@ export function applyArpgDungeonCombatCommand(options: {
       const armor = ARPG_ARMOR_BY_ID.get(current.armorId)!;
       current.dashUntilMs = current.serverTimeMs + PLAYER_DASH_DURATION_MS;
       current.nextDashAtMs = current.serverTimeMs + getArmorDashCooldownMs(armor, PLAYER_DASH_COOLDOWN_MS);
+    } else if (command.kind === "swap_weapon") {
+      [current.weaponId, current.secondaryWeaponId] = [current.secondaryWeaponId, current.weaponId];
     }
   }
 

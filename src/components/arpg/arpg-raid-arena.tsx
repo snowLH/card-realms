@@ -18,6 +18,7 @@ import type { ArpgRaidState } from "@/game/arpg/raid";
 import { readBrowserGamepad } from "@/game/arpg/runtime/gamepad";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { CharacterAvatar2D } from "@/components/game/character-avatar";
 import { PixelCreature } from "@/components/game/pixel-creature";
 
 type RaidPayload = {
@@ -373,7 +374,9 @@ export function ArpgRaidArena({
             key={entry.id}
             style={{ left: percent(entry.x, WORLD_WIDTH), top: percent(entry.y, WORLD_HEIGHT) }}
           >
-            <span className="arpg-raid-player__token">{entry.seat}</span>
+            <div className="arpg-raid-player__avatar" data-seat={entry.seat}>
+              <CharacterAvatar2D config={entry.avatarConfig} compact />
+            </div>
             <strong>{entry.name}{entry.id === playerId ? " · você" : ""}</strong>
             <div className="arpg-raid-bar"><i style={{ width: `${entry.maxHp > 0 ? (entry.hp / entry.maxHp) * 100 : 0}%` }} /></div>
             <small>{entry.hp}/{entry.maxHp}</small>

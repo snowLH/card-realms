@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ArrowLeft, Coins, Gem, Shield, Sparkles, Swords, Zap } from "lucide-react";
 import {
   ARPG_ABILITY_CARD_BY_ID,
   ARPG_ABILITY_CARDS,
   STARTER_ARPG_ABILITY_IDS,
 } from "@/game/arpg/content/ability-cards";
-import { ARPG_ARMORS, ARPG_WEAPONS } from "@/game/arpg/content/equipment";
+import { ARPG_ARMORS, ARPG_WEAPONS, getDefaultSecondaryArpgWeaponId } from "@/game/arpg/content/equipment";
 import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
 import { CREATURE_BY_ID } from "@/game/catalog";
 import {
@@ -50,6 +50,7 @@ export function ArpgLoadoutView({
   onSaveAvatar,
   onBack,
   onPlay,
+  children,
 }: {
   focus?: ArpgLoadoutFocus;
   loadout: ArpgLoadout;
@@ -62,18 +63,23 @@ export function ArpgLoadoutView({
   onSaveAvatar: (config: AvatarConfig) => Promise<void> | void;
   onBack: () => void;
   onPlay: () => void;
+  children?: ReactNode;
 }) {
   const [activeAbilitySlot, setActiveAbilitySlot] = useState<0 | 1>(0);
+  const [activeWeaponSlot, setActiveWeaponSlot] = useState<0 | 1>(0);
   const [pendingCardId, setPendingCardId] = useState<string | null>(null);
   const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
   const ownedItems = new Set([
     DEFAULT_ARPG_LOADOUT.weaponId,
+    DEFAULT_ARPG_LOADOUT.secondaryWeaponId!,
     DEFAULT_ARPG_LOADOUT.armorId,
     STARTER_ARPG_RELIC_ID,
     ...inventoryItemKeys,
   ]);
   const ownedPowers = new Set(ownedAbilityCardIds);
   const selectedWeapon = ARPG_WEAPONS.find((item) => item.id === loadout.weaponId) ?? ARPG_WEAPONS[0];
+  const secondaryWeaponId = loadout.secondaryWeaponId ?? getDefaultSecondaryArpgWeaponId(loadout.weaponId);
+  const selectedSecondaryWeapon = ARPG_WEAPONS.find((item) => item.id === secondaryWeaponId) ?? ARPG_WEAPONS[0];
   const selectedArmor = ARPG_ARMORS.find((item) => item.id === loadout.armorId) ?? ARPG_ARMORS[0];
   const selectedRelic = ARPG_RELIC_BY_ID.get(loadout.relicId) ?? ARPG_RELIC_BY_ID.get(STARTER_ARPG_RELIC_ID)!;
   const selectedCards = loadout.abilityIds.map((id) =>
@@ -91,6 +97,23 @@ export function ArpgLoadoutView({
     }
     onChange({ ...loadout, abilityIds: next });
     setPurchaseMessage(null);
+  };
+
+  const equipWeapon = (weaponId: string) => {
+    if (!ownedItems.has(weaponId)) return;
+    if (activeWeaponSlot === 0) {
+      onChange({
+        ...loadout,
+        weaponId,
+        secondaryWeaponId: weaponId === secondaryWeaponId ? loadout.weaponId : secondaryWeaponId,
+      });
+    } else {
+      onChange({
+        ...loadout,
+        weaponId: weaponId === loadout.weaponId ? secondaryWeaponId : loadout.weaponId,
+        secondaryWeaponId: weaponId,
+      });
+    }
   };
 
   const purchaseCard = async (cardId: string) => {
@@ -165,7 +188,7 @@ export function ArpgLoadoutView({
 
       {focus === "all" ? (
         <div className="arpg-loadout-summary">
-          <span><Swords aria-hidden="true" /><b>{selectedWeapon.name}</b><small>{selectedWeapon.damage} dano</small></span>
+        <span><Swords aria-hidden="true" /><b>2 armas</b><small>{selectedWeapon.name} · {selectedSecondaryWeapon.name}</small></span>
           <span><Shield aria-hidden="true" /><b>{selectedArmor.name}</b><small>+{selectedArmor.maxHpBonus} HP</small></span>
           <span><Gem aria-hidden="true" /><b>{selectedRelic.name}</b><small>{selectedRelic.effectLabel}</small></span>
           <span><Zap aria-hidden="true" /><b>2 ataques</b><small>{selectedCards.map((card) => card.name).join(" · ")}</small></span>
@@ -175,19 +198,29 @@ export function ArpgLoadoutView({
 
       {focus === "all" ? <>
         <section className="arpg-loadout-section">
-          <div className="arpg-loadout-section__heading"><Swords aria-hidden="true" /><div><strong>Arma</strong><small>Define o ataque básico.</small></div></div>
+          <div className="arpg-loadout-section__heading"><Swords aria-hidden="true" /><div><strong>Duas armas</strong><small>Alterne entre os espaços 1 e 2 durante a expedição.</small></div></div>
+          <div className="arpg-loadout-weapon-slots" role="group" aria-label="Espaço de arma para selecionar">
+            <button type="button" aria-pressed={activeWeaponSlot === 0} onClick={() => setActiveWeaponSlot(0)}>
+              Espaço 1 · {selectedWeapon.name}
+            </button>
+            <button type="button" aria-pressed={activeWeaponSlot === 1} onClick={() => setActiveWeaponSlot(1)}>
+              Espaço 2 · {selectedSecondaryWeapon.name}
+            </button>
+          </div>
           <div className="arpg-loadout-grid arpg-loadout-grid--equipment">
             {ARPG_WEAPONS.map((weapon) => {
               const unlocked = ownedItems.has(weapon.id);
+              const slot = weapon.id === loadout.weaponId ? 0 : weapon.id === secondaryWeaponId ? 1 : null;
               return (
                 <button
                   type="button"
                   key={weapon.id}
                   disabled={!unlocked}
-                  className={loadout.weaponId === weapon.id ? "is-selected" : undefined}
-                  onClick={() => onChange({ ...loadout, weaponId: weapon.id })}
+                  aria-pressed={slot === activeWeaponSlot}
+                  className={slot === activeWeaponSlot ? "is-selected" : undefined}
+                  onClick={() => equipWeapon(weapon.id)}
                 >
-                  <small>{rarityLabel[weapon.rarity] ?? weapon.rarity}</small>
+                  <small>{slot === null ? `Espaço ${activeWeaponSlot + 1} · ` : `Espaço ${slot + 1} · `}{rarityLabel[weapon.rarity] ?? weapon.rarity}</small>
                   <strong>{unlocked ? weapon.name : "Arma não encontrada"}</strong>
                   <span>{unlocked ? `${weapon.damage} dano · ${weapon.kind}` : "Encontre em dungeons para desbloquear."}</span>
                   {unlocked && weapon.effect ? <em>{weapon.effect.label}: {weapon.effect.description}</em> : null}
@@ -324,6 +357,8 @@ export function ArpgLoadoutView({
           {focus === "cards" ? <p>Saldo disponível: <strong>{coins.toLocaleString("pt-BR")} moedas</strong></p> : null}
         </section>
       ) : null}
+
+      {children}
     </section>
   );
 }

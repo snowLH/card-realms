@@ -1,4 +1,5 @@
 import type { Element } from "@/game/types";
+import type { AvatarConfig } from "@/game/save/local-progress";
 import type { ArpgLoadout } from "../domain/types";
 
 export const ARPG_RAID_MIN_PLAYERS = 2 as const;
@@ -26,6 +27,7 @@ export type ArpgRaidPlayerState = {
   id: string;
   name: string;
   seat: number;
+  avatarConfig: AvatarConfig;
   x: number;
   y: number;
   hp: number;
@@ -103,6 +105,7 @@ export type ArpgRaidPlayerSetup = {
   id: string;
   name: string;
   seat: number;
+  avatarConfig: AvatarConfig;
   loadout: ArpgLoadout;
 };
 

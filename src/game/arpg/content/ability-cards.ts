@@ -1,4 +1,5 @@
 import type { ArpgAbilityCardDefinition } from "../domain/types";
+import { ARPG_FOLKLORE_ABILITY_EXPANSION } from "./folklore-ability-expansion";
 
 export const ARPG_ABILITY_CARDS: ArpgAbilityCardDefinition[] = [
   {
@@ -217,6 +218,7 @@ export const ARPG_ABILITY_CARDS: ArpgAbilityCardDefinition[] = [
     acquisition: { source: "lobby-shop", label: "Loja do lobby" },
     description: "Uma tempestade colossal cai no ponto mirado, causando alto dano e travando inimigos por alguns instantes.",
   },
+  ...ARPG_FOLKLORE_ABILITY_EXPANSION,
 ];
 
 export const STARTER_ARPG_ABILITY_IDS = [

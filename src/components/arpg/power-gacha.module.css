@@ -1,0 +1,414 @@
+.panel {
+  display: grid;
+  gap: 18px;
+  margin-top: 20px;
+  padding: clamp(16px, 2.8vw, 26px);
+  overflow: hidden;
+  border: 1px solid rgba(118, 180, 203, 0.32);
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 82% 2%, rgba(85, 150, 193, 0.2), transparent 42%),
+    linear-gradient(148deg, rgba(15, 32, 47, 0.98), rgba(8, 19, 31, 0.98));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.04), 0 18px 48px rgba(0, 0, 0, 0.2);
+  color: #eef8ff;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(135, 209, 234, 0.35);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(48, 112, 144, 0.55), rgba(29, 58, 86, 0.76));
+  color: #b3efff;
+}
+
+.icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.header small,
+.result small {
+  color: #8fc1d5;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.header h2 {
+  margin: 4px 0 0;
+  color: #f4fbff;
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
+}
+
+.header p {
+  max-width: 62ch;
+  margin: 7px 0 0;
+  color: #b7cbd8;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.odds {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.oddsCard {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  padding: 12px 11px;
+  border: 1px solid rgba(143, 177, 196, 0.17);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.oddsCard > span {
+  overflow: hidden;
+  color: #aebfca;
+  font-size: 0.68rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.oddsCard strong {
+  color: #f0f8ff;
+  font-size: 1.13rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.oddsCard small {
+  color: #94a9b8;
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+.oddsCard:nth-child(1) strong { color: #d5dde3; }
+.oddsCard:nth-child(2) strong { color: #83dba9; }
+.oddsCard:nth-child(3) strong { color: #75c9ff; }
+.oddsCard:nth-child(4) strong { color: #d19aff; }
+.oddsCard:nth-child(5) strong { color: #ffd27c; }
+
+.info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.info p {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 2px solid rgba(104, 186, 213, 0.65);
+  border-radius: 0 10px 10px 0;
+  background: rgba(72, 137, 164, 0.09);
+  color: #adc2ce;
+  font-size: 0.77rem;
+  line-height: 1.5;
+}
+
+.exchange {
+  display: grid;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid rgba(126, 174, 196, 0.2);
+  border-radius: 16px;
+  background: rgba(4, 15, 25, 0.48);
+}
+
+.exchangeHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.exchangeHeading h3 {
+  margin: 0;
+  color: #eff8fd;
+  font-size: 0.98rem;
+}
+
+.exchangeHeading p {
+  margin: 4px 0 0;
+  color: #a9becb;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.exchangeHeading > span {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  color: #d1e3ec;
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.exchangeHeading svg {
+  width: 15px;
+  height: 15px;
+  color: #94cde5;
+}
+
+.exchangeList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.exchangeCard {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid rgba(143, 177, 196, 0.15);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.exchangeCardInfo {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.exchangeCardInfo small {
+  overflow: hidden;
+  color: #92b7ca;
+  font-size: 0.64rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.exchangeCardInfo strong {
+  color: #edf7fb;
+  font-size: 0.8rem;
+}
+
+.exchangeCardInfo span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #99adba;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.exchangeButton {
+  display: inline-flex;
+  min-height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(136, 198, 219, 0.34);
+  border-radius: 10px;
+  background: rgba(51, 106, 130, 0.24);
+  color: #d8f4ff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 750;
+  white-space: nowrap;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.exchangeButton:hover:not(:disabled) {
+  border-color: rgba(157, 224, 245, 0.65);
+  background: rgba(57, 128, 157, 0.4);
+}
+
+.exchangeButton:focus-visible {
+  outline: 2px solid #b2e9fb;
+  outline-offset: 3px;
+}
+
+.exchangeButton:disabled {
+  color: #8fa1ab;
+  cursor: not-allowed;
+  filter: grayscale(0.5) brightness(0.78);
+}
+
+.exchangeMessage {
+  margin: 0;
+  color: #b4efc9;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.result {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(255, 213, 126, 0.4);
+  border-radius: 15px;
+  background: linear-gradient(110deg, rgba(118, 82, 32, 0.2), rgba(81, 65, 40, 0.08));
+  animation: result-reveal 300ms ease-out both;
+}
+
+.result[data-duplicate="true"] {
+  border-color: rgba(140, 196, 225, 0.34);
+  background: linear-gradient(110deg, rgba(46, 92, 119, 0.22), rgba(35, 54, 71, 0.1));
+}
+
+.result > svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: #ffd27c;
+}
+
+.result > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.result strong {
+  color: #fff5dc;
+  font-size: 1.05rem;
+}
+
+.result span,
+.result em {
+  color: #becbd2;
+  font-size: 0.8rem;
+  font-style: normal;
+  line-height: 1.45;
+}
+
+.result em {
+  color: #edcf92;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 5px;
+}
+
+.wallet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 15px;
+  color: #bbccd6;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.wallet span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wallet svg {
+  width: 15px;
+  height: 15px;
+  color: #f2c978;
+}
+
+.wallet span:last-child svg {
+  color: #94cde5;
+}
+
+.rollButton {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 220, 151, 0.44);
+  border-radius: 13px;
+  background: linear-gradient(135deg, #b77838, #8e552c);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.2), 0 6px 18px rgba(0, 0, 0, 0.2);
+  color: #fff9eb;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 800;
+  transition: filter 140ms ease, transform 140ms ease;
+}
+
+.rollButton:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.rollButton:focus-visible {
+  outline: 2px solid #f8dfaa;
+  outline-offset: 3px;
+}
+
+.rollButton:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.45) brightness(0.72);
+}
+
+.rollButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.error,
+.loading {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.error { color: #ffb0a4; }
+.loading { color: #adc2ce; }
+
+@keyframes result-reveal {
+  from { opacity: 0; transform: translateY(7px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 760px) {
+  .odds { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .info { grid-template-columns: 1fr; }
+  .footer { align-items: stretch; flex-direction: column; }
+  .rollButton { width: 100%; }
+  .exchangeList { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 430px) {
+  .panel { gap: 14px; border-radius: 17px; }
+  .odds { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .oddsCard:last-child { grid-column: span 2; }
+  .wallet { font-size: 0.76rem; }
+  .exchange { padding: 12px; }
+  .exchangeCard { align-items: stretch; flex-direction: column; }
+  .exchangeButton { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result { animation: none; }
+  .rollButton { transition: none; }
+  .exchangeButton { transition: none; }
+}

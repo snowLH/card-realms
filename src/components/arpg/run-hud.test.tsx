@@ -20,7 +20,7 @@ const rooms: ArpgMiniMapRoom[] = [
 function createHud(): ArpgHudState {
   return {
     nowMs: 1000, hp: 100, maxHp: 120, room: 2, roomCount: 9, enemiesRemaining: 0,
-    weaponId: "forest-bow", armorId: "leather-armor", relicId: STARTER_ARPG_RELIC_ID,
+    weaponId: "forest-bow", secondaryWeaponId: "iron-sword", armorId: "leather-armor", relicId: STARTER_ARPG_RELIC_ID,
     dungeonMap: { currentRoomId: "shop", rooms }, runShards: 12,
     chestAvailable: false, pendingLoot: null, pendingRoomChoice: null, runLoot: [],
     abilityIds: ["ancestral-roots", "boitata-flame"],
@@ -43,7 +43,7 @@ describe("RunHud minimap", () => {
     const { container } = render(<RunHud state={createHud()} />);
 
     expect(container.querySelectorAll(".arpg-hud__equipment")).toHaveLength(3);
-    expect(screen.getByRole("img", { name: "Arma equipada: Arco da Mata" })).toHaveAttribute("title", "Arma: Arco da Mata");
+    expect(screen.getByRole("img", { name: "Arma atual: Arco da Mata; reserva: Espada de Ferro; pressione Q para alternar" })).toHaveAttribute("title", "Atual: Arco da Mata · Reserva: Espada de Ferro · Q alterna");
     expect(screen.getByRole("img", { name: "Armadura equipada: Armadura de Couro" })).toHaveAttribute("title", "Armadura: Armadura de Couro");
     expect(screen.getByRole("img", { name: /Relíquia equipada:/ })).toBeInTheDocument();
     expect(container.querySelectorAll(".arpg-hud__cards > span")).toHaveLength(2);

@@ -19,6 +19,14 @@ export const ARPG_WEAPON_BY_ID = new Map(ARPG_WEAPONS.map((item) => [item.id, it
 export const ARPG_ARMOR_BY_ID = new Map(ARPG_ARMORS.map((item) => [item.id, item]));
 export const ARPG_WEAPON_IDS = new Set(ARPG_WEAPON_BY_ID.keys());
 export const ARPG_ARMOR_IDS = new Set(ARPG_ARMOR_BY_ID.keys());
+export const DEFAULT_ARPG_SECONDARY_WEAPON_ID = "iron-sword";
+
+export function getDefaultSecondaryArpgWeaponId(primaryWeaponId: string) {
+  if (primaryWeaponId !== DEFAULT_ARPG_SECONDARY_WEAPON_ID && ARPG_WEAPON_BY_ID.has(DEFAULT_ARPG_SECONDARY_WEAPON_ID)) {
+    return DEFAULT_ARPG_SECONDARY_WEAPON_ID;
+  }
+  return ARPG_WEAPONS.find((weapon) => weapon.id !== primaryWeaponId)?.id ?? primaryWeaponId;
+}
 
 export function getWeaponAttackIntervalMs(weapon: ArpgWeaponDefinition, moving: boolean) {
   return weapon.effect?.id === "forest-rhythm" && moving

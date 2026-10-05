@@ -935,6 +935,28 @@
   font-size: 15px;
 }
 
+.arpg-loadout-weapon-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.arpg-loadout-weapon-slots button {
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 1px solid rgba(215, 168, 78, .5);
+  border-radius: 8px;
+  background: rgba(22, 31, 25, .8);
+  color: #ead8a7;
+  cursor: pointer;
+}
+
+.arpg-loadout-weapon-slots button[aria-pressed="true"] {
+  border-color: #edc875;
+  background: rgba(119, 82, 33, .56);
+  color: #fff0bd;
+}
+
 .arpg-loadout-grid {
   display: grid;
   gap: 8px;
@@ -1839,6 +1861,7 @@
   }
 
   .arpg-hud__equipment-name,
+  .arpg-hud__equipment-hint,
   .arpg-hud__interaction {
     display: none !important;
   }
@@ -1922,6 +1945,19 @@
     height: 52px;
     min-height: 48px;
     padding: 3px;
+  }
+
+  .arpg-touch__combat .arpg-touch__weapon-swap {
+    width: 94px;
+    min-width: 94px;
+  }
+
+  .arpg-touch__weapon-swap small {
+    max-width: 84px;
+    overflow: hidden;
+    font-size: 6px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .arpg-touch__attack {

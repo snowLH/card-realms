@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
 import { ARPG_DUNGEON_CONFIGS, isDungeonLootPlanValid, resolveDungeonLootPlan } from "../content/dungeons";
 import type { ArpgExpeditionId } from "../content/expeditions";
-import { ARPG_ARMOR_BY_ID, ARPG_WEAPON_BY_ID } from "../content/equipment";
+import { ARPG_ARMOR_BY_ID, ARPG_WEAPON_BY_ID, getDefaultSecondaryArpgWeaponId } from "../content/equipment";
 import type { ArpgRunLootEntry } from "../domain/types";
 import { createRunLootAssignments, rollCombatRoomCache } from "./rewards";
 import {
@@ -183,6 +183,7 @@ function isValidSpecialRoomOutcome(
       && next.runMoveSpeedBonus === Math.max(previous.runMoveSpeedBonus, resolution.moveSpeedBonus)
       && next.runBasicDamageMultiplier === Math.max(previous.runBasicDamageMultiplier, resolution.basicDamageMultiplier)
       && next.weaponId === previous.weaponId
+      && next.secondaryWeaponId === previous.secondaryWeaponId
       && next.armorId === previous.armorId
       && next.xpEarned === previous.xpEarned
       && sameLoot
@@ -243,6 +244,7 @@ const RunCheckpointFieldsSchema = z.object({
   playerHp: z.number().int().min(0).max(500),
   maxHp: z.number().int().min(1).max(500),
   weaponId: z.string().min(1).max(80),
+  secondaryWeaponId: z.string().min(1).max(80).optional(),
   armorId: z.string().min(1).max(80),
   xpEarned: z.number().int().min(0).max(100_000),
   runShards: z.number().int().min(0).max(10_000),
@@ -260,10 +262,32 @@ function refineCheckpointHp(checkpoint: { playerHp: number; maxHp: number }, con
   }
 }
 
-export const ArpgRunCheckpointSchema = RunCheckpointFieldsSchema.strict().superRefine(refineCheckpointHp);
+function refineCheckpointWeapons(checkpoint: { weaponId: string; secondaryWeaponId?: string }, context: z.RefinementCtx) {
+  if (checkpoint.secondaryWeaponId === checkpoint.weaponId) {
+    context.addIssue({ code: "custom", message: "A run exige duas armas diferentes.", path: ["secondaryWeaponId"] });
+  }
+}
+
+function addLegacySecondaryWeapon(checkpoint: z.infer<typeof RunCheckpointFieldsSchema>) {
+  return {
+    ...checkpoint,
+    secondaryWeaponId: checkpoint.secondaryWeaponId ?? getDefaultSecondaryArpgWeaponId(checkpoint.weaponId),
+  };
+}
+
+export const ArpgRunCheckpointSchema = RunCheckpointFieldsSchema.strict()
+  .superRefine((checkpoint, context) => {
+    refineCheckpointHp(checkpoint, context);
+    refineCheckpointWeapons(checkpoint, context);
+  })
+  .transform(addLegacySecondaryWeapon);
 export const ArpgClientRunCheckpointSchema = RunCheckpointFieldsSchema.omit({ serverCombatState: true })
   .strict()
-  .superRefine(refineCheckpointHp);
+  .superRefine((checkpoint, context) => {
+    refineCheckpointHp(checkpoint, context);
+    refineCheckpointWeapons(checkpoint, context);
+  })
+  .transform(addLegacySecondaryWeapon);
 
 export type ArpgRunCheckpoint = z.infer<typeof ArpgRunCheckpointSchema>;
 
@@ -297,6 +321,8 @@ export function isValidArpgRunCheckpoint(
     || !roomIds.has(checkpoint.currentRoomId)
     || [...clearedIds].some((id) => !roomIds.has(id))
     || !ARPG_WEAPON_BY_ID.has(checkpoint.weaponId)
+    || !ARPG_WEAPON_BY_ID.has(checkpoint.secondaryWeaponId)
+    || checkpoint.weaponId === checkpoint.secondaryWeaponId
     || !ARPG_ARMOR_BY_ID.has(checkpoint.armorId)
   ) return false;
 
@@ -449,6 +475,9 @@ export function isValidArpgRunCheckpointTransition(
   const hasCollectedEquipment = (kind: "weapon" | "armor", id: string) => next.runLoot.some(
     (item) => item.kind === kind && item.id === id,
   );
+  const hasCarriedOrCollectedWeapon = (id: string) => id === previous.weaponId
+    || id === previous.secondaryWeaponId
+    || hasCollectedEquipment("weapon", id);
 
   if (
     [...previousVisited].some((roomId) => !nextVisited.has(roomId))
@@ -468,7 +497,8 @@ export function isValidArpgRunCheckpointTransition(
       && !previousCleared.has(previousRoom.id)
       && next.currentRoomId !== previousRoom.id
     )
-    || (next.weaponId !== previous.weaponId && !hasCollectedEquipment("weapon", next.weaponId))
+    || !hasCarriedOrCollectedWeapon(next.weaponId)
+    || !hasCarriedOrCollectedWeapon(next.secondaryWeaponId)
     || (next.armorId !== previous.armorId && !hasCollectedEquipment("armor", next.armorId))
     || next.xpEarned < previous.xpEarned
     || next.xpEarned !== previous.xpEarned
@@ -571,6 +601,7 @@ export function applyArpgRunCheckpoint(graph: DungeonGraph, checkpoint: ArpgRunC
 export function createInitialArpgRunCheckpoint(options: {
   startRoomId: string;
   weaponId: string;
+  secondaryWeaponId?: string;
   armorId: string;
   maxHp: number;
 }): ArpgRunCheckpoint {
@@ -583,6 +614,7 @@ export function createInitialArpgRunCheckpoint(options: {
     playerHp: options.maxHp,
     maxHp: options.maxHp,
     weaponId: options.weaponId,
+    secondaryWeaponId: options.secondaryWeaponId ?? getDefaultSecondaryArpgWeaponId(options.weaponId),
     armorId: options.armorId,
     xpEarned: 0,
     runShards: 0,
@@ -602,6 +634,7 @@ export function snapshotArpgRunCheckpoint(options: {
   playerHp: number;
   maxHp: number;
   weaponId: string;
+  secondaryWeaponId?: string;
   armorId: string;
   xpEarned: number;
   runShards: number;

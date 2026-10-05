@@ -218,10 +218,10 @@ select is(
 );
 select lives_ok(
   $$select public.save_arpg_loadout(
-    'forest-bow', 'leather-armor', 'cartographer-compass',
+    'runic-sabre', 'highland-coat', 'cartographer-compass',
     array['saci-whirlwind','boitata-flame']::text[]
   )$$,
-  'a purchased card can be equipped in one of the two attack slots'
+  'a purchased card can be equipped with dungeon gear in the two attack slots'
 );
 reset role;
 select is(
@@ -285,5 +285,5 @@ select is(
   'an insufficient-funds purchase leaves the wallet unchanged'
 );
 
-select * from finish();
+select * from finish(true);
 rollback;

@@ -103,6 +103,7 @@ export function DungeonMapOverlay({ map, onClose }: { map: ArpgDungeonMapState; 
 export function RunHud({ state }: { state: ArpgHudState | null }) {
   if (!state) return null;
   const weapon = ARPG_WEAPONS.find((item) => item.id === state.weaponId) ?? ARPG_WEAPONS[0];
+  const secondaryWeapon = ARPG_WEAPONS.find((item) => item.id === state.secondaryWeaponId) ?? ARPG_WEAPONS[0];
   const armor = ARPG_ARMORS.find((item) => item.id === state.armorId) ?? ARPG_ARMORS[0];
   const relic = ARPG_RELIC_BY_ID.get(state.relicId) ?? ARPG_RELIC_BY_ID.get(STARTER_ARPG_RELIC_ID)!;
   const cards = state.abilityIds.map((id) => ARPG_ABILITY_CARD_BY_ID.get(id) ?? MATA_CARDS[0]);
@@ -118,8 +119,9 @@ export function RunHud({ state }: { state: ArpgHudState | null }) {
       </div>
 
       <div className="arpg-hud__loadout">
-        <span className="arpg-hud__equipment" role="img" aria-label={`Arma equipada: ${weapon.name}`} title={`Arma: ${weapon.name}`}>
+        <span className="arpg-hud__equipment" role="img" aria-label={`Arma atual: ${weapon.name}; reserva: ${secondaryWeapon.name}; pressione Q para alternar`} title={`Atual: ${weapon.name} · Reserva: ${secondaryWeapon.name} · Q alterna`}>
           <Swords aria-hidden="true" /><span className="arpg-hud__equipment-name">{weapon.name}</span>
+          <small className="arpg-hud__equipment-hint">Reserva: {secondaryWeapon.name} · Q</small>
         </span>
         <span className="arpg-hud__equipment" role="img" aria-label={`Armadura equipada: ${armor.name}`} title={`Armadura: ${armor.name}`}>
           <Shield aria-hidden="true" /><span className="arpg-hud__equipment-name">{armor.name}</span>

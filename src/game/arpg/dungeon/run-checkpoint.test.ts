@@ -61,9 +61,11 @@ describe("ARPG run checkpoints", () => {
     });
 
     expect(freshCheckpoint.visitedRoomIds).toEqual([graph.startRoomId]);
+    expect(freshCheckpoint.secondaryWeaponId).toBe("iron-sword");
     expect(isValidArpgRunCheckpoint(graph, checkpoint)).toBe(true);
     const legacyCheckpoint: Record<string, unknown> = { ...checkpoint };
     delete legacyCheckpoint.brokenBreakableIds;
+    delete legacyCheckpoint.secondaryWeaponId;
     expect(isValidArpgRunCheckpoint(graph, legacyCheckpoint)).toBe(true);
     applyArpgRunCheckpoint(graph, checkpoint);
     expect(graph.rooms[graph.startRoomId].state).toBe("active");
@@ -128,6 +130,29 @@ describe("ARPG run checkpoints", () => {
     expect(isValidArpgRunCheckpoint(graph, { ...checkpoint, playerHp: checkpoint.maxHp + 1 })).toBe(false);
     expect(isValidArpgRunCheckpoint(graph, { ...checkpoint, maxHp: checkpoint.maxHp + 1 })).toBe(false);
     expect(isValidArpgRunCheckpoint(graph, { ...checkpoint, weaponId: "invented-weapon" })).toBe(false);
+    expect(isValidArpgRunCheckpoint(graph, { ...checkpoint, secondaryWeaponId: checkpoint.weaponId })).toBe(false);
+  });
+
+  it("allows swapping the two carried weapons but rejects an uncollected third weapon", () => {
+    const graph = generateDungeon({ seed: "weapon-swap-checkpoint", regionId: "mata-encantada" });
+    const previous = createInitialArpgRunCheckpoint({
+      startRoomId: graph.startRoomId,
+      weaponId: "forest-bow",
+      secondaryWeaponId: "iron-sword",
+      armorId: DEFAULT_ARPG_LOADOUT.armorId,
+      maxHp: 132,
+    });
+    const swapped = {
+      ...previous,
+      weaponId: "iron-sword",
+      secondaryWeaponId: "forest-bow",
+    };
+
+    expect(isValidArpgRunCheckpointTransition(graph, previous, swapped)).toBe(true);
+    expect(isValidArpgRunCheckpointTransition(graph, previous, {
+      ...swapped,
+      secondaryWeaponId: "ritual-staff",
+    })).toBe(false);
   });
 
   it("restores only seeded breakables from rooms already reached", () => {

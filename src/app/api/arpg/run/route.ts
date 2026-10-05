@@ -62,7 +62,7 @@ const RequestSchema = z.discriminatedUnion("action", [
     roomId: z.string().min(1).max(40),
     command: z.strictObject({
       actionId: z.string().min(1).max(100),
-      kind: z.enum(["sync", "basic_attack", "ability", "dash"]),
+      kind: z.enum(["sync", "basic_attack", "ability", "dash", "swap_weapon"]),
       playerX: z.number().finite().min(0).max(4_096),
       playerY: z.number().finite().min(0).max(4_096),
       aimX: z.number().finite().min(-1).max(1),
@@ -155,7 +155,7 @@ export async function POST(request: Request) {
         const admin = createAdminClient();
         const { data: loadoutRow, error: loadoutError } = await admin
           .from("player_arpg_loadouts")
-          .select("weapon_id, armor_id, relic_id, ability_ids")
+          .select("weapon_id, secondary_weapon_id, armor_id, relic_id, ability_ids")
           .eq("user_id", playerId)
           .maybeSingle();
         if (loadoutError) {
@@ -165,6 +165,7 @@ export async function POST(request: Request) {
         if (loadoutRow) {
           const savedLoadout = ArpgLoadoutSchema.safeParse({
             weaponId: loadoutRow.weapon_id,
+            secondaryWeaponId: loadoutRow.secondary_weapon_id,
             armorId: loadoutRow.armor_id,
             relicId: loadoutRow.relic_id,
             abilityIds: loadoutRow.ability_ids,
@@ -199,6 +200,7 @@ export async function POST(request: Request) {
       const initialCheckpoint = createInitialArpgRunCheckpoint({
         startRoomId: graph.startRoomId,
         weaponId: initialLoadout.weaponId,
+        secondaryWeaponId: initialLoadout.secondaryWeaponId,
         armorId: initialLoadout.armorId,
         maxHp: 120 + (startingArmor?.maxHpBonus ?? 0),
       });
@@ -239,10 +241,12 @@ export async function POST(request: Request) {
           ?? (checkpoint.success ? {
             ...initialLoadout,
             weaponId: checkpoint.data.weaponId,
+            secondaryWeaponId: checkpoint.data.secondaryWeaponId,
             armorId: checkpoint.data.armorId,
           } : null);
         const matchesCurrentLoadout = activeLoadout
           && activeLoadout.weaponId === initialLoadout.weaponId
+          && activeLoadout.secondaryWeaponId === initialLoadout.secondaryWeaponId
           && activeLoadout.armorId === initialLoadout.armorId
           && activeLoadout.relicId === initialLoadout.relicId
           && activeLoadout.abilityIds[0] === initialLoadout.abilityIds[0]
@@ -369,6 +373,7 @@ export async function POST(request: Request) {
       const loadout: ArpgLoadout = {
         ...session.initialLoadout,
         weaponId: previous.weaponId,
+        secondaryWeaponId: previous.secondaryWeaponId,
         armorId: previous.armorId,
       };
       const nowMs = Date.now();
@@ -422,6 +427,8 @@ export async function POST(request: Request) {
       const nextCheckpoint = {
         ...previous,
         playerHp: combatState.playerHp,
+        weaponId: combatState.weaponId,
+        secondaryWeaponId: combatState.secondaryWeaponId,
         xpEarned: combatState.baseXpEarned + combatState.xpEarned,
         runShards: combatState.baseRunShards + combatState.runShards,
         serverCombatState: combatState,
