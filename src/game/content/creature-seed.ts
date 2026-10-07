@@ -8,7 +8,7 @@ export type CreatureSeed = Omit<CreatureDefinition, "attacks" | "sprite"> & {
   spriteRows?: number;
 };
 
-export const DEFAULT_SPRITE_SHEET = "/art/folklore-creatures-five-elements.png";
+export const DEFAULT_SPRITE_SHEET = "/art/folklore-creatures-chibi-portraits-v1.webp";
 const SPRITE_COLUMNS = 5;
 const SPRITE_ROWS = 5;
 

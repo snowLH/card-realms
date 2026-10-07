@@ -7,17 +7,19 @@ import "./game-ui.css";
 import "./medieval-theme.css";
 import "./mobile-pixel-overhaul.css";
 import "./arpg.css";
+import "./folklard-art-pass.css";
+import "./arpg-raid.css";
 
 export const metadata: Metadata = {
-  title: "Card Realms — Mundo dos Colecionadores",
+  title: "Folklard — Crônicas de Aurória",
   description:
-    "ARPG 2D de folclore com dungeons roguelite, cartas-habilidade, suportes, armas, loot e progressão online.",
-  applicationName: "Card Realms",
+    "ARPG 2D de folclore com avatar próprio, dois poderes e expedições em masmorras.",
+  applicationName: "Folklard",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Card Realms",
+    title: "Folklard",
   },
   formatDetection: {
     telephone: false,
@@ -29,7 +31,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
-  themeColor: "#18100f",
+  themeColor: "#071616",
   colorScheme: "dark",
 };
 

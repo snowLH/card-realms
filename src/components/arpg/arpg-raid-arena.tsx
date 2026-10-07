@@ -4,7 +4,6 @@ import {
   Crosshair,
   Heart,
   Radio,
-  Shield,
   Sparkles,
   Swords,
   Users,
@@ -14,16 +13,22 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREATURE_BY_ID } from "@/game/catalog";
 import { ARPG_ABILITY_CARD_BY_ID } from "@/game/arpg/content/ability-cards";
-import type { ArpgRaidState } from "@/game/arpg/raid";
+import { ARPG_WEAPON_BY_ID } from "@/game/arpg/content/equipment";
+import { ARPG_RELIC_BY_ID } from "@/game/arpg/content/relics";
+import { PLAYABLE_LEGENDS, getLegendAppearance } from "@/game/arpg/content/legends";
+import { ARPG_RAID_PLAYER_MARGIN, type ArpgRaidPlayerState, type ArpgRaidState } from "@/game/arpg/raid";
 import { readBrowserGamepad } from "@/game/arpg/runtime/gamepad";
+import { DEFAULT_AVATAR_CONFIG, loadLocalProgress, type AvatarConfig } from "@/game/save/local-progress";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import type { SpriteDefinition } from "@/game/types";
 import { CharacterAvatar2D } from "@/components/game/character-avatar";
 import { PixelCreature } from "@/components/game/pixel-creature";
 
 type RaidPayload = {
   room: { id: string; status: string; version: number };
   event: { id: string; title: string; boss_creature_id: string };
+  participants?: Array<{ id: string; presenceStatus: string }>;
   state: ArpgRaidState | null;
   eventReward?: {
     obtained: boolean;
@@ -36,14 +41,252 @@ type RaidPayload = {
 type RaidAction =
   | { action: "input"; clientSeq: number; moveX: number; moveY: number; aimX: number; aimY: number }
   | { action: "attack" | "dash" }
-  | { action: "ability"; slot: 0 | 1 };
+  | { action: "ability"; slot: 0 | 1 }
+  | { action: "revive"; targetPlayerId: string };
 
 const WORLD_WIDTH = 1280;
 const WORLD_HEIGHT = 720;
 const GAMEPAD_ABILITY_HINTS = ["↑", "↓"] as const;
+const RAID_ROC_SPRITE_SHEET = "/art/monster-roc-raid-boss-spritesheet-v1.webp";
+const RAID_BOSS_ANIMATION_ROWS = {
+  idle: 0,
+  walk: 1,
+  attack: 2,
+  shoot: 3,
+  damage: 4,
+  defeat: 5,
+} as const;
+
+type RaidBossAnimation = keyof typeof RAID_BOSS_ANIMATION_ROWS;
 
 function percent(value: number, max: number) {
   return `${Math.max(0, Math.min(100, (value / max) * 100))}%`;
+}
+
+function avatarForRaidPlayer(player: ArpgRaidPlayerState, playerId: string, localAvatar: AvatarConfig) {
+  if (player.id === playerId) return localAvatar;
+  const equippedAbilities = new Set(player.loadout.abilityIds);
+  const matchingLegend = PLAYABLE_LEGENDS.find((legend) => (
+    legend.signatureAbilityIds.every((abilityId) => equippedAbilities.has(abilityId))
+  ));
+  return matchingLegend
+    ? { ...DEFAULT_AVATAR_CONFIG, ...getLegendAppearance(matchingLegend.id), favoriteLegendId: matchingLegend.id }
+    : DEFAULT_AVATAR_CONFIG;
+}
+
+function getRaidPlayerAnimation(state: ArpgRaidState, player: ArpgRaidPlayerState) {
+  if (!player.alive) return { animation: "defeat" as const, eventId: "defeat" };
+  if (state.status !== "active") return { animation: "idle" as const, eventId: "settled" };
+
+  const recentAction = [...state.log].reverse().find((event) => (
+    state.serverTimeMs - event.atMs <= 1_000
+    && (
+      (event.actorId === player.id && ["player_attack", "player_dash", "ability_cast"].includes(event.kind))
+      || (event.kind === "player_damaged" && event.targetIds?.includes(player.id))
+    )
+  ));
+
+  if (recentAction?.kind === "player_damaged") {
+    return { animation: "damage" as const, eventId: recentAction.id };
+  }
+  if (recentAction?.kind === "player_dash") {
+    return { animation: "walk" as const, eventId: recentAction.id };
+  }
+  if (recentAction?.kind === "ability_cast") {
+    const abilityId = player.loadout.abilityIds.find((id) => {
+      const card = ARPG_ABILITY_CARD_BY_ID.get(id);
+      return card ? recentAction.message.includes(card.name) : false;
+    });
+    const ability = abilityId ? ARPG_ABILITY_CARD_BY_ID.get(abilityId) : null;
+    const animation = ability?.behavior === "projectile" || ability?.behavior === "piercing-projectile"
+      ? "shoot" as const
+      : "attack" as const;
+    return { animation, eventId: recentAction.id };
+  }
+  if (recentAction?.kind === "player_attack") {
+    const weapon = ARPG_WEAPON_BY_ID.get(player.loadout.weaponId);
+    return { animation: weapon && weapon.kind !== "sword" ? "shoot" as const : "attack" as const, eventId: recentAction.id };
+  }
+  if (Math.abs(player.input.moveX) + Math.abs(player.input.moveY) > 0.08 || player.dashingUntilMs > state.serverTimeMs) {
+    return { animation: "walk" as const, eventId: "moving" };
+  }
+  return { animation: "idle" as const, eventId: "idle" };
+}
+
+function getRaidBossAction(state: ArpgRaidState | null) {
+  if (!state) return null;
+  if (state.status !== "active") return { animation: "defeat" as const, eventId: "ended" };
+  const recentEvent = [...state.log].reverse().find((event) => (
+    state.serverTimeMs - event.atMs <= 1_200
+    && (
+      event.kind === "boss_attack"
+      || (event.kind === "player_attack" && event.targetIds?.includes("raid-boss"))
+    )
+  ));
+  if (!recentEvent) return null;
+  if (recentEvent.kind === "player_attack") {
+    return { animation: "damage" as const, eventId: recentEvent.id };
+  }
+  return {
+    animation: state.boss.phase === 1 ? "attack" as const : "shoot" as const,
+    eventId: recentEvent.id,
+  };
+}
+
+function RaidBossSprite({
+  action,
+  active,
+  x,
+  y,
+  label,
+  fallbackSprite,
+}: {
+  action: ReturnType<typeof getRaidBossAction>;
+  active: boolean;
+  x: number;
+  y: number;
+  label: string;
+  fallbackSprite: SpriteDefinition;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [frames, setFrames] = useState<HTMLCanvasElement[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [playback, setPlayback] = useState<{ animation: RaidBossAnimation; eventId: string }>({
+    animation: "idle",
+    eventId: "idle",
+  });
+  const previousPosition = useRef<{ x: number; y: number } | null>(null);
+  const playbackRef = useRef(playback);
+
+  const changePlayback = useCallback((animation: RaidBossAnimation, eventId: string) => {
+    playbackRef.current = { animation, eventId };
+    setPlayback(playbackRef.current);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const image = new window.Image();
+    image.decoding = "async";
+    image.onload = () => {
+      if (cancelled) return;
+      const columns = 4;
+      const rows = 6;
+      const cellWidth = Math.floor(image.naturalWidth / columns);
+      const cellHeight = Math.floor(image.naturalHeight / rows);
+      if (!cellWidth || !cellHeight) {
+        setFailed(true);
+        return;
+      }
+
+      const preparedFrames: HTMLCanvasElement[] = [];
+      for (let index = 0; index < columns * rows; index += 1) {
+        const frameCanvas = document.createElement("canvas");
+        frameCanvas.width = cellWidth;
+        frameCanvas.height = cellHeight;
+        const frameContext = frameCanvas.getContext("2d", { willReadFrequently: true });
+        if (!frameContext) {
+          setFailed(true);
+          return;
+        }
+        frameContext.imageSmoothingEnabled = false;
+        frameContext.drawImage(
+          image,
+          (index % columns) * cellWidth,
+          Math.floor(index / columns) * cellHeight,
+          cellWidth,
+          cellHeight,
+          0,
+          0,
+          cellWidth,
+          cellHeight,
+        );
+        const pixels = frameContext.getImageData(0, 0, cellWidth, cellHeight);
+        for (let pixel = 3; pixel < pixels.data.length; pixel += 4) {
+          if (pixels.data[pixel] < 96) {
+            pixels.data[pixel - 3] = 0;
+            pixels.data[pixel - 2] = 0;
+            pixels.data[pixel - 1] = 0;
+            pixels.data[pixel] = 0;
+          }
+        }
+        frameContext.putImageData(pixels, 0, 0);
+        preparedFrames.push(frameCanvas);
+      }
+      setFailed(false);
+      setFrames(preparedFrames);
+    };
+    image.onerror = () => {
+      if (!cancelled) setFailed(true);
+    };
+    image.src = RAID_ROC_SPRITE_SHEET;
+    return () => {
+      cancelled = true;
+      image.onload = null;
+      image.onerror = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const actionAnimation = action?.animation;
+    const actionEventId = action?.eventId;
+    if (!active) {
+      changePlayback("defeat", "ended");
+      return;
+    }
+    if (actionAnimation && actionAnimation !== "defeat") {
+      changePlayback(actionAnimation, actionEventId ?? "action");
+      return;
+    }
+    changePlayback("idle", "idle");
+  }, [action, active, changePlayback]);
+
+  useEffect(() => {
+    const previous = previousPosition.current;
+    const moved = previous !== null && (previous.x !== x || previous.y !== y);
+    previousPosition.current = { x, y };
+    if (!active || action || !moved) return;
+    changePlayback("walk", "moving");
+    const currentId = playbackRef.current.eventId;
+    const timer = window.setTimeout(() => {
+      if (playbackRef.current.eventId === currentId) changePlayback("idle", "idle");
+    }, 520);
+    return () => window.clearTimeout(timer);
+  }, [action, active, changePlayback, x, y]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context || !frames) return;
+    const animation = playback.animation;
+    const row = RAID_BOSS_ANIMATION_ROWS[animation];
+    const firstFrame = row * 4;
+    const isLooping = animation === "idle" || animation === "walk";
+    const frameDuration = animation === "defeat" ? 140 : animation === "idle" ? 220 : 105;
+    const startedAt = performance.now();
+    let frameId = 0;
+    const finishTimer = !isLooping && animation !== "defeat"
+      ? window.setTimeout(() => {
+        if (playbackRef.current.eventId === playback.eventId) changePlayback("idle", "idle");
+      }, frameDuration * 4)
+      : null;
+    context.imageSmoothingEnabled = false;
+
+    const drawFrame = (now: number) => {
+      const elapsedFrame = Math.floor((now - startedAt) / frameDuration);
+      const localFrame = isLooping ? elapsedFrame % 4 : Math.min(3, elapsedFrame);
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(frames[firstFrame + localFrame], 0, 0, canvas.width, canvas.height);
+      frameId = window.requestAnimationFrame(drawFrame);
+    };
+    frameId = window.requestAnimationFrame(drawFrame);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      if (finishTimer !== null) window.clearTimeout(finishTimer);
+    };
+  }, [changePlayback, frames, playback.animation, playback.eventId]);
+
+  if (failed) return <PixelCreature sprite={fallbackSprite} label={label} />;
+  return <canvas ref={canvasRef} className="arpg-raid-boss__sprite" width={256} height={256} aria-hidden="true" />;
 }
 
 export function ArpgRaidArena({
@@ -91,6 +334,13 @@ export function ArpgRaidArena({
     return next;
   }, []);
 
+  const localAvatar = useMemo(
+    () => typeof window === "undefined"
+      ? DEFAULT_AVATAR_CONFIG
+      : loadLocalProgress(window.localStorage, playerId).avatar,
+    [playerId],
+  );
+
   const refresh = useCallback(async () => {
     const response = await fetch(`/api/arpg/raids/rooms/${roomId}`, { cache: "no-store" });
     const next = (await response.json()) as RaidPayload;
@@ -101,11 +351,13 @@ export function ArpgRaidArena({
   const sendAction = useCallback(async (action: RaidAction) => {
     const inputAction = action.action === "input";
     const busy = inputAction ? inputBusyRef : actionBusyRef;
-    if (busy.current || !stateRef.current || stateRef.current.status !== "active") return false;
+    const currentState = stateRef.current;
+    if (busy.current || !currentState || currentState.status !== "active"
+      || !currentState.players.some((entry) => entry.id === playerId && entry.alive)) return false;
     busy.current = true;
     if (!inputAction) setSending(true);
     const actionId = crypto.randomUUID();
-    const attempts = inputAction ? 1 : 3;
+    const attempts = 3;
 
     try {
       for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -153,7 +405,7 @@ export function ArpgRaidArena({
       busy.current = false;
       if (!inputAction) setSending(false);
     }
-  }, [refresh, roomId]);
+  }, [playerId, refresh, roomId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -226,18 +478,28 @@ export function ArpgRaidArena({
         - (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0);
       const y = (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0)
         - (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0);
-      movementRef.current = { ...movementRef.current, x, y };
+      movementRef.current = {
+        ...movementRef.current,
+        x,
+        y,
+        ...(Math.abs(x) + Math.abs(y) > 0.05 ? { aimX: x, aimY: y } : {}),
+      };
     };
 
     const down = (event: KeyboardEvent) => {
       keysRef.current.add(event.code);
       updateMovement();
       if (event.repeat) return;
-      if (["Space", "ShiftLeft", "ShiftRight", "Digit1", "Digit2"].includes(event.code)) {
+      if (["Space", "ShiftLeft", "ShiftRight", "Digit1", "Digit2", "KeyR"].includes(event.code)) {
         event.preventDefault();
       }
       if (event.code === "Space") void sendAction({ action: "attack" });
       else if (event.code === "ShiftLeft" || event.code === "ShiftRight") void sendAction({ action: "dash" });
+      else if (event.code === "KeyR") {
+        const state = stateRef.current;
+        const downed = state?.players.find((entry) => entry.id !== playerId && !entry.alive && entry.downedUntilMs > state.serverTimeMs);
+        if (downed) void sendAction({ action: "revive", targetPlayerId: downed.id });
+      }
       else if (event.code.startsWith("Digit")) {
         const slot = Number(event.code.slice(-1)) - 1;
         if (slot >= 0 && slot <= 1) void sendAction({ action: "ability", slot: slot as 0 | 1 });
@@ -255,7 +517,7 @@ export function ArpgRaidArena({
       window.removeEventListener("keyup", up);
       movementRef.current = { x: 0, y: 0, aimX: 0, aimY: 0 };
     };
-  }, [sendAction]);
+  }, [playerId, sendAction]);
 
   useEffect(() => {
     let frameId = 0;
@@ -297,18 +559,29 @@ export function ArpgRaidArena({
   }, [sendAction]);
 
   const state = payload?.state ?? null;
+  const currentDungeonRoom = state?.dungeon?.rooms[state.dungeon.roomIndex] ?? null;
+  const worldWidth = currentDungeonRoom?.worldWidth ?? WORLD_WIDTH;
+  const worldHeight = currentDungeonRoom?.worldHeight ?? WORLD_HEIGHT;
   const player = useMemo(
     () => state?.players.find((entry) => entry.id === playerId) ?? null,
     [playerId, state],
   );
   const bossDefinition = state ? CREATURE_BY_ID.get(state.boss.catalogId) ?? null : null;
+  const bossAction = getRaidBossAction(state);
   const abilities = player
     ? player.loadout.abilityIds.map((id) => ARPG_ABILITY_CARD_BY_ID.get(id) ?? null)
     : [];
+  const weapon = player ? ARPG_WEAPON_BY_ID.get(player.loadout.weaponId) : null;
+  const relic = player ? ARPG_RELIC_BY_ID.get(player.loadout.relicId) : null;
   const recentLog = state?.log.slice(-4).reverse() ?? [];
 
   const setTouchMovement = (x: number, y: number) => {
-    movementRef.current = { ...movementRef.current, x, y };
+    movementRef.current = {
+      ...movementRef.current,
+      x,
+      y,
+      ...(Math.abs(x) + Math.abs(y) > 0.05 ? { aimX: x, aimY: y } : {}),
+    };
   };
   const clearTouchMovement = () => {
     movementRef.current = { ...movementRef.current, x: 0, y: 0 };
@@ -327,6 +600,17 @@ export function ArpgRaidArena({
 
   const bossHpPercent = state.boss.maxHp > 0 ? (state.boss.hp / state.boss.maxHp) * 100 : 0;
   const playerHpPercent = player.maxHp > 0 ? (player.hp / player.maxHp) * 100 : 0;
+  const downedTeammates = state.players.filter((entry) => (
+    entry.id !== playerId && !entry.alive && entry.downedUntilMs > state.serverTimeMs
+  ));
+  const isBossRoom = !currentDungeonRoom || currentDungeonRoom.type === "boss";
+  const hasDungeonCorridor = Boolean(currentDungeonRoom && currentDungeonRoom.type !== "boss" && currentDungeonRoom.corridorWidth > 0);
+  const exitX = currentDungeonRoom
+    ? currentDungeonRoom.roomWidth + currentDungeonRoom.corridorWidth - ARPG_RAID_PLAYER_MARGIN
+    : 0;
+  const livingPlayers = state.players.filter((entry) => entry.alive);
+  const playersAtExit = livingPlayers.filter((entry) => entry.x >= exitX).length;
+  const corridorOpen = currentDungeonRoom?.state === "awaiting_exit";
 
   return (
     <div className={cn("arpg-raid-arena", state.boss.phase === 3 && "is-enraged")}>
@@ -337,51 +621,118 @@ export function ArpgRaidArena({
         </div>
         <div className="arpg-raid-arena__status">
           <span><Users /> {state.players.filter((entry) => entry.alive).length}/{state.players.length}</span>
-          <span>Fase {state.boss.phase}/3</span>
+          {currentDungeonRoom
+            ? <span>Sala {state.dungeon!.roomIndex + 1}/{state.dungeon!.rooms.length} · {currentDungeonRoom.label}</span>
+            : <span>Fase {state.boss.phase}/3</span>}
           {sending ? <em>sincronizando…</em> : null}
-          <button type="button" onClick={onClose} aria-label="Fechar Raid"><X /></button>
+          <button type="button" onClick={onClose} aria-label="Fechar Raid ARPG"><X /></button>
         </div>
       </header>
 
-      <section className="arpg-raid-arena__boss-hud">
-        <div className="arpg-raid-arena__boss-title">
-          <Sparkles />
-          <span><small>RAID MÍTICA</small><strong>{state.boss.name}</strong></span>
-        </div>
-        <div className="arpg-raid-bar arpg-raid-bar--boss">
-          <i style={{ width: `${bossHpPercent}%` }} />
-        </div>
-        <span>{state.boss.hp.toLocaleString("pt-BR")} / {state.boss.maxHp.toLocaleString("pt-BR")} HP</span>
-      </section>
-      <section className="arpg-raid-world" aria-label="Arena cooperativa">
-        <div
-          className="arpg-raid-boss"
-          style={{ left: percent(state.boss.x, WORLD_WIDTH), top: percent(state.boss.y, WORLD_HEIGHT) }}
-        >
-          <span className="arpg-raid-boss__aura" />
-          <PixelCreature sprite={bossDefinition.sprite} label={bossDefinition.name} />
-          <strong>{state.boss.name}</strong>
-          <small>Fase {state.boss.phase}</small>
-        </div>
-
-        {state.players.map((entry) => (
-          <div
-            className={cn(
-              "arpg-raid-player",
-              entry.id === playerId && "is-self",
-              !entry.alive && "is-defeated",
-            )}
-            key={entry.id}
-            style={{ left: percent(entry.x, WORLD_WIDTH), top: percent(entry.y, WORLD_HEIGHT) }}
-          >
-            <div className="arpg-raid-player__avatar" data-seat={entry.seat}>
-              <CharacterAvatar2D config={entry.avatarConfig} compact />
+      {isBossRoom ? (
+        <section className="arpg-raid-arena__boss-hud">
+          <div className="arpg-raid-arena__boss-title">
+            <Sparkles />
+            <span><small>CHEFE FINAL</small><strong>{state.boss.name}</strong></span>
+          </div>
+          <div className="arpg-raid-bar arpg-raid-bar--boss"><i style={{ width: `${bossHpPercent}%` }} /></div>
+          <span>{state.boss.hp.toLocaleString("pt-BR")} / {state.boss.maxHp.toLocaleString("pt-BR")} HP</span>
+        </section>
+      ) : null}
+      <section className="arpg-raid-world" aria-label={currentDungeonRoom ? `${currentDungeonRoom.label}, dungeon cooperativa` : "Arena cooperativa"}>
+        {hasDungeonCorridor && currentDungeonRoom ? (
+          <>
+            <div
+              className="arpg-raid-dungeon-room"
+              style={{ width: percent(currentDungeonRoom.roomWidth, worldWidth) }}
+              aria-hidden="true"
+            />
+            <div
+              className={cn("arpg-raid-dungeon-corridor", corridorOpen ? "is-open" : "is-locked")}
+              style={{
+                left: percent(currentDungeonRoom.roomWidth, worldWidth),
+                width: percent(currentDungeonRoom.corridorWidth, worldWidth),
+              }}
+              aria-hidden="true"
+            >
+              <span className="arpg-raid-dungeon-corridor__path" />
+              <span className="arpg-raid-dungeon-corridor__exit">SAÍDA</span>
             </div>
-            <strong>{entry.name}{entry.id === playerId ? " · você" : ""}</strong>
-            <div className="arpg-raid-bar"><i style={{ width: `${entry.maxHp > 0 ? (entry.hp / entry.maxHp) * 100 : 0}%` }} /></div>
-            <small>{entry.hp}/{entry.maxHp}</small>
+            <div className={cn("arpg-raid-room-transition", corridorOpen && "is-open")} role="status" aria-live="polite">
+              <strong>{corridorOpen ? "PASSAGEM ABERTA" : "PORTA TRANCADA"}</strong>
+              <span>{corridorOpen
+                ? `Atravessem juntos · ${playersAtExit}/${livingPlayers.length} na saída`
+                : "Derrotem a onda para abrir o corredor"}</span>
+            </div>
+          </>
+        ) : null}
+        {currentDungeonRoom?.type === "boss" ? (
+          <div
+            className="arpg-raid-boss"
+            style={{ left: percent(state.boss.x, worldWidth), top: percent(state.boss.y, worldHeight) }}
+          >
+            <span className="arpg-raid-boss__aura" />
+            <RaidBossSprite
+              action={bossAction}
+              active={state.status === "active"}
+              x={state.boss.x}
+              y={state.boss.y}
+              label={bossDefinition.name}
+              fallbackSprite={bossDefinition.sprite}
+            />
+            <strong>{state.boss.name}</strong>
+            <small>Fase {state.boss.phase}</small>
+          </div>
+        ) : null}
+
+        {currentDungeonRoom?.enemies.filter((enemy) => enemy.alive && enemy.waveIndex === currentDungeonRoom.waveIndex).map((enemy) => (
+          <div
+            className="arpg-raid-enemy"
+            key={enemy.id}
+            style={{ left: percent(enemy.x, worldWidth), top: percent(enemy.y, worldHeight) }}
+          >
+            <span className="arpg-raid-enemy__token" aria-hidden="true">✦</span>
+            <strong>{enemy.name}</strong>
+            <div className="arpg-raid-bar"><i style={{ width: `${enemy.maxHp > 0 ? (enemy.hp / enemy.maxHp) * 100 : 0}%` }} /></div>
+            <small>{enemy.hp}/{enemy.maxHp} HP</small>
           </div>
         ))}
+
+        {state.players.map((entry) => {
+          const sprite = getRaidPlayerAnimation(state, entry);
+          const avatar = avatarForRaidPlayer(entry, playerId, localAvatar);
+          const presence = payload.participants?.find((participant) => participant.id === entry.id)?.presenceStatus ?? "online";
+          const presenceLabel = presence === "disconnected"
+            ? "desconectado"
+            : presence === "reconnecting"
+              ? "reconectando"
+              : presence === "spectator" ? "espectador" : "conectado";
+          return (
+            <div
+              className={cn(
+                "arpg-raid-player",
+                entry.id === playerId && "is-self",
+                !entry.alive && "is-defeated",
+              )}
+              key={entry.id}
+              style={{ left: percent(entry.x, worldWidth), top: percent(entry.y, worldHeight) }}
+            >
+              <div className="arpg-raid-player__avatar">
+                <CharacterAvatar2D
+                  key={`${entry.id}:${sprite.animation}:${sprite.eventId}`}
+                  config={avatar}
+                  compact
+                  ariaLabel={`Lenda de ${entry.name}`}
+                  animation={sprite.animation}
+                />
+              </div>
+              <strong>{entry.name}{entry.id === playerId ? " · você" : ""}</strong>
+              <small className={cn("arpg-raid-player__presence", `is-${presence}`)}>{presenceLabel}</small>
+              <div className="arpg-raid-bar"><i style={{ width: `${entry.maxHp > 0 ? (entry.hp / entry.maxHp) * 100 : 0}%` }} /></div>
+              <small>{entry.hp}/{entry.maxHp}</small>
+            </div>
+          );
+        })}
       </section>
 
       <section className="arpg-raid-hud">
@@ -392,10 +743,14 @@ export function ArpgRaidArena({
           </div>
           <div className="arpg-raid-bar arpg-raid-bar--player"><i style={{ width: `${playerHpPercent}%` }} /></div>
           <span>{player.hp}/{player.maxHp} HP</span>
-          <div className="arpg-raid-hud__loadout">
-            <span><Shield /> {player.loadout.armorId}</span>
-            <span><Swords /> {player.loadout.weaponId}</span>
-            <span><Sparkles /> Relíquia: {player.loadout.relicId}</span>
+          <small className="arpg-raid-revive-count">Reanimações do grupo: {state.reviveCharges}</small>
+          <div className="arpg-raid-hud__loadout" role="group" aria-label="Arma e relíquia desta Raid">
+            <span role="img" aria-label={`Arma equipada: ${weapon?.name ?? player.loadout.weaponId}`} title={`Arma: ${weapon?.name ?? player.loadout.weaponId}`}>
+              <Swords aria-hidden="true" /> {weapon?.name ?? player.loadout.weaponId}
+            </span>
+            <span role="img" aria-label={`Relíquia equipada: ${relic?.name ?? player.loadout.relicId}`} title={`Relíquia: ${relic?.name ?? player.loadout.relicId}`}>
+              <Sparkles aria-hidden="true" /> {relic?.name ?? player.loadout.relicId}
+            </span>
           </div>
         </div>
 
@@ -407,10 +762,10 @@ export function ArpgRaidArena({
 
       <section className="arpg-raid-controls" aria-label="Controles da Raid ARPG">
         <div className="arpg-raid-dpad">
-          <button type="button" onPointerDown={() => setTouchMovement(0, -1)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}>▲</button>
-          <button type="button" onPointerDown={() => setTouchMovement(-1, 0)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}>◀</button>
-          <button type="button" onPointerDown={() => setTouchMovement(0, 1)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}>▼</button>
-          <button type="button" onPointerDown={() => setTouchMovement(1, 0)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}>▶</button>
+          <button type="button" aria-label="Mover para cima" onPointerDown={() => setTouchMovement(0, -1)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}>▲</button>
+          <button type="button" aria-label="Mover para a esquerda" onPointerDown={() => setTouchMovement(-1, 0)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}>◀</button>
+          <button type="button" aria-label="Mover para baixo" onPointerDown={() => setTouchMovement(0, 1)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}>▼</button>
+          <button type="button" aria-label="Mover para a direita" onPointerDown={() => setTouchMovement(1, 0)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}>▶</button>
         </div>
 
         <div className="arpg-raid-actions">
@@ -420,6 +775,18 @@ export function ArpgRaidArena({
           <button type="button" disabled={!player.alive || state.status !== "active"} onClick={() => void sendAction({ action: "dash" })}>
             <Zap /><strong>DASH</strong><small>Shift · B</small>
           </button>
+          {downedTeammates.map((ally) => (
+            <button
+              type="button"
+              className="arpg-raid-revive-button"
+              key={ally.id}
+              disabled={!player.alive || state.status !== "active" || state.reviveCharges <= 0}
+              onClick={() => void sendAction({ action: "revive", targetPlayerId: ally.id })}
+              title="Chegue perto para reerguer; o servidor confirma a distância."
+            >
+              <Heart /><strong>REERGUER {ally.name}</strong><small>R · {state.reviveCharges} restantes</small>
+            </button>
+          ))}
         </div>
 
         <div className="arpg-raid-abilities">

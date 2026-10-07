@@ -14,6 +14,15 @@ describe("apresentação da batalha", () => {
   it("traduz eventos confirmados pelo motor em uma fila visual", () => {
     const events: BattleLogEntry[] = [
       {
+        id: "ability-1",
+        turn: 1,
+        actorId: "player-one",
+        kind: "ability_used",
+        message: "Poder usado.",
+        abilityId: "iara-song",
+        abilitySlot: 0,
+      },
+      {
         id: "energy-1",
         turn: 1,
         actorId: "player-one",
@@ -41,9 +50,10 @@ describe("apresentação da batalha", () => {
     ];
 
     const sequence = toBattlePresentationEvents(events);
-    expect(sequence.map((event) => event.kind)).toEqual(["energy", "roll", "attack", "ko"]);
-    expect(sequence[1]).toMatchObject({ kind: "roll", die: 5, abilityId: "iara-song", abilitySlot: 0 });
-    expect(sequence[2]).toMatchObject({ die: 5, damage: 70, abilityId: "iara-song", abilitySlot: 0 });
+    expect(sequence.map((event) => event.kind)).toEqual(["ability", "energy", "roll", "attack", "ko"]);
+    expect(sequence[0]).toMatchObject({ kind: "ability", abilityId: "iara-song", abilitySlot: 0 });
+    expect(sequence[2]).toMatchObject({ kind: "roll", die: 5, abilityId: "iara-song", abilitySlot: 0 });
+    expect(sequence[3]).toMatchObject({ die: 5, damage: 70, abilityId: "iara-song", abilitySlot: 0 });
   });
 
   it("modo rápido reduz duração sem eliminar feedback", () => {

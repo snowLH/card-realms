@@ -2,23 +2,18 @@
 -- The public schema is intentionally protected with RLS and explicit grants.
 
 create extension if not exists pgcrypto with schema extensions;
-
 create type public.card_element as enum (
   'fire', 'water', 'nature', 'electric', 'ice', 'shadow', 'neutral'
 );
-
 create type public.card_rarity as enum (
   'common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'
 );
-
 create type public.battle_mode as enum (
   'story', 'guardian', 'pvp', 'coop_boss'
 );
-
 create type public.battle_status as enum (
   'lobby', 'active', 'finished', 'abandoned'
 );
-
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   username text not null check (username ~ '^[a-zA-Z0-9_]{3,24}$'),
@@ -32,9 +27,7 @@ create table public.profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create unique index profiles_username_unique on public.profiles (lower(username));
-
 create table public.regions (
   id text primary key,
   name text not null,
@@ -46,7 +39,6 @@ create table public.regions (
   enabled boolean not null default true,
   created_at timestamptz not null default now()
 );
-
 create table public.creature_catalog (
   id text primary key,
   name text not null unique,
@@ -72,10 +64,8 @@ create table public.creature_catalog (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create index creature_catalog_element_idx on public.creature_catalog (element);
 create index creature_catalog_region_idx on public.creature_catalog (region_id);
-
 create table public.player_creatures (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -88,9 +78,7 @@ create table public.player_creatures (
   acquired_from text not null default 'starter',
   acquired_at timestamptz not null default now()
 );
-
 create index player_creatures_user_idx on public.player_creatures (user_id, acquired_at desc);
-
 create table public.teams (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -99,9 +87,7 @@ create table public.teams (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create unique index one_active_team_per_player on public.teams (user_id) where is_active;
-
 create table public.team_members (
   team_id uuid not null references public.teams(id) on delete cascade,
   slot smallint not null check (slot between 1 and 6),
@@ -109,7 +95,6 @@ create table public.team_members (
   primary key (team_id, slot),
   unique (team_id, player_creature_id)
 );
-
 create table public.exploration_progress (
   user_id uuid not null references public.profiles(id) on delete cascade,
   region_id text not null references public.regions(id) on delete cascade,
@@ -120,7 +105,6 @@ create table public.exploration_progress (
   last_visited_at timestamptz not null default now(),
   primary key (user_id, region_id)
 );
-
 create table public.friendships (
   id uuid primary key default gen_random_uuid(),
   requester_id uuid not null references public.profiles(id) on delete cascade,
@@ -131,7 +115,6 @@ create table public.friendships (
   check (requester_id <> addressee_id),
   unique (requester_id, addressee_id)
 );
-
 create table public.houses (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null unique references public.profiles(id) on delete cascade,
@@ -141,7 +124,6 @@ create table public.houses (
   layout jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
-
 create table public.house_items (
   id uuid primary key default gen_random_uuid(),
   house_id uuid not null references public.houses(id) on delete cascade,
@@ -150,7 +132,6 @@ create table public.house_items (
   rotation integer not null default 0,
   placed_at timestamptz not null default now()
 );
-
 create table public.loot_boxes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -161,7 +142,6 @@ create table public.loot_boxes (
   created_at timestamptz not null default now(),
   opened_at timestamptz
 );
-
 create table public.reward_ledger (
   id bigint generated always as identity primary key,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -171,7 +151,6 @@ create table public.reward_ledger (
   created_at timestamptz not null default now(),
   unique (user_id, source_type, source_id)
 );
-
 create table public.battles (
   id uuid primary key default gen_random_uuid(),
   created_by uuid references public.profiles(id) on delete set null,
@@ -187,7 +166,6 @@ create table public.battles (
   updated_at timestamptz not null default now(),
   finished_at timestamptz
 );
-
 create table public.battle_participants (
   battle_id uuid not null references public.battles(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -199,7 +177,6 @@ create table public.battle_participants (
   primary key (battle_id, user_id),
   unique (battle_id, seat)
 );
-
 create table public.battle_actions (
   id bigint generated always as identity primary key,
   battle_id uuid not null references public.battles(id) on delete cascade,
@@ -211,7 +188,6 @@ create table public.battle_actions (
   created_at timestamptz not null default now(),
   unique (battle_id, client_action_id)
 );
-
 create table public.battle_events (
   id bigint generated always as identity primary key,
   battle_id uuid not null references public.battles(id) on delete cascade,
@@ -221,9 +197,7 @@ create table public.battle_events (
   created_at timestamptz not null default now(),
   unique (battle_id, sequence)
 );
-
 alter table public.battle_events replica identity full;
-
 create table public.world_events (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -236,7 +210,6 @@ create table public.world_events (
   published boolean not null default false,
   check (ends_at > starts_at)
 );
-
 create table public.event_participation (
   event_id uuid not null references public.world_events(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -245,7 +218,6 @@ create table public.event_participation (
   updated_at timestamptz not null default now(),
   primary key (event_id, user_id)
 );
-
 create table public.missions (
   id text primary key,
   title text not null,
@@ -255,7 +227,6 @@ create table public.missions (
   repeatable text not null default 'once' check (repeatable in ('once', 'daily', 'weekly')),
   enabled boolean not null default true
 );
-
 create table public.player_missions (
   user_id uuid not null references public.profiles(id) on delete cascade,
   mission_id text not null references public.missions(id) on delete cascade,
@@ -265,7 +236,6 @@ create table public.player_missions (
   updated_at timestamptz not null default now(),
   primary key (user_id, mission_id)
 );
-
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -276,7 +246,6 @@ begin
   return new;
 end;
 $$;
-
 create trigger profiles_set_updated_at before update on public.profiles
 for each row execute function public.set_updated_at();
 create trigger creature_catalog_set_updated_at before update on public.creature_catalog
@@ -293,7 +262,6 @@ create trigger event_participation_set_updated_at before update on public.event_
 for each row execute function public.set_updated_at();
 create trigger player_missions_set_updated_at before update on public.player_missions
 for each row execute function public.set_updated_at();
-
 create or replace function public.check_team_member_owner()
 returns trigger
 language plpgsql
@@ -311,10 +279,8 @@ begin
   return new;
 end;
 $$;
-
 create trigger team_member_owner_guard before insert or update on public.team_members
 for each row execute function public.check_team_member_owner();
-
 insert into public.regions (id, name, subtitle, inspiration, level_min, level_max, sort_order) values
   ('roots', 'Floresta das Raízes Antigas', 'Onde árvores guardam pactos e caminhos', 'Lendas florestais brasileiras e sul-americanas', 1, 12, 1),
   ('archipelago', 'Arquipélago dos Espíritos', 'Marés, ilhas e memórias navegantes', 'Folclores costeiros e oceânicos do mundo', 8, 20, 2),
@@ -323,7 +289,6 @@ insert into public.regions (id, name, subtitle, inspiration, level_min, level_ma
   ('desert', 'Deserto dos Reis Esquecidos', 'Cidades soterradas sob o sol de cobre', 'Narrativas do norte da África e do Oriente Médio', 24, 38, 5),
   ('deep-sea', 'Mar das Profundezas', 'Ilhas vivas e santuários submersos', 'Lendas marítimas e cosmologias insulares', 32, 48, 6),
   ('eclipse', 'Reino do Eclipse', 'Luz e sombra disputam um céu imóvel', 'Contos de transformação, noite e equilíbrio', 40, null, 7);
-
 insert into public.creature_catalog
   (id, name, title, element, rarity, region_id, role, hp, defense, speed, description, lore, folklore_inspiration, traits, attacks, obtainable_by, evolution_family, evolution_stage, evolves_to, art_slot)
 values
@@ -362,15 +327,12 @@ values
    'Fauna sul-americana e histórias de animais formadores da paisagem', array['montanha','mineral'],
    '[{"id":"pedrassu-1","name":"Rolamento Azul","cost":1,"damage":23,"minRoll":2},{"id":"pedrassu-2","name":"Couraça Serrana","cost":2,"damage":52,"minRoll":3},{"id":"pedrassu-3","name":"Falha Geológica","cost":3,"damage":90,"minRoll":4}]',
    'Trilhas rochosas da Floresta das Raízes Antigas', null, null, null, 6);
-
 -- Resolve the deferred self-reference checks before later ALTER TABLE statements.
 set constraints all immediate;
-
 insert into public.missions (id, title, description, objective, rewards, repeatable) values
   ('roots-guardian', 'Vozes da mata', 'Vença a Guardiã Aya na Provação das Raízes.', '{"type":"win_battle","region":"roots","count":1}', '{"coins":120,"xp":80}', 'once'),
   ('daily-explore', 'Passos do cartógrafo', 'Explore duas regiões de Aurória.', '{"type":"explore","count":2}', '{"coins":60,"xp":30}', 'daily'),
   ('weekly-bonds', 'Laços de sete caminhos', 'Use criaturas dos sete tipos em batalha.', '{"type":"elements_used","count":7}', '{"coins":250,"box":"silver"}', 'weekly');
-
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -408,11 +370,9 @@ begin
   return new;
 end;
 $$;
-
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
-
 create or replace function public.is_battle_participant(target_battle_id uuid)
 returns boolean
 language sql
@@ -428,7 +388,6 @@ as $$
     where id = target_battle_id and created_by = auth.uid()
   );
 $$;
-
 alter table public.profiles enable row level security;
 alter table public.regions enable row level security;
 alter table public.creature_catalog enable row level security;
@@ -449,15 +408,12 @@ alter table public.world_events enable row level security;
 alter table public.event_participation enable row level security;
 alter table public.missions enable row level security;
 alter table public.player_missions enable row level security;
-
 create policy "catalog is readable" on public.creature_catalog for select using (enabled);
 create policy "regions are readable" on public.regions for select using (enabled);
 create policy "published events are readable" on public.world_events for select using (published);
 create policy "missions are readable" on public.missions for select using (enabled);
-
 create policy "players read own profile" on public.profiles for select using (auth.uid() = id);
 create policy "players update own profile" on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
-
 create policy "players manage own creatures" on public.player_creatures for all
 using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "players manage own teams" on public.teams for all
@@ -471,7 +427,6 @@ using (exists (select 1 from public.teams where teams.id = team_id and teams.use
 with check (exists (select 1 from public.teams where teams.id = team_id and teams.user_id = auth.uid()));
 create policy "players remove own team members" on public.team_members for delete
 using (exists (select 1 from public.teams where teams.id = team_id and teams.user_id = auth.uid()));
-
 create policy "players manage own exploration" on public.exploration_progress for all
 using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "friends see shared requests" on public.friendships for select
@@ -483,7 +438,6 @@ using (auth.uid() = addressee_id)
 with check (auth.uid() = addressee_id);
 create policy "friends remove shared requests" on public.friendships for delete
 using (auth.uid() in (requester_id, addressee_id));
-
 create policy "players view visible houses" on public.houses for select
 using (user_id = auth.uid() or is_public);
 create policy "players update own house" on public.houses for update
@@ -497,10 +451,8 @@ using (exists (select 1 from public.houses where houses.id = house_id and houses
 with check (exists (select 1 from public.houses where houses.id = house_id and houses.user_id = auth.uid()));
 create policy "players remove own house items" on public.house_items for delete
 using (exists (select 1 from public.houses where houses.id = house_id and houses.user_id = auth.uid()));
-
 create policy "players read own boxes" on public.loot_boxes for select using (auth.uid() = user_id);
 create policy "players read own rewards" on public.reward_ledger for select using (auth.uid() = user_id);
-
 create policy "participants read battles" on public.battles for select using (public.is_battle_participant(id));
 create policy "players create battles" on public.battles for insert with check (created_by = auth.uid());
 create policy "creators update lobbies" on public.battles for update
@@ -518,18 +470,14 @@ create policy "participants submit actions" on public.battle_actions for insert
 with check (user_id = auth.uid() and public.is_battle_participant(battle_id));
 create policy "participants read battle events" on public.battle_events for select
 using (public.is_battle_participant(battle_id));
-
 create policy "players manage own event progress" on public.event_participation for all
 using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "players manage own mission progress" on public.player_missions for all
 using (user_id = auth.uid()) with check (user_id = auth.uid());
-
 revoke all on all tables in schema public from anon, authenticated;
 revoke all on all sequences in schema public from anon, authenticated;
-
 grant usage on schema public to anon, authenticated, service_role;
 grant usage on type public.card_element, public.card_rarity, public.battle_mode, public.battle_status to anon, authenticated;
-
 grant select on public.regions, public.creature_catalog, public.world_events, public.missions to anon, authenticated;
 grant select on public.profiles to authenticated;
 grant update (username, display_name, avatar_url, equipped_title) on public.profiles to authenticated;
@@ -542,15 +490,12 @@ grant select on public.exploration_progress, public.loot_boxes, public.reward_le
   public.event_participation, public.player_missions to authenticated;
 grant usage, select on all sequences in schema public to authenticated;
 grant execute on function public.is_battle_participant(uuid) to authenticated;
-
 revoke execute on function public.set_updated_at() from public, anon, authenticated;
 revoke execute on function public.check_team_member_owner() from public, anon, authenticated;
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
-
 grant all privileges on all tables in schema public to service_role;
 grant all privileges on all sequences in schema public to service_role;
 grant execute on all functions in schema public to service_role;
-
 do $$
 begin
   alter publication supabase_realtime add table public.battle_events;

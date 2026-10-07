@@ -43,8 +43,7 @@ export function StarterChoice() {
             <span className="view-eyebrow">Coleção de Aurória</span>
             <h1 id="starter-title">Conheça os seres do folclore</h1>
             <p>
-              Estas criaturas fazem parte da sua coleção. Seu personagem é o avatar,
-              e os dois poderes iniciais ficam disponíveis no Arquivo da Guilda.
+              Estas criaturas entram na sua coleção. Sua Lenda ativa é escolhida na Guilda e traz dois ataques próprios.
             </p>
           </div>
         </header>

@@ -57,6 +57,8 @@ async function setViewport(width, height, mobile) {
     screenHeight: height,
   });
   await cdp("Emulation.setTouchEmulationEnabled", { enabled: mobile, maxTouchPoints: 5 });
+  const origin = new URL(appUrl).origin;
+  await cdp("Storage.clearDataForOrigin", { origin, storageTypes: "all" });
   await cdp("Page.navigate", { url: appUrl });
   await wait(1500);
 }
@@ -92,7 +94,7 @@ async function enterArpg() {
     if (!selected) throw new Error("Não encontrei uma expedição disponível para iniciar.");
   }
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    const ready = await evaluate(`Boolean(document.querySelector('.arpg-stage__canvas canvas, .arpg-rotate-gate'))`);
+    const ready = await evaluate(`Boolean(document.querySelector('.arpg-hud, .arpg-run-result, .arpg-rotate-gate'))`);
     if (ready) return;
     await wait(250);
   }
@@ -107,8 +109,28 @@ async function enterArpg() {
 async function audit(label, width, height, mobile) {
   events.length = 0;
   await setViewport(width, height, mobile);
+  const landing = await evaluate(`(() => {
+    const rect = (selector) => {
+      const el = document.querySelector(selector);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return {x:r.x,y:r.y,w:r.width,h:r.height,display:getComputedStyle(el).display};
+    };
+    return {
+      viewport:{width:innerWidth,height:innerHeight},
+      document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},
+      title:rect('.title-screen'),
+      heading:rect('.title-screen h1'),
+      play:rect('.title-screen__play'),
+      playText:document.querySelector('.title-screen__play')?.innerText.trim()??''
+    };
+  })()`);
+  const landingShot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+  await fs.writeFile(`C:/Users/user/Documents/ChatGPT/folklard/title-${label}.png`, Buffer.from(landingShot.data, "base64"));
+  await fs.writeFile(`C:/Users/user/Documents/ChatGPT/folklard/title-${label}.json`, JSON.stringify({ landing }, null, 2));
   await enterArpg();
   const compactLandscape = mobile && width > height && height <= 520;
+  const portraitMobile = mobile && height > width && width <= 900;
   const metrics = await evaluate(`(() => {
     const rect = (selector) => {
       const el = document.querySelector(selector);
@@ -124,12 +146,16 @@ async function audit(label, width, height, mobile) {
       touchButtons:[...document.querySelectorAll('.arpg-touch button')].map((el)=>{const r=el.getBoundingClientRect();return {w:r.width,h:r.height,visible:getComputedStyle(el).display!=='none'}}),
       cardPortraits:document.querySelectorAll('.arpg-touch__cards .arpg-touch__creature').length,
       powerNames:[...document.querySelectorAll('.arpg-touch__cards .arpg-touch__card-name')]
-        .map((el)=>el.textContent?.trim()??''),
-      cardCooldowns:[...document.querySelectorAll('.arpg-touch__cards small')].map((el)=>({text:el.textContent?.trim()??'',visible:getComputedStyle(el).display!=='none'})),
+        .map((el)=>({text:el.textContent?.trim()??'',fontSize:parseFloat(getComputedStyle(el).fontSize)})),
+      cardCooldowns:[...document.querySelectorAll('.arpg-touch__cards small')].map((el)=>({text:el.textContent?.trim()??'',fontSize:parseFloat(getComputedStyle(el).fontSize),visible:getComputedStyle(el).display!=='none'})),
       touchAttackSlots:document.querySelectorAll('.arpg-touch__cards button').length,
       touchSupportControls:Boolean(document.querySelector('.arpg-touch__support')),
       basicWeaponAttack:Boolean(document.querySelector('.arpg-touch__attack')),
+      basicWeaponAttackLabel:document.querySelector('.arpg-touch__attack')?.getAttribute('aria-label')??'',
       hudBand:{status:rect('.arpg-hud__status'),equipment:rect('.arpg-hud__loadout'),minimap:rect('.arpg-hud__minimap')},
+      touchTextFontSizes:[...document.querySelectorAll('.arpg-shell--portrait-mobile .arpg-hud__status span, .arpg-shell--portrait-mobile .arpg-touch__combat button span')]
+        .map((el)=>parseFloat(getComputedStyle(el).fontSize)),
+      minimapLabelFontSize:(()=>{const el=document.querySelector('.arpg-shell--portrait-mobile .arpg-hud__minimap > span');return el?parseFloat(getComputedStyle(el).fontSize):null})(),
       compactMedia:matchMedia('(pointer: coarse) and (orientation: landscape) and (max-height: 520px)').matches,
       text:document.body.innerText.slice(0,1800)
     };
@@ -140,13 +166,29 @@ async function audit(label, width, height, mobile) {
     const entry = event.params?.entry;
     return entry?.level === "error" && !String(entry?.text ?? "").includes("beforeinstallprompt");
   });
-  const portrait = height > width;
   const checks = {
     pageFitsViewport: metrics.doc.sw <= metrics.doc.cw && metrics.doc.sh <= metrics.doc.ch,
-    landscapeCanvasReady: portrait || Boolean(metrics.canvas),
-    landscapeTouchControls: !mobile || portrait || metrics.touch?.display !== "none",
-    portraitRotationGate: portrait ? metrics.rotate?.display !== "none" : !metrics.rotate || metrics.rotate.display === "none",
+    canvasReady: Boolean(metrics.canvas),
+    mobileTouchControls: !mobile || metrics.touch?.display !== "none",
+    portraitCanPlay: !portraitMobile || (Boolean(metrics.canvas)
+      && (!metrics.rotate || metrics.rotate.display === "none")
+      && metrics.touch?.display !== "none"),
     noFatalRuntimeErrors: fatalEvents.length === 0,
+    portraitTopbarTargetsAtLeast44: !portraitMobile || (metrics.topbarButtons.length > 0
+      && metrics.topbarButtons.every((button) => button.w >= 44 && button.h >= 44)),
+    portraitTouchTargetsAtLeast44: !portraitMobile || (metrics.touchButtons.length > 0
+      && metrics.touchButtons.every((button) => !button.visible || (button.w >= 44 && button.h >= 44))),
+    portraitTwoPowersReadable: !portraitMobile || (metrics.touchAttackSlots === 2
+      && metrics.cardPortraits === 2 && metrics.powerNames.length === 2
+      && metrics.powerNames.every((item) => item.text.length > 0 && item.fontSize >= 9)
+      && metrics.cardCooldowns.length === 2
+      && metrics.cardCooldowns.every((item) => item.visible && item.text.length > 0 && item.fontSize >= 9)),
+    portraitHudTextReadable: !portraitMobile || (metrics.touchTextFontSizes.length > 0
+      && metrics.touchTextFontSizes.every((size) => size >= 9)
+      && metrics.minimapLabelFontSize >= 9),
+    portraitNoSupportControls: !portraitMobile || !metrics.touchSupportControls,
+    portraitAttackAvailable: !portraitMobile || (metrics.basicWeaponAttack
+      && metrics.basicWeaponAttackLabel.toLowerCase().includes("mirar")),
     compactTopbarButtonsAtLeast48: !compactLandscape || (metrics.compactMedia && metrics.topbarButtons.length > 0
       && metrics.topbarButtons.every((button) => button.w >= 48 && button.h >= 48)),
     compactTouchButtonsAtLeast48: !compactLandscape || (metrics.touchButtons.length > 0

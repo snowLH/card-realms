@@ -28,17 +28,4 @@ describe("ARPG loadout compatibility", () => {
     });
     expect(legacyWrite.success).toBe(false);
   });
-
-  it("normalizes a legacy single-weapon loadout and requires a distinct pair for new writes", () => {
-    const legacy = normalizeLegacyArpgLoadout({
-      ...DEFAULT_ARPG_LOADOUT,
-      weaponId: "iron-sword",
-    }, DEFAULT_ARPG_LOADOUT);
-    expect(legacy).toMatchObject({ weaponId: "iron-sword", secondaryWeaponId: "forest-bow" });
-
-    expect(ArpgLoadoutSchema.safeParse({
-      ...DEFAULT_ARPG_LOADOUT,
-      secondaryWeaponId: DEFAULT_ARPG_LOADOUT.weaponId,
-    }).success).toBe(false);
-  });
 });

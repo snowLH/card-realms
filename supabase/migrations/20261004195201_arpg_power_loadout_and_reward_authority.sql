@@ -1,7 +1,6 @@
 -- Preserve the exact two-card contract at rest, even for privileged writes.
 alter table public.player_arpg_loadouts
   drop constraint if exists player_arpg_loadouts_ability_ids_check;
-
 alter table public.player_arpg_loadouts
   add constraint player_arpg_loadouts_ability_ids_check
   check (
@@ -15,7 +14,6 @@ alter table public.player_arpg_loadouts
       'roc-horizon-storm'
     ]::text[]
   );
-
 -- Keep the trusted save RPC aligned with the live catalogue, including the
 -- three weapons and three armors added for the Runic Mountains expedition.
 create or replace function private.save_arpg_loadout(
@@ -129,11 +127,9 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.save_arpg_loadout(text, text, text, text[]) from public, anon;
 grant usage on schema private to authenticated;
 grant execute on function private.save_arpg_loadout(text, text, text, text[]) to authenticated;
-
 create or replace function public.save_arpg_loadout(
   target_weapon_id text,
   target_armor_id text,
@@ -149,10 +145,8 @@ as $$
     target_weapon_id, target_armor_id, target_relic_id, target_ability_ids
   );
 $$;
-
 revoke all on function public.save_arpg_loadout(text, text, text, text[]) from public, anon;
 grant execute on function public.save_arpg_loadout(text, text, text, text[]) to authenticated;
-
 -- Raid snapshots are built from the persisted loadout and re-check ownership
 -- at the trusted server boundary. Supporter IDs remain archived in the table
 -- but are deliberately omitted from the snapshot.
@@ -257,12 +251,10 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.arpg_raid_loadout_snapshot(uuid)
   from public, anon, authenticated;
 grant execute on function private.arpg_raid_loadout_snapshot(uuid)
   to service_role;
-
 -- The third available expedition must finish through the same permanent
 -- reward ledger. It grants only its equipment and never permanent powers.
 create or replace function private.claim_arpg_expedition_reward(
@@ -360,7 +352,6 @@ begin
   return reward || jsonb_build_object('replayed', false, 'newItems', '[]'::jsonb);
 end;
 $$;
-
 revoke all on function private.claim_arpg_expedition_reward(uuid, uuid, text, boolean)
   from public, anon, authenticated;
 grant execute on function private.claim_arpg_expedition_reward(uuid, uuid, text, boolean)

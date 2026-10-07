@@ -23,10 +23,6 @@ const refugeFurnitureSchema = z.object({
   rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
 });
 
-const obsoleteTeamMutationSchema = z.object({
-  action: z.enum(["activate_team", "save_team"]),
-});
-
 const mutationSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("travel"), regionId: z.string().min(1).max(80) }),
   z.object({ action: z.literal("claim_treasure"), regionId: z.string().min(1).max(80) }),
@@ -54,6 +50,12 @@ const mutationSchema = z.discriminatedUnion("action", [
     action: z.literal("choose_starter"),
     creatureId: z.enum(["boitata", "iara", "curupira"]),
   }),
+  z.object({ action: z.literal("activate_team"), teamId: z.string().uuid() }),
+  z.object({
+    action: z.literal("save_team"),
+    memberIds: z.array(z.string().uuid()).min(1).max(6),
+    name: z.string().trim().min(1).max(60).optional(),
+  }),
   z.object({ action: z.literal("evolve_creature"), instanceId: z.string().uuid() }),
   z.object({ action: z.literal("claim_mission"), missionId: z.string().min(1).max(80) }),
   z.object({ action: z.literal("save_battle_board"), boardId: z.enum(BATTLE_BOARD_IDS) }),
@@ -64,10 +66,6 @@ const mutationSchema = z.discriminatedUnion("action", [
     furniture: z.array(refugeFurnitureSchema).max(12),
   }),
 ]);
-
-function assertNever(value: never): never {
-  throw new Error(`Ação de progresso não tratada: ${JSON.stringify(value)}`);
-}
 
 async function authenticatedClient() {
   if (!isSupabaseConfigured()) {
@@ -161,17 +159,17 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
-    const body: unknown = await request.json();
-    if (obsoleteTeamMutationSchema.safeParse(body).success) {
-      return NextResponse.json(
-        { error: "As operações de equipe foram desativadas." },
-        { status: 410 },
-      );
-    }
-    const payload = mutationSchema.parse(body);
+    const payload = mutationSchema.parse(await request.json());
     const auth = await authenticatedClient();
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    if (payload.action === "activate_team" || payload.action === "save_team") {
+      return NextResponse.json(
+        { error: "Equipes de criaturas foram desativadas; escolha uma Lenda e configure seus dois poderes." },
+        { status: 410 },
+      );
     }
 
     if (payload.action === "evolve_creature") {
@@ -336,9 +334,7 @@ export async function PATCH(request: Request) {
               ? auth.supabase.rpc("purchase_arpg_merchant_item", {
                   target_item_key: payload.itemKey,
                 })
-            : payload.action === "choose_starter"
-              ? auth.supabase.rpc("choose_starter_card", { target_creature_id: payload.creatureId })
-              : assertNever(payload);
+              : auth.supabase.rpc("choose_starter_card", { target_creature_id: payload.creatureId });
 
     const { data, error } = await rpc;
     if (error) {

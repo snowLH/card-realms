@@ -111,12 +111,10 @@ begin
   return reward || jsonb_build_object('replayed', false);
 end;
 $$;
-
 revoke all on function private.claim_arpg_expedition_reward(uuid, uuid, text, boolean)
   from public, anon, authenticated;
 grant execute on function private.claim_arpg_expedition_reward(uuid, uuid, text, boolean)
   to service_role;
-
 create or replace function private.save_arpg_loadout(
   target_player_id uuid,
   target_weapon_id text,
@@ -247,7 +245,6 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.save_arpg_loadout(uuid, text, text, text[], text[])
   from public, anon, authenticated;
 grant execute on function private.save_arpg_loadout(uuid, text, text, text[], text[])

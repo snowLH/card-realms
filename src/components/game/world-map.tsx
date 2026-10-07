@@ -91,7 +91,7 @@ export function WorldMap({
     <section className="world-map-shell" aria-label="Mapa de Aurória">
       <div className="world-map">
         <Image
-          src="/art/world-map-pixel-v2.png"
+          src="/art/world-map-pixel-v2.webp"
           alt="Mapa top-down em pixel art de Aurória, com regiões, vilas, trilhas, santuários, ruínas e portais"
           fill
           priority

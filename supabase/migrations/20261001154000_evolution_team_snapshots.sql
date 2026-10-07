@@ -32,6 +32,5 @@ begin
   return snapshot;
 end;
 $team$;
-
 revoke all on function private.active_team_snapshot(uuid) from public, anon, authenticated;
 grant execute on function private.active_team_snapshot(uuid) to service_role;

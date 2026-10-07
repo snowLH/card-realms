@@ -10,8 +10,7 @@ export const ARPG_ROC_RAID_BOSS: ArpgRaidBossSetup = {
 export const ARPG_ROC_RAID_META = {
   slug: "raid-roc-2026-10-03",
   title: "Roc — O Céu Desaparece",
-  arena: "/art/raid-roc-arena.png",
   minPlayers: 2,
-  maxPlayers: 5,
+  maxPlayers: 4,
   presentationTimezone: "America/Sao_Paulo",
 } as const;

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import {
   TREASURE_CHEST_ASSET_PATH,
@@ -13,12 +14,13 @@ import { ARPG_ASSET_MANIFEST } from "../assets";
 const readImage = (assetPath: string) => readFileSync(new URL(`../../../../public${assetPath}`, import.meta.url));
 
 describe("treasure chest spritesheet", () => {
-  it("loads the original transparent 2×2 chest animation atlas", () => {
+  it("loads the original transparent 2×2 WebP chest animation atlas", async () => {
     const image = readImage(TREASURE_CHEST_ASSET_PATH);
-    expect(image.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-    expect(image.readUInt32BE(16)).toBe(TREASURE_CHEST_FRAME_SIZE * 2);
-    expect(image.readUInt32BE(20)).toBe(TREASURE_CHEST_FRAME_SIZE * 2);
-    expect(image[25]).toBe(6);
+    const metadata = await sharp(image).metadata();
+    expect(metadata.format).toBe("webp");
+    expect(metadata.hasAlpha).toBe(true);
+    expect(metadata.width).toBe(TREASURE_CHEST_FRAME_SIZE * 2);
+    expect(metadata.height).toBe(TREASURE_CHEST_FRAME_SIZE * 2);
     expect(TREASURE_CHEST_ASSET_PATH).toBe(ARPG_ASSET_MANIFEST.props.treasureChest.path);
   });
 

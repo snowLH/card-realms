@@ -4,6 +4,13 @@ import type { CreatureSeed } from "./creature-seed";
 export const REQUESTED_EVOLUTION_ATLAS = "/art/folklore-requested-evolution-atlas.svg";
 export const REQUESTED_ATLAS_COLUMNS = 20;
 export const REQUESTED_ATLAS_ROWS = 15;
+const REQUESTED_CREATURE_PORTRAIT_ATLASES = [
+  "/art/requested-creatures-chibi-atlas-a-v1.webp",
+  "/art/requested-creatures-chibi-atlas-b-v1.webp",
+  "/art/requested-creatures-chibi-atlas-c-v2.webp",
+  "/art/requested-creatures-chibi-atlas-d-v2.webp",
+] as const;
+const REQUESTED_CREATURE_PORTRAIT_COLUMNS = 5;
 
 type RequestedSpec = {
   id: string;
@@ -142,6 +149,8 @@ const regionNames: Record<string, string> = {
 function seedFor(spec: RequestedSpec, index: number): CreatureSeed {
   const [hp, defense, speed] = rarityStats[spec.rarity];
   const words = moveWords[spec.element];
+  const portraitAtlas = REQUESTED_CREATURE_PORTRAIT_ATLASES[Math.floor(index / 25)]
+    ?? REQUESTED_CREATURE_PORTRAIT_ATLASES[0];
   return {
     id: spec.id, name: spec.name, title: `Manifestação de ${spec.tradition}`,
     description: spec.description,
@@ -155,8 +164,8 @@ function seedFor(spec: RequestedSpec, index: number): CreatureSeed {
     traits: [spec.element, spec.role, "folclore"], rarity: spec.rarity, role: spec.role,
     hp, defense, speed, moves: [`${words[0]} de ${spec.name}`, `${words[1]} de ${spec.name}`, `${words[2]} de ${spec.name}`],
     obtainableBy: `Expedições e recompensas em ${regionNames[spec.regionId] ?? spec.regionId}`,
-    spriteIndex: index * 3 + 2, spriteSheet: REQUESTED_EVOLUTION_ATLAS,
-    spriteColumns: REQUESTED_ATLAS_COLUMNS, spriteRows: REQUESTED_ATLAS_ROWS,
+    spriteIndex: index % 25, spriteSheet: portraitAtlas,
+    spriteColumns: REQUESTED_CREATURE_PORTRAIT_COLUMNS, spriteRows: REQUESTED_CREATURE_PORTRAIT_COLUMNS,
   };
 }
 function requestedSprite(index: number): SpriteDefinition {

@@ -1,0 +1,4072 @@
+:root {
+  --folklard-ink: #101a15;
+  --folklard-forest: #17271e;
+  --folklard-forest-raised: #23382a;
+  --folklard-vellum: #ead9ad;
+  --folklard-vellum-light: #f4e8c8;
+  --folklard-wood: #42271d;
+  --folklard-bronze: #b77d3c;
+  --folklard-gold: #edc66c;
+  --folklard-magic: #75d5c4;
+  --folklard-text: #f6edcf;
+  --folklard-shadow: rgba(5, 10, 7, .5);
+}
+
+/* Title screen */
+.title-screen {
+  background-color: var(--folklard-ink);
+  background-image:
+    linear-gradient(90deg, rgba(7, 17, 13, .96) 0%, rgba(7, 17, 13, .82) 28%, rgba(7, 17, 13, .28) 58%, rgba(7, 17, 13, .04) 100%),
+    linear-gradient(0deg, rgba(7, 17, 13, .62), transparent 40%),
+    url("/art/folklard-title-forest-portal-pixel-v3.webp");
+  color: var(--folklard-text);
+}
+
+.title-screen__brand h1,
+.title-screen__brand p,
+.title-screen__kicker,
+.title-screen__caption {
+  text-wrap: balance;
+}
+
+.title-screen__brand h1 span,
+.title-screen__kicker span {
+  color: var(--folklard-magic);
+}
+
+.title-screen__menu-button,
+.title-screen__play,
+.title-screen__login {
+  border-color: rgba(117, 213, 196, .66);
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(30, 54, 40, .98), rgba(15, 31, 23, .98));
+  box-shadow: inset 0 0 0 2px rgba(8, 19, 14, .82), 0 4px 0 rgba(5, 10, 7, .7);
+}
+
+.title-screen__play {
+  border-color: var(--folklard-gold);
+  background: linear-gradient(180deg, #4b6645, #293f2e);
+  box-shadow: inset 0 0 0 2px #1c3022, 0 5px 0 rgba(5, 10, 7, .76);
+}
+
+.title-screen__play small { color: #d6e3bd; }
+.title-screen__caption {
+  border-color: rgba(117, 213, 196, .42);
+  background: rgba(9, 22, 16, .86);
+}
+
+.title-screen__dialog {
+  border-color: var(--folklard-gold) !important;
+  border-radius: 5px !important;
+  background: linear-gradient(145deg, #20372a, #111f18) !important;
+}
+
+/* Avatar atelier */
+.character-creator {
+  border: 4px solid var(--folklard-wood);
+  border-radius: 5px;
+  background: var(--folklard-vellum);
+  box-shadow: inset 0 0 0 2px var(--folklard-bronze), 5px 6px var(--folklard-shadow);
+  color: #2e2419;
+}
+
+.character-creator__preview {
+  border-bottom: 3px solid var(--folklard-bronze);
+  background:
+    radial-gradient(ellipse at 50% 72%, rgba(117, 213, 196, .16), transparent 42%),
+    radial-gradient(circle at 50% 35%, #526b48 0%, #23382a 46%, #101a15 100%);
+  color: var(--folklard-vellum-light);
+}
+
+.character-creator__preview h2 {
+  color: var(--folklard-vellum-light);
+  font-family: var(--font-game), monospace;
+  text-shadow: 2px 2px #17251b;
+}
+
+.character-creator__preview p { color: #e1d6b5; }
+.character-creator__book { background: var(--folklard-vellum); }
+
+.character-creator__tabs {
+  border-color: var(--folklard-bronze);
+}
+
+.character-creator__tabs button {
+  min-height: 44px;
+  color: #59432b;
+  font-size: 10px;
+}
+
+.character-creator__tabs button.is-active {
+  border-color: #386b5c;
+  color: #245344;
+}
+
+.character-creator__choices button {
+  border: 2px solid #775235;
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--folklard-vellum-light), var(--folklard-vellum));
+  color: #30251a;
+  box-shadow: 2px 3px rgba(66, 39, 29, .17);
+}
+
+.character-creator__choices button.is-active {
+  border-color: #93602e;
+  outline: 2px solid var(--folklard-gold);
+  background: #f6e7bb;
+}
+
+.character-creator__choices button.is-locked {
+  opacity: .82;
+  background: #d7c9a6;
+}
+
+.character-choice__swatch {
+  border-color: var(--folklard-wood);
+  box-shadow: inset 0 0 0 2px rgba(255, 244, 210, .18);
+}
+
+/* Folklard hero sheets use six individual 4-frame pixel animation cycles. */
+.character-avatar-2d > .character-avatar-2d__sprite {
+  position: absolute;
+  top: auto;
+  right: auto;
+  bottom: 0;
+  left: 50%;
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  transform: translateX(-50%);
+  border: 0 !important;
+  background-image: none;
+  background-position: 0 0;
+  background-size: 400% 600%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  /* Rest is intentionally a single, stable frame. Action rows animate in-game. */
+  animation: none;
+}
+
+.character-avatar-2d--native-legend.character-avatar-2d--animation-walk > .character-avatar-2d__sprite {
+  animation: folklard-legend-walk .56s steps(3, end) infinite;
+}
+
+.character-avatar-2d--native-legend.character-avatar-2d--animation-attack > .character-avatar-2d__sprite {
+  animation: folklard-legend-attack var(--avatar-cast-duration, .42s) steps(3, end) 1 both;
+}
+
+.character-avatar-2d--native-legend.character-avatar-2d--animation-shoot > .character-avatar-2d__sprite {
+  animation: folklard-legend-shoot var(--avatar-cast-duration, .42s) steps(3, end) 1 both;
+}
+
+.character-avatar-2d--native-legend.character-avatar-2d--animation-damage > .character-avatar-2d__sprite {
+  animation: folklard-legend-damage var(--avatar-cast-duration, .42s) steps(3, end) 1 both;
+}
+
+.character-avatar-2d--native-legend.character-avatar-2d--animation-defeat > .character-avatar-2d__sprite {
+  animation: folklard-legend-defeat var(--avatar-cast-duration, .58s) steps(3, end) 1 both;
+}
+
+@keyframes folklard-legend-walk {
+  from { background-position: 0 20%; }
+  to { background-position: 100% 20%; }
+}
+
+@keyframes folklard-legend-attack {
+  from { background-position: 0 40%; }
+  to { background-position: 100% 40%; }
+}
+
+@keyframes folklard-legend-shoot {
+  from { background-position: 0 60%; }
+  to { background-position: 100% 60%; }
+}
+
+@keyframes folklard-legend-damage {
+  from { background-position: 0 80%; }
+  to { background-position: 100% 80%; }
+}
+
+@keyframes folklard-legend-defeat {
+  from { background-position: 0 100%; }
+  to { background-position: 100% 100%; }
+}
+
+.character-creator__book > button {
+  min-height: 48px;
+  border: 2px solid #694526;
+  border-radius: 4px;
+  background: linear-gradient(#edc66c, #d7a64e);
+  color: #2b2115;
+  box-shadow: inset 0 0 0 2px rgba(255, 241, 194, .42), 0 3px #50351e;
+}
+
+/* Loadout and the two equipped attacks */
+.arpg-loadout-view { color: var(--folklard-text); }
+
+.arpg-loadout-hero {
+  border: 3px solid var(--folklard-bronze);
+  border-radius: 5px;
+  background: linear-gradient(125deg, #2c4934, #17271e 72%);
+  box-shadow: inset 0 0 0 2px rgba(237, 198, 108, .2), 4px 5px var(--folklard-shadow);
+}
+
+.arpg-loadout-hero h1,
+.arpg-loadout-section__heading strong { color: var(--folklard-vellum-light); }
+.arpg-loadout-hero small,
+.arpg-loadout-section__heading small { color: var(--folklard-gold); }
+.arpg-loadout-hero p { color: #e0d7bd; }
+
+.arpg-loadout-hero > button,
+.arpg-expedition-resume button,
+.arpg-expedition-card button {
+  border: 2px solid #704b27;
+  border-radius: 4px;
+  background: linear-gradient(#f0cb75, #d5a64d);
+  color: #2b2115;
+  box-shadow: inset 0 0 0 1px rgba(255, 245, 207, .4), 0 3px #4a321d;
+}
+
+.arpg-loadout-summary > span,
+.arpg-loadout-grid button,
+.arpg-loadout-grid article,
+.arpg-ability-slots button,
+.arpg-ability-collection button {
+  border: 2px solid #785536;
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--folklard-vellum-light), var(--folklard-vellum));
+  color: #30251a;
+  box-shadow: inset 0 0 0 1px rgba(255, 250, 225, .5), 2px 3px rgba(5, 10, 7, .2);
+}
+
+/* The equipped attacks are read-only articles, not buttons. Give them the
+   same framed readability as the selectable arsenal cards. */
+.arpg-ability-collection article {
+  display: grid;
+  min-width: 0;
+  min-height: 106px;
+  align-content: start;
+  gap: 6px;
+  border: 3px solid #151b13;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #40533b, #273628);
+  padding: 10px;
+  color: #fff0c7;
+  box-shadow: inset 0 0 0 2px #80693c, 2px 3px rgba(5, 10, 7, .44);
+}
+
+.arpg-ability-collection article.is-equipped {
+  border-color: #d7aa4b;
+  box-shadow: inset 0 0 0 2px #fff0a1, 0 0 0 1px rgba(237, 198, 108, .5), 2px 3px rgba(5, 10, 7, .44);
+}
+
+.arpg-ability-collection article small { color: #f4ce76; font: 900 8px var(--font-game), monospace; }
+.arpg-ability-collection article strong { color: #fff4d0; font-size: 14px; }
+.arpg-ability-collection article span { color: #e1ddc4; font-size: 11px; }
+.arpg-ability-collection article em { margin-top: auto; color: #b7e09f; font-size: 11px; font-style: normal; font-weight: 800; }
+
+.arpg-loadout-summary small,
+.arpg-loadout-grid span,
+.arpg-loadout-grid em,
+.arpg-ability-slots span,
+.arpg-ability-collection span,
+.arpg-ability-collection em { color: #58442d; }
+
+.arpg-loadout-grid button.is-selected {
+  border-color: #9b682f;
+  outline: 2px solid var(--folklard-gold);
+  background: #f7e8bc;
+  transform: translateY(-1px);
+}
+
+.arpg-ability-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.arpg-ability-slots button.is-active {
+  border-color: #357462;
+  outline: 2px solid var(--folklard-magic);
+  background: #f2e9c9;
+}
+
+.arpg-ability-slots small,
+.arpg-ability-collection small,
+.arpg-loadout-grid small { color: #63482b; font-size: 9px; }
+
+.arpg-ability-collection button.is-equipped {
+  border-color: #9b682f;
+  box-shadow: inset 0 0 0 2px #d4a54c, 0 0 0 1px rgba(237, 198, 108, .55);
+}
+
+.arpg-ability-collection button.is-owned:not(.is-equipped) { border-color: #4d806c; }
+.arpg-ability-collection button.is-for-sale { border-color: #a87032; }
+.arpg-ability-collection button.is-unavailable { background: #d6ceb8; }
+
+.arpg-ability-collection button:disabled {
+  filter: none;
+  opacity: 1;
+}
+
+.arpg-loadout-grid button:disabled,
+.arpg-ability-collection button:disabled {
+  filter: saturate(.55);
+  opacity: .72;
+}
+
+/* Expedition cards keep their regional art while sharing the same frame language. */
+.arpg-expeditions__hero {
+  border: 2px solid var(--folklard-bronze);
+  border-radius: 5px;
+  background: linear-gradient(125deg, #2b4733, #142219 76%);
+  box-shadow: 4px 5px var(--folklard-shadow);
+}
+
+.arpg-expeditions__hero h1,
+.arpg-expedition-card__body h2 { color: var(--folklard-vellum-light); }
+.arpg-expeditions__hero small,
+.arpg-expedition-card__body > small { color: var(--folklard-gold); }
+.arpg-expeditions__hero p { color: #e2d8bd; }
+
+.arpg-expedition-resume {
+  border: 2px solid var(--folklard-gold);
+  border-radius: 5px;
+  background: linear-gradient(110deg, #3b3422, #1b2d20);
+  box-shadow: 3px 4px var(--folklard-shadow);
+}
+
+.arpg-expedition-card {
+  border: 2px solid #765332;
+  border-radius: 5px;
+  background: #17251c;
+  box-shadow: 4px 5px var(--folklard-shadow);
+}
+
+.arpg-expedition-card__art span {
+  border: 1px solid var(--folklard-gold);
+  border-radius: 3px;
+  background: rgba(12, 25, 17, .9);
+  color: #f4d68d;
+}
+
+.arpg-expedition-card__body { color: var(--folklard-text); }
+.arpg-expedition-card__body p { color: #ddd3b7; }
+.arpg-expedition-card__meta span { background: #2d392b; color: #f0e3bf; }
+.arpg-expedition-card__folklore span { background: #203d32; color: #c8e6d5; }
+
+/* Compact game HUD; the model still supplies exactly two equipped attacks. */
+.arpg-hud__status,
+.arpg-hud__loadout,
+.arpg-hud__minimap {
+  border-color: rgba(237, 198, 108, .72);
+  border-radius: 4px;
+  background: rgba(13, 27, 19, .94);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .42);
+  color: var(--folklard-text);
+}
+
+.arpg-hud__hp { border-radius: 2px; }
+.arpg-hud__hp i { background: linear-gradient(90deg, #b54b3d, #edb75b); }
+.arpg-hud__minimap > span { color: var(--folklard-gold); }
+
+.arpg-shell .arpg-hud__cards > span {
+  border-color: rgba(237, 198, 108, .62);
+  border-radius: 4px;
+  background: rgba(13, 27, 19, .94);
+  color: var(--folklard-vellum-light);
+}
+
+.arpg-hud__cards b { color: var(--folklard-magic); }
+.arpg-hud__cards small { color: #e6d8b3; }
+.arpg-hud__cards .is-ready { border-color: rgba(117, 213, 196, .7); }
+.arpg-hud__cards .is-cooling { border-color: rgba(237, 198, 108, .5); opacity: .82; filter: none; }
+
+.arpg-touch button {
+  border-color: rgba(237, 198, 108, .78);
+  border-radius: 6px;
+  background: rgba(17, 37, 25, .94);
+  color: var(--folklard-vellum-light);
+  backdrop-filter: none;
+}
+
+.arpg-touch__cards button.is-ready { border-color: var(--folklard-magic); }
+.arpg-touch__cards button.is-cooling { border-color: var(--folklard-bronze); color: #e5d7b6; filter: none; }
+.arpg-touch__attack { border-color: var(--folklard-gold) !important; background: rgba(87, 56, 28, .94) !important; }
+.arpg-touch__interact { border-color: var(--folklard-magic) !important; background: rgba(30, 76, 57, .96) !important; }
+
+.arpg-hub-topbar__stats span,
+.arpg-hub-topbar__actions > button,
+.arpg-hub-prompt {
+  border-color: rgba(237, 198, 108, .62);
+  border-radius: 4px;
+  background: rgba(13, 27, 19, .94);
+  color: var(--folklard-vellum-light);
+}
+
+.arpg-hub-prompt { border-color: var(--folklard-magic); }
+.arpg-hub-rotate { background: radial-gradient(circle at 50% 30%, #2b4733, var(--folklard-ink) 72%); }
+.arpg-hub-rotate button { border-radius: 4px; background: var(--folklard-gold); }
+
+/* Consistent keyboard focus without relying on color alone. */
+:is(.title-screen, .character-creator, .arpg-loadout-view, .arpg-expeditions, .arpg-shell, .arpg-hub-shell)
+  :is(button, input, [tabindex]):focus-visible {
+  outline: 3px solid var(--folklard-magic);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px var(--folklard-ink), 0 0 0 5px rgba(117, 213, 196, .42);
+}
+
+@media (max-width: 767px) {
+  .title-screen {
+    min-height: 100svh;
+    background-image:
+      linear-gradient(180deg, rgba(7, 17, 13, .66), rgba(7, 17, 13, .54) 34%, rgba(7, 17, 13, .9) 100%),
+      linear-gradient(90deg, rgba(7, 17, 13, .5), transparent 90%),
+      url("/art/folklard-title-forest-portal-pixel-v3.webp");
+  }
+
+  .title-screen__content { padding-bottom: max(32px, calc(64px + env(safe-area-inset-bottom))); }
+
+  .character-creator__tabs button { min-height: 48px; }
+  .character-creator__tabs span { display: inline; font-size: 9px; }
+
+  .arpg-loadout-view { padding-bottom: max(96px, calc(88px + env(safe-area-inset-bottom))); }
+  .arpg-loadout-summary > span { min-height: 58px; }
+
+  .arpg-expeditions__hero { gap: 12px; padding: 16px; }
+  .arpg-expedition-card__art { min-height: 170px; }
+}
+
+@media (max-width: 360px) {
+  .character-creator__tabs { gap: 0; }
+  .character-creator__tabs button { padding-inline: 1px; }
+  .character-creator__tabs span { font-size: 9px; }
+}
+
+/* The physical Guild remains usable in portrait on touch devices. */
+@media (pointer: coarse) and (orientation: portrait) and (max-width: 900px) {
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 4px 8px;
+    min-height: 82px;
+    padding: calc(6px + env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left));
+  }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar > div:first-child {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar strong { font-size: 12px; }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar__stats {
+    grid-column: 1;
+    grid-row: 2;
+    justify-content: flex-start;
+    gap: 4px;
+  }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar__stats span {
+    min-height: 28px;
+    gap: 4px;
+    padding: 4px 7px;
+    font-size: 9px;
+  }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar__actions {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar__actions > button {
+    min-height: 44px;
+    padding-inline: 7px;
+    font-size: 9px;
+    white-space: nowrap;
+  }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar__actions > button:first-child {
+    width: 44px;
+    min-width: 44px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar__actions > button:last-child {
+    min-width: 0;
+  }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-touch {
+    position: absolute;
+    z-index: 38;
+    inset: 0;
+    display: block;
+    pointer-events: none;
+  }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-stick {
+    position: absolute;
+    left: max(16px, env(safe-area-inset-left));
+    bottom: max(24px, env(safe-area-inset-bottom));
+    width: 104px;
+    height: 104px;
+    border: 3px solid rgba(239, 213, 151, .58);
+    border-radius: 50%;
+    background: rgba(27, 22, 22, .76);
+    pointer-events: auto;
+    touch-action: none;
+  }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-stick span {
+    position: absolute;
+    inset: 35%;
+    border-radius: 50%;
+    background: rgba(239, 213, 151, .82);
+  }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-touch > button {
+    position: absolute;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(30px, env(safe-area-inset-bottom));
+    display: grid;
+    width: 80px;
+    min-height: 68px;
+    place-items: center;
+    gap: 2px;
+    border: 3px solid rgba(239, 213, 151, .7);
+    border-radius: 14px;
+    background: rgba(41, 32, 29, .94);
+    color: #f7dda0;
+    pointer-events: auto;
+    font: 900 9px var(--font-game), monospace;
+    touch-action: manipulation;
+  }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-touch > button svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-stage__canvas > canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none;
+    max-height: none;
+    margin: 0 !important;
+  }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-help { display: none; }
+
+  .arpg-hub-shell--portrait-mobile .arpg-hub-prompt {
+    bottom: max(138px, calc(104px + env(safe-area-inset-bottom)));
+    width: calc(100vw - max(24px, env(safe-area-inset-left) + env(safe-area-inset-right)));
+    max-width: 360px;
+    padding: 7px 10px;
+    font-size: 9px;
+    line-height: 1.25;
+    background: rgba(20, 15, 16, .94);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-screen__glow,
+  .arpg-touch__interact,
+  .character-avatar-2d__sprite { animation: none !important; }
+
+  .character-avatar-2d--animation-attack > .character-avatar-2d__sprite {
+    background-position: 100% 40%;
+  }
+
+  .character-avatar-2d--animation-shoot > .character-avatar-2d__sprite {
+    background-position: 100% 60%;
+  }
+
+  .character-avatar-2d--animation-damage > .character-avatar-2d__sprite {
+    background-position: 100% 80%;
+  }
+
+  .character-avatar-2d--animation-defeat > .character-avatar-2d__sprite {
+    background-position: 100% 100%;
+  }
+
+  .title-screen :is(button, input),
+  .character-creator :is(button, input),
+  .arpg-loadout-view :is(button, input),
+  .arpg-expeditions :is(button, input),
+  .arpg-shell :is(button, input),
+  .arpg-hub-shell :is(button, input),
+  .arpg-hud__hp i {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :is(.title-screen, .character-creator, .arpg-loadout-view, .arpg-expeditions, .arpg-shell, .arpg-hub-shell)
+    :is(button, input, [tabindex]):focus-visible {
+    outline: 3px solid Highlight;
+    box-shadow: none;
+  }
+}
+
+/* Folklore archive: a playable field ledger for discovery, reading, and browsing. */
+.collection-view {
+  --archive-paper: #f2dfb2;
+  --archive-paper-shadow: #d2b67d;
+  --archive-wood: #321d17;
+  --archive-brass: #bb8241;
+  --archive-ink: #39261c;
+  --archive-moss: #3c694f;
+  color: var(--folklard-text);
+}
+
+.collection-view .view-heading {
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid rgba(237, 198, 108, .38);
+}
+
+.collection-view .view-heading > div:first-child {
+  min-width: 0;
+}
+
+.collection-view .view-eyebrow {
+  color: var(--folklard-magic);
+  letter-spacing: .14em;
+}
+
+.collection-view .view-heading h1 {
+  max-width: 760px;
+  color: var(--folklard-vellum-light);
+  text-wrap: balance;
+}
+
+.collection-view .view-heading p {
+  max-width: 680px;
+  color: #d8c9a7;
+}
+
+.collection-view .catalog-progress {
+  min-width: 220px;
+  border: 3px double var(--folklard-bronze);
+  border-left: 7px solid var(--folklard-gold);
+  background: linear-gradient(145deg, #293b2b, #17241b);
+  padding: 10px 14px;
+  box-shadow: inset 0 0 0 2px rgba(237, 198, 108, .12), 4px 5px var(--folklard-shadow);
+}
+
+.collection-view .catalog-progress strong {
+  color: var(--folklard-gold);
+  font: 900 26px/1.1 var(--font-game), monospace;
+  letter-spacing: .02em;
+}
+
+.collection-view .catalog-progress span {
+  color: var(--folklard-vellum-light);
+  font: 800 10px/1.4 var(--font-game), monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.collection-view .catalog-progress small {
+  margin-top: 4px;
+  color: #c7c29f;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.collection-view .collection-toolbar--advanced {
+  position: relative;
+  gap: 9px;
+  border: 3px solid #3a241b;
+  border-radius: 6px;
+  background:
+    linear-gradient(135deg, rgba(255, 248, 218, .1), transparent 45%),
+    linear-gradient(180deg, #4b3325, #302119);
+  padding: 12px;
+  box-shadow: inset 0 0 0 2px rgba(237, 198, 108, .22), 4px 5px var(--folklard-shadow);
+}
+
+.collection-view .search-field {
+  min-height: 46px;
+  border: 2px solid #a8753f;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #faedc9, #e4cb92);
+  padding-inline: 12px;
+  box-shadow: inset 0 0 0 2px rgba(255, 250, 224, .45), 0 2px #1e130f;
+}
+
+.collection-view .search-field svg {
+  flex: 0 0 auto;
+  color: #73502f;
+}
+
+.collection-view .search-field input {
+  color: #302219;
+  font-size: 14px;
+}
+
+.collection-view .search-field input::placeholder {
+  color: #795d40;
+  opacity: 1;
+}
+
+.collection-view .collection-filter-row {
+  gap: 6px;
+  padding: 2px 1px 5px;
+  overscroll-behavior-x: contain;
+  scrollbar-color: #a87840 transparent;
+  scrollbar-width: thin;
+}
+
+.collection-view .collection-filter-row > span {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-height: 34px;
+  border: 1px solid #9d7040;
+  border-radius: 3px;
+  background: #38241b;
+  padding: 0 9px;
+  color: #f2d386;
+  font: 900 9px/1 var(--font-game), monospace;
+  letter-spacing: .08em;
+  box-shadow: 2px 0 0 #38241b;
+}
+
+.collection-view .collection-filter-row > span svg {
+  width: 14px;
+  height: 14px;
+}
+
+.collection-view .collection-filter-row button {
+  min-height: 34px;
+  border: 2px solid #87603a;
+  border-radius: 3px;
+  background: linear-gradient(#f2dfb2, #ddc18a);
+  padding-inline: 10px;
+  color: #493020;
+  font: 800 9px/1 var(--font-game), monospace;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px rgba(255, 250, 224, .5), 0 2px #211510;
+  transition: background-color .14s ease, border-color .14s ease, color .14s ease, transform .14s ease;
+}
+
+.collection-view .collection-filter-row button:hover {
+  border-color: #d1a04f;
+  background: #fff0c5;
+  color: #2e2118;
+}
+
+.collection-view .collection-filter-row button.is-active {
+  border-color: #f0ca70;
+  background: linear-gradient(#765039, #4f3024);
+  color: #fff0c7;
+  box-shadow: inset 0 -3px var(--filter, var(--folklard-gold)), 0 2px #211510;
+}
+
+.collection-view .collection-summary {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.collection-view .collection-summary [data-slot="badge"] {
+  min-height: 28px;
+  border: 2px solid #765331;
+  border-radius: 3px;
+  background: linear-gradient(#f3e2b8, #d8bd85);
+  padding: 4px 8px;
+  color: #3d291c;
+  font: 900 9px/1.2 var(--font-game), monospace;
+  box-shadow: inset 0 0 0 1px rgba(255, 249, 219, .55), 2px 2px rgba(5, 10, 7, .25);
+}
+
+.collection-view .collection-summary p {
+  flex: 1 1 250px;
+  margin: 0 0 0 4px;
+  color: #cfc19e;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.collection-view .bestiary-book {
+  overflow: hidden;
+  border: 8px solid #241510;
+  border-radius: 6px 6px 15px 15px;
+  background: var(--archive-paper-shadow);
+  box-shadow: inset 0 0 0 3px #a8733d, 10px 12px rgba(5, 8, 5, .54), 0 0 0 1px rgba(237, 198, 108, .25);
+}
+
+.collection-view .bestiary-book__page {
+  background:
+    radial-gradient(ellipse at 50% 0, rgba(255, 250, 224, .72), transparent 55%),
+    repeating-linear-gradient(0deg, rgba(102, 62, 32, .04) 0 1px, transparent 1px 5px),
+    linear-gradient(105deg, #f7e8c0, #e8cf99);
+}
+
+.collection-view .bestiary-book__page--lore {
+  background:
+    radial-gradient(ellipse at 100% 0, rgba(255, 250, 224, .64), transparent 54%),
+    repeating-linear-gradient(0deg, rgba(102, 62, 32, .04) 0 1px, transparent 1px 5px),
+    linear-gradient(80deg, #e8ce97, #f6e6bd);
+}
+
+.collection-view .bestiary-book__folio {
+  min-height: 24px;
+  border-bottom: 1px solid rgba(138, 85, 47, .42);
+  padding-bottom: 7px;
+  color: #77502f;
+}
+
+.collection-view .bestiary-book__portrait {
+  min-height: 200px;
+  border-color: #38231a;
+  background:
+    radial-gradient(circle at 50% 68%, color-mix(in srgb, var(--bestiary-element) 38%, transparent), transparent 64%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, .1) 0 4px, transparent 4px 9px),
+    linear-gradient(145deg, #927047, #59432f);
+  box-shadow: inset 0 0 0 3px #e0b969, inset 0 -16px 30px rgba(34, 21, 13, .25), 0 3px #704a2d;
+}
+
+.collection-view .bestiary-book__portrait .pixel-creature {
+  filter: drop-shadow(0 5px 2px rgba(30, 19, 13, .44));
+}
+
+.collection-view .bestiary-book__rarity {
+  border-color: #4a2c1e;
+  background: linear-gradient(#794a31, #55311f);
+  color: #ffebbb;
+  box-shadow: 0 2px rgba(63, 37, 24, .2);
+}
+
+.collection-view .bestiary-book__stats span {
+  min-width: 66px;
+  justify-content: center;
+  border-color: #9b7042;
+  background: rgba(255, 247, 215, .72);
+  color: #39271b;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .42);
+}
+
+.collection-view .bestiary-book__stats svg {
+  color: #76502f;
+}
+
+.collection-view .bestiary-book__page--lore > p {
+  color: #493223;
+  font-size: 13px;
+}
+
+.collection-view .bestiary-book blockquote {
+  border-left-color: #4d7656;
+  background: rgba(60, 105, 79, .1);
+  color: #4a3727;
+  line-height: 1.65;
+}
+
+.collection-view .bestiary-book dl > div {
+  border-bottom-color: rgba(125, 82, 45, .48);
+}
+
+.collection-view .bestiary-book dt {
+  color: #6e4a2d;
+}
+
+.collection-view .bestiary-book dd {
+  color: #3e2b1f;
+  overflow-wrap: anywhere;
+}
+
+.collection-view .bestiary-book__moves span {
+  border-color: #967044;
+  background: rgba(255, 248, 224, .62);
+  color: #3e2a1d;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .4);
+}
+
+.collection-view .bestiary-book__moves small {
+  color: #654b32;
+  line-height: 1.35;
+}
+
+.collection-view .bestiary-evolution-line {
+  border-color: #8a6038;
+  background: rgba(255, 247, 215, .42);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .3);
+}
+
+.collection-view .bestiary-evolution-line__stages article {
+  border-color: #a27a4c;
+  background: rgba(255, 249, 225, .64);
+}
+
+.collection-view .bestiary-evolution-line__stages article.is-current {
+  border-color: #386b50;
+  background: #d9e0ae;
+  box-shadow: inset 0 0 0 2px #f1edc7, 0 2px #785534;
+}
+
+.collection-view .bestiary-evolution-line__stages article > span {
+  color: #795331;
+}
+
+.collection-view .bestiary-evolution-line__stages article > strong {
+  color: #34251b;
+}
+
+.collection-view .bestiary-evolution-line__stages article > small,
+.collection-view .bestiary-evolution-line > p {
+  color: #634c35;
+}
+
+.collection-view .collection-evolution {
+  border: 2px solid #8b6037;
+  border-radius: 4px;
+  background: linear-gradient(120deg, rgba(255, 246, 210, .72), rgba(219, 194, 140, .55));
+  padding: 12px;
+  color: #38271c;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .48);
+}
+
+.collection-view .collection-evolution .view-eyebrow {
+  color: #5a7650;
+  text-shadow: none;
+}
+
+.collection-view .collection-evolution strong {
+  color: #37261b;
+}
+
+.collection-view .collection-evolution small,
+.collection-view .collection-evolution p {
+  color: #665038;
+  line-height: 1.45;
+}
+
+.collection-view .collection-evolution [data-slot="button"] {
+  min-height: 42px;
+  border: 2px solid #79502c;
+  border-radius: 3px;
+  background: linear-gradient(#f0ca73, #cd9643);
+  color: #302016;
+  font: 900 10px var(--font-game), monospace;
+  box-shadow: inset 0 0 0 1px rgba(255, 245, 207, .5), 0 3px #57391f;
+}
+
+.collection-view .collection-evolution [data-slot="button"]:disabled {
+  filter: saturate(.55);
+  opacity: .72;
+}
+
+.collection-view .collection-evolution [role="status"] {
+  border-left: 3px solid #3e785e;
+  padding-left: 8px;
+}
+
+.collection-view .collection-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.collection-view .creature-card {
+  min-width: 0;
+  border-color: #2a1812;
+  border-radius: 4px;
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, .24), transparent 38%),
+    linear-gradient(180deg, #f6e3b5, #d6b77d);
+  padding: 9px;
+  color: #332319;
+  text-align: left;
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--element) 48%, #8a5a32), 4px 5px rgba(5, 8, 5, .58);
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+
+.collection-view .creature-card__header {
+  min-height: 27px;
+  align-items: center;
+  gap: 6px;
+  color: #302219;
+  font-size: 10px;
+}
+
+.collection-view .creature-card__header > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collection-view .creature-card__header > span:last-child {
+  flex: 0 0 auto;
+  color: #58412b;
+  font-size: 9px;
+}
+
+.collection-view .creature-card__element {
+  flex: 0 0 auto;
+  min-width: 28px;
+  border: 2px solid #39241a;
+  background: #54392a;
+  color: #ffedc4;
+  text-align: center;
+}
+
+.collection-view .creature-card__art {
+  min-height: 150px;
+  border-color: #3c2519;
+  background:
+    radial-gradient(ellipse at 50% 78%, var(--element-glow), transparent 60%),
+    repeating-linear-gradient(135deg, rgba(255, 239, 190, .12) 0 4px, transparent 4px 9px),
+    linear-gradient(160deg, #76573a, #4b3828);
+  box-shadow: inset 0 0 0 2px rgba(226, 183, 105, .62), inset 0 -12px 24px rgba(20, 14, 9, .24);
+}
+
+.collection-view .creature-card__art .pixel-creature {
+  width: 100%;
+  height: 146px;
+  filter: drop-shadow(0 4px 2px rgba(20, 13, 9, .38));
+}
+
+.collection-view .creature-card p {
+  color: #5c432e;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.collection-view .creature-card__source {
+  border-top-color: #a47a4a;
+  color: #60472f;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.collection-view .creature-card__source span {
+  color: #74512f;
+  font: 900 8px var(--font-game), monospace;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.collection-view .creature-card [data-slot="badge"] {
+  border-color: #72502f;
+  border-radius: 3px;
+  background: rgba(255, 247, 218, .78);
+  color: #3b291d;
+  font: 900 8px var(--font-game), monospace;
+}
+
+.collection-view button.creature-card:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: inset 0 0 0 3px var(--element), 5px 8px rgba(5, 8, 5, .58), 0 0 16px var(--element-glow);
+}
+
+.collection-view .creature-card--indexed {
+  border-color: #f0c66a;
+  box-shadow: inset 0 0 0 3px var(--element), 0 0 0 2px #342116, 4px 5px rgba(5, 8, 5, .58), 0 0 18px var(--element-glow);
+}
+
+.collection-view .creature-card--unowned {
+  min-height: 0;
+  border-color: #45382b;
+  background: linear-gradient(155deg, #d7c8a4, #a99a78);
+  color: #342b20;
+  filter: none;
+  box-shadow: inset 0 0 0 3px rgba(78, 68, 53, .48), 4px 5px rgba(5, 8, 5, .48);
+}
+
+.collection-view .creature-card--unowned .creature-card__header {
+  color: #322b22;
+}
+
+.collection-view .creature-card__header--unknown .creature-card__element {
+  border-color: #514333;
+  background: #645640;
+  color: #fff1cb;
+}
+
+.collection-view .creature-card__art--unknown {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: #514333;
+  background:
+    radial-gradient(ellipse at 50% 70%, rgba(45, 39, 30, .28), transparent 62%),
+    repeating-linear-gradient(135deg, rgba(248, 235, 198, .12) 0 4px, transparent 4px 9px),
+    linear-gradient(145deg, #928365, #685c48);
+  color: #fff0c6;
+}
+
+.collection-view .creature-card__art--unknown::before {
+  position: absolute;
+  z-index: -1;
+  right: 24%;
+  bottom: -10%;
+  width: 52%;
+  height: 74%;
+  border-radius: 45% 45% 16% 16%;
+  background: rgba(39, 34, 27, .62);
+  clip-path: polygon(31% 0, 67% 0, 79% 14%, 100% 29%, 87% 43%, 73% 36%, 80% 100%, 20% 100%, 28% 40%, 10% 54%, 0 40%, 22% 20%);
+  content: "";
+}
+
+.collection-view .creature-card__art--unknown svg {
+  z-index: 1;
+  width: 30px;
+  height: 30px;
+  color: #fff0c6;
+  filter: drop-shadow(1px 2px #382c1c);
+}
+
+.collection-view .creature-card__art--unknown strong {
+  z-index: 1;
+  color: #fff1c9;
+  font-size: 42px;
+  line-height: .9;
+  text-shadow: 2px 3px #382c1c;
+}
+
+.collection-view .creature-card__unowned {
+  display: block;
+  margin-top: 8px;
+  color: #443623;
+  font-size: 9px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.collection-view .creature-card__unknown-copy {
+  min-height: 0 !important;
+  margin: 5px 0 0;
+  color: #594b37;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.collection-view .collection-pagination {
+  gap: 12px;
+  border: 2px solid rgba(183, 125, 60, .64);
+  border-radius: 4px;
+  background: rgba(20, 32, 23, .88);
+  padding: 8px;
+  box-shadow: 3px 4px rgba(5, 8, 5, .42);
+}
+
+.collection-view .collection-pagination span {
+  color: var(--folklard-vellum-light);
+}
+
+.collection-view .collection-pagination [data-slot="button"] {
+  min-height: 40px;
+  border: 2px solid #76502c;
+  border-radius: 3px;
+  background: linear-gradient(#f0ca73, #c9903e);
+  color: #302016;
+  font: 900 9px var(--font-game), monospace;
+  box-shadow: inset 0 0 0 1px rgba(255, 245, 207, .48), 0 2px #50351e;
+}
+
+.collection-view .collection-pagination [data-slot="button"]:disabled {
+  filter: saturate(.45);
+  opacity: .65;
+}
+
+.collection-view :is(button, input, [tabindex]):focus-visible {
+  outline: 3px solid #71d6c2;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px #101a15, 0 0 0 5px rgba(117, 213, 196, .48);
+}
+
+@media (max-width: 1000px) {
+  .collection-view .collection-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .collection-view .view-heading {
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+  }
+
+  .collection-view .catalog-progress {
+    min-width: 0;
+    border-color: #78512e;
+    border-left: 4px solid #d39b4c;
+    background: linear-gradient(180deg, #f2d99c, #c99d5e);
+    box-shadow: inset 0 0 0 2px #8d5531, 4px 5px #0e0809;
+  }
+
+  .collection-view .catalog-progress strong {
+    color: #552d22;
+    font-size: 18px;
+  }
+
+  .collection-view .catalog-progress span {
+    color: #67462f;
+    font-size: 9px;
+  }
+
+  .collection-view .catalog-progress small {
+    display: none;
+  }
+
+  .collection-view .collection-toolbar--advanced {
+    gap: 7px;
+    border-width: 2px;
+    padding: 8px;
+  }
+
+  .collection-view .search-field {
+    min-height: 46px;
+  }
+
+  .collection-view .collection-filter-row {
+    margin-inline: -2px;
+    padding-inline: 2px;
+    scroll-padding-inline: 4px;
+  }
+
+  .collection-view .collection-filter-row > span {
+    min-height: 36px;
+  }
+
+  .collection-view .collection-filter-row button {
+    min-height: 38px;
+    padding-inline: 10px;
+  }
+
+  .collection-view .collection-summary {
+    gap: 6px;
+  }
+
+  .collection-view .collection-summary [data-slot="badge"] {
+    min-height: 30px;
+  }
+
+  .collection-view .bestiary-book {
+    margin-top: 12px;
+    margin-bottom: 18px;
+    border-width: 6px;
+    border-radius: 8px;
+    box-shadow: inset 0 0 0 3px #985b35, 7px 8px #0c0708;
+  }
+
+  .collection-view .bestiary-book__page {
+    padding: 14px;
+  }
+
+  .collection-view .bestiary-book__portrait {
+    min-height: 170px;
+  }
+
+  .collection-view .bestiary-book__portrait .pixel-creature {
+    height: 158px;
+  }
+
+  .collection-view .bestiary-book__moves span {
+    align-items: flex-start;
+  }
+
+  .collection-view .bestiary-book__moves strong,
+  .collection-view .bestiary-book__moves small {
+    overflow-wrap: anywhere;
+  }
+
+  .collection-view .bestiary-evolution-line__stages {
+    gap: 5px;
+  }
+
+  .collection-view .bestiary-evolution-line__stages article {
+    padding: 6px 3px;
+  }
+
+  .collection-view .collection-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .collection-view .creature-card {
+    min-height: 0;
+    padding: 6px;
+    border-width: 3px;
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--element) 48%, #8a5a32), 3px 4px rgba(5, 8, 5, .58);
+  }
+
+  .collection-view .creature-card__header {
+    min-height: 26px;
+    gap: 4px;
+    font-size: 9px;
+  }
+
+  .collection-view .creature-card__header > span:last-child {
+    font-size: 8px;
+  }
+
+  .collection-view .creature-card__art,
+  .collection-view .creature-card__art--unknown {
+    min-height: 112px;
+  }
+
+  .collection-view .creature-card__art .pixel-creature {
+    height: 108px;
+  }
+
+  .collection-view .creature-card p,
+  .collection-view .creature-card__source {
+    display: none;
+  }
+
+  .collection-view .creature-card__unowned {
+    font-size: 8px;
+  }
+
+  .collection-view .creature-card__unknown-copy {
+    display: block !important;
+    font-size: 8px;
+  }
+
+  .collection-view .collection-pagination {
+    position: sticky;
+    bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 6px);
+    z-index: 8;
+    gap: 7px;
+    margin-top: 16px;
+    border-color: #68472a;
+    background: rgba(25, 39, 28, .96);
+    padding: 7px;
+  }
+
+  .collection-view .collection-pagination [data-slot="button"] {
+    min-width: 0;
+    min-height: 42px;
+    padding-inline: 9px;
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 380px) {
+  .collection-view .collection-grid {
+    gap: 6px;
+  }
+
+  .collection-view .creature-card__header > span:last-child {
+    display: none;
+  }
+
+  .collection-view .bestiary-book__stats {
+    flex-wrap: wrap;
+  }
+
+  .collection-view .bestiary-book__stats span {
+    flex: 1 1 60px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collection-view :is(button, input, [tabindex]),
+  .collection-view .pixel-creature {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .collection-view button.creature-card:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .collection-view :is(button, input, [tabindex]):focus-visible {
+    outline: 3px solid Highlight;
+    box-shadow: none;
+  }
+}
+
+/* Regional illustrations stay original; the frame and captions join Folklard's atlas language. */
+.arpg-expeditions__hero {
+  border: 3px solid var(--folklard-bronze);
+  border-radius: 5px;
+  background:
+    repeating-linear-gradient(0deg, rgba(237, 198, 108, .025) 0 1px, transparent 1px 5px),
+    linear-gradient(135deg, #1d3023, #111d16 76%);
+  box-shadow: inset 0 0 0 2px rgba(237, 198, 108, .12), 5px 6px var(--folklard-shadow);
+}
+
+.arpg-expeditions__hero h1 {
+  color: var(--folklard-vellum-light);
+  font-family: var(--font-game), monospace;
+  letter-spacing: -.035em;
+  text-shadow: 2px 3px #0b140e;
+}
+
+.arpg-expedition-card {
+  border: 3px solid #493624;
+  border-radius: 5px;
+  background: #111c15;
+  box-shadow: inset 0 0 0 2px rgba(237, 198, 108, .14), 5px 6px var(--folklard-shadow);
+}
+
+.arpg-expedition-card__art {
+  position: relative;
+  isolation: isolate;
+  border-bottom: 2px solid rgba(183, 125, 60, .9);
+}
+
+.arpg-expedition-card__art::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 17, 12, .3), transparent 54%, rgba(8, 17, 12, .12));
+  content: "";
+  pointer-events: none;
+}
+
+.arpg-expedition-card__art > * { position: relative; z-index: 1; }
+
+.arpg-expedition-card__art span {
+  border-color: rgba(237, 198, 108, .8);
+  border-radius: 3px;
+  background: rgba(10, 21, 15, .92);
+  color: #f4d68d;
+  font-family: var(--font-game), monospace;
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-shadow: 1px 1px #111c15;
+}
+
+.arpg-expedition-card__body { gap: 10px; }
+.arpg-expedition-card__body > small { font: 900 9px/1.4 var(--font-game), monospace; letter-spacing: .1em; text-transform: uppercase; }
+
+.arpg-expedition-card__body h2 {
+  color: var(--folklard-vellum-light);
+  font: 900 clamp(22px, 2.6vw, 28px)/1.1 var(--font-game), monospace;
+  letter-spacing: -.035em;
+  text-shadow: 2px 2px #111c15;
+}
+
+.arpg-expedition-card__body p { color: #ddd3b7; font-size: 13px; line-height: 1.55; }
+
+.arpg-expedition-card__meta span,
+.arpg-expedition-card__folklore span {
+  border: 1px solid rgba(237, 198, 108, .2);
+  border-radius: 3px;
+  background: #253328;
+  color: #eee0bb;
+}
+
+.arpg-expedition-card__folklore span { background: #1b362c; color: #c9e4d2; }
+.arpg-expedition-card button { border-radius: 4px; }
+
+/* Handheld layouts: preserve the scene and the information while tightening the frame. */
+@media (max-width: 767px) {
+  .title-screen {
+    min-height: 100svh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background-position: 63% center;
+  }
+
+  .title-screen__content {
+    min-height: 100svh;
+    justify-content: center;
+    padding: max(30px, env(safe-area-inset-top)) 20px max(34px, env(safe-area-inset-bottom));
+  }
+
+  .title-screen__brand { max-width: 16ch; }
+  .title-screen__brand h1 { font-size: clamp(44px, 14vw, 66px); }
+  .title-screen__brand p { letter-spacing: .14em; }
+  .title-screen__menu { gap: 9px; }
+  .title-screen__play,
+  .title-screen__menu-button,
+  .title-screen__login { min-height: 48px; }
+  .title-screen__play { min-height: 64px; }
+
+  .arpg-expeditions { gap: 15px; }
+
+  .arpg-expeditions__hero {
+    align-items: flex-start;
+    gap: 8px;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 4px 5px var(--folklard-shadow);
+  }
+
+  .arpg-expeditions__hero small,
+  .arpg-expedition-card__body > small {
+    font-size: 9px;
+    line-height: 1.4;
+    letter-spacing: .09em;
+  }
+
+  .arpg-expeditions__hero h1 {
+    max-width: 17ch;
+    font-size: clamp(25px, 8vw, 34px);
+    line-height: 1.08;
+  }
+
+  .arpg-expeditions__hero p { font-size: 12px; line-height: 1.5; }
+
+  .arpg-expedition-resume {
+    gap: 11px;
+    padding: 14px;
+    border-radius: 5px;
+    box-shadow: 3px 4px var(--folklard-shadow);
+  }
+
+  .arpg-expedition-resume strong { font-size: 18px; }
+  .arpg-expedition-resume span { font-size: 12px; line-height: 1.45; }
+  .arpg-expedition-resume button { min-height: 46px; white-space: normal; }
+
+  .arpg-expeditions__grid { gap: 15px; }
+
+  .arpg-expedition-card {
+    border-radius: 5px;
+    box-shadow: 4px 5px var(--folklard-shadow);
+  }
+
+  .arpg-expedition-card__art {
+    position: relative;
+    min-height: clamp(148px, 43vw, 184px);
+    align-items: flex-start;
+    padding: 12px;
+    border-bottom: 2px solid rgba(237, 198, 108, .72);
+    background-color: #263627;
+    background-position: center 48%;
+  }
+
+  .arpg-expedition-card__art span {
+    max-width: calc(100% - 42px);
+    border-radius: 3px;
+    padding: 6px 8px;
+    font-size: 8px;
+    line-height: 1.2;
+    letter-spacing: .08em;
+  }
+
+  .arpg-expedition-card__art svg {
+    width: 21px;
+    height: 21px;
+    filter: drop-shadow(1px 2px 2px rgba(5, 10, 7, .85));
+  }
+
+  .arpg-expedition-card__body { gap: 9px; padding: 14px; }
+
+  .arpg-expedition-card__body h2 {
+    font-size: clamp(23px, 7vw, 30px);
+    line-height: 1.08;
+    text-wrap: balance;
+  }
+
+  .arpg-expedition-card__body p {
+    min-height: 0;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .arpg-expedition-card__meta,
+  .arpg-expedition-card__folklore { gap: 6px; }
+
+  .arpg-expedition-card__meta span,
+  .arpg-expedition-card__folklore span {
+    gap: 5px;
+    border: 1px solid rgba(237, 198, 108, .2);
+    border-radius: 3px;
+    padding: 6px 7px;
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .arpg-expedition-card__meta svg { width: 13px; height: 13px; flex: 0 0 auto; }
+  .arpg-expedition-card button { min-height: 46px; border-radius: 4px; }
+
+  .character-creator { border-width: 4px; }
+
+  .character-creator__preview {
+    min-height: 276px;
+    gap: 4px;
+    padding: 16px 12px;
+  }
+
+  .character-creator__preview h2 { font-size: clamp(22px, 7vw, 28px); }
+  .character-creator__preview p { max-width: 34ch; font-size: 11px; line-height: 1.45; }
+  .character-avatar-2d { transform: scale(.8); margin-block: -24px; }
+  .character-creator__book { gap: 12px; padding: 12px; }
+
+  .character-creator__tabs { gap: 2px; }
+
+  .character-creator__tabs button {
+    min-width: 0;
+    min-height: 54px;
+    gap: 2px;
+    padding: 5px 2px;
+  }
+
+  .character-creator__tabs svg { width: 15px; height: 15px; }
+  .character-creator__tabs span { font-size: 9px; line-height: 1.1; text-align: center; }
+  .character-creator__choices { gap: 8px; }
+
+  .character-creator__choices button {
+    min-height: 60px;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    gap: 7px;
+    padding: 7px;
+  }
+
+  .character-creator__choices button strong { font-size: 12px; line-height: 1.25; }
+  .character-creator__choices button small { font-size: 9px; line-height: 1.25; }
+  .character-creator__choices button small svg { width: 12px; height: 12px; flex: 0 0 auto; }
+  .character-creator__book > button { min-height: 48px; }
+
+  .collection-view .collection-filter-row {
+    scroll-padding-inline: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: #a87840 transparent;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+  }
+
+  .collection-view .collection-filter-row::-webkit-scrollbar { display: block; height: 3px; }
+  .collection-view .collection-filter-row::-webkit-scrollbar-thumb { background: #a87840; border-radius: 3px; }
+  .collection-view .collection-filter-row button { min-height: 42px; }
+
+  .collection-view .creature-card__header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-width: 0;
+  }
+
+  .collection-view .creature-card__header > span:nth-child(2) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .collection-view .creature-card__header > span:last-child {
+    display: block;
+    white-space: nowrap;
+    font-size: 8px;
+  }
+
+  .collection-view .creature-card:not(.creature-card--unowned) p:not(.creature-card__source) {
+    display: -webkit-box;
+    min-height: 0;
+    margin-top: 7px;
+    overflow: hidden;
+    color: #59432d;
+    font-size: 9px;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .collection-view .creature-card__source {
+    display: -webkit-box;
+    min-height: 0;
+    margin-top: 5px;
+    overflow: hidden;
+    border-top: 1px solid #a47a4a;
+    padding-top: 5px;
+    font-size: 8px;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .collection-view .creature-card__source span { font-size: 7px; }
+}
+
+@media (max-width: 360px) {
+  .title-screen__content { padding-inline: 16px; }
+  .title-screen__brand h1 { font-size: clamp(42px, 13vw, 54px); }
+  .character-creator__tabs span { font-size: 9px; }
+
+  .collection-view .collection-grid { grid-template-columns: minmax(0, 1fr); }
+  .collection-view .creature-card { padding: 8px; }
+  .collection-view .creature-card__header { font-size: 10px; }
+  .collection-view .creature-card__header > span:last-child { font-size: 9px; }
+  .collection-view .creature-card__art,
+  .collection-view .creature-card__art--unknown { min-height: 148px; }
+  .collection-view .creature-card__art .pixel-creature { height: 142px; }
+
+  .collection-view .creature-card:not(.creature-card--unowned) p:not(.creature-card__source) {
+    font-size: 10px;
+    -webkit-line-clamp: 3;
+  }
+
+  .collection-view .creature-card__source { font-size: 9px; -webkit-line-clamp: 2; }
+}
+
+@media (max-height: 540px) and (orientation: landscape) and (max-width: 767px) {
+  .title-screen { min-height: 100svh; }
+  .title-screen__content { justify-content: center; padding-block: 10px; }
+  .title-screen__brand { margin-bottom: 7px; }
+  .title-screen__brand h1 { margin: 5px 0; font-size: 38px; }
+  .title-screen__brand p { margin-top: 5px; }
+  .title-screen__menu { gap: 5px; }
+  .title-screen__play { min-height: 48px; }
+  .title-screen__menu-button,
+  .title-screen__login { min-height: 44px; }
+  .title-screen__save-note { display: none; }
+}
+
+/* Bestiary portraits identify the two equipped attacks at a glance. */
+.arpg-shell .arpg-hud__cards > span {
+  min-width: 146px;
+  grid-template-columns: 18px 32px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 2px 6px;
+}
+
+.arpg-shell .arpg-hud__cards > span > b {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  grid-column: 1;
+  grid-row: 1 / 3;
+  place-items: center;
+  border: 1px solid rgba(117, 213, 196, .52);
+  border-radius: 3px;
+  background: rgba(7, 23, 19, .94);
+  color: #a7f0dd;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.arpg-hud__card-portrait {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  grid-column: 2;
+  grid-row: 1 / 3;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(117, 213, 196, .48);
+  border-radius: 3px;
+  background: radial-gradient(circle, rgba(86, 140, 105, .34), rgba(12, 25, 17, .95) 72%);
+  box-shadow: inset 0 0 8px rgba(117, 213, 196, .12);
+}
+
+.arpg-hud__card-sprite {
+  width: 28px;
+  height: 28px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .8));
+}
+
+.arpg-hud__card-fallback {
+  width: 19px;
+  height: 19px;
+  color: var(--folklard-magic);
+}
+
+.arpg-hud__card-name {
+  min-width: 0;
+  grid-column: 3;
+  grid-row: 1;
+  overflow: hidden;
+  color: var(--folklard-vellum-light);
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arpg-hud__cards > span > small {
+  grid-column: 3;
+  grid-row: 2;
+  align-self: start;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+.arpg-hud__cards .is-cooling .arpg-hud__card-portrait {
+  border-color: rgba(237, 198, 108, .56);
+  filter: saturate(.78);
+}
+
+@media (max-width: 900px) and (orientation: landscape) and (pointer: fine) {
+  .arpg-shell .arpg-hud__cards > span {
+    min-width: 128px;
+    grid-template-columns: 16px 28px minmax(0, 1fr);
+    gap: 2px 5px;
+    padding: 5px 6px;
+  }
+
+  .arpg-hud__card-portrait {
+    width: 28px;
+    height: 28px;
+  }
+
+  .arpg-hud__card-sprite { width: 24px; height: 24px; }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .arpg-shell .arpg-hud__cards > span {
+    min-width: 112px;
+    grid-template-columns: 16px 24px minmax(0, 1fr);
+    gap: 2px 4px;
+    padding: 4px 5px;
+  }
+
+  .arpg-shell .arpg-hud__cards > span > b {
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+  }
+
+  .arpg-hud__card-portrait {
+    width: 24px;
+    height: 24px;
+  }
+
+  .arpg-hud__card-sprite { width: 22px; height: 22px; }
+  .arpg-hud__card-name { font-size: 8px; }
+  .arpg-shell .arpg-hud__cards > span > small { font-size: 7px; }
+}
+
+/* Dungeon reward and room-choice overlays: field notes framed in forest bronze. */
+.arpg-loot-choice.arpg-dungeon-reward,
+.arpg-loot-choice.arpg-room-choice {
+  --choice-accent: var(--folklard-gold);
+  --choice-accent-soft: rgba(237, 198, 108, .22);
+  padding: 10px;
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(35, 56, 42, .25), transparent 62%),
+    rgba(4, 9, 6, .84);
+  backdrop-filter: none;
+  overscroll-behavior: contain;
+}
+
+.arpg-loot-choice.arpg-dungeon-reward[data-reward-rarity="common"] {
+  --choice-accent: #b8c3a4;
+  --choice-accent-soft: rgba(184, 195, 164, .2);
+}
+
+.arpg-loot-choice.arpg-dungeon-reward[data-reward-rarity="uncommon"] {
+  --choice-accent: #82c78c;
+  --choice-accent-soft: rgba(130, 199, 140, .2);
+}
+
+.arpg-loot-choice.arpg-dungeon-reward[data-reward-rarity="rare"] {
+  --choice-accent: #75d5c4;
+  --choice-accent-soft: rgba(117, 213, 196, .22);
+}
+
+.arpg-loot-choice.arpg-dungeon-reward[data-reward-rarity="epic"] {
+  --choice-accent: #bd9de4;
+  --choice-accent-soft: rgba(189, 157, 228, .2);
+}
+
+.arpg-loot-choice.arpg-dungeon-reward[data-reward-rarity="legendary"],
+.arpg-loot-choice.arpg-dungeon-reward[data-reward-rarity="mythic"] {
+  --choice-accent: #f2bd62;
+  --choice-accent-soft: rgba(242, 189, 98, .24);
+}
+
+.arpg-room-choice[data-room-kind="rest"] {
+  --choice-accent: #91ca82;
+  --choice-accent-soft: rgba(145, 202, 130, .2);
+}
+
+.arpg-room-choice[data-room-kind="event"] {
+  --choice-accent: #80d1c8;
+  --choice-accent-soft: rgba(128, 209, 200, .22);
+}
+
+.arpg-room-choice[data-room-kind="shop"] {
+  --choice-accent: #efc777;
+  --choice-accent-soft: rgba(239, 199, 119, .22);
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__panel,
+.arpg-room-choice .arpg-room-choice__panel {
+  position: relative;
+  isolation: isolate;
+  width: min(680px, calc(100vw - 20px));
+  max-height: min(88dvh, calc(100dvh - 20px));
+  gap: 13px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 3px solid #895b30;
+  border-radius: 5px;
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(30, 48, 35, .99), rgba(15, 25, 19, .99)),
+    var(--folklard-forest);
+  box-shadow:
+    inset 0 0 0 2px rgba(194, 139, 66, .32),
+    inset 0 12px 24px rgba(4, 9, 6, .2),
+    0 16px 44px rgba(0, 0, 0, .72);
+  scrollbar-color: #936431 #142118;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__panel::before,
+.arpg-room-choice .arpg-room-choice__panel::before {
+  position: absolute;
+  z-index: -1;
+  inset: 4px;
+  border: 1px solid rgba(226, 181, 103, .24);
+  background:
+    linear-gradient(var(--choice-accent), var(--choice-accent)) left top / 8px 3px no-repeat,
+    linear-gradient(var(--choice-accent), var(--choice-accent)) left top / 3px 8px no-repeat,
+    linear-gradient(var(--choice-accent), var(--choice-accent)) right top / 8px 3px no-repeat,
+    linear-gradient(var(--choice-accent), var(--choice-accent)) right top / 3px 8px no-repeat,
+    linear-gradient(var(--choice-accent), var(--choice-accent)) left bottom / 8px 3px no-repeat,
+    linear-gradient(var(--choice-accent), var(--choice-accent)) left bottom / 3px 8px no-repeat,
+    linear-gradient(var(--choice-accent), var(--choice-accent)) right bottom / 8px 3px no-repeat,
+    linear-gradient(var(--choice-accent), var(--choice-accent)) right bottom / 3px 8px no-repeat;
+  content: "";
+  pointer-events: none;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__panel > header,
+.arpg-room-choice .arpg-room-choice__panel > header {
+  position: relative;
+  gap: 7px;
+  padding: 3px 5px 12px;
+  border-bottom: 1px solid rgba(210, 171, 100, .24);
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__panel > header::after,
+.arpg-room-choice .arpg-room-choice__panel > header::after {
+  position: absolute;
+  right: calc(50% - 18px);
+  bottom: -2px;
+  width: 36px;
+  height: 3px;
+  background: var(--choice-accent);
+  box-shadow: 0 0 12px var(--choice-accent-soft);
+  content: "";
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__panel > header > small,
+.arpg-room-choice .arpg-room-choice__panel > header > small {
+  color: var(--choice-accent);
+  font-size: 9px;
+  letter-spacing: .15em;
+  line-height: 1.45;
+  text-shadow: 1px 1px rgba(0, 0, 0, .45);
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__panel > header > strong,
+.arpg-room-choice .arpg-room-choice__panel > header > strong {
+  gap: 9px;
+  color: var(--folklard-vellum-light);
+  font-size: clamp(14px, 3vw, 19px);
+  line-height: 1.25;
+  text-shadow: 2px 2px #0a130d;
+  text-wrap: balance;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__panel > header > strong svg,
+.arpg-room-choice .arpg-room-choice__panel > header > strong svg {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  color: var(--choice-accent);
+  filter: drop-shadow(1px 1px rgba(0, 0, 0, .65));
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__panel > header > span,
+.arpg-room-choice .arpg-room-choice__panel > header > span {
+  max-width: 54ch;
+  color: #d3c8a9;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+  text-wrap: pretty;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 9px;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare > article {
+  position: relative;
+  gap: 6px;
+  overflow: hidden;
+  border: 2px solid #53694f;
+  border-radius: 4px;
+  padding: 14px 12px 12px;
+  background:
+    linear-gradient(135deg, rgba(43, 65, 47, .94), rgba(25, 39, 29, .98)),
+    repeating-linear-gradient(0deg, transparent 0 5px, rgba(235, 216, 168, .018) 5px 6px);
+  box-shadow: inset 0 1px rgba(242, 230, 193, .08), 2px 3px rgba(4, 9, 6, .42);
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare > article.is-current {
+  border-color: #5c6b51;
+  background:
+    linear-gradient(135deg, rgba(34, 49, 37, .96), rgba(20, 31, 24, .98)),
+    repeating-linear-gradient(0deg, transparent 0 5px, rgba(235, 216, 168, .018) 5px 6px);
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare > article.is-found {
+  border-color: var(--choice-accent);
+  background:
+    radial-gradient(ellipse at 92% 0%, var(--choice-accent-soft), transparent 52%),
+    linear-gradient(135deg, rgba(47, 64, 43, .99), rgba(23, 37, 27, .99));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 239, 194, .09),
+    inset 0 0 22px var(--choice-accent-soft),
+    2px 3px rgba(4, 9, 6, .42);
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare > article.is-found::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--choice-accent) 18% 82%, transparent);
+  content: "";
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare > article > small:first-child {
+  width: fit-content;
+  color: #b9c3a2;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare > article.is-found > small:first-child {
+  color: var(--choice-accent);
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare > article > strong {
+  color: #f4e7be;
+  font-size: 14px;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare > article > b {
+  width: fit-content;
+  border: 1px solid rgba(215, 177, 107, .38);
+  border-radius: 2px;
+  padding: 3px 6px;
+  background: rgba(10, 18, 13, .52);
+  color: #e6cb87;
+  font-size: 8px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare > article.is-found > b {
+  border-color: var(--choice-accent-soft);
+  color: var(--choice-accent);
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare > article > span {
+  color: #d3cfb8;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare > article > span:nth-of-type(2) {
+  color: #b6bda8;
+  font-size: 9px;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare > article > small:not(:first-child) {
+  color: #d5cba9;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare > article > em {
+  margin-top: 2px;
+  border-top: 1px solid rgba(221, 201, 151, .16);
+  padding-top: 7px;
+  color: #add6bc;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare > article > em svg {
+  flex: 0 0 13px;
+  color: var(--choice-accent);
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__actions {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__actions > button,
+.arpg-room-choice .arpg-room-choice__options > button {
+  min-width: 0;
+  min-height: 48px;
+  border: 2px solid #745331;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #2d4431, #1b2c20);
+  box-shadow: inset 0 1px rgba(255, 240, 197, .1), 0 3px 0 rgba(6, 12, 8, .56);
+  color: #f0e4c4;
+  cursor: pointer;
+  font-family: var(--font-game), monospace;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.35;
+  transition: border-color 110ms ease, background-color 110ms ease, transform 110ms ease, box-shadow 110ms ease;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__actions > button:hover:not(:disabled),
+.arpg-room-choice .arpg-room-choice__options > button:hover:not(:disabled) {
+  border-color: var(--choice-accent);
+  background-color: #354d35;
+  box-shadow: inset 0 0 0 1px var(--choice-accent-soft), 0 3px 0 rgba(6, 12, 8, .56);
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__actions > button:active:not(:disabled),
+.arpg-room-choice .arpg-room-choice__options > button:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 0 1px 2px rgba(4, 9, 6, .4), 0 1px 0 rgba(6, 12, 8, .56);
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__actions > button:focus-visible,
+.arpg-room-choice .arpg-room-choice__options > button:focus-visible {
+  outline: 3px solid #f6e5aa;
+  outline-offset: 3px;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__actions > button.is-primary {
+  border-color: var(--choice-accent);
+  background: linear-gradient(180deg, #e3c173, #b98b45);
+  color: #20180e;
+  box-shadow: inset 0 1px rgba(255, 250, 218, .55), 0 3px 0 #624322;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__actions > button.is-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #f2d58e, #c59a52);
+}
+
+.arpg-room-choice .arpg-room-choice__panel {
+  width: min(610px, calc(100vw - 20px));
+}
+
+.arpg-room-choice .arpg-room-choice__wallet {
+  width: fit-content;
+  justify-self: center;
+  min-height: 32px;
+  border: 1px solid var(--choice-accent);
+  border-radius: 3px;
+  padding: 5px 10px;
+  background:
+    linear-gradient(90deg, transparent, var(--choice-accent-soft), transparent),
+    #142118;
+  color: #f2d58e;
+  font-size: 10px;
+  letter-spacing: .05em;
+  box-shadow: inset 0 0 0 1px rgba(255, 240, 197, .06);
+}
+
+.arpg-room-choice .arpg-room-choice__wallet > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--choice-accent);
+  filter: drop-shadow(1px 1px #101a15);
+}
+
+.arpg-room-choice .arpg-room-choice__options {
+  gap: 8px;
+}
+
+.arpg-room-choice .arpg-room-choice__options > button {
+  position: relative;
+  min-height: 66px;
+  gap: 4px;
+  overflow: hidden;
+  border-color: #53694f;
+  padding: 10px 12px 10px 14px;
+  background:
+    linear-gradient(90deg, var(--choice-accent-soft), transparent 36%),
+    linear-gradient(180deg, #283e2e, #1a2a20);
+  text-align: left;
+}
+
+.arpg-room-choice .arpg-room-choice__options > button::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: var(--choice-accent);
+  content: "";
+  opacity: .8;
+}
+
+.arpg-room-choice .arpg-room-choice__options > button > strong {
+  color: #f4dfaa;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.arpg-room-choice .arpg-room-choice__options > button > span {
+  color: #d0c9b0;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.arpg-room-choice .arpg-room-choice__options > button > small {
+  width: fit-content;
+  border: 1px solid rgba(238, 199, 119, .32);
+  border-radius: 2px;
+  padding: 2px 5px;
+  background: rgba(11, 18, 13, .48);
+  color: #f0ca73;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  line-height: 1.35;
+}
+
+.arpg-room-choice .arpg-room-choice__options > button:disabled {
+  border-color: #3f4a3d;
+  background: linear-gradient(180deg, #202a22, #18211b);
+  box-shadow: none;
+  color: #aaa58f;
+  cursor: not-allowed;
+  opacity: .78;
+}
+
+.arpg-room-choice .arpg-room-choice__options > button:disabled::before {
+  background: #777c68;
+  opacity: .55;
+}
+
+.arpg-room-choice .arpg-room-choice__options > button:disabled > strong,
+.arpg-room-choice .arpg-room-choice__options > button:disabled > span {
+  color: #aaa58f;
+}
+
+.arpg-room-choice .arpg-room-choice__options > button:disabled > small {
+  border-color: rgba(201, 196, 168, .22);
+  color: #c5bda0;
+}
+
+.arpg-room-choice .arpg-room-choice__options > .arpg-room-choice__option--event-risk::before {
+  background: #d77b62;
+}
+
+.arpg-room-choice .arpg-room-choice__options > .arpg-room-choice__option--event-safe::before,
+.arpg-room-choice .arpg-room-choice__options > .arpg-room-choice__option--rest-heal::before,
+.arpg-room-choice .arpg-room-choice__options > .arpg-room-choice__option--shop-heal::before {
+  background: #8dca86;
+}
+
+.arpg-room-choice .arpg-room-choice__options > .arpg-room-choice__option--shop-power::before,
+.arpg-room-choice .arpg-room-choice__options > .arpg-room-choice__option--rest-speed::before {
+  background: #78cfc5;
+}
+
+.arpg-room-choice .arpg-room-choice__options > .arpg-room-choice__option--shop-leave::before {
+  background: #9eaa92;
+}
+
+.arpg-room-choice .arpg-room-choice__note {
+  max-width: 58ch;
+  justify-self: center;
+  color: #b6b99f;
+  font-size: 9px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+@media (min-width: 720px) {
+  .arpg-dungeon-reward .arpg-loot-choice__compare {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .arpg-dungeon-reward .arpg-loot-choice__actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .arpg-dungeon-reward .arpg-loot-choice__panel,
+  .arpg-room-choice .arpg-room-choice__panel {
+    max-height: calc(100dvh - 12px);
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .arpg-dungeon-reward .arpg-loot-choice__panel > header,
+  .arpg-room-choice .arpg-room-choice__panel > header {
+    gap: 4px;
+    padding-bottom: 7px;
+  }
+
+  .arpg-dungeon-reward .arpg-loot-choice__panel > header > span,
+  .arpg-room-choice .arpg-room-choice__panel > header > span {
+    display: none;
+  }
+
+  .arpg-dungeon-reward .arpg-loot-choice__compare > article {
+    padding: 9px;
+  }
+
+  .arpg-dungeon-reward .arpg-loot-choice__actions > button {
+    min-height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arpg-dungeon-reward .arpg-loot-choice__actions > button,
+  .arpg-room-choice .arpg-room-choice__options > button {
+    transition: none;
+  }
+
+  .arpg-dungeon-reward .arpg-loot-choice__actions > button:active:not(:disabled),
+  .arpg-room-choice .arpg-room-choice__options > button:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .arpg-dungeon-reward .arpg-loot-choice__panel,
+  .arpg-room-choice .arpg-room-choice__panel,
+  .arpg-dungeon-reward .arpg-loot-choice__compare > article,
+  .arpg-room-choice .arpg-room-choice__options > button {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+  }
+
+  .arpg-dungeon-reward .arpg-loot-choice__panel > header > strong,
+  .arpg-room-choice .arpg-room-choice__panel > header > strong,
+  .arpg-dungeon-reward .arpg-loot-choice__compare > article > strong,
+  .arpg-room-choice .arpg-room-choice__options > button > strong,
+  .arpg-room-choice .arpg-room-choice__options > button > span {
+    color: CanvasText;
+  }
+}
+
+/* Guild armory: keep equipped gear luminous and locked finds archival, not disabled-looking. */
+.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button {
+  position: relative;
+  border-color: #795638;
+  border-radius: 4px;
+  background: linear-gradient(155deg, #f5e7c3 0%, #ead4a1 68%, #dfc38b 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 250, 225, .72), inset 0 -12px 18px rgba(105, 69, 36, .06), 2px 3px rgba(5, 10, 7, .24);
+  transition: background .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button::before {
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(113, 78, 42, .26);
+  content: "";
+  pointer-events: none;
+}
+
+.arpg-loadout-view .arpg-loadout-grid--equipment button.is-selected {
+  border-color: #89551f;
+  background: linear-gradient(150deg, #fff1c7 0%, #f0d89e 72%, #e9cb89 100%);
+  box-shadow: inset 0 0 0 1px #fff8dc, inset 5px 0 0 rgba(183, 125, 60, .84), 0 0 0 2px rgba(237, 198, 108, .38), 2px 4px rgba(5, 10, 7, .3);
+}
+
+.arpg-loadout-view .arpg-loadout-grid--equipment button.is-selected::before {
+  border-color: rgba(125, 78, 29, .48);
+}
+
+.arpg-loadout-view .arpg-loadout-grid--relics button.is-selected {
+  border-color: #397568;
+  background: linear-gradient(150deg, #f3ebc7 0%, #e6d7a5 70%, #d8c787 100%);
+  box-shadow: inset 0 0 0 1px #fff8dc, inset 5px 0 0 rgba(72, 131, 107, .82), 0 0 0 2px rgba(117, 213, 196, .3), 2px 4px rgba(5, 10, 7, .3);
+}
+
+.arpg-loadout-view .arpg-loadout-grid--relics button.is-selected::before {
+  border-color: rgba(55, 113, 94, .46);
+}
+
+.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled {
+  border-color: #897654;
+  background:
+    linear-gradient(90deg, rgba(139, 104, 57, .11) 0 4px, transparent 4px),
+    linear-gradient(155deg, #eee2c4 0%, #e2d2ad 68%, #d7c59d 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 249, 224, .7), inset 0 -12px 18px rgba(91, 70, 40, .06), 2px 3px rgba(5, 10, 7, .2);
+  filter: none;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled::before {
+  border-color: rgba(104, 83, 52, .34);
+  border-style: dashed;
+}
+
+.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled::after {
+  position: absolute;
+  top: 11px;
+  right: 11px;
+  width: 6px;
+  height: 6px;
+  border: 1px solid rgba(91, 70, 40, .56);
+  border-radius: 50%;
+  background: #ad9565;
+  box-shadow: 0 0 0 3px rgba(146, 119, 73, .13);
+  content: "";
+  pointer-events: none;
+}
+
+.arpg-loadout-view .arpg-loadout-grid--relics button:disabled::after {
+  border-color: rgba(58, 103, 88, .56);
+  background: #879d83;
+  box-shadow: 0 0 0 3px rgba(68, 116, 99, .13);
+}
+
+.arpg-loadout-view .arpg-loadout-grid--equipment button.is-selected:disabled {
+  border-color: #89551f;
+  background: linear-gradient(150deg, #fff1c7 0%, #f0d89e 72%, #e9cb89 100%);
+  box-shadow: inset 0 0 0 1px #fff8dc, inset 5px 0 0 rgba(183, 125, 60, .66), 0 0 0 2px rgba(237, 198, 108, .3), 2px 4px rgba(5, 10, 7, .26);
+}
+
+.arpg-loadout-view .arpg-loadout-grid--relics button.is-selected:disabled {
+  border-color: #397568;
+  background: linear-gradient(150deg, #f3ebc7 0%, #e6d7a5 70%, #d8c787 100%);
+  box-shadow: inset 0 0 0 1px #fff8dc, inset 5px 0 0 rgba(72, 131, 107, .64), 0 0 0 2px rgba(117, 213, 196, .24), 2px 4px rgba(5, 10, 7, .26);
+}
+
+.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button.is-selected:disabled::after { display: none; }
+
+.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled > small { color: #725f43; }
+.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled > strong { color: #473b2c; }
+.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled > span { color: #5b4d39; }
+.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled > em { color: #705437; }
+
+@media (prefers-reduced-motion: reduce) {
+  .arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button,
+  .arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+    filter: none;
+    opacity: 1;
+  }
+
+  .arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button.is-selected {
+    border: 2px solid Highlight;
+  }
+
+  .arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button::before,
+  .arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button::after { display: none; }
+
+  .arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled > :is(small, strong, span, em) { color: GrayText; }
+}
+
+/* Title screen art direction: keep the portal visible while giving the menu a calm reading field. */
+.title-screen {
+  background-position: center center;
+  background-size: cover;
+}
+
+.title-screen__content {
+  background: linear-gradient(90deg, rgba(7, 17, 13, .72) 0%, rgba(7, 17, 13, .52) 70%, transparent 100%);
+}
+
+.title-screen__brand {
+  width: 100%;
+  max-width: 28rem;
+  margin-bottom: clamp(25px, 4.5vh, 48px);
+}
+
+.title-screen__kicker {
+  border: 1px solid rgba(237, 198, 108, .46);
+  border-left-width: 3px;
+  padding: 6px 9px;
+  background: rgba(7, 17, 13, .66);
+  color: #f5d889;
+  font-size: 10px;
+  letter-spacing: .13em;
+  line-height: 1.3;
+}
+
+.title-screen__brand h1 {
+  margin: 15px 0 8px;
+  color: #fff4d5;
+  font-size: clamp(58px, 6.5vw, 86px);
+  letter-spacing: -.07em;
+  line-height: .94;
+  text-shadow: 3px 4px #19302a, 6px 7px #060f0d, 0 0 28px rgba(0, 0, 0, .78);
+}
+
+.title-screen__brand h1::after {
+  display: block;
+  width: 82px;
+  height: 4px;
+  margin-top: 13px;
+  background: linear-gradient(90deg, var(--folklard-gold), rgba(237, 198, 108, .08));
+  box-shadow: 0 2px rgba(5, 10, 7, .72);
+  content: "";
+}
+
+.title-screen__brand p {
+  max-width: 36ch;
+  margin-top: 13px;
+  color: #f5e7c2;
+  font-size: 11px;
+  letter-spacing: .16em;
+  line-height: 1.55;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, .9);
+}
+
+.title-screen__menu-button,
+.title-screen__play,
+.title-screen__login {
+  min-height: 52px;
+  border-width: 2px;
+  letter-spacing: .09em;
+  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.title-screen__play {
+  min-height: 72px;
+  border-color: #f0d080;
+  background: linear-gradient(180deg, #526b49, #263e32);
+  box-shadow: inset 0 0 0 2px #172c24, 0 5px 0 rgba(5, 10, 7, .76), 0 0 24px rgba(237, 198, 108, .15);
+}
+
+.title-screen__play small {
+  color: #e4e9c9;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.title-screen__menu-button:hover:not(:disabled),
+.title-screen__login:hover:not(:disabled) {
+  border-color: #e5d59f;
+  background: linear-gradient(180deg, #315340, #1b3428);
+  filter: none;
+}
+
+.title-screen__play:hover:not(:disabled),
+.title-screen__play:focus-visible {
+  transform: translateY(-2px);
+  border-color: #fff0a7;
+  background: linear-gradient(180deg, #668052, #304c39);
+  box-shadow: inset 0 0 0 2px #172c24, 0 7px 0 rgba(5, 10, 7, .68), 0 0 30px rgba(237, 198, 108, .27);
+  filter: none;
+}
+
+.title-screen__play:active:not(:disabled),
+.title-screen__menu-button:active:not(:disabled),
+.title-screen__login:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 5px rgba(5, 10, 7, .38), 0 1px 0 rgba(5, 10, 7, .7);
+}
+
+@media (max-width: 767px) {
+  .title-screen {
+    background-image:
+      linear-gradient(180deg, rgba(7, 17, 13, .16) 0%, rgba(7, 17, 13, .12) 40%, rgba(7, 17, 13, .57) 72%, rgba(7, 17, 13, .92) 100%),
+      linear-gradient(90deg, rgba(7, 17, 13, .78) 0%, rgba(7, 17, 13, .56) 48%, rgba(7, 17, 13, .1) 100%),
+      url("/art/folklard-title-forest-portal-pixel-v3.webp");
+    background-position: 88% center;
+  }
+
+  .title-screen__content {
+    padding-top: max(26px, env(safe-area-inset-top));
+    padding-bottom: max(48px, calc(56px + env(safe-area-inset-bottom)));
+    background: linear-gradient(90deg, rgba(7, 17, 13, .48), rgba(7, 17, 13, .3) 68%, transparent);
+  }
+
+  .title-screen__brand {
+    max-width: min(100%, 24rem);
+    margin-bottom: clamp(22px, 5vh, 38px);
+  }
+
+  .title-screen__kicker {
+    gap: 7px;
+    padding: 5px 7px;
+    font-size: 9px;
+    letter-spacing: .1em;
+  }
+
+  .title-screen__brand h1 {
+    margin-top: 12px;
+    font-size: clamp(42px, 13.6vw, 60px);
+  }
+
+  .title-screen__brand h1::after {
+    width: 68px;
+    height: 3px;
+    margin-top: 11px;
+  }
+
+  .title-screen__brand p {
+    margin-top: 11px;
+    font-size: 10px;
+    letter-spacing: .12em;
+  }
+
+  .title-screen__menu {
+    width: min(100%, 420px);
+    gap: 9px;
+  }
+
+  .title-screen__play,
+  .title-screen__menu-button,
+  .title-screen__login {
+    min-height: 50px;
+  }
+
+  .title-screen__play { min-height: 66px; }
+}
+
+@media (max-width: 360px) {
+  .title-screen__content { padding-inline: 16px; }
+  .title-screen__brand { max-width: 100%; }
+  .title-screen__brand h1 { font-size: clamp(42px, 13vw, 52px); }
+  .title-screen__brand p { letter-spacing: .09em; }
+}
+
+@media (max-height: 540px) and (orientation: landscape) and (max-width: 767px) {
+  .title-screen { background-position: center 48%; }
+  .title-screen__content {
+    padding-block: max(10px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-bottom));
+  }
+  .title-screen__brand { margin-bottom: 8px; }
+  .title-screen__brand h1 { margin-block: 5px; font-size: 38px; }
+  .title-screen__brand h1::after { width: 48px; height: 2px; margin-top: 5px; }
+  .title-screen__brand p { margin-top: 5px; font-size: 9px; }
+  .title-screen__menu { gap: 5px; }
+  .title-screen__play { min-height: 48px; }
+  .title-screen__menu-button,
+  .title-screen__login { min-height: 44px; }
+  .title-screen__save-note { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-screen__menu-button,
+  .title-screen__play,
+  .title-screen__login { transition: none; }
+
+  .title-screen__play:hover:not(:disabled),
+  .title-screen__play:focus-visible,
+  .title-screen__play:active:not(:disabled),
+  .title-screen__menu-button:active:not(:disabled),
+  .title-screen__login:active:not(:disabled) { transform: none; }
+}
+
+@media (forced-colors: active) {
+  .title-screen__brand h1::after { background: Highlight; box-shadow: none; }
+  .title-screen__kicker { border-color: CanvasText; background: Canvas; color: CanvasText; }
+  .title-screen__play,
+  .title-screen__menu-button,
+  .title-screen__login { box-shadow: none; }
+}
+
+/* Soul Knight-inspired game entrance: mode buttons over the artwork, without site chrome. */
+.title-screen {
+  display: block;
+  min-height: 100svh;
+  background-position: 58% center;
+}
+
+.title-screen__content {
+  width: min(100%, 780px);
+  min-height: 100svh;
+  justify-content: flex-start;
+  padding: clamp(86px, 16vh, 154px) clamp(28px, 7vw, 112px) 190px;
+  background: linear-gradient(90deg, rgba(7, 17, 13, .4), rgba(7, 17, 13, .14) 76%, transparent);
+}
+
+.title-screen__brand {
+  max-width: 30rem;
+  margin-bottom: 0;
+}
+
+.title-screen__brand h1 {
+  font-size: clamp(58px, 7.4vw, 100px);
+}
+
+.title-screen__utility {
+  position: absolute;
+  z-index: 3;
+  top: 51%;
+  left: clamp(18px, 5.5vw, 88px);
+  display: grid;
+  gap: 9px;
+  transform: translateY(-50%);
+}
+
+.title-screen__utility-login {
+  width: auto;
+  min-width: 54px;
+  min-height: 50px;
+  justify-content: flex-start;
+  gap: 8px;
+  padding-inline: 12px;
+  font-size: 9px;
+}
+
+.title-screen__utility-settings {
+  display: grid;
+  width: 54px;
+  min-height: 50px;
+  place-items: center;
+  padding: 0;
+}
+
+.title-screen__utility-settings svg { width: 22px; height: 22px; }
+
+.title-screen__save-note {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: clamp(16px, 3vw, 44px);
+  max-width: min(36ch, 42vw);
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid rgba(238, 203, 116, .28);
+  background: rgba(8, 16, 14, .5);
+  font-size: 10px;
+  text-align: right;
+}
+
+.title-screen__menu {
+  position: absolute;
+  z-index: 3;
+  right: clamp(24px, 14vw, 224px);
+  bottom: max(20px, env(safe-area-inset-bottom));
+  left: clamp(104px, 15.3vw, 246px);
+  display: grid;
+  width: auto;
+  grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 9px;
+}
+
+.title-screen__play,
+.title-screen__mode {
+  min-height: 96px;
+  border: 4px solid #2b1a13;
+  border-radius: 5px;
+  color: #fff6df;
+  box-shadow: inset 0 0 0 2px rgba(255, 234, 169, .7), 0 5px 0 rgba(9, 8, 8, .85);
+  font-family: var(--font-game), monospace;
+  text-shadow: 2px 2px rgba(26, 20, 14, .85);
+}
+
+.title-screen__play {
+  display: flex;
+  min-height: 100px;
+  align-items: center;
+  gap: 14px;
+  border-color: #382414;
+  background: linear-gradient(180deg, #ffcf41, #e99b19);
+  padding: 12px clamp(16px, 3vw, 40px);
+  color: #fffdf0;
+  font-size: clamp(18px, 2.5vw, 30px);
+  text-align: left;
+  box-shadow: inset 0 0 0 2px #ffe681, 0 5px 0 #68360d, 0 0 24px rgba(248, 181, 52, .2);
+}
+
+.title-screen__play > span:first-child {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border: 2px solid rgba(255, 247, 205, .76);
+  border-radius: 50%;
+  background: rgba(154, 88, 16, .36);
+  font-size: 15px;
+}
+
+.title-screen__button-copy {
+  display: grid;
+  gap: 5px;
+}
+
+.title-screen__play small {
+  color: #fff2c9;
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+
+.title-screen__modes {
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.title-screen__mode {
+  display: flex;
+  min-width: 0;
+  min-height: 44px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 7px 12px;
+  font-size: 9px;
+  text-align: left;
+}
+
+.title-screen__mode svg {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+}
+
+.title-screen__mode span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.title-screen__mode small {
+  color: rgba(255, 247, 226, .84);
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  line-height: 1.25;
+}
+
+.title-screen__mode--pvp { background: linear-gradient(180deg, #db381b, #a62113); }
+.title-screen__mode--cooperative { background: linear-gradient(180deg, #126ba2, #064a79); }
+.title-screen__mode:disabled { cursor: not-allowed; filter: grayscale(.6); opacity: .68; }
+.title-screen__caption { display: none; }
+
+.game-app:not(.game-app--title) .app-content.app-content--game {
+  min-height: 100dvh;
+  padding: calc(82px + env(safe-area-inset-top)) 0 max(24px, env(safe-area-inset-bottom)) !important;
+}
+
+.game-menu {
+  position: fixed;
+  z-index: 480;
+  inset: 0;
+  pointer-events: none;
+}
+
+.game-menu__trigger {
+  position: absolute;
+  z-index: 3;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  display: flex;
+  min-width: 52px;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 3px solid #352018;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #f3d99b, #c99750);
+  padding: 0 9px;
+  color: #40261b;
+  box-shadow: inset 0 0 0 2px #fff0c1, 3px 4px rgba(13, 7, 6, .55);
+  font: 1000 8px var(--font-game), monospace;
+  pointer-events: auto;
+}
+
+.game-menu__trigger-mark {
+  position: relative;
+  display: block;
+  width: 19px;
+  height: 15px;
+  border-block: 3px solid currentColor;
+  box-shadow: 1px 0 #fff0c1, -1px 0 #fff0c1;
+}
+
+.game-menu__trigger-mark::after {
+  position: absolute;
+  top: 3px;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: currentColor;
+  box-shadow: 1px 0 #fff0c1, -1px 0 #fff0c1;
+  content: "";
+}
+
+.game-menu__overlay { z-index: 490 !important; }
+
+.game-menu__panel {
+  position: fixed !important;
+  z-index: 500 !important;
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  display: grid;
+  width: min(370px, calc(100vw - 18px));
+  max-width: none;
+  height: fit-content;
+  max-height: calc(100dvh - 18px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  margin: 0;
+  gap: 10px;
+  overflow: auto;
+  border: 4px solid #39231a;
+  border-radius: 7px;
+  background: linear-gradient(160deg, #f2e2b6, #d9c18b);
+  padding: 10px;
+  color: #34231a;
+  box-shadow: inset 0 0 0 2px #fff3cb, 0 12px 38px rgba(0, 0, 0, .58);
+  overscroll-behavior: contain;
+  translate: none !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.game-menu__header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 2px solid rgba(78, 48, 30, .22);
+  padding: 1px 1px 9px;
+}
+
+.game-menu__header > div { display: grid; min-width: 0; gap: 2px; }
+.game-menu__header small,
+.game-menu__section-label { color: #805a31; font: 900 8px var(--font-game), monospace; letter-spacing: .11em; }
+.game-menu__header strong { overflow: hidden; color: #352019; font: 1000 16px var(--font-game), monospace; text-overflow: ellipsis; white-space: nowrap; }
+.game-menu__header span { color: #71543b; font: 800 9px var(--font-geist-mono), monospace; }
+.game-menu__header i { padding-inline: 3px; color: #a87937; font-style: normal; }
+
+.game-menu__header > button {
+  display: grid;
+  width: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  place-items: center;
+  border: 2px solid #815535;
+  border-radius: 4px;
+  background: #f8edce;
+  color: #4d3021;
+}
+
+.game-menu__header > button svg { width: 18px; height: 18px; }
+.game-menu__section-label { padding: 0 2px; }
+
+.game-menu__return {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  border: 2px solid #35644c;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #4c8c61, #2b6549);
+  padding: 0 11px;
+  color: #fff4d5;
+  font: 900 10px var(--font-game), monospace;
+  text-align: left;
+  box-shadow: inset 0 0 0 1px #9cc47c, 2px 3px rgba(28, 33, 21, .22);
+}
+
+.game-menu__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.game-menu__grid button {
+  display: grid;
+  min-width: 0;
+  min-height: 74px;
+  grid-template-columns: 31px minmax(0, 1fr);
+  align-content: center;
+  align-items: center;
+  gap: 3px 8px;
+  border: 2px solid #795536;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #fff0c9, #e5cd98);
+  padding: 8px;
+  color: #3c2a1d;
+  text-align: left;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .65), 2px 3px rgba(48, 31, 18, .22);
+}
+
+.game-menu__grid button:hover,
+.game-menu__grid button:focus-visible { border-color: #a46631; background: #fff6d9; }
+.game-menu__pixel-icon {
+  display: block;
+  width: 31px;
+  height: 31px;
+  grid-row: span 2;
+  background-image: url("/art/arpg-item-icons-pixel-v1.webp");
+  background-repeat: no-repeat;
+  background-size: 300% 300%;
+  image-rendering: pixelated;
+}
+
+.game-menu__pixel-icon--sword { background-position: 0 0; }
+.game-menu__pixel-icon--staff { background-position: 100% 0; }
+.game-menu__pixel-icon--books { background-position: 0 100%; }
+.game-menu__pixel-icon--chest { background-position: 50% 100%; }
+.game-menu__pixel-icon--map { background-position: 100% 100%; }
+.game-menu__grid button strong { min-width: 0; font: 900 9px/1.2 var(--font-game), monospace; }
+.game-menu__grid button small { min-width: 0; color: #765c42; font: 700 8px/1.25 var(--font-geist-sans), sans-serif; }
+
+.game-menu__footer { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
+.game-menu__account {
+  display: flex;
+  min-width: 0;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border: 2px solid #8b6c44;
+  border-radius: 4px;
+  background: #e5d2a6;
+  padding: 0 8px;
+  color: #49331f;
+  font: 850 8px var(--font-game), monospace;
+  text-align: left;
+}
+
+.game-menu__account { justify-content: center; }
+.game-menu__account svg { width: 15px; height: 15px; }
+
+.game-menu__missions { border-top: 2px solid rgba(78, 48, 30, .22); padding-top: 8px; }
+.game-menu__missions .side-quest { margin: 0; border-color: rgba(117, 83, 46, .3); background: rgba(255, 246, 220, .56); padding: 9px; color: #3c2a1d; }
+.game-menu__missions .side-quest > span { color: #805a31; }
+.game-menu__missions .side-quest strong,
+.game-menu__missions .side-quest p,
+.game-menu__missions .side-quest small { color: #5b4831; }
+
+.arpg-hub-topbar { grid-template-columns: auto minmax(0, 1fr) auto 50px; }
+.arpg-hub-topbar__menu-space { width: 46px; min-height: 40px; }
+.arpg-hub-topbar__actions { padding-right: 6px; }
+
+@media (orientation: portrait) and (max-width: 900px) {
+  .title-screen { background-position: 91% center; }
+  .title-screen__content {
+    width: 100%;
+    padding: max(150px, 21vh) 7vw 190px;
+    background: linear-gradient(180deg, rgba(7, 17, 13, .2), rgba(7, 17, 13, .08) 55%, rgba(7, 17, 13, .38));
+  }
+  .title-screen__brand { max-width: 19rem; }
+  .title-screen__brand h1 { font-size: clamp(48px, 14vw, 68px); }
+  .title-screen__brand p { font-size: 9px; }
+  .title-screen__utility {
+    top: max(11px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    left: auto;
+    display: flex;
+    transform: none;
+  }
+  .title-screen__utility-login { min-height: 44px; }
+  .title-screen__utility-settings { width: 44px; min-height: 44px; }
+  .title-screen__save-note {
+    top: calc(62px + env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    max-width: 30ch;
+    padding: 4px 7px;
+    font-size: 8px;
+  }
+  .title-screen__menu {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+  .title-screen__play { min-height: 66px; font-size: 20px; }
+  .title-screen__modes { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; gap: 7px; }
+  .title-screen__mode { min-height: 62px; gap: 7px; padding: 6px 8px; font-size: 8px; }
+  .title-screen__mode svg { width: 20px; height: 20px; flex-basis: 20px; }
+  .title-screen__mode small { font-size: 7px; }
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar { grid-template-columns: minmax(0, 1fr) auto 50px; }
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar > div:first-child { grid-column: 1; grid-row: 1; }
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar__stats { grid-column: 1; grid-row: 2; justify-content: flex-start; }
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar__actions { grid-column: 2; grid-row: 1 / span 2; padding-right: 4px; }
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar__actions > button { width: 40px; min-width: 40px; justify-content: center; padding: 0; }
+  .arpg-hub-shell--portrait-mobile .arpg-hub-topbar__menu-space { grid-column: 3; grid-row: 1 / span 2; }
+}
+
+@media (max-height: 520px) and (orientation: landscape) and (max-width: 900px) {
+  .title-screen__content { min-height: 100svh; padding: max(62px, 14vh) 7vw 142px; }
+  .title-screen__brand h1 { font-size: clamp(38px, 10vh, 54px); }
+  .title-screen__brand p { margin-top: 7px; font-size: 8px; }
+  .title-screen__utility { top: max(7px, env(safe-area-inset-top)); left: 12px; display: flex; transform: none; }
+  .title-screen__utility-login,
+  .title-screen__utility-settings { min-height: 40px; }
+  .title-screen__utility-settings { width: 44px; }
+  .title-screen__save-note { display: none; }
+  .title-screen__menu {
+    right: 10px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 12px;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 6px;
+  }
+  .title-screen__play { min-height: 64px; font-size: 17px; }
+  .title-screen__modes { gap: 5px; }
+  .title-screen__mode { min-height: 28px; padding: 4px 7px; }
+  .title-screen__mode svg { width: 18px; height: 18px; flex-basis: 18px; }
+}
+
+@media (max-width: 360px) and (orientation: portrait) {
+  .title-screen__mode { gap: 5px; padding-inline: 6px; font-size: 7px; }
+  .title-screen__mode small { font-size: 6.5px; }
+  .title-screen__mode svg { width: 18px; height: 18px; flex-basis: 18px; }
+}
+
+
+/* Keep the full title menu in view on short landscape screens at every width. */
+@media (max-height: 540px) and (orientation: landscape) {
+  .title-screen__content {
+    min-height: 100dvh;
+    justify-content: center;
+    padding-block: max(8px, env(safe-area-inset-top)) max(48px, env(safe-area-inset-bottom));
+  }
+
+  .title-screen__brand { margin-bottom: 6px; }
+  .title-screen__kicker { gap: 6px; padding: 3px 7px; font-size: 9px; line-height: 1.15; }
+  .title-screen__kicker span { font-size: 14px; }
+  .title-screen__brand h1 { margin: 4px 0 2px; font-size: clamp(34px, 9vh, 40px); line-height: .92; }
+  .title-screen__brand h1::after { width: 48px; height: 2px; margin-top: 4px; }
+  .title-screen__brand p { margin-top: 4px; font-size: 9px; line-height: 1.2; }
+  .title-screen__menu { gap: 4px; }
+  .title-screen__play { min-height: 48px; padding: 5px 14px; font-size: 13px; }
+  .title-screen__play small { font-size: 8px; }
+  .title-screen__login,
+  .title-screen__menu-button { min-height: 44px; }
+}
+
+/* Keep every refuge option readable without hidden horizontal card labels. */
+.refuge-status p,
+.refuge-status__message { color: #583d2b; }
+
+@media (max-width: 767px) {
+  .refuge-status p { font-size: 12px; }
+
+  .refuge-theme-picker {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    overflow: visible !important;
+  }
+
+  .refuge-theme-choice { min-width: 0; }
+  .refuge-theme-choice span { font-size: 10px; }
+
+  .refuge-furniture-palette {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    overflow: visible !important;
+  }
+
+  .refuge-furniture-palette > button {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .refuge-furniture-palette > button > span {
+    font-size: 11px;
+    line-height: 1.25;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  /* Let the editor footer follow the options instead of covering the grid. */
+  .refuge-editor__footer {
+    position: static !important;
+    inset-block-end: auto !important;
+  }
+}
+
+/* Give the portal and Cartographer more room beside the portrait title menu. */
+@media (min-width: 361px) and (max-width: 430px) and (min-height: 700px) and (orientation: portrait) {
+  .title-screen { background-position: 92% center; }
+}
+
+/* Opening mode selector: keep the portal visible and make the three actions read as game buttons. */
+.title-screen {
+  display: block;
+  min-height: 100svh;
+  overflow: hidden;
+  background-color: #07140f;
+  background-image:
+    linear-gradient(90deg, rgba(5, 13, 10, .97) 0%, rgba(5, 13, 10, .87) 25%, rgba(5, 13, 10, .55) 53%, rgba(5, 13, 10, .16) 100%),
+    linear-gradient(0deg, rgba(5, 12, 9, .72) 0%, rgba(5, 12, 9, .08) 58%, rgba(5, 12, 9, .28) 100%),
+    url("/art/folklard-title-forest-portal-pixel-v3.webp");
+  background-position: center, center, 60% center;
+  background-size: cover;
+}
+
+.title-screen__content {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 980px);
+  min-height: 100svh;
+  justify-content: flex-start;
+  padding: clamp(82px, 13vh, 142px) clamp(26px, 6vw, 92px) 190px;
+  background: linear-gradient(90deg, rgba(7, 17, 13, .3), rgba(7, 17, 13, .1) 74%, transparent);
+}
+
+.title-screen__brand {
+  width: min(100%, 600px);
+  max-width: 600px;
+  margin-bottom: 0;
+}
+
+.title-screen__brand h1 {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1.8vw, 20px);
+  margin: 14px 0 28px;
+  font-size: clamp(58px, 7vw, 96px);
+  letter-spacing: -.065em;
+  line-height: 1;
+}
+
+.title-screen__brand h1::after {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-end: -14px;
+  width: clamp(66px, 8vw, 96px);
+  height: 4px;
+  margin: 0;
+}
+
+.title-screen__logo-mark {
+  display: grid !important;
+  width: clamp(40px, 5.6vw, 62px);
+  height: clamp(40px, 5.6vw, 62px);
+  flex: 0 0 auto;
+  place-items: center;
+  border: 3px solid #3b2817;
+  background: linear-gradient(145deg, #f4d37e, #ae7839);
+  padding: 4px;
+  color: #fff0bc !important;
+  font-size: inherit !important;
+  letter-spacing: normal !important;
+  line-height: 1;
+  box-shadow: inset 0 0 0 2px rgba(255, 246, 203, .72), 3px 4px 0 rgba(5, 9, 6, .8);
+  text-shadow: none;
+}
+
+.title-screen__logo-mark svg { display: block; width: 100%; height: 100%; }
+.title-screen__brand p { margin-top: 0; font-size: 11px; }
+
+.title-screen__utility {
+  position: absolute;
+  z-index: 3;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(22px, env(safe-area-inset-right));
+  left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform: none;
+}
+
+.title-screen__utility-login {
+  width: auto;
+  min-width: 74px;
+  min-height: 44px;
+  justify-content: center;
+  padding-inline: 12px;
+  font-size: 9px;
+}
+
+.title-screen__utility-settings {
+  display: grid;
+  width: 44px;
+  min-height: 44px;
+  place-items: center;
+  padding: 0;
+}
+
+.title-screen__utility-settings svg { width: 19px; height: 19px; }
+
+.title-screen__save-note {
+  position: absolute;
+  z-index: 2;
+  top: calc(max(18px, env(safe-area-inset-top)) + 53px);
+  right: max(22px, env(safe-area-inset-right));
+  max-width: min(35ch, 38vw);
+  margin: 0;
+  border: 1px solid rgba(237, 198, 108, .36);
+  background: rgba(6, 16, 12, .64);
+  padding: 6px 9px;
+  color: #eee4c7;
+  font-size: 9px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.title-screen__menu {
+  position: absolute;
+  z-index: 3;
+  right: auto;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  left: clamp(26px, 6vw, 92px);
+  display: grid;
+  width: min(88vw, 1460px);
+  grid-template-columns: minmax(0, 2.65fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: clamp(8px, 1.1vw, 14px);
+}
+
+.title-screen__play,
+.title-screen__mode {
+  min-width: 0;
+  min-height: clamp(88px, 12vh, 116px);
+  border: 4px solid #342219;
+  border-radius: 0;
+  color: #fff6df;
+  font-family: var(--font-game), monospace;
+  font-size: clamp(12px, 1.3vw, 16px);
+  letter-spacing: .08em;
+  line-height: 1.2;
+  text-shadow: 2px 2px rgba(26, 20, 14, .9);
+  box-shadow: inset 0 0 0 2px rgba(255, 238, 184, .52), inset 0 0 0 5px rgba(36, 25, 15, .72), 0 6px 0 rgba(9, 8, 8, .82), 0 12px 24px rgba(0, 0, 0, .3);
+  transition: transform .14s ease, filter .14s ease, border-color .14s ease;
+}
+
+.title-screen__play {
+  display: flex;
+  min-height: clamp(94px, 13vh, 124px);
+  align-items: center;
+  gap: 12px;
+  border-color: #573719;
+  background: linear-gradient(180deg, #edb83f, #bd741b);
+  padding: 12px clamp(13px, 1.8vw, 22px);
+  color: #fff7dc;
+  font-size: clamp(16px, 1.8vw, 22px);
+  text-align: left;
+  box-shadow: inset 0 0 0 2px #ffdf7b, inset 0 0 0 5px rgba(67, 40, 18, .68), 0 6px 0 #55300f, 0 0 22px rgba(248, 181, 52, .2);
+}
+
+.title-screen__play > span:first-child {
+  display: grid;
+  width: 31px;
+  height: 31px;
+  flex: 0 0 31px;
+  place-items: center;
+  border: 2px solid rgba(255, 247, 205, .76);
+  border-radius: 0;
+  background: rgba(122, 66, 14, .36);
+  font-size: 13px;
+}
+
+.title-screen__button-copy { display: grid; gap: 6px; }
+.title-screen__play small { color: #fff0c3; font-size: 8px; letter-spacing: .06em; line-height: 1.35; }
+
+.title-screen__mode {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 12px clamp(10px, 1.5vw, 18px);
+  text-align: left;
+}
+
+.title-screen__mode svg { width: 24px; height: 24px; flex: 0 0 24px; }
+.title-screen__mode > span { display: grid; min-width: 0; gap: 5px; }
+.title-screen__mode small { color: rgba(255, 247, 226, .9); font-size: 8px; letter-spacing: .02em; line-height: 1.35; }
+.title-screen__mode--pvp { background: linear-gradient(180deg, #9b4a2d, #62311f); }
+.title-screen__mode--cooperative { background: linear-gradient(180deg, #2b765c, #174c3b); }
+.title-screen__mode:disabled { cursor: not-allowed; filter: grayscale(.5); opacity: .7; }
+
+.title-screen__play:hover:not(:disabled),
+.title-screen__mode:hover:not(:disabled),
+.title-screen__play:focus-visible,
+.title-screen__mode:focus-visible {
+  transform: translateY(-3px);
+  border-color: #fff0a7;
+  filter: brightness(1.12);
+}
+
+.title-screen__play:active:not(:disabled),
+.title-screen__mode:active:not(:disabled) { transform: translateY(2px); }
+.title-screen__caption { display: none; }
+
+@media (orientation: portrait) and (max-width: 900px) {
+  .title-screen {
+    background-image:
+      linear-gradient(180deg, rgba(5, 13, 10, .42) 0%, rgba(5, 13, 10, .2) 34%, rgba(5, 13, 10, .86) 100%),
+      linear-gradient(90deg, rgba(5, 13, 10, .48), transparent 90%),
+      url("/art/folklard-title-forest-portal-pixel-v3.webp");
+    background-position: center, center, 86% center;
+  }
+
+  .title-screen__content {
+    width: 100%;
+    min-height: 100svh;
+    padding: clamp(124px, 19vh, 176px) 18px 210px;
+    background: linear-gradient(180deg, rgba(7, 17, 13, .08), rgba(7, 17, 13, .15) 54%, rgba(7, 17, 13, .34));
+  }
+
+  .title-screen__brand { max-width: min(100%, 520px); }
+  .title-screen__brand h1 { gap: 10px; font-size: clamp(42px, 11.5vw, 66px); }
+  .title-screen__logo-mark { width: 38px; height: 38px; padding: 3px; }
+  .title-screen__brand p { font-size: 9px; letter-spacing: .13em; }
+
+  .title-screen__utility {
+    top: max(10px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    gap: 6px;
+  }
+
+  .title-screen__utility-login { min-width: 68px; min-height: 42px; }
+  .title-screen__utility-settings { width: 42px; min-height: 42px; }
+  .title-screen__save-note {
+    top: calc(max(10px, env(safe-area-inset-top)) + 51px);
+    right: max(12px, env(safe-area-inset-right));
+    max-width: min(30ch, 68vw);
+    padding: 4px 7px;
+    font-size: 8px;
+  }
+
+  .title-screen__menu {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    width: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .title-screen__play {
+    min-height: 66px;
+    grid-column: 1 / -1;
+    font-size: 17px;
+  }
+
+  .title-screen__mode { min-height: 72px; gap: 7px; padding: 8px; font-size: 9px; }
+  .title-screen__mode svg { width: 20px; height: 20px; flex-basis: 20px; }
+  .title-screen__mode small { font-size: 7px; }
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  .title-screen { background-position: center, center, 61% 54%; }
+  .title-screen__content { min-height: 100svh; padding: max(58px, 12vh) 5vw 150px; }
+  .title-screen__brand { max-width: min(62vw, 570px); }
+  .title-screen__kicker { gap: 6px; padding: 4px 8px; font-size: 9px; }
+  .title-screen__brand h1 { gap: 9px; margin: 8px 0 24px; font-size: clamp(38px, 10vh, 52px); }
+  .title-screen__brand h1::after { bottom: -12px; width: 54px; height: 3px; }
+  .title-screen__logo-mark { width: 34px; height: 34px; padding: 2px; }
+  .title-screen__brand p { font-size: 8px; }
+
+  .title-screen__utility {
+    top: max(7px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    left: auto;
+    gap: 5px;
+  }
+
+  .title-screen__utility-login,
+  .title-screen__utility-settings { min-height: 40px; }
+  .title-screen__utility-login { min-width: 64px; padding-inline: 9px; }
+  .title-screen__utility-settings { width: 40px; }
+  .title-screen__save-note { display: none; }
+
+  .title-screen__menu {
+    right: auto;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: 5vw;
+    width: min(76vw, 700px);
+    gap: 7px;
+  }
+
+  .title-screen__play,
+  .title-screen__mode { min-height: 62px; border-width: 3px; padding-block: 6px; }
+  .title-screen__play { min-height: 66px; font-size: 14px; }
+  .title-screen__play > span:first-child { width: 23px; height: 23px; flex-basis: 23px; font-size: 10px; }
+  .title-screen__play small,
+  .title-screen__mode small { font-size: 7px; }
+  .title-screen__mode { gap: 6px; padding-inline: 8px; font-size: 9px; }
+  .title-screen__mode svg { width: 18px; height: 18px; flex-basis: 18px; }
+}
+
+@media (max-width: 360px) and (orientation: portrait) {
+  .title-screen__brand h1 { font-size: 40px; }
+  .title-screen__logo-mark { width: 34px; height: 34px; }
+  .title-screen__menu { gap: 6px; }
+  .title-screen__mode { gap: 5px; padding-inline: 6px; font-size: 8px; }
+  .title-screen__mode small { font-size: 6.5px; }
+  .title-screen__mode svg { width: 17px; height: 17px; flex-basis: 17px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-screen__play,
+  .title-screen__mode { transition: none; }
+
+  .title-screen__play:hover:not(:disabled),
+  .title-screen__play:focus-visible,
+  .title-screen__play:active:not(:disabled),
+  .title-screen__mode:hover:not(:disabled),
+  .title-screen__mode:focus-visible,
+  .title-screen__mode:active:not(:disabled) { transform: none; }
+}
+
+@media (forced-colors: active) {
+  .title-screen__logo-mark { border-color: CanvasText; background: Canvas; color: CanvasText !important; box-shadow: none; }
+  .title-screen__play,
+  .title-screen__mode { border-color: ButtonText; box-shadow: none; }
+}
+
+/* The Bestiary reads like a Soul Knight-style guild kiosk: dark timber, stone, and brass. */
+.collection-view {
+  --atlas-ink: #efe7cf;
+  --atlas-muted: #c2b89b;
+  --atlas-night: #172021;
+  --atlas-stone: #293536;
+  --atlas-stone-light: #384646;
+  --atlas-wood: #49301d;
+  --atlas-gold: #edbd56;
+  --atlas-gold-light: #ffe39a;
+  position: relative;
+  isolation: isolate;
+  background-color: #1b2525;
+  background-image:
+    linear-gradient(rgba(8, 13, 14, .9) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(8, 13, 14, .9) 2px, transparent 2px),
+    conic-gradient(#2b3735 25%, #22302e 0 50%, #293633 0 75%, #1f2a29 0);
+  background-size: 64px 64px;
+  box-shadow: inset 0 0 0 7px #0a1011, inset 0 0 0 10px rgba(147, 103, 45, .72);
+  color: var(--atlas-ink);
+}
+
+.collection-view .view-heading {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 16px;
+  border: 5px solid #0b1112;
+  border-bottom: 5px solid #0b1112;
+  background:
+    linear-gradient(90deg, transparent 0 16px, rgba(237, 189, 86, .08) 16px 20px, transparent 20px),
+    linear-gradient(180deg, #54391f, #392719);
+  padding: 15px 18px;
+  box-shadow: inset 0 0 0 2px #9d7135, inset 0 0 0 5px rgba(8, 14, 15, .6), 5px 6px #080c0d;
+}
+
+.collection-view .view-eyebrow {
+  color: var(--atlas-gold-light);
+  font: 900 9px/1.3 var(--font-game), monospace;
+  letter-spacing: .12em;
+  text-shadow: 2px 2px #111718;
+}
+
+.collection-view .view-heading h1 {
+  margin: 6px 0;
+  color: #fff0c8;
+  font: 1000 clamp(24px, 3vw, 34px)/1.12 var(--font-game), monospace;
+  text-shadow: 3px 3px #171719, 5px 5px #24170f;
+}
+
+.collection-view .view-heading p {
+  max-width: 660px;
+  margin: 4px 0 0;
+  color: #d1c6a8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.collection-view .catalog-progress {
+  min-width: 210px;
+  border: 4px solid #101718;
+  border-left: 4px solid #101718;
+  background: #273434;
+  padding: 9px 12px;
+  box-shadow: inset 0 0 0 2px #c28b3d, inset 0 0 0 5px #1b2627, 3px 4px #0b1011;
+}
+
+.collection-view .catalog-progress strong {
+  color: var(--atlas-gold-light);
+  font: 1000 25px/1.1 var(--font-game), monospace;
+  text-shadow: 2px 2px #101516;
+}
+
+.collection-view .catalog-progress span {
+  color: #f3dfae;
+  font: 900 8px/1.45 var(--font-game), monospace;
+  letter-spacing: .06em;
+}
+
+.collection-view .catalog-progress small {
+  color: #b9b69e;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.collection-view .collection-toolbar--advanced {
+  border: 5px solid #0c1213;
+  border-radius: 2px;
+  background:
+    linear-gradient(90deg, transparent 0 18px, rgba(221, 170, 77, .08) 18px 22px, transparent 22px),
+    linear-gradient(180deg, #333f3e, #222d2e);
+  padding: 11px;
+  box-shadow: inset 0 0 0 2px #997039, inset 0 0 0 5px #1a2425, 5px 6px #080c0d;
+}
+
+.collection-view .search-field {
+  min-height: 44px;
+  border: 3px solid #0c1213;
+  border-radius: 2px;
+  background: #182223;
+  padding-inline: 11px;
+  box-shadow: inset 0 0 0 2px #8a693a, 2px 3px #0a0e0f;
+}
+
+.collection-view .search-field svg { color: var(--atlas-gold); }
+.collection-view .search-field input { color: #fff0cb; font-size: 13px; }
+.collection-view .search-field input::placeholder { color: #a8a38d; }
+
+.collection-view .collection-filter-row {
+  gap: 6px;
+  padding: 2px 1px 5px;
+  scrollbar-color: #c08d43 transparent;
+}
+
+.collection-view .collection-filter-row > span {
+  min-height: 34px;
+  border: 3px solid #0d1314;
+  border-radius: 2px;
+  background: #202a2b;
+  padding-inline: 9px;
+  color: #f4cc76;
+  font: 900 8px/1 var(--font-game), monospace;
+  letter-spacing: .06em;
+  box-shadow: inset 0 0 0 1px #997039, 2px 3px #0b1011;
+}
+
+.collection-view .collection-filter-row button {
+  min-height: 34px;
+  border: 3px solid #121718;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #f4cb70, #c88e3f);
+  padding-inline: 9px;
+  color: #2b2117;
+  font: 900 8px/1 var(--font-game), monospace;
+  text-shadow: 0 1px rgba(255, 242, 200, .35);
+  box-shadow: inset 0 0 0 1px #ffe9a5, 2px 3px #0b1011;
+}
+
+.collection-view .collection-filter-row button:hover {
+  border-color: #090d0e;
+  background: #ffe08a;
+  color: #211910;
+  transform: translateY(-1px);
+}
+
+.collection-view .collection-filter-row button.is-active {
+  border-color: #090d0e;
+  background: #2e4743;
+  color: #fff0c8;
+  box-shadow: inset 0 0 0 2px var(--filter, var(--atlas-gold)), 2px 3px #0b1011;
+}
+
+.collection-view .collection-summary {
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.collection-view .collection-summary [data-slot="badge"] {
+  min-height: 27px;
+  border: 3px solid #101617;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #f3ca70, #c28a3c);
+  padding: 4px 8px;
+  color: #2b2117;
+  font: 900 8px/1.2 var(--font-game), monospace;
+  box-shadow: inset 0 0 0 1px #ffe9a5, 2px 3px #0a0e0f;
+}
+
+.collection-view .collection-summary p {
+  color: #c2b89b;
+  font-size: 10px;
+}
+
+.collection-view .bestiary-book {
+  width: min(1160px, 100%);
+  margin: 18px auto 24px;
+  overflow: hidden;
+  border: 7px solid #090e10;
+  border-radius: 2px;
+  background: #3c291b;
+  box-shadow: inset 0 0 0 3px #b2833d, inset 0 0 0 7px #151c1d, 8px 9px #080b0c;
+  color: var(--atlas-ink);
+}
+
+.collection-view .bestiary-book__spine {
+  width: 12px;
+  background: linear-gradient(90deg, #171e1f 0 3px, #936c34 3px 5px, #d2a34d 5px 8px, #69411f 8px 10px, #171e1f 10px);
+  box-shadow: -4px 0 #0b1112, 4px 0 #0b1112;
+}
+
+.collection-view .bestiary-book__page {
+  background:
+    repeating-linear-gradient(0deg, rgba(235, 207, 137, .035) 0 3px, transparent 3px 10px),
+    linear-gradient(180deg, #303b3b, #202b2c);
+  color: var(--atlas-ink);
+}
+
+.collection-view .bestiary-book__page--art {
+  border-right: 2px solid #8e672f;
+  text-align: center;
+}
+
+.collection-view .bestiary-book__page--lore {
+  background:
+    repeating-linear-gradient(90deg, rgba(230, 202, 133, .025) 0 3px, transparent 3px 13px),
+    linear-gradient(180deg, #293536, #1c2728);
+}
+
+.collection-view .bestiary-book__folio {
+  min-height: 30px;
+  border: 3px solid #0e1415;
+  border-bottom: 3px solid #0e1415;
+  background: #47311e;
+  padding: 5px 8px;
+  color: #f3cb73;
+  font: 900 8px/1.2 var(--font-game), monospace;
+  letter-spacing: .1em;
+  text-align: left;
+  box-shadow: inset 0 0 0 1px #997039, 2px 3px #101617;
+}
+
+.collection-view .bestiary-book__folio svg { color: #ffe29a; }
+
+.collection-view .bestiary-book__portrait {
+  min-height: 220px;
+  border: 5px solid #0a1011;
+  border-radius: 2px;
+  background:
+    radial-gradient(circle at 50% 64%, color-mix(in srgb, var(--bestiary-element) 35%, transparent), transparent 58%),
+    repeating-linear-gradient(0deg, #364440 0 8px, #303b37 8px 16px);
+  box-shadow: inset 0 0 0 3px #c39547, inset 0 0 0 6px #1a2424, 4px 5px #0d1213;
+}
+
+.collection-view .bestiary-book__portrait .pixel-creature {
+  width: min(290px, 95%);
+  height: 216px;
+  filter: drop-shadow(0 5px 0 rgba(9, 13, 14, .8));
+}
+
+.collection-view .bestiary-book__portrait > svg {
+  color: var(--atlas-gold-light);
+  filter: drop-shadow(2px 2px #101617);
+}
+
+.collection-view .bestiary-book__rarity,
+.collection-view .bestiary-book__element {
+  border: 3px solid #0b1112;
+  border-radius: 2px;
+  background: #b77f32;
+  padding: 5px 8px;
+  color: #fff1c7;
+  font: 900 8px/1.2 var(--font-game), monospace;
+  letter-spacing: .08em;
+  box-shadow: inset 0 0 0 1px #f2cb73, 2px 3px #0e1415;
+}
+
+.collection-view .bestiary-book__element {
+  border-color: #0a1011;
+  background: var(--bestiary-element);
+  color: #101718;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .45), 2px 3px #0e1415;
+}
+
+.collection-view .bestiary-book h2 {
+  margin-top: 10px;
+  color: #fff0c8;
+  font: 1000 clamp(22px, 3vw, 32px)/1.12 var(--font-game), monospace;
+  text-shadow: 3px 3px #101617;
+  overflow-wrap: anywhere;
+}
+
+.collection-view .bestiary-book__title {
+  color: #d0c29f;
+  font-size: 12px;
+}
+
+.collection-view .bestiary-book__stats span {
+  min-width: 66px;
+  justify-content: center;
+  border: 3px solid #0d1314;
+  border-radius: 2px;
+  background: #b98238;
+  color: #fff0c6;
+  font: 900 9px/1.2 var(--font-game), monospace;
+  box-shadow: inset 0 0 0 1px #f2cf7c, 2px 3px #111718;
+}
+
+.collection-view .bestiary-book__stats svg { color: #fff0c6; }
+.collection-view .bestiary-book__page--lore > p { color: #e1dac6; font-size: 12px; }
+
+.collection-view .bestiary-book blockquote {
+  border: 0;
+  border-left: 5px solid #79a584;
+  background: #202b2c;
+  padding: 10px 12px;
+  color: #d5ddc8;
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.6;
+  box-shadow: inset 0 0 0 2px #344141;
+}
+
+.collection-view .bestiary-book dl > div { border-bottom: 2px solid #46524d; }
+.collection-view .bestiary-book dt { color: #f0c56c; font: 900 8px/1.3 var(--font-game), monospace; }
+.collection-view .bestiary-book dd { color: #f0ead9; font-size: 11px; }
+
+.collection-view .bestiary-book__moves span {
+  border: 3px solid #101617;
+  border-radius: 2px;
+  background: #34403f;
+  padding: 8px 9px;
+  color: #fff0c6;
+  box-shadow: inset 0 0 0 1px #987039, 2px 3px #111718;
+}
+
+.collection-view .bestiary-book__moves strong { color: #ffe095; font: 900 9px/1.3 var(--font-game), monospace; }
+.collection-view .bestiary-book__moves small { color: #d0c8ad; font-size: 9px; }
+
+.collection-view .bestiary-evolution-line {
+  border: 4px solid #0d1314;
+  border-radius: 2px;
+  background: #202b2c;
+  padding: 10px;
+  color: var(--atlas-ink);
+  box-shadow: inset 0 0 0 2px #987039;
+}
+
+.collection-view .bestiary-evolution-line__stages article {
+  border: 3px solid #0d1314;
+  border-radius: 2px;
+  background: #303c3b;
+  color: var(--atlas-ink);
+  box-shadow: inset 0 0 0 1px #987039, 2px 3px #111718;
+}
+
+.collection-view .bestiary-evolution-line__stages article.is-current {
+  border-color: #0a1011;
+  background: #3f5145;
+  box-shadow: inset 0 0 0 2px #e7b84d, 2px 3px #111718;
+}
+
+.collection-view .bestiary-evolution-line__stages article > span { color: #f2c96d; font: 900 7px/1.3 var(--font-game), monospace; }
+.collection-view .bestiary-evolution-line__stages article > strong { color: #fff0c8; font: 900 8px/1.3 var(--font-game), monospace; }
+.collection-view .bestiary-evolution-line__stages article > small,
+.collection-view .bestiary-evolution-line > p { color: #c4bea8; font-size: 9px; }
+
+.collection-view .collection-evolution {
+  border: 4px solid #0c1213;
+  border-radius: 2px;
+  background: #273333;
+  padding: 11px;
+  color: #f0ead9;
+  box-shadow: inset 0 0 0 2px #987039, 3px 4px #0d1213;
+}
+
+.collection-view .collection-evolution .view-eyebrow { color: #f1c76a; }
+.collection-view .collection-evolution strong { color: #fff0c6; font: 900 10px/1.4 var(--font-game), monospace; }
+.collection-view .collection-evolution small,
+.collection-view .collection-evolution p { color: #c9c2ab; font-size: 10px; }
+
+.collection-view .collection-evolution [data-slot="button"] {
+  min-height: 40px;
+  border: 3px solid #0a1011;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #f3ca70, #c18736);
+  color: #2c2118;
+  font: 900 8px/1.2 var(--font-game), monospace;
+  box-shadow: inset 0 0 0 1px #ffe9a5, 2px 3px #0b1011;
+}
+
+.collection-view .collection-evolution [role="status"] {
+  border-left: 4px solid #8fbd8c;
+  color: #e0efd4;
+  padding-left: 8px;
+}
+
+.collection-view .collection-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.collection-view .creature-card {
+  min-width: 0;
+  border: 5px solid #090e10;
+  border-radius: 2px;
+  background: #2b3737;
+  padding: 8px;
+  color: #f0ead9;
+  box-shadow: inset 0 0 0 3px #96703a, inset 0 0 0 6px #1a2425, 4px 5px #080c0d;
+  transition: transform .14s steps(2, end), box-shadow .14s steps(2, end), filter .14s steps(2, end);
+}
+
+.collection-view .creature-card__halo { display: none; }
+
+.collection-view .creature-card__header {
+  min-height: 30px;
+  gap: 6px;
+  color: #fff0c8;
+  font: 900 10px/1.25 var(--font-game), monospace;
+  text-shadow: 1px 2px #111718;
+}
+
+.collection-view .creature-card__header > span:nth-child(2) { min-width: 0; }
+.collection-view .creature-card__header > span:last-child { color: #e3c578; font-size: 9px; }
+
+.collection-view .creature-card__element {
+  min-width: 27px;
+  border: 3px solid #0c1213;
+  border-radius: 2px;
+  background: #bd873a;
+  color: #fff1cb;
+  font: 900 8px/1.2 var(--font-game), monospace;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px #ffe49a;
+}
+
+.collection-view .creature-card__art {
+  min-height: 154px;
+  border: 4px solid #0b1112;
+  border-radius: 2px;
+  background:
+    radial-gradient(ellipse at 50% 72%, color-mix(in srgb, var(--element) 28%, transparent), transparent 58%),
+    repeating-linear-gradient(0deg, #384643 0 9px, #303c39 9px 18px);
+  box-shadow: inset 0 0 0 2px #bc8b43, inset 0 0 0 5px #1d2727, 2px 3px #0d1213;
+}
+
+.collection-view .creature-card__art .pixel-creature {
+  width: 100%;
+  height: 150px;
+  filter: drop-shadow(0 4px 0 rgba(8, 12, 13, .8));
+}
+
+.collection-view .creature-card p,
+.collection-view .creature-card .text-muted-foreground { color: #d1c9b2; }
+.collection-view .creature-card p { font-size: 10px; line-height: 1.45; }
+.collection-view .creature-card__source { border-top-color: #6b735e; color: #c7c0a7; font-size: 9px; }
+.collection-view .creature-card__source span { color: #f0c86f; font: 900 7px/1.3 var(--font-game), monospace; }
+
+.collection-view .creature-card [data-slot="badge"] {
+  border: 2px solid #0a1011;
+  border-radius: 2px;
+  background: #b98238;
+  color: #fff0c7;
+  font: 900 7px/1.25 var(--font-game), monospace;
+  box-shadow: inset 0 0 0 1px #f1cd7c;
+}
+
+.collection-view button.creature-card:hover:not(:disabled),
+.collection-view .creature-card--active {
+  transform: translateY(-3px);
+  box-shadow: inset 0 0 0 3px var(--element), inset 0 0 0 6px #182222, 5px 7px #070b0c, 0 0 0 2px #edbd56;
+}
+
+.collection-view .creature-card--indexed {
+  border-color: #0a1011;
+  box-shadow: inset 0 0 0 3px #f0c665, inset 0 0 0 6px #182222, 0 0 0 2px #111718, 4px 5px #080c0d;
+}
+
+.collection-view .creature-card--unowned {
+  border-color: #0a1011;
+  background: #222c2c;
+  color: #c7c1ac;
+  filter: none;
+  box-shadow: inset 0 0 0 3px #59605a, inset 0 0 0 6px #1a2222, 4px 5px #080c0d;
+}
+
+.collection-view .creature-card--unowned .creature-card__header { color: #d1c9b2; }
+.collection-view .creature-card__header--unknown .creature-card__element { background: #56615a; color: #f2e7ca; }
+
+.collection-view .creature-card__art--unknown {
+  border-color: #0b1112;
+  background: repeating-linear-gradient(0deg, #39413b 0 9px, #303833 9px 18px);
+  color: #f0ddb1;
+}
+
+.collection-view .creature-card__art--unknown::before {
+  border-radius: 2px;
+  background: #121a1b;
+  clip-path: polygon(25% 0, 75% 0, 75% 12%, 90% 12%, 90% 26%, 100% 26%, 100% 100%, 0 100%, 0 26%, 10% 26%, 10% 12%, 25% 12%);
+}
+
+.collection-view .creature-card__art--unknown svg { color: #f5d582; }
+.collection-view .creature-card__art--unknown strong { color: #fff0c6; text-shadow: 2px 2px #111718; }
+.collection-view .creature-card__unowned { color: #ddd3b8; font: 800 8px/1.35 var(--font-game), monospace; }
+.collection-view .creature-card__unknown-copy { color: #bcb7a4; }
+
+.collection-view .collection-pagination {
+  border: 4px solid #0c1213;
+  border-radius: 2px;
+  background: #222d2e;
+  padding: 8px;
+  box-shadow: inset 0 0 0 2px #997039, 4px 5px #080c0d;
+}
+
+.collection-view .collection-pagination span { color: #fff0c8; font: 900 9px/1.3 var(--font-game), monospace; }
+.collection-view .collection-pagination [data-slot="button"] {
+  min-height: 38px;
+  border: 3px solid #0b1112;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #f4cb70, #c88e3f);
+  color: #2c2118;
+  font: 900 8px/1.2 var(--font-game), monospace;
+  box-shadow: inset 0 0 0 1px #ffe9a5, 2px 3px #0b1011;
+}
+
+.collection-view .collection-pagination [data-slot="button"]:disabled { opacity: .56; }
+.collection-view :is(button, input, [tabindex]):focus-visible { outline: 3px solid #8ce6ca; outline-offset: 3px; }
+
+@media (max-width: 1000px) {
+  .collection-view .collection-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 767px) {
+  .collection-view .view-heading { gap: 10px; padding: 11px; }
+  .collection-view .view-heading h1 { font-size: clamp(20px, 6vw, 27px); }
+  .collection-view .view-heading p { font-size: 10px; }
+  .collection-view .catalog-progress { min-width: 0; }
+  .collection-view .collection-toolbar--advanced { gap: 7px; padding: 8px; }
+  .collection-view .collection-filter-row > span,
+  .collection-view .collection-filter-row button { min-height: 38px; }
+  .collection-view .collection-summary p { display: none; }
+  .collection-view .bestiary-book { grid-template-columns: 1fr; margin: 12px 0 18px; border-width: 6px; }
+  .collection-view .bestiary-book__spine { display: none; }
+  .collection-view .bestiary-book__page { padding: 14px; }
+  .collection-view .bestiary-book__page--art { border-right: 0; border-bottom: 3px solid #916b33; }
+  .collection-view .bestiary-book__portrait { min-height: 178px; }
+  .collection-view .bestiary-book__portrait .pixel-creature { height: 172px; }
+  .collection-view .bestiary-book__stats { gap: 5px; }
+  .collection-view .bestiary-book__stats span { min-width: 0; flex: 1 1 0; padding: 5px; }
+  .collection-view .bestiary-evolution-line__stages { gap: 5px; }
+  .collection-view .bestiary-evolution-line__stages article { padding: 6px 3px; }
+  .collection-view .collection-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .collection-view .creature-card { padding: 6px; border-width: 4px; }
+  .collection-view .creature-card__header { min-height: 26px; gap: 4px; font-size: 8px; }
+  .collection-view .creature-card__art,
+  .collection-view .creature-card__art--unknown { min-height: 112px; }
+  .collection-view .creature-card__art .pixel-creature { height: 108px; }
+  .collection-view .creature-card p,
+  .collection-view .creature-card__source { display: none; }
+  .collection-view .collection-pagination { position: sticky; bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 6px); z-index: 8; gap: 7px; padding: 7px; }
+  .collection-view .collection-pagination [data-slot="button"] { min-height: 42px; padding-inline: 9px; }
+}
+
+@media (max-width: 380px) {
+  .collection-view .collection-grid { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .collection-view .creature-card { padding: 8px; }
+  .collection-view .creature-card__art,
+  .collection-view .creature-card__art--unknown { min-height: 148px; }
+  .collection-view .creature-card__art .pixel-creature { height: 142px; }
+  .collection-view .creature-card p:not(.creature-card__source) { display: -webkit-box; font-size: 10px; -webkit-line-clamp: 3; }
+  .collection-view .creature-card__source { display: -webkit-box; font-size: 9px; -webkit-line-clamp: 2; }
+}

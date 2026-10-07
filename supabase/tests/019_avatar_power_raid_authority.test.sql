@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(54);
+select plan(43);
 
 select has_column(
   'public', 'raid_rooms', 'gameplay_mode',
@@ -13,7 +13,7 @@ select has_column(
 );
 select has_column(
   'public', 'raid_participants', 'combat_snapshot',
-  'classic Raid participants store their avatar and two powers'
+  'classic Raid participants store their avatar and signature abilities'
 );
 select has_column(
   'public', 'raid_reward_ledger', 'coins_awarded',
@@ -60,9 +60,19 @@ select ok(
 );
 
 insert into auth.users (id, email) values
-  ('ab000000-0000-4000-8000-000000000001', 'raid-authority-host@test.invalid'),
-  ('ac000000-0000-4000-8000-000000000002', 'raid-authority-guest@test.invalid');
+  ('ab000001-0000-4000-8000-000000000001', 'raid-authority-host@test.invalid'),
+  ('ab000002-0000-4000-8000-000000000002', 'raid-authority-guest@test.invalid');
 
+update public.profiles
+set avatar_config = jsonb_build_object(
+  'legendId', 'curupira', 'favoriteLegendId', 'curupira',
+  'skin', 'copper', 'hair', 'mohawk', 'outfit', 'ranger',
+  'armor', 'none', 'accent', 'crimson'
+)
+where id in (
+  'ab000001-0000-4000-8000-000000000001',
+  'ab000002-0000-4000-8000-000000000002'
+);
 insert into public.raid_events (
   id, slug, title, boss_creature_id, starts_at, ends_at, min_players,
   max_players, boss_config, rewards, is_published
@@ -72,34 +82,26 @@ insert into public.raid_events (
     'raid-authority-avatar-test', 'Avatar Raid authority fixture', 'roc',
     now() - interval '1 day', now() + interval '1 day', 2, 2,
     '{"gameplayMode":"avatar"}'::jsonb,
-    '{"coins":321,"xp":123,"mythicalCreatureId":"roc","guaranteedCopies":1,"limitPerAccountPerEvent":1,"mythicAbilityCardId":"roc-horizon-storm","guaranteedAbilityCopies":1,"mythicSupportId":"support-iara"}'::jsonb,
-    true
-  ),
-  (
-    'ae000000-0000-4000-8000-000000000002',
-    'raid-authority-arpg-test', 'ARPG Raid authority fixture', 'roc',
-    now() - interval '1 day', now() + interval '1 day', 2, 2,
-    '{"gameplayMode":"arpg"}'::jsonb,
     '{"coins":321,"xp":123}'::jsonb,
     true
   );
 
 set local role authenticated;
-select set_config('request.jwt.claim.sub', 'ab000000-0000-4000-8000-000000000001', true);
+select set_config('request.jwt.claim.sub', 'ab000001-0000-4000-8000-000000000001', true);
 select lives_ok(
   $$select public.save_arpg_loadout(
       'forest-bow', 'leather-armor', 'cartographer-compass',
-      array['ancestral-roots','boitata-flame']::text[]
+      array['curupira-root-snare','curupira-ember-arrow']::text[]
     )$$,
-  'the host saves two owned powers for both Raid modes'
+  'the host saves the active Curupira signature pair'
 );
-select set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000002', true);
+select set_config('request.jwt.claim.sub', 'ab000002-0000-4000-8000-000000000002', true);
 select lives_ok(
   $$select public.save_arpg_loadout(
       'forest-bow', 'leather-armor', 'cartographer-compass',
-      array['ancestral-roots','boitata-flame']::text[]
+      array['curupira-root-snare','curupira-ember-arrow']::text[]
     )$$,
-  'the guest saves two owned powers for both Raid modes'
+  'the guest saves the active Curupira signature pair'
 );
 reset role;
 
@@ -107,13 +109,9 @@ create temp table raid_authority_fixture (
   host_id uuid not null,
   guest_id uuid not null,
   avatar_event_id uuid not null,
-  arpg_event_id uuid not null,
   avatar_room_id uuid,
   avatar_invite_code text,
   avatar_initial_state jsonb,
-  arpg_room_id uuid,
-  arpg_invite_code text,
-  arpg_initial_state jsonb,
   legacy_active_room_id uuid,
   legacy_lobby_room_id uuid,
   inventory_before jsonb,
@@ -123,18 +121,17 @@ create temp table raid_authority_fixture (
 );
 
 insert into pg_temp.raid_authority_fixture (
-  host_id, guest_id, avatar_event_id, arpg_event_id,
+  host_id, guest_id, avatar_event_id,
   legacy_active_room_id, legacy_lobby_room_id
 ) values (
-  'ab000000-0000-4000-8000-000000000001',
-  'ac000000-0000-4000-8000-000000000002',
+  'ab000001-0000-4000-8000-000000000001',
+  'ab000002-0000-4000-8000-000000000002',
   'ae000000-0000-4000-8000-000000000001',
-  'ae000000-0000-4000-8000-000000000002',
   'ac000000-0000-4000-8000-000000000001',
   'ac000000-0000-4000-8000-000000000002'
 );
 
-select set_config('request.jwt.claim.sub', 'ab000000-0000-4000-8000-000000000001', true);
+select set_config('request.jwt.claim.sub', 'ab000001-0000-4000-8000-000000000001', true);
 with created as materialized (
   select public.create_raid_room(fixture.avatar_event_id) as payload
   from pg_temp.raid_authority_fixture as fixture
@@ -144,30 +141,14 @@ set avatar_room_id = (created.payload ->> 'roomId')::uuid,
     avatar_invite_code = created.payload ->> 'inviteCode'
 from created;
 
-select set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000002', true);
+select set_config('request.jwt.claim.sub', 'ab000002-0000-4000-8000-000000000002', true);
 select public.join_raid_room(avatar_invite_code)
 from pg_temp.raid_authority_fixture;
 
-select set_config('request.jwt.claim.sub', 'ab000000-0000-4000-8000-000000000001', true);
-with created as materialized (
-  select public.create_raid_room(fixture.arpg_event_id) as payload
-  from pg_temp.raid_authority_fixture as fixture
-)
-update pg_temp.raid_authority_fixture as fixture
-set arpg_room_id = (created.payload ->> 'roomId')::uuid,
-    arpg_invite_code = created.payload ->> 'inviteCode'
-from created;
-
-select set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000002', true);
-select public.join_raid_room(arpg_invite_code)
-from pg_temp.raid_authority_fixture;
-
-select set_config('request.jwt.claim.sub', 'ab000000-0000-4000-8000-000000000001', true);
+select set_config('request.jwt.claim.sub', 'ab000001-0000-4000-8000-000000000001', true);
 select public.set_raid_ready(avatar_room_id, true) from pg_temp.raid_authority_fixture;
-select public.set_raid_ready(arpg_room_id, true) from pg_temp.raid_authority_fixture;
-select set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000002', true);
+select set_config('request.jwt.claim.sub', 'ab000002-0000-4000-8000-000000000002', true);
 select public.set_raid_ready(avatar_room_id, true) from pg_temp.raid_authority_fixture;
-select public.set_raid_ready(arpg_room_id, true) from pg_temp.raid_authority_fixture;
 reset role;
 
 select is(
@@ -192,28 +173,8 @@ select is(
         where loadout.user_id = participant.user_id)
      )),
   2::bigint,
-  'both classic participants freeze the saved avatar and exactly two owned powers'
+  'both classic participants freeze the saved avatar and its two signature abilities'
 );
-select is(
-  (select count(*)::bigint
-   from public.raid_rooms as room
-   join pg_temp.raid_authority_fixture as fixture on room.id = fixture.arpg_room_id
-   where room.gameplay_mode = 'arpg' and room.gameplay_version = 2),
-  1::bigint,
-  'a new ARPG room freezes ARPG mode at gameplay version 2'
-);
-select is(
-  (select count(*)::bigint
-   from public.raid_participants as participant
-   join pg_temp.raid_authority_fixture as fixture on participant.room_id = fixture.arpg_room_id
-   where jsonb_typeof(participant.team_snapshot) = 'object'
-     and participant.combat_snapshot is null
-     and jsonb_array_length(participant.team_snapshot -> 'abilityIds') = 2
-     and not (participant.team_snapshot ? 'supportIds')),
-  2::bigint,
-  'both ARPG snapshots contain exactly two powers and omit archived supporters'
-);
-
 select throws_ok(
   $$update public.raid_rooms as room
     set gameplay_mode = 'legacy'
@@ -266,7 +227,7 @@ select is(
   '["a","b","c","d","e","f"]'::jsonb,
   'an archived historical room keeps its original team snapshot'
 );
-select set_config('request.jwt.claim.sub', 'ab000000-0000-4000-8000-000000000001', true);
+select set_config('request.jwt.claim.sub', 'ab000001-0000-4000-8000-000000000001', true);
 select throws_ok(
   $$select public.set_raid_ready(fixture.legacy_lobby_room_id, true)
     from pg_temp.raid_authority_fixture as fixture$$,
@@ -289,7 +250,7 @@ select throws_ok(
 );
 
 update public.raid_events as event
-set boss_config = '{"gameplayMode":"arpg"}'::jsonb
+set boss_config = '{"gameplayMode":"legacy"}'::jsonb
 from pg_temp.raid_authority_fixture as fixture
 where event.id = fixture.avatar_event_id;
 select is(
@@ -338,7 +299,7 @@ select throws_ok(
 select throws_ok(
   $$select public.start_raid_room(
       fixture.avatar_room_id,
-      jsonb_set(fixture.avatar_initial_state, '{players,0,side,abilityIds}', '["ancestral-roots"]'::jsonb, true)
+      jsonb_set(fixture.avatar_initial_state, '{players,0,side,abilityIds}', '["curupira-root-snare"]'::jsonb, true)
     ) from pg_temp.raid_authority_fixture as fixture$$,
   '22023', null,
   'avatar Raid start rejects powers that diverge from the two-power snapshot'
@@ -537,7 +498,7 @@ select ok(
       on reward.room_id = fixture.avatar_room_id
     where reward.reward_type <> 'currency_reward'
   ),
-  'the Raid ledger records only currency and XP, without creature or ability rewards'
+  'the Raid ledger records only currency and XP, without permanent creature or ability rewards'
 );
 select is(
   (select profile.coins - fixture.coins_before
@@ -574,127 +535,8 @@ select is(
    from public.inventory_items as inventory
    join pg_temp.raid_authority_fixture as fixture on inventory.user_id = fixture.host_id),
   (select fixture.inventory_before from pg_temp.raid_authority_fixture as fixture),
-  'Raid victory adds no ability card or supporter inventory'
+  'Raid victory does not alter the player inventory or Legend entitlement'
 );
 
-update pg_temp.raid_authority_fixture as fixture
-set arpg_initial_state = jsonb_build_object(
-  'version', 2,
-  'roomId', fixture.arpg_room_id::text,
-  'eventId', fixture.arpg_event_id::text,
-  'status', 'active',
-  'boss', jsonb_build_object('catalogId', event.boss_creature_id),
-  'log', '[]'::jsonb,
-  'players', (
-    select jsonb_agg(jsonb_build_object(
-      'id', participant.user_id::text,
-      'loadout', jsonb_build_object(
-        'weaponId', participant.team_snapshot -> 'weaponId',
-        'armorId', participant.team_snapshot -> 'armorId',
-        'relicId', participant.team_snapshot -> 'relicId',
-        'abilityIds', participant.team_snapshot -> 'abilityIds'
-      )
-    ) order by participant.seat)
-    from public.raid_participants as participant
-    where participant.room_id = fixture.arpg_room_id
-  )
-)
-from public.raid_events as event
-where event.id = fixture.arpg_event_id;
-
-select throws_ok(
-  $$select public.start_raid_room(
-      fixture.arpg_room_id,
-      jsonb_set(fixture.arpg_initial_state, '{players,0,loadout,abilityIds}', '["ancestral-roots"]'::jsonb, true)
-    ) from pg_temp.raid_authority_fixture as fixture$$,
-  '22023', null,
-  'ARPG Raid start rejects a loadout that diverges from its two-power snapshot'
-);
-select throws_ok(
-  $$select public.start_raid_room(
-      fixture.arpg_room_id,
-      jsonb_set(fixture.arpg_initial_state, '{boss,catalogId}', '"wrong-boss"'::jsonb, true)
-    ) from pg_temp.raid_authority_fixture as fixture$$,
-  '22023', null,
-  'ARPG Raid start rejects a boss that differs from the event'
-);
-select throws_ok(
-  $$select public.start_raid_room(
-      fixture.arpg_room_id,
-      jsonb_set(
-        fixture.arpg_initial_state,
-        '{players,0,loadout,secondaryWeaponId}',
-        '"ritual-staff"'::jsonb,
-        true
-      )
-    ) from pg_temp.raid_authority_fixture as fixture$$,
-  '22023', null,
-  'ARPG Raid start rejects a second weapon that differs from its frozen snapshot'
-);
-select lives_ok(
-  $$select public.start_raid_room(fixture.arpg_room_id, fixture.arpg_initial_state)
-    from pg_temp.raid_authority_fixture as fixture$$,
-  'a ready ARPG room starts from its frozen equipment and two-power snapshots'
-);
-select throws_ok(
-  $$select public.commit_raid_action(
-      fixture.arpg_room_id, fixture.host_id, 1,
-      'af000000-0000-4000-8000-000000000008', 'input',
-      jsonb_build_object('roomId', fixture.arpg_room_id::text, 'expectedVersion', 1,
-        'actionId', 'af000000-0000-4000-8000-000000000008', 'action', 'input'),
-      jsonb_set(fixture.arpg_initial_state, '{players,0,creatures}', '[]'::jsonb, true),
-      '[]'::jsonb
-    ) from pg_temp.raid_authority_fixture as fixture$$,
-  '22023', null,
-  'ARPG Raid commits reject legacy creature data on the player state'
-);
-select throws_ok(
-  $$select public.commit_raid_action(
-      fixture.arpg_room_id, fixture.host_id, 1,
-      'af000000-0000-4000-8000-000000000009', 'input',
-      jsonb_build_object('roomId', fixture.arpg_room_id::text, 'expectedVersion', 1,
-        'actionId', 'af000000-0000-4000-8000-000000000009', 'action', 'input'),
-      jsonb_set(fixture.arpg_initial_state, '{players,0,loadout,supportIds}', '["support-curupira"]'::jsonb, true),
-      '[]'::jsonb
-    ) from pg_temp.raid_authority_fixture as fixture$$,
-  '22023', null,
-  'ARPG Raid commits reject supporter IDs in the loadout'
-);
-select throws_ok(
-  $$select public.commit_raid_action(
-      fixture.arpg_room_id, fixture.host_id, 1,
-      'af000000-0000-4000-8000-000000000010', 'input',
-      jsonb_build_object('roomId', fixture.arpg_room_id::text, 'expectedVersion', 1,
-        'actionId', 'af000000-0000-4000-8000-000000000010', 'action', 'input'),
-      jsonb_set(
-        fixture.arpg_initial_state,
-        '{players,0,loadout,secondaryWeaponId}',
-        '"ritual-staff"'::jsonb,
-        true
-      ),
-      '[]'::jsonb
-    ) from pg_temp.raid_authority_fixture as fixture$$,
-  '22023', null,
-  'ARPG Raid commits reject a second weapon that differs from its frozen snapshot'
-);
-select lives_ok(
-  $$select public.commit_raid_action(
-      fixture.arpg_room_id, fixture.host_id, 1,
-      'af000000-0000-4000-8000-000000000006', 'input',
-      jsonb_build_object('roomId', fixture.arpg_room_id::text, 'expectedVersion', 1,
-        'actionId', 'af000000-0000-4000-8000-000000000006', 'action', 'input'),
-      jsonb_set(fixture.arpg_initial_state, '{players,0,contribution}', '{"actions":1}'::jsonb, true),
-      '[]'::jsonb
-    ) from pg_temp.raid_authority_fixture as fixture$$,
-  'an ARPG input commits through the authoritative Raid RPC'
-);
-select is(
-  (select room.version::bigint
-   from public.raid_rooms as room
-   join pg_temp.raid_authority_fixture as fixture on room.id = fixture.arpg_room_id),
-  2::bigint,
-  'the ARPG commit also advances its room version once'
-);
-
-select * from finish(true);
+select * from finish();
 rollback;

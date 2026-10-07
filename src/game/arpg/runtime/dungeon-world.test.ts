@@ -4,18 +4,44 @@ import { ROOM_OBSTACLE_TILE, ROOM_RUNE_TILE, ROOM_WATER_TILE } from "../dungeon/
 import type { DungeonGraph } from "../dungeon/types";
 import { DungeonWorldRuntime } from "./dungeon-world";
 
-type MockVisual = { visible: boolean; setDepth: () => MockVisual; setStrokeStyle: () => MockVisual };
+type MockVisual = {
+  visible: boolean;
+  setDepth: (depth: number) => MockVisual;
+  setOrigin: (x: number, y?: number) => MockVisual;
+  setDisplaySize: (width: number, height: number) => MockVisual;
+  setFlipX: (flipX: boolean) => MockVisual;
+  setFlipY: (flipY: boolean) => MockVisual;
+  setStrokeStyle: (width: number, color: number, alpha?: number) => MockVisual;
+  fillStyle: (color: number, alpha?: number) => MockVisual;
+  fillRect: (x: number, y: number, width: number, height: number) => MockVisual;
+};
 
 function createSceneMock() {
   const visuals: MockVisual[] = [];
+  const graphicsRects: Array<{ x: number; y: number; width: number; height: number }> = [];
   const tweens: Array<{ paused: boolean }> = [];
+  const cameraBounds: Array<{ x: number; y: number; width: number; height: number }> = [];
   const addVisual = () => {
     const visual: MockVisual = {
       visible: true,
       setDepth() { return this; },
+      setOrigin() { return this; },
+      setDisplaySize() { return this; },
+      setFlipX() { return this; },
+      setFlipY() { return this; },
       setStrokeStyle() { return this; },
+      fillStyle() { return this; },
+      fillRect() { return this; },
     };
     visuals.push(visual);
+    return visual;
+  };
+  const addGraphics = () => {
+    const visual = addVisual();
+    visual.fillRect = (x, y, width, height) => {
+      graphicsRects.push({ x, y, width, height });
+      return visual;
+    };
     return visual;
   };
   const addTween = () => {
@@ -33,14 +59,25 @@ function createSceneMock() {
     add: {
       circle: addVisual,
       ellipse: addVisual,
+      graphics: addGraphics,
+      image: addVisual,
       polygon: addVisual,
       rectangle: addVisual,
       triangle: addVisual,
     },
     tweens: { add: addTween },
-    cameras: { main: { setBounds() {}, pan() {} } },
+    textures: { exists: () => false },
+    cameras: {
+      main: {
+        setBounds(x: number, y: number, width: number, height: number) {
+          cameraBounds.push({ x, y, width, height });
+          return this;
+        },
+        pan() {},
+      },
+    },
   } as unknown as import("phaser").Scene;
-  return { scene, visuals, tweens };
+  return { scene, visuals, tweens, graphicsRects, cameraBounds };
 }
 
 function makeAmbientTiles() {
@@ -101,5 +138,52 @@ describe("DungeonWorldRuntime ambient room state", () => {
       tweens: { active: createdFxPerRoom, paused: 0 },
       fx: { active: createdFxPerRoom, paused: 0 },
     });
+  });
+
+  it("keeps camera bounds on the full map when focus moves between rooms", () => {
+    const graph = generateDungeon({ seed: "camera-room-transition", regionId: "montanhas-runicas" });
+    const { scene, cameraBounds } = createSceneMock();
+    const world = new DungeonWorldRuntime(scene, graph);
+    const connectedRoomId = Object.values(graph.rooms[graph.startRoomId].connections).find(Boolean)!;
+
+    world.focusCamera(graph.startRoomId);
+    world.focusCamera(connectedRoomId);
+
+    expect(cameraBounds).toEqual([
+      { x: 0, y: 0, width: world.layout.width, height: world.layout.height },
+      { x: 0, y: 0, width: world.layout.width, height: world.layout.height },
+    ]);
+  });
+});
+
+describe("Mata START room dressing", () => {
+  it("draws deterministic pixel-grid ruin clusters and two room-scoped warm torches", () => {
+    const graph = generateDungeon({ seed: "mata-start-ruins", regionId: "mata-encantada" });
+    const room = graph.rooms[graph.startRoomId];
+    const tiles = Array.from({ length: 15 }, () => Array<number>(15).fill(0));
+    const draw = () => {
+      const mockedScene = createSceneMock();
+      const { scene } = mockedScene;
+      const visualWorld = new DungeonWorldRuntime(scene, graph);
+      const drawStartRoomDressing = visualWorld as unknown as {
+        drawMataStartRoomDressing: (
+          room: DungeonGraph["rooms"][string],
+          tiles: number[][],
+          layout: (typeof visualWorld.layout)["rooms"][string],
+        ) => void;
+      };
+      drawStartRoomDressing.drawMataStartRoomDressing(room, tiles, visualWorld.layout.rooms[room.id]);
+      return { ...mockedScene, visualWorld };
+    };
+    const first = draw();
+    const second = draw();
+
+    expect(first.graphicsRects.length).toBeGreaterThan(0);
+    expect(first.graphicsRects).toEqual(second.graphicsRects);
+    expect(first.graphicsRects.every(({ x, y, width, height }) => [x, y, width, height].every(Number.isInteger))).toBe(true);
+    expect(first.tweens).toHaveLength(2);
+    expect(first.visualWorld.getAmbientDebugState().rooms.find((entry) => entry.roomId === room.id)?.fx).toEqual({ active: 0, paused: 2 });
+    first.visualWorld.focusCamera(room.id);
+    expect(first.visualWorld.getAmbientDebugState().rooms.find((entry) => entry.roomId === room.id)?.fx).toEqual({ active: 2, paused: 0 });
   });
 });

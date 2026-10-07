@@ -8,7 +8,7 @@ export const FIRST_MYTHIC_RAID_EVENT: RaidEventDefinition = {
   endsAt: "2026-10-04T05:00:00.000Z",
   presentationTimezone: "America/Sao_Paulo",
   minPlayers: 2,
-  maxPlayers: 5,
+  maxPlayers: 4,
   recommendedLevel: 30,
   boss: {
     catalogId: "roc",

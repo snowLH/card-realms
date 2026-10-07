@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getLegendSignatureAbilityIds, hasExactLegendPowers } from "../arpg/content/legends";
 import { ELEMENTS } from "../domain/elements";
 import { AvatarConfigSchema, DEFAULT_AVATAR_CONFIG } from "../save/local-progress";
 
@@ -136,6 +137,14 @@ export const RemotePlayerSnapshotSchema = z.object({
   achievements: z.array(AchievementSchema),
   house: HouseSchema.nullable(),
   battleHistory: z.array(BattleHistorySchema),
+}).transform((snapshot) => {
+  const loadout = snapshot.arpgLoadout;
+  const legendId = snapshot.profile.avatarConfig.legendId;
+  if (!loadout || hasExactLegendPowers(loadout.abilityIds, legendId)) return snapshot;
+  return {
+    ...snapshot,
+    arpgLoadout: { ...loadout, abilityIds: getLegendSignatureAbilityIds(legendId) },
+  };
 });
 
 export type RemotePlayerSnapshot = z.infer<typeof RemotePlayerSnapshotSchema>;

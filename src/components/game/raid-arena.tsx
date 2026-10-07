@@ -84,6 +84,28 @@ function healthPercent(current: number, max: number) {
   return Math.max(0, Math.min(100, (current / Math.max(1, max)) * 100));
 }
 
+function getRaidLegendAnimation(
+  player: RaidState["players"][number],
+  event: RaidLogEntry | null,
+) {
+  if (player.eliminated || player.side.hp <= 0) return "defeat" as const;
+  if (!event) return "idle" as const;
+
+  if (event.actorId === player.id) {
+    if (event.kind === "ability_used" && event.abilityId) {
+      const ability = ARPG_ABILITY_CARD_BY_ID.get(event.abilityId);
+      return ability?.behavior === "projectile" || ability?.behavior === "piercing-projectile"
+        ? "shoot" as const
+        : "attack" as const;
+    }
+    if (event.kind === "attack_hit" || event.kind === "critical") return "attack" as const;
+  }
+
+  const bossHitKinds = new Set(["attack_hit", "critical", "boss_attack", "boss_area_attack"]);
+  if (bossHitKinds.has(event.kind) && event.targetIds?.includes(player.id)) return "damage" as const;
+  return "idle" as const;
+}
+
 export function RaidArena({
   roomId,
   playerId,
@@ -214,7 +236,7 @@ export function RaidArena({
           <div>
             <span className="view-eyebrow">SALA PRESERVADA</span>
             <h2 id="raid-archive-title">Combate antigo arquivado</h2>
-            <p>O resultado e os registros históricos continuam salvos. Novas Raids usam avatar e dois poderes próprios.</p>
+            <p>O resultado e os registros históricos continuam salvos. Novas Raids usam a Lenda ativa e os dois ataques próprios dela.</p>
           </div>
         </div>
       </section>
@@ -225,7 +247,7 @@ export function RaidArena({
     return (
       <div className="raid-battle raid-battle--loading">
         <Shield />
-        <strong>Esta sala não contém um combate de avatar ativo.</strong>
+        <strong>Esta sala não contém um combate de Lenda ativo.</strong>
         {error ? <p>{error}</p> : null}
         <Button variant="secondary" onClick={onClose}>Fechar</Button>
       </div>
@@ -235,6 +257,10 @@ export function RaidArena({
   const bossHp = healthPercent(state.boss.hp, state.boss.maxHp);
   const latestKind = latestEvent?.kind ?? "";
   const statusLabel = state.status === "victory" ? "Vitória" : state.status === "defeat" ? "Derrota" : "Ao vivo";
+  const legendAnimations = new Map(state.players.map((entry) => [
+    entry.id,
+    getRaidLegendAnimation(entry, latestEvent),
+  ] as const));
 
   return (
     <div className={cn("raid-battle", state.boss.enraged && "is-enraged")}>
@@ -250,7 +276,15 @@ export function RaidArena({
       </header>
 
       <main className="raid-stage raid-avatar-stage">
-        <section className="raid-boss-hud" aria-label="Vida do boss">
+        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {latestEvent?.message ? `${latestEvent.message} ` : ""}
+          {playerTurn
+            ? "Sua vez. Escolha um dos seus dois ataques próprios."
+            : state.turn.actorKind === "boss"
+              ? "Turno do chefe."
+              : "Aguardando o próximo Cartógrafo."}
+        </p>
+        <section className="raid-boss-hud" aria-label="Vida do chefe">
           <div className="raid-boss-hud__title">
             <Crown />
             <div><strong>{state.boss.name}</strong><span>Fase {state.boss.phase} · {state.boss.hp.toLocaleString("pt-BR")} / {state.boss.maxHp.toLocaleString("pt-BR")} HP</span></div>
@@ -273,7 +307,14 @@ export function RaidArena({
               className={cn("raid-fighter raid-avatar-fighter", entry.id === playerId && "is-you", state.turn.actorId === entry.id && "is-acting", entry.eliminated && "is-defeated")}
               key={entry.id}
             >
-              <div className="raid-fighter__sprite"><CharacterAvatar2D config={entry.side.avatarConfig} compact /></div>
+              <div className="raid-fighter__sprite"><CharacterAvatar2D
+                key={`${entry.id}:${latestEvent?.id ?? "idle"}`}
+                config={entry.side.avatarConfig}
+                compact
+                animation={legendAnimations.get(entry.id) ?? "idle"}
+                animationDurationMs={420}
+                ariaLabel={entry.id === playerId ? `Sua Lenda ativa, ${entry.name}` : `Lenda ativa de ${entry.name}`}
+              /></div>
               <div className="raid-fighter__label"><strong>{entry.name}{entry.id === playerId ? " · você" : ""}</strong><span>{entry.side.hp}/{entry.side.maxHp} HP</span></div>
               <div className="raid-fighter__hp"><div><i style={{ width: `${healthPercent(entry.side.hp, entry.side.maxHp)}%` }} /></div></div>
             </article>
@@ -306,7 +347,7 @@ export function RaidArena({
               <span className="view-eyebrow">RAID CONCLUÍDA</span>
               <h2>{bossDefinition.name} foi derrotado!</h2>
               <p>{payload.eventReward.obtained
-                ? `Recompensa do evento: ${payload.eventReward.coinsAwarded} moedas e ${payload.eventReward.xpAwarded} XP. Nenhum poder ou apoiador foi concedido.`
+                ? `Recompensa do evento: ${payload.eventReward.coinsAwarded} moedas e ${payload.eventReward.xpAwarded} XP. Os dois ataques próprios da sua Lenda continuam disponíveis na Guilda.`
                 : "A recompensa de moedas e XP está sendo confirmada pelo servidor."}</p>
               <Button variant="game" onClick={() => void refresh()}><Trophy /> Atualizar recompensa</Button>
             </div>
@@ -314,20 +355,20 @@ export function RaidArena({
         ) : state.status === "defeat" ? (
           <div className="raid-result raid-result--defeat">
             <Crown />
-            <div><span className="view-eyebrow">RAID ENCERRADA</span><h2>O grupo foi derrotado.</h2><p>Prepare seus dois poderes no Arquivo e tente novamente em outro evento.</p></div>
+            <div><span className="view-eyebrow">RAID ENCERRADA</span><h2>O grupo foi derrotado.</h2><p>Escolha sua Lenda ativa e use os dois ataques próprios dela ao tentar novamente.</p></div>
             <Button variant="secondary" onClick={onClose}>Voltar</Button>
           </div>
         ) : (
           <div className="raid-avatar-controls">
             <div className="raid-dialogue">
-              <span className="view-eyebrow">{playerTurn ? "SEU TURNO" : state.turn.actorKind === "boss" ? "TURNO DO BOSS" : "AGUARDANDO ALIADO"}</span>
-              <strong>{playerTurn ? "Escolha um dos seus dois poderes." : latestEvent?.message ?? "Aguardando uma ação confirmada pelo servidor."}</strong>
+              <span className="view-eyebrow">{playerTurn ? "SEU TURNO" : state.turn.actorKind === "boss" ? "TURNO DO CHEFE" : "AGUARDANDO ALIADO"}</span>
+              <strong>{playerTurn ? "Escolha um dos seus dois ataques próprios." : latestEvent?.message ?? "Aguardando uma ação confirmada pelo servidor."}</strong>
               <small>{state.terrain
                 ? `Terreno compartilhado: ${ELEMENT_META[state.terrain.element].name}`
                 : `Fase ${state.boss.phase} · ${state.players.filter((entry) => !entry.eliminated).length} Cartógrafos ativos`}</small>
             </div>
 
-            <div className="raid-avatar-powers" aria-label="Seus dois poderes">
+            <div className="raid-avatar-powers" aria-label="Seus dois ataques próprios">
               {player.side.abilityIds.map((abilityId, slot) => {
                 const ability = ARPG_ABILITY_CARD_BY_ID.get(abilityId);
                 const cooldown = player.side.abilityCooldowns[slot as 0 | 1];
@@ -344,7 +385,7 @@ export function RaidArena({
                     <span className="raid-avatar-power__element">{ELEMENT_META[ability.element].name}</span>
                     <strong>{ability.name}</strong>
                     <small>{ability.damage} de dano base · D6 · recarga {cooldown > 0 ? `${cooldown} turno(s)` : `${Math.ceil(ability.cooldownMs / 1000)}s`}</small>
-                    {cooldown > 0 ? <span className="raid-avatar-power__cooldown"><Clock3 /> Recarregando</span> : <span className="raid-avatar-power__cast"><Swords /> Usar poder</span>}
+                    {cooldown > 0 ? <span className="raid-avatar-power__cooldown"><Clock3 /> Recarregando</span> : <span className="raid-avatar-power__cast"><Swords /> Usar ataque</span>}
                   </button>
                 );
               })}
@@ -360,6 +401,7 @@ export function RaidArena({
                     className={cn(`is-${card.element}`)}
                     disabled={!playerTurn || busy || player.side.attachmentsRemaining < 1}
                     onClick={() => void perform({ action: "attach", cardId: card.id })}
+                    aria-label={`Vincular Energia de ${ELEMENT_META[card.element].name} à próxima ação`}
                     title={`Vincular Energia de ${ELEMENT_META[card.element].name}`}
                   >
                     <span>{ELEMENT_META[card.element].short}</span>

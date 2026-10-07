@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { createEncounterBattle, getSide } from "@/game/engine";
 import { DEFAULT_AVATAR_CONFIG } from "@/game/save/local-progress";
+import { STARTER_ARPG_ABILITY_IDS } from "@/game/arpg/content/ability-cards";
 import { GuestBattleSetupSchema } from "./guest-setup";
 
 const validSetup = {
   avatarConfig: DEFAULT_AVATAR_CONFIG,
-  abilityIds: ["ancestral-roots", "boitata-flame"],
+  abilityIds: [...STARTER_ARPG_ABILITY_IDS],
 };
 
 describe("GuestBattleSetupSchema", () => {
@@ -30,10 +31,10 @@ describe("GuestBattleSetupSchema", () => {
   });
 
   it("rejects the wrong number of powers, duplicates, and unknown IDs", () => {
-    expect(GuestBattleSetupSchema.safeParse({ ...validSetup, abilityIds: ["ancestral-roots"] }).success).toBe(false);
-    expect(GuestBattleSetupSchema.safeParse({ ...validSetup, abilityIds: ["ancestral-roots", "ancestral-roots"] }).success).toBe(false);
-    expect(GuestBattleSetupSchema.safeParse({ ...validSetup, abilityIds: ["ancestral-roots", "unknown-power"] }).success).toBe(false);
-    expect(GuestBattleSetupSchema.safeParse({ ...validSetup, abilityIds: ["ancestral-roots", "boitata-flame", "iara-song"] }).success).toBe(false);
+    expect(GuestBattleSetupSchema.safeParse({ ...validSetup, abilityIds: [STARTER_ARPG_ABILITY_IDS[0]] }).success).toBe(false);
+    expect(GuestBattleSetupSchema.safeParse({ ...validSetup, abilityIds: [STARTER_ARPG_ABILITY_IDS[0], STARTER_ARPG_ABILITY_IDS[0]] }).success).toBe(false);
+    expect(GuestBattleSetupSchema.safeParse({ ...validSetup, abilityIds: [STARTER_ARPG_ABILITY_IDS[0], "unknown-power"] }).success).toBe(false);
+    expect(GuestBattleSetupSchema.safeParse({ ...validSetup, abilityIds: [...STARTER_ARPG_ABILITY_IDS, "iara-enchanting-song"] }).success).toBe(false);
   });
 
   it("rejects invalid avatar configuration and extra request fields", () => {

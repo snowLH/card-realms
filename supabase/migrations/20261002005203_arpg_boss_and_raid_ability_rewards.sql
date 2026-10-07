@@ -77,12 +77,10 @@ begin
   return reward || jsonb_build_object('replayed', false);
 end;
 $$;
-
 revoke all on function private.claim_arpg_boss_card_reward(uuid, uuid, text)
   from public, anon, authenticated;
 grant execute on function private.claim_arpg_boss_card_reward(uuid, uuid, text)
   to service_role;
-
 create or replace function public.claim_arpg_boss_card_reward(
   target_player_id uuid,
   target_run_id uuid,
@@ -99,15 +97,12 @@ as $$
     target_expedition_id
   );
 $$;
-
 revoke all on function public.claim_arpg_boss_card_reward(uuid, uuid, text)
   from public, anon, authenticated;
 grant execute on function public.claim_arpg_boss_card_reward(uuid, uuid, text)
   to service_role;
-
 alter table public.raid_reward_ledger
   add column if not exists ability_card_id text;
-
 create or replace function public.grant_raid_mythic_rewards(target_room_id uuid)
 returns jsonb
 language plpgsql
@@ -208,12 +203,10 @@ begin
   );
 end;
 $$;
-
 revoke all on function public.grant_raid_mythic_rewards(uuid)
   from public, anon, authenticated;
 grant execute on function public.grant_raid_mythic_rewards(uuid)
   to service_role;
-
 update public.raid_events
 set rewards = coalesce(rewards, '{}'::jsonb)
   || jsonb_build_object(

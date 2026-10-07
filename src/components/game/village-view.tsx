@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { ArrowLeft, Check, Coins, PackagePlus, ShoppingBag, Sparkles, TentTree } from "lucide-react";
 import { ARPG_MERCHANT_PRODUCTS } from "@/game/arpg/content/merchant-catalog";
+import { ArpgItemPixelIcon } from "@/components/arpg/item-pixel-icon";
 import { ELEMENTS, type Element, type EnergyPool } from "@/game/types";
 import { ELEMENT_META } from "@/game/catalog";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,7 @@ export function VillageView({
       </header>
 
       <div className="village-scene">
-        <Image src="/art/village-tavern-reference.jpeg" alt="Taverna da Vila Cartógrafa vista de cima em arte 2D" fill sizes="100vw" className="object-cover [image-rendering:pixelated]" />
+        <Image src="/art/village-tavern-pixel-v2.webp" alt="Empório pixel art da Vila Cartógrafa em perspectiva 2D" fill sizes="100vw" className="object-cover [image-rendering:pixelated]" />
         <div className="village-scene__shade" />
         <span className="village-scene__sign"><TentTree /> Empório das Cinco Rotas</span>
       </div>
@@ -81,7 +82,7 @@ export function VillageView({
             <ShoppingBag />
             <div>
               <strong id="village-catalog-title">Itens e cosméticos</strong>
-              <span>Armas e armaduras vêm das expedições. Esta banca oferece decorações para o Refúgio.</span>
+              <span>Armas e relíquias são conquistadas nas masmorras. Esta banca oferece decorações para o Refúgio.</span>
             </div>
           </div>
           <div className="village-catalog-grid">
@@ -91,7 +92,7 @@ export function VillageView({
               return (
                 <article className="village-catalog-card" key={product.itemKey} data-category={product.category}>
                   <div className="village-catalog-card__icon">
-                    <Sparkles aria-hidden="true" />
+                    <ArpgItemPixelIcon item={product.icon} size={40} />
                   </div>
                   <div className="village-catalog-card__copy">
                     <small>{product.kind}</small>

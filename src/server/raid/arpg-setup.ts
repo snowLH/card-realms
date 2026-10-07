@@ -1,12 +1,12 @@
 import "server-only";
 
-import { AvatarConfigSchema, DEFAULT_AVATAR_CONFIG } from "@/game/save/local-progress";
 import {
   ArpgRaidLoadoutSchema,
   ArpgRaidStateSchema,
   createArpgRaidState,
   type ArpgRaidPlayerSetup,
 } from "@/game/arpg/raid";
+import { attachArpgSharedDungeon } from "@/game/arpg/coop-dungeon/shared-run";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadArpgRaidRoom, ArpgRaidRoomAccessError } from "./arpg-rooms";
 
@@ -34,31 +34,15 @@ export async function startArpgRaidRoom(roomId: string, actorId: string) {
     throw new ArpgRaidRoomAccessError("Todos os jogadores precisam estar prontos.");
   }
 
-  const playerIds = participants.map((participant) => participant.user_id);
-  const { data: profiles, error: profilesError } = await loaded.admin
-    .from("profiles")
-    .select("id,avatar_config")
-    .in("id", playerIds);
-  if (profilesError) {
-    throw new Error("Os avatares da equipe não puderam ser validados.");
-  }
-  const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
-
   const setups: ArpgRaidPlayerSetup[] = participants.map((participant) => {
     const parsed = ArpgRaidLoadoutSchema.safeParse(participant.team_snapshot);
     if (!parsed.success) {
       throw new ArpgRaidRoomAccessError(`${participant.name} não possui um loadout ARPG válido.`);
     }
-    const profile = profileById.get(participant.user_id);
-    const avatarConfig = AvatarConfigSchema.safeParse(profile?.avatar_config ?? DEFAULT_AVATAR_CONFIG);
-    if (!avatarConfig.success) {
-      throw new ArpgRaidRoomAccessError(`${participant.name} não possui um avatar ARPG válido.`);
-    }
     return {
       id: participant.user_id,
       name: participant.name,
       seat: participant.seat,
-      avatarConfig: avatarConfig.data,
       loadout: parsed.data,
     };
   });
@@ -67,7 +51,7 @@ export async function startArpgRaidRoom(roomId: string, actorId: string) {
     ? event.boss_config as Record<string, unknown>
     : {};
   const nowMs = Date.now();
-  const state = createArpgRaidState(
+  const baseState = createArpgRaidState(
     room.id,
     event.id,
     setups,
@@ -79,6 +63,11 @@ export async function startArpgRaidRoom(roomId: string, actorId: string) {
     },
     nowMs,
   );
+  const configuredRegion = bossConfig.regionId;
+  const regionId = configuredRegion === "arquipelago-das-mares" || configuredRegion === "montanhas-runicas"
+    ? configuredRegion
+    : "mata-encantada";
+  const state = attachArpgSharedDungeon(baseState, regionId);
 
   const validated = ArpgRaidStateSchema.parse(state);
   const admin = createAdminClient();

@@ -9,7 +9,6 @@ create table private.arpg_power_gacha_catalog (
   duplicate_fragments integer not null check (duplicate_fragments > 0),
   enabled boolean not null default true
 );
-
 insert into private.arpg_power_gacha_catalog (card_id, tier, card_rarity, duplicate_fragments) values
   ('caipora-arrow', 'common', 'common', 5),
   ('kappa-splash', 'common', 'common', 5),
@@ -22,14 +21,12 @@ insert into private.arpg_power_gacha_catalog (card_id, tier, card_rarity, duplic
   ('kraken-grasp', 'legendary', 'legendary', 45),
   ('simurgh-renewal', 'legendary', 'legendary', 45),
   ('roc-horizon-storm', 'legendary', 'mythic', 60);
-
 create table private.arpg_power_gacha_state (
   user_id uuid primary key references public.profiles(id) on delete cascade,
   misses_since_epic integer not null default 0 check (misses_since_epic between 0 and 19),
   legend_fragments integer not null default 0 check (legend_fragments between 0 and 2147483647),
   updated_at timestamptz not null default now()
 );
-
 create table private.arpg_power_gacha_rolls (
   id bigint generated always as identity primary key,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -45,14 +42,11 @@ create table private.arpg_power_gacha_rolls (
   created_at timestamptz not null default now(),
   unique (user_id, idempotency_key)
 );
-
 create index arpg_power_gacha_rolls_user_created_idx
   on private.arpg_power_gacha_rolls (user_id, created_at desc);
-
 revoke all on table private.arpg_power_gacha_catalog from public, anon, authenticated;
 revoke all on table private.arpg_power_gacha_state from public, anon, authenticated;
 revoke all on table private.arpg_power_gacha_rolls from public, anon, authenticated;
-
 create or replace function private.arpg_power_gacha_odds(target_misses integer)
 returns jsonb
 language plpgsql
@@ -90,9 +84,7 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.arpg_power_gacha_odds(integer) from public, anon, authenticated;
-
 create or replace function private.get_arpg_power_gacha_state()
 returns jsonb
 language plpgsql
@@ -137,10 +129,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.get_arpg_power_gacha_state() from public, anon, authenticated;
 grant execute on function private.get_arpg_power_gacha_state() to authenticated;
-
 create or replace function private.roll_arpg_power_gacha(target_idempotency_key uuid)
 returns jsonb
 language plpgsql
@@ -341,24 +331,20 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.roll_arpg_power_gacha(uuid) from public, anon, authenticated;
 grant execute on function private.roll_arpg_power_gacha(uuid) to authenticated;
-
 create or replace function public.get_arpg_power_gacha_state()
 returns jsonb
 language sql
 security invoker
 set search_path = ''
 as $$ select private.get_arpg_power_gacha_state(); $$;
-
 create or replace function public.roll_arpg_power_gacha(target_idempotency_key uuid)
 returns jsonb
 language sql
 security invoker
 set search_path = ''
 as $$ select private.roll_arpg_power_gacha(target_idempotency_key); $$;
-
 revoke all on function public.get_arpg_power_gacha_state() from public, anon;
 revoke all on function public.roll_arpg_power_gacha(uuid) from public, anon;
 grant execute on function public.get_arpg_power_gacha_state() to authenticated;

@@ -21,7 +21,6 @@ where furniture.value ->> 'itemKey' in ('books', 'chest', 'map-stand')
 on conflict (user_id, item_key) do update
 set quantity = greatest(public.inventory_items.quantity, excluded.quantity),
     metadata = public.inventory_items.metadata || excluded.metadata;
-
 create or replace function private.purchase_arpg_merchant_item(target_item_key text)
 returns jsonb
 language plpgsql
@@ -96,16 +95,13 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.purchase_arpg_merchant_item(text) from public, anon;
 grant execute on function private.purchase_arpg_merchant_item(text) to authenticated, service_role;
-
 create or replace function public.purchase_arpg_merchant_item(target_item_key text)
 returns jsonb
 language sql
 security invoker
 set search_path = ''
 as $$ select private.purchase_arpg_merchant_item(target_item_key); $$;
-
 revoke all on function public.purchase_arpg_merchant_item(text) from public, anon;
 grant execute on function public.purchase_arpg_merchant_item(text) to authenticated, service_role;

@@ -29,7 +29,8 @@ function toEngineAction(action: z.infer<typeof ArpgRaidActionRequestSchema>): Ar
   }
   if (action.action === "attack") return { kind: "attack", actionId: action.actionId };
   if (action.action === "dash") return { kind: "dash", actionId: action.actionId };
-  return { kind: "ability", actionId: action.actionId, slot: action.slot as 0 | 1 };
+  if (action.action === "ability") return { kind: "ability", actionId: action.actionId, slot: action.slot as 0 | 1 };
+  return { kind: "revive", actionId: action.actionId, targetPlayerId: action.targetPlayerId };
 }
 
 export async function POST(request: Request) {

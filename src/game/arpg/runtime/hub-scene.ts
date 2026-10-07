@@ -1,56 +1,173 @@
 import { buildHubNavigation, HUB_STATIONS, HUB_WORLD, findNearestHubStation, type HubDestinationId } from "../hub/content";
+import { PLAYABLE_LEGEND_BY_ID, type PlayableLegendId } from "../content/legends";
 import { findGridPath, type GridNavigation, type WorldPoint } from "../navigation/grid-path";
 import { readBrowserGamepad, type GamepadFrame } from "./gamepad";
 import type { ArpgBridge } from "./bridge";
 import { ArpgAudio } from "./arpg-audio";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
+import { ARPG_ASSET_MANIFEST } from "../assets";
+import { getPixelArtTextureKey } from "./pixel-art-sheet";
+import { GENERATED_SPRITE_FRAME_SIZE, queueGeneratedLegendSpriteSheet } from "./legend-sprite-sheets";
 import {
-  ARPG_ASSET_MANIFEST,
-  getArpgSpriteSheetFrameConfig,
-  registerArpgSpriteSheetAnimations,
-} from "../assets";
-import {
-  CARTOGRAPHER_PLAYER_FRAME_SIZE,
-  CARTOGRAPHER_PLAYER_SCALE,
-  CARTOGRAPHER_PLAYER_TEXTURE,
-  createCartographerAvatarSpritesheet,
-  playCartographerPlayerAnimation,
-  registerCartographerPlayerAnimations,
-} from "./player-sprites";
+  createNativePixelActorSheet,
+  NATIVE_PIXEL_ACTOR_ANIMATION_MAP,
+  NATIVE_PIXEL_ACTOR_FRAMES_PER_CYCLE,
+  type NativePixelActorAnimation,
+  type NativePixelActorId,
+} from "./native-pixel-actors";
 
 type PhaserModule = typeof import("phaser");
 type ArcadeSprite = import("phaser").Physics.Arcade.Sprite;
 type Key = import("phaser").Input.Keyboard.Key;
 
 const PLAYER_SPEED = 230;
+const GUILD_BACKGROUND_TEXTURE = "folklard-guild-hall-background-v2";
+const GUILD_BACKGROUND_PATH = "/art/guild-room-wide-background-v2.webp";
+const NATIVE_PLAYER_FRAME_SIZE = 32;
+const NATIVE_PLAYER_SCALE = 2.5;
+const GUILD_CHARACTER_SCALE = (NATIVE_PLAYER_FRAME_SIZE * NATIVE_PLAYER_SCALE) / GENERATED_SPRITE_FRAME_SIZE;
+// Target visible height for the selection alcove. Scale each sprite from its
+// alpha bounds so transparent padding and tall silhouettes do not change the
+// apparent character size.
+const GUILD_LEGEND_VISIBLE_HEIGHT = 50;
+const GUILD_LEGEND_GALLERY_SCALE_FALLBACK = 0.29;
+const GUILD_CHARACTER_SCALE_BY_ACTOR: Readonly<Partial<Record<NativePixelActorId, number>>> = {
+  curupira: 0.343,
+  iara: 0.297,
+  boto: 0.276,
+  kappa: 0.286,
+  raiju: 0.272,
+  blacksmith: 0.321,
+  merchant: 0.287,
+  archivist: 0.274,
+  bestiaryKeeper: 0.277,
+};
+const NATIVE_PLAYER_CYCLES = ["walk", "attack", "shoot", "damage", "defeat"] as const;
 const BLACKSMITH_ASSET = ARPG_ASSET_MANIFEST.guildNpcs.blacksmith;
-const BLACKSMITH_TEXTURE = BLACKSMITH_ASSET.textureKey;
-const BLACKSMITH_SCALE = BLACKSMITH_ASSET.scale;
+const BLACKSMITH_TEXTURE = getPixelArtTextureKey(BLACKSMITH_ASSET.textureKey);
 const BLACKSMITH_HOME = { x: 344, y: 254 };
 const MERCHANT_ASSET = ARPG_ASSET_MANIFEST.guildNpcs.merchant;
-const MERCHANT_TEXTURE = MERCHANT_ASSET.textureKey;
-const MERCHANT_SCALE = MERCHANT_ASSET.scale;
+const MERCHANT_TEXTURE = getPixelArtTextureKey(MERCHANT_ASSET.textureKey);
 const MERCHANT_HOME = { x: 830, y: 484 };
 const ARCHIVIST_ASSET = ARPG_ASSET_MANIFEST.guildNpcs.archivist;
-const ARCHIVIST_TEXTURE = ARCHIVIST_ASSET.textureKey;
-const ARCHIVIST_SCALE = ARCHIVIST_ASSET.scale;
+const ARCHIVIST_TEXTURE = getPixelArtTextureKey(ARCHIVIST_ASSET.textureKey);
 const ARCHIVIST_HOME = { x: 455, y: 452 };
 const BESTIARY_KEEPER_ASSET = ARPG_ASSET_MANIFEST.guildNpcs.bestiaryKeeper;
-const BESTIARY_KEEPER_TEXTURE = BESTIARY_KEEPER_ASSET.textureKey;
-const BESTIARY_KEEPER_SCALE = BESTIARY_KEEPER_ASSET.scale;
+const BESTIARY_KEEPER_TEXTURE = getPixelArtTextureKey(BESTIARY_KEEPER_ASSET.textureKey);
 const BESTIARY_KEEPER_HOME = { x: 870, y: 310 };
-const BLACKSMITH_ANIMATIONS = BLACKSMITH_ASSET.animations;
-const MERCHANT_ANIMATIONS = MERCHANT_ASSET.animations;
-const ARCHIVIST_ANIMATIONS = ARCHIVIST_ASSET.animations;
-const BESTIARY_KEEPER_ANIMATIONS = BESTIARY_KEEPER_ASSET.animations;
+const GUILD_PIXEL_ACTORS = [
+  ["blacksmith", BLACKSMITH_ASSET],
+  ["merchant", MERCHANT_ASSET],
+  ["archivist", ARCHIVIST_ASSET],
+  ["bestiaryKeeper", BESTIARY_KEEPER_ASSET],
+] as const;
+const GUILD_PLAYABLE_LEGENDS = [
+  // Keep the character alcove on the east side of the hall, clear of the
+  // Events sign and the walking lane between the merchant and portal.
+  { actorId: "curupira", x: 1115, y: 345, flipX: false },
+  { actorId: "iara", x: 1195, y: 345, flipX: true },
+  { actorId: "boto", x: 1115, y: 435, flipX: true },
+  { actorId: "amarok", x: 1195, y: 435, flipX: false },
+] as const satisfies ReadonlyArray<{ actorId: PlayableLegendId; x: number; y: number; flipX: boolean }>;
+
+const GUILD_ANIMATION_CYCLES: Readonly<Record<string, NativePixelActorAnimation>> = {
+  idle: "idle",
+  walking: "walk",
+  talking: "attack",
+  working: "shoot",
+  studying: "shoot",
+};
+
+function getNativePlayerTextureKey(actorId: NativePixelActorId) {
+  return getPixelArtTextureKey(`folklard-guild-player-${actorId}`);
+}
+
+function getGuildLegendTextureKey(actorId: NativePixelActorId) {
+  return getPixelArtTextureKey(`folklard-guild-legend-${actorId}`);
+}
+
+function getGuildCharacterScale(actorId: NativePixelActorId) {
+  return GUILD_CHARACTER_SCALE_BY_ACTOR[actorId] ?? GUILD_CHARACTER_SCALE;
+}
+
+function getNativePlayerAnimationKey(actorId: NativePixelActorId, animation: NativePixelActorAnimation) {
+  return `guild-player-${actorId}-${animation}`;
+}
+
+function registerNativePlayerAnimations(scene: import("phaser").Scene, actorId: NativePixelActorId) {
+  const textureKey = getNativePlayerTextureKey(actorId);
+  const animationRows = NATIVE_PIXEL_ACTOR_ANIMATION_MAP[actorId];
+  for (const name of NATIVE_PLAYER_CYCLES) {
+    const key = getNativePlayerAnimationKey(actorId, name);
+    if (scene.anims.exists(key)) continue;
+    const start = animationRows[name] * NATIVE_PIXEL_ACTOR_FRAMES_PER_CYCLE;
+    scene.anims.create({
+      key,
+      frames: scene.anims.generateFrameNumbers(textureKey, {
+        start,
+        end: start + NATIVE_PIXEL_ACTOR_FRAMES_PER_CYCLE - 1,
+      }),
+      frameRate: name === "walk" ? 9 : name === "defeat" ? 6 : 10,
+      repeat: name === "walk" ? -1 : 0,
+    });
+  }
+}
+
+function playNativePlayerAnimation(
+  sprite: ArcadeSprite,
+  actorId: NativePixelActorId,
+  animation: NativePixelActorAnimation,
+  restart = false,
+) {
+  const key = getNativePlayerAnimationKey(actorId, animation);
+  if (restart || sprite.anims.currentAnim?.key !== key) sprite.play(key);
+}
+
+function setNativePlayerRestPose(sprite: ArcadeSprite, actorId: NativePixelActorId) {
+  sprite.anims.stop();
+  sprite.setFrame(NATIVE_PIXEL_ACTOR_ANIMATION_MAP[actorId].idle * NATIVE_PIXEL_ACTOR_FRAMES_PER_CYCLE);
+}
+
+function setGuildActorRestPose(sprite: import("phaser").GameObjects.Sprite, actorId: NativePixelActorId) {
+  sprite.anims.stop();
+  sprite.setFrame(NATIVE_PIXEL_ACTOR_ANIMATION_MAP[actorId].idle * NATIVE_PIXEL_ACTOR_FRAMES_PER_CYCLE);
+}
+
+function registerGuildNativeActorAnimations(
+  scene: import("phaser").Scene,
+  actorId: NativePixelActorId,
+  textureKey: string,
+  definition: (typeof GUILD_PIXEL_ACTORS)[number][1],
+) {
+  const animations = definition.animations as Readonly<Record<string, { frameRate: number; repeat: number }>>;
+  const actorRows = NATIVE_PIXEL_ACTOR_ANIMATION_MAP[actorId];
+  for (const [name, animation] of Object.entries(animations)) {
+    const cycle = GUILD_ANIMATION_CYCLES[name];
+    if (!cycle) continue;
+    const key = `${definition.animationKeyPrefix!}-${name}`;
+    if (scene.anims.exists(key)) continue;
+    const start = actorRows[cycle] * NATIVE_PIXEL_ACTOR_FRAMES_PER_CYCLE;
+    scene.anims.create({
+      key,
+      frames: scene.anims.generateFrameNumbers(textureKey, {
+        start,
+        end: start + NATIVE_PIXEL_ACTOR_FRAMES_PER_CYCLE - 1,
+      }),
+      frameRate: animation.frameRate,
+      repeat: animation.repeat,
+    });
+  }
+}
 
 export function createArpgHubScene(
   Phaser: PhaserModule,
   bridge: ArpgBridge,
-  onNavigate: (destination: HubDestinationId) => void,
+  onNavigate: (destination: HubDestinationId, legendId?: PlayableLegendId) => void,
   onPrompt: (message: string) => void,
   avatarConfig: AvatarConfig = DEFAULT_AVATAR_CONFIG,
 ) {
+  const playerActorId: NativePixelActorId = avatarConfig.legendId;
+  const playerTextureKey = getNativePlayerTextureKey(playerActorId);
   return class ArpgHubScene extends Phaser.Scene {
     private player!: ArcadeSprite;
     private keys!: { up: Key; down: Key; left: Key; right: Key; interact: Key };
@@ -66,14 +183,35 @@ export function createArpgHubScene(
     private merchant!: import("phaser").GameObjects.Sprite;
     private archivist!: import("phaser").GameObjects.Sprite;
     private bestiaryKeeper!: import("phaser").GameObjects.Sprite;
+    private guildLegends: import("phaser").GameObjects.Sprite[] = [];
+    private generatedBackgroundActive = false;
     private navigation!: GridNavigation;
     private clickPath: WorldPoint[] = [];
     private clickPathIndex = 0;
+    // Direct movement is the normal game flow. Click-to-move remains available
+    // as an explicit accessibility option through ?clickToMove=1.
+    private clickToMoveEnabled = false;
 
     constructor() {
       super("card-realms-hub");
     }
+    preload() {
+      this.load.image(GUILD_BACKGROUND_TEXTURE, GUILD_BACKGROUND_PATH);
+      queueGeneratedLegendSpriteSheet(this, playerActorId, playerTextureKey);
+      for (const [actorId, definition] of GUILD_PIXEL_ACTORS) {
+        queueGeneratedLegendSpriteSheet(
+          this,
+          actorId,
+          getPixelArtTextureKey(definition.textureKey),
+        );
+      }
+      for (const { actorId } of GUILD_PLAYABLE_LEGENDS) {
+        queueGeneratedLegendSpriteSheet(this, actorId, getGuildLegendTextureKey(actorId));
+      }
+    }
     create() {
+      this.clickToMoveEnabled = typeof window !== "undefined"
+        && new URLSearchParams(window.location.search).get("clickToMove") === "1";
       const audio = new ArpgAudio("guild-hub");
       audio.setEnabled(bridge.getSoundEnabled());
       const offSoundEnabled = bridge.onSoundEnabled((enabled) => audio.setEnabled(enabled));
@@ -87,23 +225,58 @@ export function createArpgHubScene(
       this.physics.world.setBounds(0, 0, HUB_WORLD.width, HUB_WORLD.height);
       this.cameras.main.setBounds(0, 0, HUB_WORLD.width, HUB_WORLD.height);
       this.cameras.main.setBackgroundColor("#1c1718");
-      this.drawGuildHall();
-      registerCartographerPlayerAnimations(this);
+      this.generatedBackgroundActive = this.textures.exists(GUILD_BACKGROUND_TEXTURE);
+      if (this.generatedBackgroundActive) {
+        this.add.image(0, 0, GUILD_BACKGROUND_TEXTURE)
+          .setOrigin(0, 0)
+          .setDisplaySize(HUB_WORLD.width, HUB_WORLD.height)
+          .setDepth(0);
+      } else {
+        this.drawGuildHall();
+      }
+      if (!this.textures.exists(playerTextureKey)) {
+        createNativePixelActorSheet(
+          this,
+          playerActorId,
+          playerTextureKey,
+          NATIVE_PLAYER_FRAME_SIZE,
+          NATIVE_PLAYER_FRAME_SIZE,
+        );
+      }
+      registerNativePlayerAnimations(this, playerActorId);
+      for (const [actorId, definition] of GUILD_PIXEL_ACTORS) {
+        const textureKey = getPixelArtTextureKey(definition.textureKey);
+        if (!this.textures.exists(textureKey)) {
+          createNativePixelActorSheet(
+            this,
+            actorId,
+            textureKey,
+            definition.frameWidth,
+            definition.frameHeight,
+          );
+        }
+      }
       this.drawStations();
       this.createBlacksmith();
       this.createMerchant();
       this.createArchivist();
       this.createBestiaryKeeper();
+      this.createPlayableLegendGallery(onNavigate);
 
-      this.player = this.physics.add.sprite(HUB_WORLD.spawnX, HUB_WORLD.spawnY, CARTOGRAPHER_PLAYER_TEXTURE, 0);
-      this.player.setDepth(20).setCollideWorldBounds(true).setScale(CARTOGRAPHER_PLAYER_SCALE);
-      const playerRadius = 12 / CARTOGRAPHER_PLAYER_SCALE;
-      this.player.setCircle(
-        playerRadius,
-        CARTOGRAPHER_PLAYER_FRAME_SIZE / 2 - playerRadius,
-        143 - playerRadius,
-      );
-      playCartographerPlayerAnimation(this.player, "idle");
+      this.player = this.physics.add.sprite(HUB_WORLD.spawnX, HUB_WORLD.spawnY, playerTextureKey, 0);
+      const playerScale = this.player.texture.getSourceImage().width === GENERATED_SPRITE_FRAME_SIZE * 4
+        ? getGuildCharacterScale(playerActorId)
+        : NATIVE_PLAYER_SCALE;
+      this.player
+        .setOrigin(0.5, 0.82)
+        .setDepth(20)
+        .setCollideWorldBounds(true)
+        .setScale(playerScale);
+      const playerFrameSize = playerScale === NATIVE_PLAYER_SCALE ? NATIVE_PLAYER_FRAME_SIZE : GENERATED_SPRITE_FRAME_SIZE;
+      const playerRadius = playerScale === NATIVE_PLAYER_SCALE ? 5 : 40;
+      const playerGroundY = playerScale === NATIVE_PLAYER_SCALE ? 23 : 202;
+      this.player.setCircle(playerRadius, playerFrameSize / 2 - playerRadius, playerGroundY - playerRadius);
+      setNativePlayerRestPose(this.player, playerActorId);
       for (const visual of this.stationVisuals.values()) {
         this.physics.add.existing(visual, true);
         this.physics.add.collider(this.player, visual);
@@ -119,9 +292,15 @@ export function createArpgHubScene(
         right: this.input.keyboard.addKey("D"),
         interact: this.input.keyboard.addKey("E"),
       };
-      this.input.on("pointerdown", this.setClickDestination, this);
-      this.events.once("shutdown", () => this.input.off("pointerdown", this.setClickDestination, this));
-      onPrompt("Clique ou toque no chão para andar. WASD e joystick também funcionam; aproxime-se de uma estação e pressione E.");
+      if (this.clickToMoveEnabled) {
+        this.input.on("pointerdown", this.setClickDestination, this);
+        this.events.once("shutdown", () => this.input.off("pointerdown", this.setClickDestination, this));
+      }
+      onPrompt(
+        this.clickToMoveEnabled
+          ? "WASD, joystick ou direcional movem sua Lenda. Clique ou toque no chão é a assistência de movimento ativa; aproxime-se de uma estação e pressione E."
+          : "WASD, joystick ou direcional movem sua Lenda. Aproxime-se de uma estação e pressione E para interagir.",
+      );
     }
     private drawGuildHall() {
       const floor = this.add.graphics().setDepth(0);
@@ -138,6 +317,11 @@ export function createArpgHubScene(
           }
         }
       }
+
+      // Soft pools break up the tiled floor and give the plaza a warm, lived-in center.
+      floor.fillStyle(0xb18d56, 0.055).fillEllipse(HUB_WORLD.width / 2, 360, 480, 268);
+      floor.fillStyle(0x789679, 0.035).fillEllipse(640, 176, 580, 236);
+      floor.fillStyle(0x8e7650, 0.045).fillEllipse(640, 600, 436, 156);
 
       const paths = this.add.graphics().setDepth(1);
       const plazaCenter = { x: HUB_WORLD.width / 2, y: 365 };
@@ -163,16 +347,36 @@ export function createArpgHubScene(
           };
         });
 
-        paths.lineStyle(52, 0x18231e, 0.78).beginPath().moveTo(points[0].x, points[0].y);
+        // Layered stone runners read as connected routes instead of broad flat brown bands.
+        paths.lineStyle(48, 0x17231e, 0.9).beginPath().moveTo(points[0].x, points[0].y);
         points.slice(1).forEach((point) => paths.lineTo(point.x, point.y));
         paths.strokePath();
-        paths.lineStyle(38, 0x706047, 0.82).beginPath().moveTo(points[0].x, points[0].y);
+        paths.lineStyle(32, 0x4d5140, 0.98).beginPath().moveTo(points[0].x, points[0].y);
         points.slice(1).forEach((point) => paths.lineTo(point.x, point.y));
         paths.strokePath();
-        points.slice(2, -1).filter((_, pointIndex) => pointIndex % 3 === 0).forEach((point, pointIndex) => {
-          paths.fillStyle(pointIndex % 2 ? 0xb19a6d : 0x8c7959, 0.54)
-            .fillRect(point.x - 3, point.y - 2, 6, 4);
-        });
+        paths.lineStyle(18, 0x9a8a60, 0.3).beginPath().moveTo(points[0].x, points[0].y);
+        points.slice(1).forEach((point) => paths.lineTo(point.x, point.y));
+        paths.strokePath();
+
+        for (let pointIndex = 2; pointIndex < points.length - 2; pointIndex += 2) {
+          const point = points[pointIndex];
+          const previous = points[pointIndex - 1];
+          const next = points[pointIndex + 1];
+          const tangentX = next.x - previous.x;
+          const tangentY = next.y - previous.y;
+          const tangentLength = Math.max(1, Math.hypot(tangentX, tangentY));
+          const normalX = -tangentY / tangentLength;
+          const normalY = tangentX / tangentLength;
+
+          // Short joints and worn brass flecks add a hand-laid paving rhythm to each route.
+          paths.lineStyle(1, 0x302f27, 0.68).beginPath()
+            .moveTo(point.x - normalX * 16, point.y - normalY * 16)
+            .lineTo(point.x + normalX * 16, point.y + normalY * 16)
+            .strokePath();
+          if (pointIndex % 4 === 2) {
+            paths.fillStyle(0xc0a56d, 0.56).fillRect(point.x - 2, point.y - 2, 4, 4);
+          }
+        }
       });
 
       const walls = this.add.graphics().setDepth(2);
@@ -203,31 +407,41 @@ export function createArpgHubScene(
         post.setAlpha(0.96);
       });
 
-      this.add.ellipse(plazaCenter.x, plazaCenter.y, 394, 268, 0x26372f, 0.96)
-        .setStrokeStyle(7, 0x725d3d, 0.96).setDepth(2);
-      this.add.ellipse(plazaCenter.x, plazaCenter.y, 354, 230, 0x354337, 0.94)
-        .setStrokeStyle(2, 0xb0935c, 0.7).setDepth(2);
-      for (let index = 0; index < 16; index += 1) {
-        const angle = (Math.PI * 2 * index) / 16;
-        const stone = this.add.ellipse(
-          plazaCenter.x + Math.cos(angle) * 168,
-          plazaCenter.y + Math.sin(angle) * 108,
-          18,
-          9,
-          index % 2 ? 0x857353 : 0x9b835b,
-          0.78,
-        ).setDepth(3);
-        stone.setRotation(angle);
-      }
-      this.add.ellipse(plazaCenter.x, plazaCenter.y, 326, 104, 0x1c2924, 0.92)
-        .setStrokeStyle(4, 0xa77a42, 0.9).setDepth(3);
-      this.add.ellipse(plazaCenter.x, plazaCenter.y, 304, 82, 0x29362e, 0.82)
-        .setStrokeStyle(2, 0xd1a85c, 0.45).setDepth(3);
+      this.add.polygon(plazaCenter.x, plazaCenter.y, [
+        -186, -70, -154, -112, 154, -112, 186, -70,
+        186, 70, 154, 112, -154, 112, -186, 70,
+      ], 0x26372f, 0.96).setStrokeStyle(7, 0x725d3d, 0.96).setDepth(2);
+      this.add.polygon(plazaCenter.x, plazaCenter.y, [
+        -164, -61, -139, -96, 139, -96, 164, -61,
+        164, 61, 139, 96, -139, 96, -164, 61,
+      ], 0x354337, 0.94).setStrokeStyle(2, 0xb0935c, 0.7).setDepth(2);
+      const inlays = this.add.graphics().setDepth(3);
+      inlays.fillStyle(0xa58a57, 0.72);
+      inlays.fillRect(plazaCenter.x - 176, plazaCenter.y - 53, 16, 6)
+        .fillRect(plazaCenter.x + 160, plazaCenter.y - 53, 16, 6)
+        .fillRect(plazaCenter.x - 176, plazaCenter.y + 47, 16, 6)
+        .fillRect(plazaCenter.x + 160, plazaCenter.y + 47, 16, 6);
+      this.add.polygon(plazaCenter.x, plazaCenter.y, [
+        -154, -26, -136, -48, 136, -48, 154, -26,
+        154, 26, 136, 48, -136, 48, -154, 26,
+      ], 0x1c2924, 0.96).setStrokeStyle(4, 0xa77a42, 0.9).setDepth(3);
+      this.add.polygon(plazaCenter.x, plazaCenter.y, [
+        -143, -19, -128, -39, 128, -39, 143, -19,
+        143, 19, 128, 39, -128, 39, -143, 19,
+      ], 0x29362e, 0.9).setStrokeStyle(2, 0xd1a85c, 0.45).setDepth(3);
+      const guildPlate = this.add.graphics().setDepth(3);
+      guildPlate.fillStyle(0x171f1d, 0.94).fillRect(462, 281, 356, 66);
+      guildPlate.lineStyle(3, 0xb0935c, 0.94).strokeRect(462, 281, 356, 66);
+      guildPlate.fillStyle(0x725d3d, 0.96).fillRect(472, 286, 4, 56).fillRect(804, 286, 4, 56);
+      guildPlate.fillStyle(0xd1a85c, 0.74).fillRect(487, 340, 306, 2);
+      guildPlate.fillStyle(0xd5bc7b, 0.78)
+        .fillRect(468, 286, 4, 4).fillRect(808, 286, 4, 4)
+        .fillRect(468, 338, 4, 4).fillRect(808, 338, 4, 4);
       this.add.text(640, 304, "GUILDA DOS CARTÓGRAFOS", {
-        fontFamily: "monospace", fontSize: "23px", color: "#f2d58b", stroke: "#201519", strokeThickness: 5,
+        fontFamily: "monospace", fontSize: "21px", color: "#f2d58b", stroke: "#201519", strokeThickness: 4,
       }).setOrigin(0.5).setDepth(3);
-      this.add.text(640, 338, "Aurória · HUB ARPG", {
-        fontFamily: "monospace", fontSize: "13px", color: "#d4c7a4",
+      this.add.text(640, 328, "AURÓRIA · ARQUIVO E EXPEDIÇÕES", {
+        fontFamily: "monospace", fontSize: "10px", color: "#d4c7a4",
       }).setOrigin(0.5).setDepth(3);
       [[76, 130], [1204, 130], [76, 650], [1204, 650]].forEach(([x, y]) => {
         this.add.circle(x, y, 13, 0xf3b84b, 0.74).setDepth(4);
@@ -235,83 +449,41 @@ export function createArpgHubScene(
       });
     }
 
-    preload() {
-      this.load.spritesheet(CARTOGRAPHER_PLAYER_TEXTURE, createCartographerAvatarSpritesheet(avatarConfig), {
-        ...getArpgSpriteSheetFrameConfig(ARPG_ASSET_MANIFEST.player),
-      });
-      this.load.spritesheet(BLACKSMITH_ASSET.textureKey, BLACKSMITH_ASSET.path, getArpgSpriteSheetFrameConfig(BLACKSMITH_ASSET));
-      this.load.spritesheet(MERCHANT_ASSET.textureKey, MERCHANT_ASSET.path, getArpgSpriteSheetFrameConfig(MERCHANT_ASSET));
-      this.load.spritesheet(ARCHIVIST_ASSET.textureKey, ARCHIVIST_ASSET.path, getArpgSpriteSheetFrameConfig(ARCHIVIST_ASSET));
-      this.load.spritesheet(BESTIARY_KEEPER_ASSET.textureKey, BESTIARY_KEEPER_ASSET.path, getArpgSpriteSheetFrameConfig(BESTIARY_KEEPER_ASSET));
-    }
-
     private createBlacksmith() {
-      registerArpgSpriteSheetAnimations(this, {
-        textureKey: BLACKSMITH_ASSET.textureKey,
-        animations: BLACKSMITH_ANIMATIONS,
-        columns: BLACKSMITH_ASSET.columns,
-        keyPrefix: BLACKSMITH_ASSET.animationKeyPrefix!,
-      });
+      registerGuildNativeActorAnimations(this, "blacksmith", BLACKSMITH_TEXTURE, BLACKSMITH_ASSET);
 
       this.blacksmith = this.add.sprite(BLACKSMITH_HOME.x, BLACKSMITH_HOME.y, BLACKSMITH_TEXTURE, 0)
         .setOrigin(0.5, 0.82)
-        .setScale(BLACKSMITH_SCALE)
+        .setScale(getGuildCharacterScale("blacksmith"))
         .setDepth(19);
-      this.playBlacksmithAnimation("working");
-    }
-
-    private playBlacksmithAnimation(animation: keyof typeof BLACKSMITH_ANIMATIONS) {
-      const key = `${BLACKSMITH_ASSET.animationKeyPrefix}-${animation}`;
-      if (this.blacksmith.anims.currentAnim?.key !== key) this.blacksmith.play(key);
+      setGuildActorRestPose(this.blacksmith, "blacksmith");
+      this.scheduleNpcBlink(this.blacksmith, "blacksmith", 4400);
     }
 
     private createMerchant() {
-      registerArpgSpriteSheetAnimations(this, {
-        textureKey: MERCHANT_ASSET.textureKey,
-        animations: MERCHANT_ANIMATIONS,
-        columns: MERCHANT_ASSET.columns,
-        keyPrefix: MERCHANT_ASSET.animationKeyPrefix!,
-      });
+      registerGuildNativeActorAnimations(this, "merchant", MERCHANT_TEXTURE, MERCHANT_ASSET);
 
       this.merchant = this.add.sprite(MERCHANT_HOME.x, MERCHANT_HOME.y, MERCHANT_TEXTURE, 0)
         .setOrigin(0.5, 0.82)
-        .setScale(MERCHANT_SCALE)
+        .setScale(getGuildCharacterScale("merchant"))
         .setDepth(10);
-      this.playMerchantAnimation("working");
-    }
-
-    private playMerchantAnimation(animation: keyof typeof MERCHANT_ANIMATIONS) {
-      const key = `${MERCHANT_ASSET.animationKeyPrefix}-${animation}`;
-      if (this.merchant.anims.currentAnim?.key !== key) this.merchant.play(key);
+      setGuildActorRestPose(this.merchant, "merchant");
+      this.scheduleNpcBlink(this.merchant, "merchant", 5100);
     }
 
     private createArchivist() {
-      registerArpgSpriteSheetAnimations(this, {
-        textureKey: ARCHIVIST_ASSET.textureKey,
-        animations: ARCHIVIST_ANIMATIONS,
-        columns: ARCHIVIST_ASSET.columns,
-        keyPrefix: ARCHIVIST_ASSET.animationKeyPrefix!,
-      });
+      registerGuildNativeActorAnimations(this, "archivist", ARCHIVIST_TEXTURE, ARCHIVIST_ASSET);
 
       this.archivist = this.add.sprite(ARCHIVIST_HOME.x, ARCHIVIST_HOME.y, ARCHIVIST_TEXTURE, 0)
         .setOrigin(0.5, 0.82)
-        .setScale(ARCHIVIST_SCALE)
+        .setScale(getGuildCharacterScale("archivist"))
         .setDepth(19);
-      this.playArchivistAnimation("working");
-    }
-
-    private playArchivistAnimation(animation: keyof typeof ARCHIVIST_ANIMATIONS) {
-      const key = `${ARCHIVIST_ASSET.animationKeyPrefix}-${animation}`;
-      if (this.archivist.anims.currentAnim?.key !== key) this.archivist.play(key);
+      setGuildActorRestPose(this.archivist, "archivist");
+      this.scheduleNpcBlink(this.archivist, "archivist", 4700);
     }
 
     private createBestiaryKeeper() {
-      registerArpgSpriteSheetAnimations(this, {
-        textureKey: BESTIARY_KEEPER_ASSET.textureKey,
-        animations: BESTIARY_KEEPER_ANIMATIONS,
-        columns: BESTIARY_KEEPER_ASSET.columns,
-        keyPrefix: BESTIARY_KEEPER_ASSET.animationKeyPrefix!,
-      });
+      registerGuildNativeActorAnimations(this, "bestiaryKeeper", BESTIARY_KEEPER_TEXTURE, BESTIARY_KEEPER_ASSET);
 
       this.bestiaryKeeper = this.add.sprite(
         BESTIARY_KEEPER_HOME.x,
@@ -320,66 +492,203 @@ export function createArpgHubScene(
         0,
       )
         .setOrigin(0.5, 0.82)
-        .setScale(BESTIARY_KEEPER_SCALE)
+        .setScale(getGuildCharacterScale("bestiaryKeeper"))
         .setDepth(19);
       this.add.text(BESTIARY_KEEPER_HOME.x, BESTIARY_KEEPER_HOME.y - 59, "Luzia · Naturalista", {
         fontFamily: "monospace", fontSize: "10px", color: "#e4edbd",
         stroke: "#261719", strokeThickness: 4,
       }).setOrigin(0.5).setDepth(19);
-      this.playBestiaryKeeperAnimation("studying");
+      setGuildActorRestPose(this.bestiaryKeeper, "bestiaryKeeper");
+      this.scheduleNpcBlink(this.bestiaryKeeper, "bestiaryKeeper", 5800);
     }
 
-    private playBestiaryKeeperAnimation(animation: keyof typeof BESTIARY_KEEPER_ANIMATIONS) {
-      const key = `${BESTIARY_KEEPER_ASSET.animationKeyPrefix}-${animation}`;
-      if (this.bestiaryKeeper.anims.currentAnim?.key !== key) this.bestiaryKeeper.play(key);
+    private scheduleNpcBlink(sprite: import("phaser").GameObjects.Sprite, actorId: NativePixelActorId, delay: number) {
+      const baseFrame = NATIVE_PIXEL_ACTOR_ANIMATION_MAP[actorId].idle * NATIVE_PIXEL_ACTOR_FRAMES_PER_CYCLE;
+      this.time.addEvent({
+        delay,
+        loop: true,
+        callback: () => {
+          if (!sprite.active) return;
+          sprite.setFrame(baseFrame + 1);
+          this.time.delayedCall(110, () => {
+            if (sprite.active) sprite.setFrame(baseFrame);
+          });
+        },
+      });
+    }
+
+    private createPlayableLegendGallery(onNavigate: (destination: HubDestinationId, legendId?: PlayableLegendId) => void) {
+      this.guildLegends = GUILD_PLAYABLE_LEGENDS.flatMap(({ actorId, x, y, flipX }, index) => {
+        const textureKey = getGuildLegendTextureKey(actorId);
+        if (!this.textures.exists(textureKey)) return [];
+        const definition = PLAYABLE_LEGEND_BY_ID.get(actorId);
+        const name = definition?.name ?? actorId;
+        const card = this.add.graphics().setDepth(16);
+        card.fillStyle(0x201c1a, 0.82).fillRect(x - 34, y - 50, 68, 84);
+        card.lineStyle(3, 0x171311, 0.98).strokeRect(x - 34, y - 50, 68, 84);
+        card.lineStyle(1, 0xd0a961, 0.86).strokeRect(x - 31, y - 47, 62, 78);
+        card.fillStyle(0x141a16, 0.66).fillEllipse(x, y + 8, 47, 12);
+
+        const legend = this.add.sprite(x, y, textureKey, 0)
+          .setOrigin(0.5, 0.82)
+          .setScale(this.getGuildGalleryScale(textureKey))
+          .setFlipX(flipX)
+          .setDepth(18);
+        this.add.text(x, y + 19, name, {
+          fontFamily: "monospace", fontSize: "8px", fontStyle: "bold", color: "#fff0bd",
+          stroke: "#261719", strokeThickness: 3,
+        }).setOrigin(0.5).setDepth(20);
+        this.add.text(x, y + 29, "ESCOLHER", {
+          fontFamily: "monospace", fontSize: "6px", fontStyle: "bold", color: "#d9c27f",
+          stroke: "#261719", strokeThickness: 2,
+        }).setOrigin(0.5).setDepth(20);
+        const hitArea = this.add.zone(x, y - 6, 68, 84)
+          .setInteractive({ useHandCursor: true })
+          .setDepth(22);
+        hitArea.on("pointerdown", (
+          _pointer: import("phaser").Input.Pointer,
+          _localX: number,
+          _localY: number,
+          event: import("phaser").Types.Input.EventData,
+        ) => {
+          event.stopPropagation();
+          onNavigate("avatar", actorId);
+        });
+        setGuildActorRestPose(legend, actorId);
+        this.scheduleNpcBlink(legend, actorId, 3600 + index * 430);
+        return [legend];
+      });
+    }
+
+    private getGuildGalleryScale(textureKey: string) {
+      const source = this.textures.get(textureKey).getSourceImage() as CanvasImageSource;
+      const canvas = document.createElement("canvas");
+      canvas.width = GENERATED_SPRITE_FRAME_SIZE;
+      canvas.height = GENERATED_SPRITE_FRAME_SIZE;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) return GUILD_LEGEND_GALLERY_SCALE_FALLBACK;
+
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(
+        source,
+        0,
+        0,
+        GENERATED_SPRITE_FRAME_SIZE,
+        GENERATED_SPRITE_FRAME_SIZE,
+        0,
+        0,
+        GENERATED_SPRITE_FRAME_SIZE,
+        GENERATED_SPRITE_FRAME_SIZE,
+      );
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      let top = canvas.height;
+      let bottom = -1;
+      for (let y = 0; y < canvas.height; y += 1) {
+        for (let x = 0; x < canvas.width; x += 1) {
+          const alpha = pixels[(y * canvas.width + x) * 4 + 3];
+          if (alpha < 24) continue;
+          top = Math.min(top, y);
+          bottom = Math.max(bottom, y);
+        }
+      }
+      const visibleHeight = bottom - top + 1;
+      if (visibleHeight <= 0) return GUILD_LEGEND_GALLERY_SCALE_FALLBACK;
+      return Math.min(0.42, Math.max(0.18, GUILD_LEGEND_VISIBLE_HEIGHT / visibleHeight));
     }
 
     private drawStations() {
       HUB_STATIONS.forEach((station) => {
-        const visual = this.add.ellipse(station.x, station.y + 13, 178, 82, station.tint, 0.1)
-          .setAlpha(0.52)
+        const stationScale = station.id === "refuge" ? 0.78 : 1;
+        if (station.id === "archive" || station.id === "portal" || station.id === "expeditions") {
+          this.add.ellipse(station.x, station.y + 15, 182, 88, station.tint, 0.055)
+            .setAlpha(this.generatedBackgroundActive ? 0.35 : 1)
+            .setDepth(5);
+        }
+        const visual = this.add.ellipse(station.x, station.y + 13, 178 * stationScale, 82 * stationScale, station.tint, 0.1)
+          .setAlpha(this.generatedBackgroundActive ? 0.26 : 0.52)
           .setStrokeStyle(2, station.tint, 0.2)
-          .setDepth(7)
-          .setInteractive({ useHandCursor: true });
+          .setDepth(7);
+        if (this.clickToMoveEnabled) {
+          visual.setInteractive({ useHandCursor: true });
+          visual.on("pointerdown", (pointer: import("phaser").Input.Pointer) => {
+            this.setClickDestination(pointer);
+          });
+        }
         this.stationVisuals.set(station.id, visual);
-        this.drawStationProp(station.id, station.x, station.y + 8, station.tint);
+        if (!this.generatedBackgroundActive) {
+          this.drawStationProp(station.id, station.x, station.y + 8, station.tint);
+        }
         if (station.id === "loadout") {
-          this.drawStationSign(station.label, station.x, 158, 100);
+          this.drawStationSign(station.label, station.kicker, station.x, 142, 174);
         } else if (station.id === "archive") {
-          this.drawStationSign(station.label, station.x, 357, 194);
+          this.drawStationSign(station.label, undefined, station.x, 361, 202);
         } else if (station.id === "portal") {
-          this.drawStationSign(station.label, station.x, 533, 220);
+          this.drawStationSign(station.label, station.kicker, station.x, 516, 220);
+        } else if (station.id === "expeditions") {
+          this.drawStationSign(station.label, station.kicker, station.x, 91, 156);
+        } else if (station.id === "collection") {
+          this.drawStationSign(station.label, station.kicker, station.x, 154, 142);
+        } else if (station.id === "avatar") {
+          this.drawStationSign(station.label, station.kicker, station.x, 258, 222);
+        } else if (station.id === "merchant") {
+          this.drawStationSign(station.label, station.kicker, station.x, 374, 154);
+        } else if (station.id === "refuge") {
+          this.drawStationSign(station.label, station.kicker, station.x, 430, 150);
+        } else if (station.id === "raid") {
+          this.drawStationSign(station.label, station.kicker, station.x, 430, 146);
         } else {
-          this.add.text(station.x, station.y - 50, station.label, {
-            fontFamily: "monospace", fontSize: "15px", color: "#fff0bd",
-            stroke: "#261719", strokeThickness: 4,
-          }).setOrigin(0.5).setDepth(12);
-          this.add.text(station.x, station.y - 31, station.kicker, {
-            fontFamily: "monospace", fontSize: "9px", color: "#dfc999",
-          }).setOrigin(0.5).setDepth(12);
+          this.drawStationSign(station.label, station.kicker, station.x, 486, 154);
         }
       });
     }
 
-    private drawStationSign(label: string, x: number, y: number, width: number) {
+    private drawStationSign(label: string, kicker: string | undefined, x: number, y: number, width: number) {
       const sign = this.add.graphics().setDepth(11);
-      sign.fillStyle(0x30241e, 0.96).fillRect(x - width / 2, y - 12, width, 24);
-      sign.lineStyle(2, 0x9c8056, 0.95).strokeRect(x - width / 2, y - 12, width, 24);
-      sign.fillStyle(0x59412b, 1).fillRect(x - width / 2 + 4, y - 8, 4, 16);
-      sign.fillRect(x + width / 2 - 8, y - 8, 4, 16);
-      this.add.text(x, y, label, {
-        fontFamily: "monospace", fontSize: label.length > 14 ? "11px" : "13px", color: "#fff0bd",
-        stroke: "#261719", strokeThickness: 3,
+      const height = kicker ? 34 : 26;
+      width = Math.max(width * 0.78, label.length * 7 + 20, kicker ? kicker.length * 5 + 20 : 0);
+      sign.fillStyle(0x30241e, 1).fillRect(x - width / 2, y - height / 2, width, height);
+      sign.lineStyle(4, 0x1c151a, 1).strokeRect(x - width / 2, y - height / 2, width, height);
+      sign.lineStyle(2, 0xd0a961, 1).strokeRect(x - width / 2 + 3, y - height / 2 + 3, width - 6, height - 6);
+      sign.fillStyle(0x59412b, 1).fillRect(x - width / 2 + 4, y - height / 2 + 4, 4, height - 8);
+      sign.fillRect(x + width / 2 - 8, y - height / 2 + 4, 4, height - 8);
+      this.add.text(x, y - (kicker ? 7 : 0), label, {
+        fontFamily: "monospace", fontSize: "11px", fontStyle: "bold", color: "#fff0bd",
+        stroke: "#261719", strokeThickness: 2,
       }).setOrigin(0.5).setDepth(12);
+      if (kicker) {
+        this.add.text(x, y + 10, kicker, {
+          fontFamily: "monospace", fontSize: "8px", color: "#f1dba8",
+          stroke: "#261719", strokeThickness: 2,
+        }).setOrigin(0.5).setDepth(12);
+      }
     }
 
     private drawStationProp(id: HubDestinationId, x: number, y: number, tint: number) {
       if (id === "expeditions") {
-        this.add.rectangle(x, y + 13, 112, 38, 0x6d432d).setStrokeStyle(3, 0x2b1815).setDepth(9);
-        this.add.rectangle(x, y + 4, 70, 34, 0xd7bd80).setStrokeStyle(2, 0x7f6139).setDepth(10).setAngle(-3);
-        this.add.line(x - 2, y + 3, -23, -8, 23, 8, 0x8f7044, 0.9).setLineWidth(2).setDepth(11);
-        this.add.circle(x + 38, y + 4, 12, 0x493c2a).setStrokeStyle(3, 0xe1b95c).setDepth(11);
-        this.add.line(x + 38, y + 4, 0, -8, 5, 7, 0xf3d47b).setLineWidth(2).setDepth(12);
+        this.add.ellipse(x, y + 37, 166, 22, 0x121b17, 0.52).setDepth(8);
+        const chart = this.add.graphics().setDepth(8);
+        chart.fillStyle(0x4b3428).fillRect(x - 68, y - 58, 136, 52);
+        chart.lineStyle(3, 0x241a17).strokeRect(x - 68, y - 58, 136, 52);
+        chart.fillStyle(0xd1b77a).fillRect(x - 61, y - 52, 122, 40);
+        chart.lineStyle(1, 0x8e7045, 0.95).strokeRect(x - 61, y - 52, 122, 40);
+        chart.lineStyle(2, 0x52715f, 0.96).beginPath()
+          .moveTo(x - 51, y - 21).lineTo(x - 31, y - 40).lineTo(x - 9, y - 33)
+          .lineTo(x + 14, y - 46).lineTo(x + 42, y - 31).strokePath();
+        chart.lineStyle(1, 0x9e7446, 0.9).beginPath()
+          .moveTo(x - 47, y - 43).lineTo(x - 26, y - 30).lineTo(x - 7, y - 43)
+          .lineTo(x + 17, y - 25).lineTo(x + 44, y - 48).strokePath();
+        chart.fillStyle(0x873f39).fillRect(x - 34, y - 42, 5, 5).fillRect(x + 17, y - 28, 5, 5);
+        chart.fillStyle(0x52715f).fillRect(x + 41, y - 47, 5, 5);
+        this.add.rectangle(x, y + 18, 154, 32, 0x70482f).setStrokeStyle(3, 0x2b1815).setDepth(9);
+        this.add.rectangle(x, y + 5, 164, 12, 0x9a7049).setStrokeStyle(2, 0x33211a).setDepth(10);
+        this.add.rectangle(x - 59, y + 30, 9, 30, 0x4b3023).setDepth(9);
+        this.add.rectangle(x + 59, y + 30, 9, 30, 0x4b3023).setDepth(9);
+        this.add.rectangle(x - 12, y + 4, 83, 20, 0xd7bd80).setStrokeStyle(2, 0x7f6139).setDepth(11).setAngle(-3);
+        this.add.line(x - 11, y + 4, -30, -4, 27, 4, 0x8f7044, 0.9).setLineWidth(2).setDepth(12);
+        this.add.circle(x + 52, y + 2, 12, 0x493c2a).setStrokeStyle(3, 0xe1b95c).setDepth(11);
+        this.add.line(x + 52, y + 2, 0, -8, 5, 7, 0xf3d47b).setLineWidth(2).setDepth(12);
+        this.add.rectangle(x - 56, y - 1, 26, 7, 0x7e5132).setStrokeStyle(1, 0x301f19).setDepth(11).setAngle(-13);
+        this.add.circle(x + 28, y - 1, 4, 0x91bdd1).setStrokeStyle(2, 0x304756).setDepth(12);
         return;
       }
       if (id === "loadout") {
@@ -427,16 +736,22 @@ export function createArpgHubScene(
         return;
       }
       if (id === "refuge") {
-        this.add.rectangle(x - 12, y + 10, 88, 42, 0x6c4937).setStrokeStyle(3, 0x2a1815).setDepth(9);
-        this.add.rectangle(x - 26, y + 2, 48, 26, 0xb99a72).setStrokeStyle(2, 0x4c3025).setDepth(10);
-        this.add.circle(x + 44, y + 2, 15, 0x315f3b).setStrokeStyle(2, 0x1d3524).setDepth(10);
-        this.add.rectangle(x + 44, y + 21, 18, 17, 0x865638).setDepth(10);
+        this.add.ellipse(x, y + 34, 78, 17, 0x111a16, 0.42).setDepth(8);
+        this.add.polygon(x, y + 1, [0, -23, 38, 10, -38, 10], 0x66432e)
+          .setStrokeStyle(3, 0x2a1815).setDepth(9);
+        this.add.rectangle(x, y + 22, 62, 31, 0x8c5c3c).setStrokeStyle(3, 0x2a1815).setDepth(10);
+        this.add.rectangle(x, y + 20, 52, 22, 0xc4a177).setStrokeStyle(2, 0x4c3025).setDepth(11);
+        this.add.rectangle(x - 17, y + 16, 14, 12, 0x557d77).setStrokeStyle(2, 0x3a2920).setDepth(12);
+        this.add.rectangle(x + 9, y + 29, 13, 24, 0x67432f).setStrokeStyle(2, 0x2b1c18).setDepth(12);
+        this.add.circle(x + 27, y + 23, 7, 0x315f3b).setStrokeStyle(2, 0x1d3524).setDepth(12);
+        this.add.rectangle(x + 27, y + 31, 10, 7, 0x865638).setDepth(12);
         return;
       }
       if (id === "raid") {
-        this.add.circle(x, y + 8, 34).setStrokeStyle(7, tint, 0.95).setDepth(9);
-        this.add.circle(x, y + 8, 22, 0x241323, 0.88).setStrokeStyle(3, 0xf0b5d4, 0.7).setDepth(10);
-        this.add.circle(x, y + 8, 8, 0xe17db2, 0.72).setDepth(11);
+        this.add.ellipse(x, y + 23, 94, 34, 0x111a17, 0.4).setDepth(8);
+        this.add.circle(x, y + 8, 34, tint, 0.24).setStrokeStyle(4, tint, 0.46).setDepth(9);
+        this.add.circle(x, y + 8, 22, 0x241b25, 0.78).setStrokeStyle(2, 0xd99ab6, 0.42).setDepth(10);
+        this.add.circle(x, y + 8, 8, 0xb86d91, 0.58).setDepth(11);
         return;
       }
       if (id === "portal") {
@@ -446,9 +761,10 @@ export function createArpgHubScene(
       if (id === "altar") {
         this.add.rectangle(x, y + 27, 98, 18, 0x3b2e3c).setStrokeStyle(3, 0x1e151f).setDepth(9);
         this.add.rectangle(x, y + 12, 66, 20, 0x54435f).setStrokeStyle(2, 0xa78bc0).setDepth(10);
-        this.add.circle(x, y - 2, 18, 0x6f91bc, 0.38).setStrokeStyle(4, 0xc9dcf4, 0.88).setDepth(11);
-        this.add.polygon(x, y - 2, [0, -13, 10, 0, 0, 13, -10, 0], tint, 0.95).setStrokeStyle(2, 0xf1e1ad).setDepth(12);
-        this.add.circle(x, y - 2, 30).setStrokeStyle(2, tint, 0.38).setDepth(10);
+        this.add.circle(x, y - 2, 18, 0x6f91bc, 0.2).setStrokeStyle(2, 0xc9dcf4, 0.48).setDepth(11);
+        this.add.polygon(x, y - 2, [0, -13, 10, 0, 0, 13, -10, 0], tint, 0.9).setStrokeStyle(2, 0xf1e1ad, 0.78).setDepth(12);
+        this.add.circle(x, y - 2, 30).setStrokeStyle(2, tint, 0.2).setDepth(10);
+        this.add.circle(x, y - 2, 28).setStrokeStyle(1, tint, 0.1).setDepth(10);
       }
     }
 
@@ -490,6 +806,32 @@ export function createArpgHubScene(
     }
 
     private drawArchiveFurniture() {
+      this.add.ellipse(500, 421, 118, 106, 0x37577a, 0.16)
+        .setStrokeStyle(3, 0x9bc8d3, 0.54).setDepth(7);
+      this.add.ellipse(500, 421, 88, 78, 0x2d4663, 0.2)
+        .setStrokeStyle(1, 0x789db6, 0.7).setDepth(7);
+      const sealMarks = this.add.graphics().setDepth(8);
+      sealMarks.fillStyle(0xc0d9cd, 0.9);
+      [[500, 362], [558, 421], [500, 480], [442, 421]].forEach(([x, y]) => {
+        sealMarks.fillRect(x - 2, y - 7, 4, 14).fillRect(x - 6, y - 2, 12, 4);
+      });
+      sealMarks.fillStyle(0x98c5d4, 0.75);
+      [[460, 380], [540, 380], [460, 462], [540, 462]].forEach(([x, y]) => {
+        sealMarks.fillRect(x - 3, y - 3, 6, 6);
+      });
+
+      const sideShelves = this.add.graphics().setDepth(8);
+      sideShelves.fillStyle(0x28211f).fillRect(407, 386, 44, 60).fillRect(549, 386, 44, 60);
+      sideShelves.lineStyle(2, 0x604838, 0.95).strokeRect(407, 386, 44, 60).strokeRect(549, 386, 44, 60);
+      sideShelves.fillStyle(0x75523b).fillRect(411, 401, 36, 4).fillRect(411, 422, 36, 4)
+        .fillRect(553, 401, 36, 4).fillRect(553, 422, 36, 4);
+      sideShelves.fillStyle(0x934b42).fillRect(413, 389, 7, 11).fillRect(425, 388, 8, 13)
+        .fillRect(554, 389, 8, 11).fillRect(566, 388, 9, 13);
+      sideShelves.fillStyle(0x617b8e).fillRect(436, 389, 8, 12).fillRect(414, 408, 9, 12)
+        .fillRect(428, 408, 8, 12).fillRect(555, 408, 9, 12).fillRect(574, 408, 11, 12);
+      sideShelves.fillStyle(0x8d794e).fillRect(414, 427, 10, 13).fillRect(430, 427, 8, 13)
+        .fillRect(557, 427, 8, 13).fillRect(571, 427, 12, 13);
+
       const shelf = this.add.graphics().setDepth(9);
       shelf.fillStyle(0x30211d).fillRect(472, 374, 76, 60);
       shelf.lineStyle(3, 0x211816).strokeRect(472, 374, 76, 60);
@@ -548,114 +890,14 @@ export function createArpgHubScene(
       stones.fillRect(692, 592, 4, 13).fillRect(686, 599, 4, 12).fillRect(692, 610, 4, 13);
       stones.fillStyle(0xb0a076).fillRect(588, 554, 12, 3).fillRect(680, 554, 12, 3);
 
-      const portalLight = this.add.ellipse(640, 619, 44, 80, 0x78c8ac, 0.44).setDepth(9.9);
-        this.tweens.add({ targets: portalLight, alpha: { from: 0.3, to: 0.76 }, scaleX: { from: 0.86, to: 1.08 }, duration: 1050, yoyo: true, repeat: -1 });
+      const portalLight = this.add.ellipse(640, 619, 44, 80, 0x78c8ac, 0.4).setDepth(9.9);
+        this.tweens.add({ targets: portalLight, alpha: { from: 0.26, to: 0.6 }, scaleX: { from: 0.9, to: 1.04 }, duration: 1250, yoyo: true, repeat: -1 });
       this.add.circle(640, 619, 5, 0xe8df9d, 0.95).setDepth(10.1);
     }
 
     update() {
       this.handleInteraction();
       this.handleMovement();
-      this.updateBlacksmith(this.time.now);
-      this.updateMerchant(this.time.now);
-      this.updateArchivist(this.time.now);
-      this.updateBestiaryKeeper(this.time.now);
-    }
-
-    private updateBlacksmith(now: number) {
-      if (this.highlightedId === "loadout") {
-        this.blacksmith.setX(BLACKSMITH_HOME.x).setFlipX(false);
-        this.playBlacksmithAnimation("talking");
-        return;
-      }
-
-      const phase = now % 18000;
-      if (phase < 6500) {
-        this.blacksmith.setX(BLACKSMITH_HOME.x).setFlipX(false);
-        this.playBlacksmithAnimation("working");
-      } else if (phase < 10000 || phase >= 14000) {
-        this.blacksmith.setX(BLACKSMITH_HOME.x).setFlipX(false);
-        this.playBlacksmithAnimation("idle");
-      } else {
-        const walkPhase = phase - 10000;
-        const movingRight = walkPhase < 2000;
-        const progress = movingRight ? walkPhase / 2000 : (walkPhase - 2000) / 2000;
-        const offset = movingRight ? progress * 14 : (1 - progress) * 14;
-        this.blacksmith.setX(BLACKSMITH_HOME.x + offset).setFlipX(!movingRight);
-        this.playBlacksmithAnimation("walking");
-      }
-    }
-
-    private updateMerchant(now: number) {
-      if (this.highlightedId === "merchant") {
-        this.merchant.setX(MERCHANT_HOME.x).setFlipX(false);
-        this.playMerchantAnimation("talking");
-        return;
-      }
-
-      const phase = now % 16000;
-      if (phase < 7000) {
-        this.merchant.setX(MERCHANT_HOME.x).setFlipX(false);
-        this.playMerchantAnimation("working");
-      } else if (phase < 11000 || phase >= 14000) {
-        this.merchant.setX(MERCHANT_HOME.x).setFlipX(false);
-        this.playMerchantAnimation("idle");
-      } else {
-        const walkPhase = phase - 11000;
-        const movingRight = walkPhase < 1500;
-        const progress = movingRight ? walkPhase / 1500 : (walkPhase - 1500) / 1500;
-        const offset = movingRight ? progress * 9 : (1 - progress) * 9;
-        this.merchant.setX(MERCHANT_HOME.x + offset).setFlipX(!movingRight);
-        this.playMerchantAnimation("walking");
-      }
-    }
-
-    private updateArchivist(now: number) {
-      if (this.highlightedId === "archive") {
-        this.archivist.setX(ARCHIVIST_HOME.x).setFlipX(false);
-        this.playArchivistAnimation("talking");
-        return;
-      }
-
-      const phase = now % 20000;
-      if (phase < 7000) {
-        this.archivist.setX(ARCHIVIST_HOME.x).setFlipX(false);
-        this.playArchivistAnimation("working");
-      } else if (phase < 11000 || phase >= 15000) {
-        this.archivist.setX(ARCHIVIST_HOME.x).setFlipX(false);
-        this.playArchivistAnimation("idle");
-      } else {
-        const walkPhase = phase - 11000;
-        const movingRight = walkPhase < 2000;
-        const progress = movingRight ? walkPhase / 2000 : (walkPhase - 2000) / 2000;
-        const offset = movingRight ? progress * 9 : (1 - progress) * 9;
-        this.archivist.setX(ARCHIVIST_HOME.x + offset).setFlipX(!movingRight);
-        this.playArchivistAnimation("walking");
-      }
-    }
-
-    private updateBestiaryKeeper(now: number) {
-      if (this.highlightedId === "collection") {
-        this.bestiaryKeeper.setX(BESTIARY_KEEPER_HOME.x).setFlipX(false);
-        this.playBestiaryKeeperAnimation("talking");
-        return;
-      }
-
-      const phase = now % 18000;
-      if (phase < 7000) {
-        this.bestiaryKeeper.setX(BESTIARY_KEEPER_HOME.x).setFlipX(false);
-        this.playBestiaryKeeperAnimation("studying");
-      } else if (phase < 11000 || phase >= 15000) {
-        this.bestiaryKeeper.setX(BESTIARY_KEEPER_HOME.x).setFlipX(false);
-        this.playBestiaryKeeperAnimation("idle");
-      } else {
-        const walkPhase = phase - 11000;
-        const movingRight = walkPhase < 2000;
-        const progress = movingRight ? walkPhase / 2000 : (walkPhase - 2000) / 2000;
-        const offset = movingRight ? progress * 10 : (1 - progress) * 10;
-        this.bestiaryKeeper.setX(BESTIARY_KEEPER_HOME.x + offset).setFlipX(!movingRight);
-        this.playBestiaryKeeperAnimation("walking");
-      }
     }
 
     private handleMovement() {
@@ -683,13 +925,12 @@ export function createArpgHubScene(
         y = clickVector?.y ?? 0;
         magnitude = clickVector ? 1 : 0;
       }
+      if (Math.abs(x) > 0.01) this.player.setFlipX(x < 0);
       this.player.setVelocity(x * PLAYER_SPEED, y * PLAYER_SPEED);
       if (magnitude < 0.001) {
-        playCartographerPlayerAnimation(this.player, "idle");
-      } else if (Math.abs(x) > Math.abs(y)) {
-        playCartographerPlayerAnimation(this.player, x < 0 ? "walk-left" : "walk-right");
+        setNativePlayerRestPose(this.player, playerActorId);
       } else {
-        playCartographerPlayerAnimation(this.player, y < 0 ? "walk-up" : "walk-down");
+        playNativePlayerAnimation(this.player, playerActorId, "walk");
       }
     }
 
@@ -749,9 +990,9 @@ export function createArpgHubScene(
       } else if (station?.id === "archive") {
         onPrompt("Arquivista: aprenda ataques das lendas por moedas e escolha dois. Pressione E para entrar.");
       } else if (station?.id === "avatar") {
-        onPrompt("Ateliê do Cartógrafo: personalize seu próprio personagem. Pressione E para entrar.");
+        onPrompt("Galeria das Lendas: clique em um retrato ou pressione E para escolher sua Lenda e os dois ataques próprios.");
       } else if (station?.id === "collection") {
-        onPrompt("Luzia, naturalista: cada povo conta a lenda a seu modo. Pressione E para ver registros e origens.");
+        onPrompt("Luzia, naturalista: conheça os monstros, elites e chefes encontrados nas masmorras. Pressione E para abrir o Bestiário.");
       } else if (station) {
         onPrompt(`${station.kicker}: ${station.label} · pressione E para entrar.`);
       }

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
-import { STARTER_ARPG_ABILITY_IDS } from "@/game/arpg/content/ability-cards";
+import { ARPG_WEAPONS } from "@/game/arpg/content/equipment";
 import { DEFAULT_AVATAR_CONFIG } from "@/game/save/local-progress";
 import { ArpgLoadoutView } from "./loadout-view";
 
@@ -15,12 +15,14 @@ function renderLoadout(overrides: Partial<Parameters<typeof ArpgLoadoutView>[0]>
     focus: "cards" as const,
     loadout: DEFAULT_ARPG_LOADOUT,
     inventoryItemKeys: [],
-    ownedAbilityCardIds: [...STARTER_ARPG_ABILITY_IDS],
+    ownedLegendIds: ["curupira" as const],
     coins: 500,
     avatarConfig: DEFAULT_AVATAR_CONFIG,
+    pendingLegendId: null,
     onChange: vi.fn(),
-    onPurchaseAbilityCard: vi.fn().mockResolvedValue({ coins: 420, ownedAbilityIds: [...STARTER_ARPG_ABILITY_IDS, "caipora-arrow"] }),
-    onSaveAvatar: vi.fn(),
+    onSelectLegend: vi.fn(),
+    onPurchaseLegend: vi.fn().mockResolvedValue(undefined),
+    onToggleFavoriteLegend: vi.fn(),
     onBack: vi.fn(),
     onPlay: vi.fn(),
     ...overrides,
@@ -29,59 +31,60 @@ function renderLoadout(overrides: Partial<Parameters<typeof ArpgLoadoutView>[0]>
 }
 
 describe("ArpgLoadoutView", () => {
-  it("shows exactly two attack spaces and no active companion selection", () => {
+  it("shows exactly two signature attacks and no companion selection", () => {
     renderLoadout();
 
-    expect(screen.getByRole("list", { name: "Dois espaços de ataque" }).querySelectorAll("button")).toHaveLength(2);
+    const attacks = screen.getByRole("region", { name: "Os dois ataques de Curupira" });
+    expect(within(attacks).getAllByRole("article")).toHaveLength(2);
+    expect(within(attacks).queryByRole("button")).not.toBeInTheDocument();
     expect(screen.queryByText(/Suportes|companheiros|Santuário/i)).not.toBeInTheDocument();
   });
 
-  it("purchases an available power through the supplied in-game purchase callback", async () => {
-    const { props } = renderLoadout();
-    fireEvent.click(screen.getByRole("button", { name: /Caipora, Flecha da Caipora: Comprar por 80 moedas/i }));
+  it("keeps signature attacks bundled with the selected legend", () => {
+    renderLoadout();
 
-    await waitFor(() => expect(props.onPurchaseAbilityCard).toHaveBeenCalledWith("caipora-arrow"));
-    expect(await screen.findByRole("status")).toHaveTextContent("foi adicionada à sua coleção");
+    expect(screen.getByText(/vêm com a carta da lenda/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /comprar.*poder|comprar.*ataque/i })).not.toBeInTheDocument();
+    expect(screen.getByText("Raízes do Curupira")).toBeInTheDocument();
+    expect(screen.getByText("Flecha de Brasa")).toBeInTheDocument();
   });
 
-  it("shows the exact shortfall and disables a power the player cannot afford", () => {
+  it("does not expose a separate power price when coins are unavailable", () => {
     renderLoadout({ coins: 0 });
 
-    expect(screen.getByRole("button", { name: /Caipora, Flecha da Caipora: Faltam 80 moedas/i })).toBeDisabled();
-    expect(screen.getByText("Saldo disponível:").parentElement).toHaveTextContent("Saldo disponível: 0 moedas");
+    expect(screen.queryByText("Saldo disponível:")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Faltam \d+ moedas/i)).not.toBeInTheDocument();
   });
 
-  it("keeps purchases inside the Guilda archive and only shows owned attacks in Arsenal", () => {
+  it("keeps the selected legend attacks visible in Arsenal", () => {
     renderLoadout({ focus: "all" });
 
-    expect(screen.getByText("Seus ataques")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Curupira, Raízes Ancestrais/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Caipora, Flecha da Caipora/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Os dois ataques de Curupira")).toBeInTheDocument();
+    expect(screen.getByText("Raízes do Curupira")).toBeInTheDocument();
+    expect(screen.getByText("Flecha de Brasa")).toBeInTheDocument();
     expect(screen.queryByText("Saldo disponível:")).not.toBeInTheDocument();
   });
 
-  it("lets the player choose two weapon slots and swap their positions", () => {
-    const { props } = renderLoadout({ focus: "all" });
+  it("hides legacy armor from the Arsenal while preserving it in loadout edits", () => {
+    const legacyLoadout = { ...DEFAULT_ARPG_LOADOUT, armorId: "leather-armor" };
+    const nextWeapon = ARPG_WEAPONS.find((weapon) => weapon.id !== legacyLoadout.weaponId)!;
+    const { props } = renderLoadout({
+      focus: "all",
+      loadout: legacyLoadout,
+      inventoryItemKeys: ["leather-armor", nextWeapon.id],
+    });
 
-    fireEvent.click(screen.getByRole("button", { name: "Espaço 2 · Espada de Ferro" }));
-    const weaponSection = screen.getByText("Duas armas").closest("section");
-    expect(weaponSection).not.toBeNull();
-    fireEvent.click(within(weaponSection as HTMLElement).getByRole("button", { name: /RaroArco da Mata/ }));
+    expect(screen.getByText(/entra sem armadura/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("button").every((button) => !/armadura|armor/i.test(button.textContent ?? ""))).toBe(true);
 
-    expect(props.onChange).toHaveBeenLastCalledWith(expect.objectContaining({
-      weaponId: "iron-sword",
-      secondaryWeaponId: "forest-bow",
-      abilityIds: DEFAULT_ARPG_LOADOUT.abilityIds,
-    }));
-    expect(screen.getByRole("button", { name: "Espaço 2 · Espada de Ferro" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(nextWeapon.name) }));
+    expect(props.onChange).toHaveBeenCalledWith({ ...legacyLoadout, weaponId: nextWeapon.id });
   });
 
-  it("reuses the shared avatar editor and gives a direct route back to the Guilda", async () => {
-    const { props } = renderLoadout({ focus: "avatar" });
-    expect(screen.getByRole("heading", { level: 2, name: "Seu personagem" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Salvar personagem/i }));
-
-    await waitFor(() => expect(props.onSaveAvatar).toHaveBeenCalledWith(DEFAULT_AVATAR_CONFIG));
+  it("shows playable folklore legends and a direct route back to the Guilda", () => {
+    const { props } = renderLoadout({ focus: "legend" });
+    expect(screen.getByRole("heading", { level: 2, name: "Escolha sua lenda" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Curupira" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Voltar à Guilda/i }));
     expect(props.onBack).toHaveBeenCalledTimes(1);
   });

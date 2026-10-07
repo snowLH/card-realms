@@ -29,10 +29,8 @@ begin
   return new;
 end;
 $$;
-
 revoke all on function private.handle_new_user() from public, anon, authenticated;
 grant execute on function private.handle_new_user() to service_role;
-
 create or replace function private.add_creature_to_active_team(
   target_player_id uuid,
   target_creature_instance_id uuid
@@ -75,12 +73,10 @@ begin
   return true;
 end;
 $$;
-
 revoke all on function private.add_creature_to_active_team(uuid, uuid)
   from public, anon, authenticated;
 grant execute on function private.add_creature_to_active_team(uuid, uuid)
   to service_role;
-
 create or replace function private.choose_starter_card(target_creature_id text)
 returns jsonb
 language plpgsql
@@ -150,10 +146,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.choose_starter_card(text) from public, anon;
 grant execute on function private.choose_starter_card(text) to authenticated, service_role;
-
 create or replace function public.choose_starter_card(target_creature_id text)
 returns jsonb
 language sql
@@ -162,10 +156,8 @@ set search_path = ''
 as $$
   select private.choose_starter_card(target_creature_id);
 $$;
-
 revoke all on function public.choose_starter_card(text) from public, anon;
 grant execute on function public.choose_starter_card(text) to authenticated, service_role;
-
 create or replace function private.claim_region_treasure(target_region_id text)
 returns jsonb
 language plpgsql
@@ -262,10 +254,8 @@ begin
   ));
 end;
 $$;
-
 revoke all on function private.claim_region_treasure(text) from public, anon;
 grant execute on function private.claim_region_treasure(text) to authenticated, service_role;
-
 create or replace function private.claim_story_battle_reward(
   target_player_id uuid,
   target_battle_id uuid
@@ -378,12 +368,10 @@ begin
   return reward || jsonb_build_object('replayed', false);
 end;
 $$;
-
 revoke all on function private.claim_story_battle_reward(uuid, uuid)
   from public, anon, authenticated;
 grant execute on function private.claim_story_battle_reward(uuid, uuid)
   to service_role;
-
 create or replace function public.claim_story_battle_reward(
   target_player_id uuid,
   target_battle_id uuid
@@ -395,10 +383,7 @@ set search_path = ''
 as $$
   select private.claim_story_battle_reward(target_player_id, target_battle_id);
 $$;
-
 revoke all on function public.claim_story_battle_reward(uuid, uuid)
   from public, anon, authenticated;
 grant execute on function public.claim_story_battle_reward(uuid, uuid)
   to service_role;
-
-

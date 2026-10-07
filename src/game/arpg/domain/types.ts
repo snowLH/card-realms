@@ -12,7 +12,7 @@ export type AbilityBehavior =
   | "self-area"
   | "targeted-control"
   | "renewal";
-export type AbilityAcquisitionSource = "starter" | "lobby-shop";
+export type AbilityAcquisitionSource = "starter" | "lobby-shop" | "legend";
 export type WeaponEffectId =
   | "forest-rhythm"
   | "spirit-echo"
@@ -75,6 +75,8 @@ export type ArpgRelicDefinition = {
 };
 export type ArpgAbilityCardDefinition = {
   id: string;
+  /** Existing animation vocabulary; independent of the owning legend's identity. */
+  visualEffectId?: string;
   name: string;
   creatureId: string;
   rarity: Rarity;
@@ -124,7 +126,9 @@ export type ArpgRunCheckpointState = {
   playerHp: number;
   maxHp: number;
   weaponId: string;
-  secondaryWeaponId: string;
+  weaponAId: string;
+  weaponBId: string | null;
+  activeWeaponSlot: "A" | "B";
   armorId: string;
   xpEarned: number;
   runShards: number;
@@ -137,8 +141,6 @@ export type ArpgRunCheckpointState = {
 
 export type ArpgLoadout = {
   weaponId: string;
-  /** Optional only while reading legacy raid snapshots; new Arsenal writes require it. */
-  secondaryWeaponId?: string;
   armorId: string;
   relicId: string;
   abilityIds: [string, string];
@@ -179,11 +181,13 @@ export type ArpgHudState = {
   roomCount: number;
   enemiesRemaining: number;
   weaponId: string;
-  secondaryWeaponId: string;
+  weaponSlots?: { A: string; B: string | null; active: "A" | "B" };
   armorId: string;
   relicId: string;
   dungeonMap: ArpgDungeonMapState | null;
   runShards: number;
+  runMoveSpeedBonus: number;
+  runBasicDamageMultiplier: number;
   chestAvailable: boolean;
   exitPortalAvailable?: boolean;
   pendingLoot: ArpgRunLootEntry | null;
@@ -212,10 +216,10 @@ export type ArpgRuntimeBridge = {
   getInput(): Readonly<ArpgInputState>;
   clearGameplayInput(): void;
   consumeDash(): boolean;
-  queueWeaponSwap(): void;
-  consumeWeaponSwap(): boolean;
   consumeInteract(): boolean;
-  consumeLootDecision(): "equip" | "keep" | null;
+  consumeLootDecision(): "equip" | "keep" | "replace-a" | "replace-b" | null;
+  consumeWeaponSwitch(): boolean;
+  queueWeaponSwitch(): void;
   consumeRoomChoice(): string | null;
   consumeAbility(slot: 0 | 1): boolean;
   emitHud(state: ArpgHudState): void;

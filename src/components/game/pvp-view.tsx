@@ -139,7 +139,7 @@ export function PvpView({
     return (
       <section className="content-view pvp-view">
         <header className="view-heading">
-          <div><span className="view-eyebrow">Duelo online</span><h1>Salão dos Cartógrafos</h1><p>Desafios exigem avatar salvo e exatamente dois poderes próprios equipados no Arquivo.</p></div>
+          <div><span className="view-eyebrow">Duelo online</span><h1>Salão dos Cartógrafos</h1><p>Desafios exigem uma Lenda ativa e os dois ataques próprios dela disponíveis.</p></div>
         </header>
         <div className="pvp-empty">
           <ShieldAlert />
@@ -157,7 +157,7 @@ export function PvpView({
   return (
     <section className="content-view pvp-view">
       <header className="view-heading">
-        <div><span className="view-eyebrow">Duelo online</span><h1>Salão dos Cartógrafos</h1><p>Convites entre amigos; avatar e dois poderes próprios ficam congelados ao aceitar, e cada jogada é confirmada pelo servidor.</p></div>
+        <div><span className="view-eyebrow">Duelo online</span><h1>Salão dos Cartógrafos</h1><p>Convites entre amigos; a Lenda ativa e seus dois ataques próprios ficam definidos ao aceitar, e cada jogada é confirmada pelo servidor.</p></div>
         <Badge className="border-emerald-300/30 bg-emerald-300/10 text-emerald-200"><Radio /> Sincronização ativa</Badge>
       </header>
 
@@ -166,8 +166,8 @@ export function PvpView({
       {!loading ? (
         <div className={playerReady ? "pvp-ready" : "pvp-error"} role="status">
           {playerReady
-            ? "Seu avatar e seus dois poderes próprios estão prontos para duelar."
-            : "Para desafiar, salve seu avatar e equipe exatamente dois poderes próprios no Arquivo."}
+            ? "Sua Lenda ativa e seus dois ataques próprios estão prontos para duelar."
+            : "Para desafiar, escolha uma Lenda na Guilda e libere os dois ataques próprios dela."}
         </div>
       ) : null}
 
@@ -204,12 +204,12 @@ export function PvpView({
 
       {!loading ? (
         <article className="pvp-panel pvp-panel--wide">
-          <div className="pvp-panel__heading"><Swords /><div><strong>Amigos disponíveis</strong><span>Ambos precisam de avatar válido e dois poderes próprios possuídos</span></div></div>
+          <div className="pvp-panel__heading"><Swords /><div><strong>Amigos disponíveis</strong><span>Ambos precisam de uma Lenda ativa com seus dois ataques próprios liberados</span></div></div>
           {friends.map((friend) => {
             const sent = outgoing.find((challenge) => challenge.addressee_id === friend.id);
             return (
               <div className="pvp-row" key={friend.id}>
-                <div><strong>{friend.name}</strong><span>{friend.hasCombatReady ? "Avatar + 2 poderes prontos" : "Falta avatar ou dois poderes próprios"}</span></div>
+                <div><strong>{friend.name}</strong><span>{friend.hasCombatReady ? "Lenda ativa + 2 ataques próprios" : "Falta Lenda ativa ou ataques próprios"}</span></div>
                 {sent ? (
                   <Button size="sm" variant="secondary" disabled={busyId === sent.id} onClick={() => void respond(sent.id, "cancel")}><X /> Cancelar convite</Button>
                 ) : (

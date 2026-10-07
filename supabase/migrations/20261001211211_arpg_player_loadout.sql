@@ -14,23 +14,18 @@ create table if not exists public.player_arpg_loadouts (
   check (cardinality(ability_ids) = 4),
   check (support_ids[1] <> support_ids[2])
 );
-
 alter table public.player_arpg_loadouts enable row level security;
-
 revoke all on public.player_arpg_loadouts from public, anon, authenticated;
 grant select on public.player_arpg_loadouts to authenticated;
 grant select, insert, update, delete on public.player_arpg_loadouts to service_role;
-
 create policy "players read own arpg loadout"
 on public.player_arpg_loadouts
 for select
 to authenticated
 using ((select auth.uid()) = user_id);
-
 insert into public.player_arpg_loadouts (user_id)
 select id from public.profiles
 on conflict (user_id) do nothing;
-
 create or replace function private.save_arpg_loadout(
   target_player_id uuid,
   target_weapon_id text,
@@ -135,12 +130,10 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.save_arpg_loadout(uuid, text, text, text[], text[])
   from public, anon, authenticated;
 grant execute on function private.save_arpg_loadout(uuid, text, text, text[], text[])
   to service_role;
-
 create or replace function public.save_arpg_loadout(
   target_player_id uuid,
   target_weapon_id text,
@@ -161,7 +154,6 @@ as $$
     target_ability_ids
   );
 $$;
-
 revoke all on function public.save_arpg_loadout(uuid, text, text, text[], text[])
   from public, anon, authenticated;
 grant execute on function public.save_arpg_loadout(uuid, text, text, text[], text[])

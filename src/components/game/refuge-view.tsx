@@ -2,25 +2,19 @@
 
 import Image from "next/image";
 import {
-  Armchair,
-  BookOpen,
-  Flower2,
-  Lightbulb,
   Lock,
-  Map,
   Move,
-  PackageOpen,
-  PawPrint,
   RotateCw,
   Save,
   Sparkles,
   Trash2,
   X,
+  UserRound,
 } from "lucide-react";
-import { useMemo, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
-import { CREATURE_BY_ID } from "@/game/catalog";
+import { useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { ProgressSource, RemotePlayerSnapshot } from "@/game/player";
+import type { AvatarConfig } from "@/game/save/local-progress";
 import {
   DEFAULT_REFUGE_FURNITURE,
   REFUGE_FURNITURE_KEYS,
@@ -28,7 +22,6 @@ import {
   isRefugeFurnitureKey,
   isRefugeFurnitureUnlocked,
   isRefugeTheme,
-  resolveRefugeResident,
   type RefugeFurnitureKey,
   type RefugeFurniturePlacement,
   type RefugeSavePayload,
@@ -37,12 +30,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { PixelCreature } from "./pixel-creature";
+import { CharacterAvatar2D } from "./character-avatar";
+import { RefugeFurnitureSprite } from "./refuge-furniture-sprite";
+import styles from "./refuge-view.module.css";
 
 type RefugeHouse = RemotePlayerSnapshot["house"];
 
 type RefugeViewProps = {
-  ownedCatalogIds?: string[];
+  avatarConfig: AvatarConfig;
   ownedItemKeys?: string[];
   house?: RefugeHouse;
   savedLayout?: RefugeSavePayload;
@@ -66,12 +61,7 @@ const FURNITURE_LABELS: Record<RefugeFurnitureKey, string> = {
 };
 
 function FurnitureIcon({ itemKey }: { itemKey: RefugeFurnitureKey }) {
-  if (itemKey === "armchair") return <Armchair />;
-  if (itemKey === "lamp") return <Lightbulb />;
-  if (itemKey === "plant") return <Flower2 />;
-  if (itemKey === "books") return <BookOpen />;
-  if (itemKey === "chest") return <PackageOpen />;
-  return <Map />;
+  return <RefugeFurnitureSprite itemKey={itemKey} className={styles.furnitureSprite} />;
 }
 
 function parseFurniture(house: RefugeHouse, savedLayout?: RefugeSavePayload): RefugeFurniturePlacement[] {
@@ -112,37 +102,25 @@ function nextRotation(rotation: RefugeFurniturePlacement["rotation"]) {
 }
 
 export function RefugeView({
-  ownedCatalogIds = [],
+  avatarConfig,
   ownedItemKeys = [],
   house = null,
   savedLayout,
   source = "local",
   onSave,
 }: RefugeViewProps) {
-  const ownedCreatures = useMemo(
-    () => ownedCatalogIds
-      .map((id) => CREATURE_BY_ID.get(id))
-      .filter((creature): creature is NonNullable<typeof creature> => Boolean(creature)),
-    [ownedCatalogIds],
-  );
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [companionId, setCompanionId] = useState<string | null>(() =>
-    resolveRefugeResident(house?.layout?.residentCreatureId ?? savedLayout?.companionId, ownedCatalogIds));
   const [theme, setTheme] = useState<RefugeTheme>(() => resolveTheme(house, savedLayout));
   const [furniture, setFurniture] = useState<RefugeFurniturePlacement[]>(() => parseFurniture(house, savedLayout));
   const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
   const [status, setStatus] = useState("");
 
 
-  const companion = companionId && ownedCatalogIds.includes(companionId)
-    ? CREATURE_BY_ID.get(companionId)
-    : undefined;
   const selectedFurniture = furniture.find((item) => item.id === selectedFurnitureId) ?? null;
   const canPersist = Boolean(onSave);
 
   function resetDraft() {
-    setCompanionId(resolveRefugeResident(house?.layout?.residentCreatureId ?? savedLayout?.companionId, ownedCatalogIds));
     setTheme(resolveTheme(house, savedLayout));
     setFurniture(parseFurniture(house, savedLayout));
     setSelectedFurnitureId(null);
@@ -179,7 +157,12 @@ export function RefugeView({
     };
     setFurniture((current) => [...current, next]);
     setSelectedFurnitureId(id);
-    setStatus(`${FURNITURE_LABELS[itemKey]} adicionado. Clique no chão para posicionar.`);
+    setStatus(`${FURNITURE_LABELS[itemKey]} adicionado e selecionado. Use as setas para posicionar ou clique/toque no chão.`);
+  }
+
+  function selectFurniture(item: RefugeFurniturePlacement) {
+    setSelectedFurnitureId(item.id);
+    setStatus(`${FURNITURE_LABELS[item.itemKey]} selecionado. Use as setas para ajustar a posição ou clique/toque no chão.`);
   }
 
   function placeSelected(event: ReactPointerEvent<HTMLDivElement>) {
@@ -192,12 +175,39 @@ export function RefugeView({
     ));
   }
 
+  function moveSelectedWithKeyboard(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (!editing || !selectedFurnitureId || !selectedFurniture) return;
+    const movements: Record<string, { x: number; y: number }> = {
+      ArrowUp: { x: 0, y: -2 },
+      ArrowRight: { x: 2, y: 0 },
+      ArrowDown: { x: 0, y: 2 },
+      ArrowLeft: { x: -2, y: 0 },
+    };
+    const movement = movements[event.key];
+    if (!movement) return;
+
+    event.preventDefault();
+    const nextX = Math.min(92, Math.max(8, selectedFurniture.x + movement.x));
+    const nextY = Math.min(88, Math.max(24, selectedFurniture.y + movement.y));
+    setFurniture((current) => current.map((item) => item.id === selectedFurnitureId
+      ? {
+          ...item,
+          x: nextX,
+          y: nextY,
+        }
+      : item
+    ));
+    setStatus(`${FURNITURE_LABELS[selectedFurniture.itemKey]} selecionado. Posição ${Math.round(nextX)}% horizontal, ${Math.round(nextY)}% vertical. Continue com as setas para ajustar.`);
+  }
+
   async function saveRefuge() {
     if (!onSave || !canPersist) return;
     setSaving(true);
     setStatus("");
     try {
-      await onSave({ companionId, theme, furniture });
+      // `companionId` remains in the persisted contract for old saves, but new
+      // Refuge layouts no longer assign folklore creatures as residents.
+      await onSave({ companionId: null, theme, furniture });
       setEditing(false);
       setSelectedFurnitureId(null);
       setStatus(source === "supabase" ? "Refúgio salvo na sua conta." : "Refúgio salvo neste aparelho.");
@@ -212,23 +222,28 @@ export function RefugeView({
     <section className="content-view refuge-view">
       <header className="view-heading">
         <div>
-          <span className="view-eyebrow">Hub pessoal</span>
-          <h1>Refúgio do Cartógrafo</h1>
-          <p>Escolha uma lenda da sua coleção e personalize a casa que acompanha sua jornada.</p>
+          <span className="view-eyebrow">Base pessoal</span>
+          <h1>Meu Refúgio</h1>
+          <p>Personalize sua casa e reencontre sua Lenda ativa entre as expedições.</p>
         </div>
         {editing ? (
           <Button variant="secondary" onClick={cancelEditing} disabled={saving}><X /> Cancelar</Button>
         ) : (
-          <Button variant="secondary" onClick={startEditing}><Armchair /> Decorar</Button>
+          <Button variant="secondary" onClick={startEditing}><FurnitureIcon itemKey="armchair" /> Decorar</Button>
         )}
       </header>
 
       <div
         className={cn("refuge-room", `refuge-room--${theme}`, editing && "is-editing")}
         onPointerDown={placeSelected}
+        onKeyDown={moveSelectedWithKeyboard}
+        role="group"
+        aria-label="Cena do Refúgio"
+        aria-describedby={editing ? "refuge-placement-hint" : undefined}
+        tabIndex={editing ? 0 : -1}
       >
         <Image
-          src="/art/refuge-pixel.png"
+          src="/art/refuge-pixel-v2.webp"
           alt="Refúgio de cartógrafo em pixel art, com mapas, estantes, mesa e lareira"
           fill
           priority
@@ -236,18 +251,17 @@ export function RefugeView({
           className="refuge-room__art object-cover [image-rendering:pixelated]"
         />
         <div className="refuge-room__tone" />
+        <div className={styles.setDressing} aria-hidden="true">
+          <span className={styles.rug} />
+          <span className={styles.restBench} />
+          <span className={styles.relicStand} />
+          <span className={styles.travelChest} />
+        </div>
 
-        {companion ? (
-          <div className="refuge-companion">
-            <PixelCreature sprite={companion.sprite} label={`${companion.name} descansando no refúgio`} />
-            <span>{companion.name}</span>
-          </div>
-        ) : (
-          <div className="refuge-companion-empty">
-            <PawPrint />
-            <span>Nenhuma lenda residente</span>
-          </div>
-        )}
+        <div className={styles.avatar}>
+          <CharacterAvatar2D config={avatarConfig} idleStrip ariaLabel="Sua Lenda ativa no Refúgio" />
+          <span className={styles.avatarLabel}>Lenda ativa</span>
+        </div>
 
         {furniture.map((item) => (
           <button
@@ -255,6 +269,7 @@ export function RefugeView({
             key={item.id}
             className={cn(
               "refuge-furniture",
+              styles.furniture,
               editing && "is-editable",
               selectedFurnitureId === item.id && "is-selected",
             )}
@@ -265,11 +280,14 @@ export function RefugeView({
             }}
             onPointerDown={(event) => {
               event.stopPropagation();
-              if (editing) setSelectedFurnitureId(item.id);
+              if (editing) selectFurniture(item);
             }}
-            onClick={(event) => event.preventDefault()}
+            onClick={() => {
+              if (editing) selectFurniture(item);
+            }}
             tabIndex={editing ? 0 : -1}
             aria-label={`${FURNITURE_LABELS[item.itemKey]} no Refúgio`}
+            aria-pressed={selectedFurnitureId === item.id}
           >
             <FurnitureIcon itemKey={item.itemKey} />
           </button>
@@ -277,8 +295,10 @@ export function RefugeView({
 
         {editing ? (
           <div className="refuge-placement-hint">
-            <Move />
-            <span>{selectedFurniture ? "Clique no chão para mover o móvel selecionado" : "Escolha um móvel para posicionar"}</span>
+            <Move aria-hidden="true" />
+            <span id="refuge-placement-hint">{selectedFurniture
+              ? "Use as setas para mover o móvel selecionado em passos pequenos, ou clique/toque no chão para posicioná-lo"
+              : "Escolha um móvel para posicionar; depois use as setas ou clique/toque no chão"}</span>
           </div>
         ) : null}
       </div>
@@ -286,29 +306,7 @@ export function RefugeView({
       {editing ? (
         <div className="refuge-editor">
           <section className="refuge-editor__section">
-            <div className="refuge-editor__title"><PawPrint /><div><strong>Lenda residente</strong><span>Apenas cartas que você realmente possui aparecem aqui.</span></div></div>
-            <div className="refuge-creature-picker">
-              <button
-                type="button"
-                className={cn("refuge-creature-choice", companionId === null && "is-selected")}
-                onClick={() => setCompanionId(null)}
-              >
-                <span className="refuge-creature-choice__empty"><PawPrint /></span>
-                <strong>Nenhuma</strong>
-              </button>
-              {ownedCreatures.map((creature) => (
-                <button
-                  type="button"
-                  key={creature.id}
-                  className={cn("refuge-creature-choice", companionId === creature.id && "is-selected")}
-                  onClick={() => setCompanionId(creature.id)}
-                >
-                  <PixelCreature sprite={creature.sprite} label="" />
-                  <strong>{creature.name}</strong>
-                </button>
-              ))}
-            </div>
-            {ownedCreatures.length === 0 ? <small className="refuge-editor__note">Encontre sua primeira lenda para poder colocá-la no Refúgio.</small> : null}
+            <div className="refuge-editor__title"><UserRound /><div><strong>Lenda ativa</strong><span>A Lenda escolhida na Guilda acompanha você em casa e nas expedições.</span></div></div>
           </section>
 
           <section className="refuge-editor__section">
@@ -319,6 +317,7 @@ export function RefugeView({
                   type="button"
                   key={themeId}
                   className={cn("refuge-theme-choice", theme === themeId && "is-selected")}
+                  aria-pressed={theme === themeId}
                   onClick={() => setTheme(themeId)}
                 >
                   <strong>{THEME_META[themeId].label}</strong>
@@ -329,8 +328,8 @@ export function RefugeView({
           </section>
 
           <section className="refuge-editor__section">
-            <div className="refuge-editor__title"><Armchair /><div><strong>Móveis</strong><span>Os móveis especiais são cosméticos adquiridos no Mercador.</span></div></div>
-            <div className="refuge-furniture-palette">
+            <div className="refuge-editor__title"><FurnitureIcon itemKey="armchair" /><div><strong>Móveis</strong><span>Os móveis especiais são cosméticos adquiridos no Mercador.</span></div></div>
+            <div className={cn("refuge-furniture-palette", styles.furniturePalette)}>
               {REFUGE_FURNITURE_KEYS.map((itemKey) => {
                 const unlocked = isRefugeFurnitureUnlocked(itemKey, ownedItemKeys);
                 return (
@@ -373,7 +372,7 @@ export function RefugeView({
           <footer className="refuge-editor__footer">
             <div>
               <strong>{source === "supabase" ? "Alterações serão salvas na sua conta." : "Alterações serão salvas neste aparelho."}</strong>
-              {status ? <span>{status}</span> : null}
+              {status ? <span role="status" aria-live="polite">{status}</span> : null}
             </div>
             <Button onClick={() => void saveRefuge()} disabled={!canPersist || saving}>
               <Save /> {saving ? "Salvando..." : "Salvar Refúgio"}
@@ -382,8 +381,8 @@ export function RefugeView({
         </div>
       ) : (
         <div className="refuge-status">
-          <Badge>{companion ? `Residente: ${companion.name}` : "Sem lenda residente"}</Badge>
-          <p><Lock /> O Refúgio usa somente criaturas da sua coleção. A decoração é individual para cada conta.</p>
+          <Badge>Casa personalizada</Badge>
+          <p><Lock /> Sua Lenda ativa descansa aqui entre as expedições. A decoração é individual para cada conta.</p>
           {status ? <p className="refuge-status__message">{status}</p> : null}
         </div>
       )}

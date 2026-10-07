@@ -1,4 +1,16 @@
 import type { DungeonGraph, DungeonRoom } from "./types";
+import type { ArpgExpeditionId } from "../content/expeditions";
+
+const LOCAL_DUNGEON_REWARDS: Record<ArpgExpeditionId, { coins: number; xp: number }> = {
+  "mata-encantada": { coins: 60, xp: 120 },
+  "arquipelago-das-mares": { coins: 90, xp: 180 },
+  "montanhas-runicas": { coins: 120, xp: 240 },
+};
+
+/** Visitor victories advance the local save, using the expedition reward table. */
+export function getLocalDungeonCompletionReward(expeditionId: ArpgExpeditionId, victory: boolean) {
+  return victory ? { ...LOCAL_DUNGEON_REWARDS[expeditionId] } : { coins: 0, xp: 0 };
+}
 
 export type RunCacheReward =
   | { kind: "none" }

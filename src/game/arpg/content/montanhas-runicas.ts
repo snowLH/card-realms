@@ -178,16 +178,16 @@ export const RUNIC_ROOM_LOOT_POOLS = [
     { kind: "weapon", id: "alicanto-bow", label: "Arco do Rastro do Alicanto" },
   ],
   [
-    { kind: "armor", id: "highland-coat", label: "Casaco das Alturas" },
-    { kind: "armor", id: "amarok-hunter-armor", label: "Couraça da Caçada do Amarok" },
+    { kind: "weapon", id: "runic-sabre", label: "Sabre Rúnico" },
+    { kind: "weapon", id: "alicanto-bow", label: "Arco do Rastro do Alicanto" },
   ],
   [
     { kind: "weapon", id: "raiju-staff", label: "Cajado do Raijū" },
     { kind: "weapon", id: "alicanto-bow", label: "Arco do Rastro do Alicanto" },
   ],
   [
-    { kind: "armor", id: "carbunclo-mantle", label: "Manto da Gema do Carbunclo" },
-    { kind: "armor", id: "amarok-hunter-armor", label: "Couraça da Caçada do Amarok" },
+    { kind: "weapon", id: "raiju-staff", label: "Cajado do Raijū" },
+    { kind: "weapon", id: "alicanto-bow", label: "Arco do Rastro do Alicanto" },
   ],
 ] as const;
 

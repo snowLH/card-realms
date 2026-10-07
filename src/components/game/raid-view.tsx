@@ -110,9 +110,13 @@ function countdown(target: string, serverNow: string) {
 
 export function RaidView({
   bootstrap,
+  dismissedRoomId = null,
+  onDismissRaid,
   onOpenRaid,
 }: {
   bootstrap: PlayerBootstrap;
+  dismissedRoomId?: string | null;
+  onDismissRaid?: (roomId: string | null) => void;
   onOpenRaid: (roomId: string, mode: RaidGameplayMode) => void;
 }) {
   const playerId = bootstrap.identity?.id ?? null;
@@ -167,11 +171,13 @@ export function RaidView({
       setRoomMode(resolvedMode);
       setRoom(payload);
       setError("");
-      if (payload.room.status === "active") onOpenRaid(targetRoomId, resolvedMode);
+      if (payload.room.status === "active" && dismissedRoomId !== targetRoomId) {
+        onOpenRaid(targetRoomId, resolvedMode);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "A sala da Raid não respondeu.");
     }
-  }, [onOpenRaid]);
+  }, [dismissedRoomId, onOpenRaid]);
 
   useEffect(() => {
     if (bootstrap.source !== "supabase") return;
@@ -254,10 +260,11 @@ export function RaidView({
       const prefix = roomMode === "arpg" ? "/api/arpg/raids" : "/api/raids";
       const response = await fetch(`${prefix}/rooms/${roomId}/start`, { method: "POST" });
       const payload = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "A Raid não pôde ser iniciada.");
+      if (!response.ok) throw new Error(payload.error ?? "A expedição cooperativa não pôde ser iniciada.");
+      onDismissRaid?.(null);
       onOpenRaid(roomId, roomMode);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "A Raid não pôde ser iniciada.");
+      setError(caught instanceof Error ? caught.message : "A expedição cooperativa não pôde ser iniciada.");
     } finally {
       setBusy(false);
     }
@@ -268,16 +275,16 @@ export function RaidView({
       <section className="content-view raid-view">
         <header className="view-heading">
           <div>
-            <span className="view-eyebrow">Evento cooperativo</span>
-            <h1>Raids Míticas de sábado</h1>
-            <p>Junte de 2 a 5 amigos, enfrente uma criatura Mítica e receba as moedas e o XP do evento.</p>
+            <span className="view-eyebrow">Dungeons cooperativas</span>
+            <h1>Expedições com amigos</h1>
+            <p>Forme um grupo, atravesse salas juntos e conquiste moedas e XP ao concluir a expedição.</p>
           </div>
         </header>
         <div className="raid-empty">
           <ShieldAlert />
           <div>
-            <strong>Entre para participar das Raids</strong>
-            <p>Salas, recompensas e progresso da Raid são confirmados pelo servidor.</p>
+            <strong>Entre para explorar dungeons cooperativas</strong>
+            <p>Salas, recompensas e progresso do grupo são confirmados pelo servidor.</p>
             <LoginDialog prominent label="Entrar com Google" />
           </div>
         </div>
@@ -298,16 +305,16 @@ export function RaidView({
     <section className="content-view raid-view">
       <header className="view-heading raid-heading">
         <div>
-          <span className="view-eyebrow">Evento cooperativo semanal</span>
-          <h1>Raids Míticas</h1>
-          <p>Boss central, HP compartilhado, três fases e até cinco Cartógrafos lutando juntos.</p>
+          <span className="view-eyebrow">Cooperativo online</span>
+          <h1>Expedições cooperativas</h1>
+          <p>Crie uma sala, reúna seu grupo e entre em uma dungeon com as Lendas de todos os participantes.</p>
         </div>
         <Badge className={cn(
           "raid-live-badge",
           activeEvent ? "is-live" : "is-waiting",
         )}>
           {activeEvent ? <Radio /> : <CalendarDays />}
-          {activeEvent ? "Raid ativa" : "Próxima Raid programada"}
+          {activeEvent ? "Expedição ativa" : "Próxima expedição"}
         </Badge>
       </header>
 
@@ -331,7 +338,7 @@ export function RaidView({
                     <PixelCreature sprite={definition.sprite} label={definition.name} />
                   </div>
                   <div className="raid-boss-card__body">
-                    <span className="view-eyebrow">RAID MÍTICA</span>
+                    <span className="view-eyebrow">DUNGEON COOPERATIVA</span>
                     <h2>{room.event.title}</h2>
                     <p>{definition.title}</p>
                     <div className="raid-boss-card__meta">
@@ -348,7 +355,7 @@ export function RaidView({
           <article className="raid-lobby-panel">
             <div className="raid-lobby-panel__heading">
               <div>
-                <span className="view-eyebrow">SALA DA RAID</span>
+                <span className="view-eyebrow">SALA DA EXPEDIÇÃO</span>
                 <strong>Código {room.room.inviteCode}</strong>
               </div>
               <button
@@ -388,7 +395,18 @@ export function RaidView({
             </div>
 
             <div className="raid-lobby-actions">
-              {roomMode !== "legacy" ? <>
+              {room.room.status === "active" && roomMode !== "legacy" ? (
+                <Button
+                  variant="game"
+                  disabled={busy}
+                  onClick={() => {
+                    onDismissRaid?.(null);
+                    onOpenRaid(room.room.id, roomMode);
+                  }}
+                >
+                  <Play /> RETOMAR EXPEDIÇÃO
+                </Button>
+              ) : roomMode !== "legacy" ? <>
                 <Button
                   variant={roomPlayer?.isReady ? "secondary" : "game"}
                   disabled={busy}
@@ -408,7 +426,7 @@ export function RaidView({
                     disabled={busy || !everyoneReady}
                     onClick={() => void startRaid()}
                   >
-                    <Play /> INICIAR RAID
+                  <Play /> INICIAR EXPEDIÇÃO
                   </Button>
                 ) : (
                   <Button variant="secondary" disabled>
@@ -423,6 +441,7 @@ export function RaidView({
                 variant="ghost"
                 disabled={busy}
                 onClick={() => void lobbyAction({ action: "leave", roomId: room.room.id }).then(() => {
+                  onDismissRaid?.(room.room.id);
                   setRoom(null);
                   setRoomId(null);
                 })}
@@ -432,10 +451,10 @@ export function RaidView({
             </div>
 
             <p className="raid-lobby-note">
-              A Raid começa com {room.event.min_players}–{room.event.max_players} jogadores. {roomMode === "arpg"
-                ? "Cada Cartógrafo entra com seu avatar, dois poderes e Arsenal ARPG salvo na criação da sala."
+              A expedição começa com {room.event.min_players}–{room.event.max_players} jogadores. {roomMode === "arpg"
+                ? "O grupo atravessa salas compartilhadas, derrota ondas e avança até o chefe final. O servidor salva ações, inimigos e progresso para todos."
                 : roomMode === "avatar"
-                  ? "Cada Cartógrafo entra com seu próprio avatar e exatamente dois poderes do Arquivo."
+                  ? "Cada jogador entra com sua Lenda ativa e os dois ataques próprios dela."
                   : "Esta sala histórica foi preservada e não aceita novas ações de combate."}
             </p>
           </article>
@@ -447,7 +466,7 @@ export function RaidView({
           {activeEvent ? (
             <article className="raid-event-hero">
               <div className="raid-event-hero__content">
-                <span className="raid-event-live"><Radio /> RAID MÍTICA ATIVA</span>
+                <span className="raid-event-live"><Radio /> EXPEDIÇÃO ATIVA</span>
                 <h2>{activeEvent.title}</h2>
                 <p>O evento termina em {countdown(activeEvent.endsAt, activeEvent.serverNow)}.</p>
                 <div className="raid-event-actions">
@@ -460,6 +479,7 @@ export function RaidView({
                       value={inviteCode}
                       onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
                       placeholder="CÓDIGO DA SALA"
+                      aria-label="Código da sala"
                       maxLength={16}
                     />
                     <Button
@@ -487,7 +507,7 @@ export function RaidView({
           ) : nextEvent ? (
             <article className="raid-next-card">
               <div>
-                <span className="view-eyebrow">PRÓXIMA RAID</span>
+                <span className="view-eyebrow">PRÓXIMA EXPEDIÇÃO</span>
                 <h2>{nextEvent.title}</h2>
                 <p>Começa em <strong>{countdown(nextEvent.startsAt, nextEvent.serverNow)}</strong>.</p>
               </div>
@@ -509,7 +529,7 @@ export function RaidView({
           ) : (
             <div className="raid-empty">
               <CalendarDays />
-              <div><strong>Nenhuma Raid publicada</strong><p>O próximo evento aparecerá aqui quando for programado.</p></div>
+              <div><strong>Nenhuma expedição publicada</strong><p>A próxima dungeon cooperativa aparecerá aqui quando for programada.</p></div>
             </div>
           )}
 
@@ -538,7 +558,7 @@ export function RaidView({
                     <div>
                       <strong>{event.title}</strong>
                       <span>
-                        {boss ? `${ELEMENT_META[boss.element].name} · ${boss.rarity.toUpperCase()}` : "Boss secreto"}
+                        {boss ? `${ELEMENT_META[boss.element].name} · ${boss.rarity.toUpperCase()}` : "Chefe secreto"}
                         {typeof event.rewards.coins === "number" ? ` · ${event.rewards.coins} moedas` : ""}
                         {typeof event.rewards.xp === "number" ? ` · ${event.rewards.xp} XP` : ""}
                       </span>
@@ -558,16 +578,16 @@ export function RaidView({
             <article className="raid-rules-panel">
               <div className="raid-calendar-panel__heading">
                 <Sparkles />
-                <div><strong>Como funciona</strong><span>Evento de grupo, não PvP ampliado</span></div>
+                <div><strong>Como funciona</strong><span>Uma dungeon compartilhada para o grupo</span></div>
               </div>
               <div className="raid-rule">
-                <span>01</span><div><strong>Junte 2–5 amigos</strong><p>Crie uma sala e compartilhe o código.</p></div>
+                <span>01</span><div><strong>Junte 2–4 amigos</strong><p>Crie uma sala e compartilhe o código.</p></div>
               </div>
               <div className="raid-rule">
-                <span>02</span><div><strong>Leve seu Arsenal ARPG</strong><p>Arma, armadura, relíquia e 2 ataques próprios entram congelados na sala.</p></div>
+                <span>02</span><div><strong>Leve sua Lenda ativa</strong><p>Ela entra com dois ataques próprios; armas e relíquias são conquistadas nas masmorras.</p></div>
               </div>
               <div className="raid-rule">
-                <span>03</span><div><strong>Derrote o Mítico</strong><p>Todos atacam o mesmo HP e atravessam três fases.</p></div>
+                <span>03</span><div><strong>Avancem pelas salas</strong><p>O grupo limpa encontros, abre baús e enfrenta o chefe da expedição.</p></div>
               </div>
               <div className="raid-rule">
                 <span>04</span><div><strong>Receba moedas e XP</strong><p>Participantes elegíveis recebem a recompensa do evento uma única vez.</p></div>

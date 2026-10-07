@@ -8,7 +8,7 @@ select has_column(
   'battle participants store frozen avatar and power snapshots'
 );
 select is(
-  (select is_nullable::text from information_schema.columns
+  (select is_nullable from information_schema.columns
    where table_schema = 'public'
      and table_name = 'battle_participants'
      and column_name = 'team_snapshot'),
@@ -73,6 +73,17 @@ insert into auth.users (id, email) values
   ('90000000-0000-4000-8000-000000000009', 'pvp-v3-addressee@test.invalid'),
   ('a1000000-0000-4000-8000-000000000010', 'pvp-v3-outsider@test.invalid');
 
+update public.profiles
+set avatar_config = jsonb_build_object(
+  'legendId', 'curupira', 'favoriteLegendId', 'curupira',
+  'skin', 'copper', 'hair', 'mohawk', 'outfit', 'ranger',
+  'armor', 'none', 'accent', 'crimson'
+)
+where id in (
+  '80000000-0000-4000-8000-000000000008',
+  '90000000-0000-4000-8000-000000000009',
+  'a1000000-0000-4000-8000-000000000010'
+);
 insert into public.friendships (requester_id, addressee_id, status)
 values (
   '80000000-0000-4000-8000-000000000008',
@@ -85,22 +96,22 @@ select set_config('request.jwt.claim.sub', '80000000-0000-4000-8000-000000000008
 select lives_ok(
   $$select public.save_arpg_loadout(
       'forest-bow', 'leather-armor', 'cartographer-compass',
-      array['ancestral-roots','boitata-flame']::text[]
+      array['curupira-root-snare','curupira-ember-arrow']::text[]
     )$$,
-  'the requester saves the two starter powers before challenging'
+  'the requester saves the active Curupira signature pair'
 );
 select set_config('request.jwt.claim.sub', '90000000-0000-4000-8000-000000000009', true);
 select lives_ok(
   $$select public.save_arpg_loadout(
       'forest-bow', 'leather-armor', 'cartographer-compass',
-      array['ancestral-roots','boitata-flame']::text[]
+      array['curupira-root-snare','curupira-ember-arrow']::text[]
     )$$,
-  'the addressee saves the two starter powers before accepting'
+  'the addressee saves the active Curupira signature pair'
 );
 select set_config('request.jwt.claim.sub', '80000000-0000-4000-8000-000000000008', true);
 select lives_ok(
   $$select public.create_pvp_challenge('90000000-0000-4000-8000-000000000009')$$,
-  'a player with two owned powers can challenge an accepted friend'
+  'a player with the active Legend signature pair can challenge an accepted friend'
 );
 select is(
   (select count(*)::bigint from public.pvp_challenges
@@ -228,7 +239,7 @@ select lives_ok(
   $$select public.start_pvp_challenge(
       fixture.challenge_id, fixture.addressee_id, fixture.battle_id, fixture.initial_state
     ) from pg_temp.pvp_v3_fixture as fixture$$,
-  'the challenged player can accept with the saved v3 avatar and two powers'
+  'the challenged player can accept with the saved v3 avatar and signature abilities'
 );
 select is(
   (select count(*)::bigint from public.battle_participants as participant
@@ -365,5 +376,5 @@ select is(
   'the successful v3 action advances the database version once'
 );
 
-select * from finish(true);
+select * from finish();
 rollback;

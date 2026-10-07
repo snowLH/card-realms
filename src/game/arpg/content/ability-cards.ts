@@ -1,7 +1,8 @@
 import type { ArpgAbilityCardDefinition } from "../domain/types";
-import { ARPG_FOLKLORE_ABILITY_EXPANSION } from "./folklore-ability-expansion";
+import { LEGEND_ABILITY_DEFINITIONS } from "./legend-abilities";
 
-export const ARPG_ABILITY_CARDS: ArpgAbilityCardDefinition[] = [
+/** Kept unchanged so signed runs and historical battles keep their original rules. */
+export const LEGACY_ARPG_ABILITY_CARDS: ArpgAbilityCardDefinition[] = [
   {
     id: "ancestral-roots",
     name: "Raízes Ancestrais",
@@ -218,20 +219,39 @@ export const ARPG_ABILITY_CARDS: ArpgAbilityCardDefinition[] = [
     acquisition: { source: "lobby-shop", label: "Loja do lobby" },
     description: "Uma tempestade colossal cai no ponto mirado, causando alto dano e travando inimigos por alguns instantes.",
   },
-  ...ARPG_FOLKLORE_ABILITY_EXPANSION,
 ];
 
-export const STARTER_ARPG_ABILITY_IDS = [
-  "ancestral-roots",
-  "boitata-flame",
-] as const;
+const legacyCardById = new Map(LEGACY_ARPG_ABILITY_CARDS.map((card) => [card.id, card]));
+
+export const ARPG_ABILITY_CARDS: ArpgAbilityCardDefinition[] = LEGEND_ABILITY_DEFINITIONS.map((definition) => {
+  const template = legacyCardById.get(definition.templateId)!;
+  return {
+    ...template,
+    id: definition.id,
+    visualEffectId: definition.templateId,
+    name: definition.name,
+    creatureId: definition.legendId,
+    description: definition.description,
+    element: definition.element,
+    purchasePrice: null,
+    purchasable: false,
+    acquisition: {
+      source: definition.legendId === "curupira" ? "starter" : "legend",
+      label: definition.legendId === "curupira" ? "Ataque da Lenda inicial" : "Incluído com esta Lenda",
+    },
+  };
+});
+
+export const STARTER_ARPG_ABILITY_IDS = ["curupira-root-snare", "curupira-ember-arrow"] as const;
 
 export const ARPG_ABILITY_CARD_BY_ID = new Map(
-  ARPG_ABILITY_CARDS.map((card) => [card.id, card]),
+  [...LEGACY_ARPG_ABILITY_CARDS, ...ARPG_ABILITY_CARDS].map((card) => [card.id, card]),
 );
 
+/** Accept legacy IDs only when reading already frozen combat/save data. */
 export const ARPG_ABILITY_CARD_IDS = new Set(
-  ARPG_ABILITY_CARDS.map((card) => card.id),
+  ARPG_ABILITY_CARD_BY_ID.keys(),
 );
+export const CURRENT_ARPG_ABILITY_CARD_IDS = new Set(ARPG_ABILITY_CARDS.map((card) => card.id));
 
 export const STARTER_ARPG_ABILITY_ID_SET = new Set<string>(STARTER_ARPG_ABILITY_IDS);

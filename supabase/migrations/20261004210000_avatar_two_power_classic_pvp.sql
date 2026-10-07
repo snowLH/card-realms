@@ -16,7 +16,6 @@ alter table public.battle_participants
   );
 alter table public.battle_participants
   add column if not exists combat_snapshot jsonb;
-
 alter table public.battle_actions
   drop constraint if exists battle_actions_action_type_check;
 alter table public.battle_actions
@@ -25,7 +24,6 @@ alter table public.battle_actions
     'acquire_energy', 'attach_energy', 'switch', 'attack', 'pass', 'surrender',
     'draw_power', 'equip_power', 'evolve', 'ability', 'concede'
   ));
-
 create or replace function private.active_avatar_power_snapshot(player_id uuid)
 returns jsonb
 language plpgsql
@@ -97,10 +95,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.active_avatar_power_snapshot(uuid) from public, anon, authenticated;
 grant execute on function private.active_avatar_power_snapshot(uuid) to service_role;
-
 create or replace function private.create_pvp_challenge(target_addressee_id uuid)
 returns jsonb
 language plpgsql
@@ -150,10 +146,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.create_pvp_challenge(uuid) from public, anon;
 grant execute on function private.create_pvp_challenge(uuid) to authenticated, service_role;
-
 create or replace function public.start_pvp_challenge(
   target_challenge_id uuid,
   acting_user_id uuid,
@@ -255,12 +249,10 @@ begin
   );
 end;
 $$;
-
 revoke all on function public.start_pvp_challenge(uuid, uuid, uuid, jsonb)
   from public, anon, authenticated;
 grant execute on function public.start_pvp_challenge(uuid, uuid, uuid, jsonb)
   to service_role;
-
 create or replace function public.commit_pvp_action(
   target_battle_id uuid,
   acting_user_id uuid,
@@ -481,7 +473,6 @@ begin
   return committed_result;
 end;
 $$;
-
 revoke all on function public.commit_pvp_action(
   uuid, uuid, integer, uuid, text, jsonb, jsonb, jsonb
 ) from public, anon, authenticated;

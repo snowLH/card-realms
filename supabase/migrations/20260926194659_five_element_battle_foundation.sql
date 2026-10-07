@@ -4,11 +4,9 @@
 
 -- Replace the prototype's seven-category enum with the five-element ruleset.
 alter type public.card_element rename to card_element_legacy;
-
 create type public.card_element as enum (
   'fire', 'water', 'nature', 'storm', 'spirit'
 );
-
 alter table public.creature_catalog
   alter column element type public.card_element
   using (
@@ -20,10 +18,8 @@ alter table public.creature_catalog
       else element::text
     end
   )::public.card_element;
-
 drop type public.card_element_legacy;
 grant usage on type public.card_element to anon, authenticated;
-
 -- Folklore provenance is first-class data rather than one unstructured label.
 alter table public.creature_catalog
   add column folklore_tradition text not null default '',
@@ -32,7 +28,6 @@ alter table public.creature_catalog
   add column adaptation_note text not null default '',
   add column sprite_key text,
   add column event_exclusive boolean not null default false;
-
 update public.creature_catalog
 set folklore_tradition = folklore_inspiration,
     folklore_origin = 'Protótipo legado',
@@ -40,26 +35,22 @@ set folklore_tradition = folklore_inspiration,
     adaptation_note = 'Mantida desabilitada apenas para preservar referências de saves existentes.',
     sprite_key = id,
     enabled = false;
-
 alter table public.creature_catalog
   alter column sprite_key set not null,
   add constraint creature_catalog_sprite_key_unique unique (sprite_key),
   drop constraint creature_catalog_art_slot_check,
   add constraint creature_catalog_art_slot_check check (art_slot between 0 and 4095);
-
 -- The API accepts energy attachment from a real card in hand; free energy
 -- acquisition was a prototype-only action and is deliberately removed.
 alter table public.battle_actions
   drop constraint battle_actions_action_type_check,
   add constraint battle_actions_action_type_check
     check (action_type in ('attach_energy', 'switch', 'attack', 'pass', 'surrender'));
-
 update public.missions
 set title = 'Laços dos cinco caminhos',
     description = 'Use criaturas dos cinco elementos em batalha.',
     objective = '{"type":"elements_used","count":5}'::jsonb
 where id = 'weekly-bonds';
-
 with catalog (
   id, name, title, element, rarity, region_id, role, hp, defense, speed,
   description, tradition, origin, source_note, adaptation, traits, moves,
@@ -306,12 +297,10 @@ on conflict (id) do update set
   sprite_key = excluded.sprite_key,
   event_exclusive = excluded.event_exclusive,
   enabled = true;
-
 -- Security-definer authorization helpers do not belong in an API-exposed schema.
 create schema if not exists private;
 revoke all on schema private from public, anon, authenticated;
 grant usage on schema private to authenticated, service_role;
-
 drop policy "participants read battles" on public.battles;
 drop policy "players create battles" on public.battles;
 drop policy "creators update lobbies" on public.battles;
@@ -321,7 +310,6 @@ drop policy "players update own participation" on public.battle_participants;
 drop policy "participants read actions" on public.battle_actions;
 drop policy "participants submit actions" on public.battle_actions;
 drop policy "participants read battle events" on public.battle_events;
-
 create or replace function private.is_battle_participant(target_battle_id uuid)
 returns boolean
 language sql
@@ -337,10 +325,8 @@ as $$
     where id = target_battle_id and created_by = auth.uid()
   );
 $$;
-
 revoke all on function private.is_battle_participant(uuid) from public;
 grant execute on function private.is_battle_participant(uuid) to authenticated, service_role;
-
 create policy "participants read battles" on public.battles for select
 using (private.is_battle_participant(id));
 create policy "participants read participants" on public.battle_participants for select
@@ -349,17 +335,13 @@ create policy "participants read actions" on public.battle_actions for select
 using (private.is_battle_participant(battle_id));
 create policy "participants read battle events" on public.battle_events for select
 using (private.is_battle_participant(battle_id));
-
 -- Direct action inserts are intentionally not restored. The battle API validates
 -- the encrypted state token, applies rules, rolls dice and advances the NPC.
 revoke insert, update, delete on public.battles, public.battle_participants,
   public.battle_actions, public.battle_events from authenticated;
-
 drop function public.is_battle_participant(uuid);
-
 -- New accounts now receive a legal six-creature team from the real-folklore catalog.
 drop trigger on_auth_user_created on auth.users;
-
 create or replace function private.handle_new_user()
 returns trigger
 language plpgsql
@@ -407,12 +389,9 @@ begin
   return new;
 end;
 $$;
-
 revoke all on function private.handle_new_user() from public, anon, authenticated;
 grant execute on function private.handle_new_user() to service_role;
-
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function private.handle_new_user();
-
 drop function public.handle_new_user();

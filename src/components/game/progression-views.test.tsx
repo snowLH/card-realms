@@ -2,10 +2,10 @@
 
 import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-import { CREATURES } from "@/game/catalog";
+import { describe, expect, it, vi } from "vitest";
 import { CollectionView } from "./collection-view";
 import { TeamView } from "./team-view";
+import { VillageView } from "./village-view";
 
 const iaraInstanceId = "00000000-0000-4000-8000-000000000101";
 const teamId = "00000000-0000-4000-8000-000000000201";
@@ -48,14 +48,31 @@ describe("telas de progressão da conta", () => {
     expect(screen.getAllByText("Espaço vazio")).toHaveLength(5);
   });
 
-  it("oculta nome, arte e atributos das cartas ainda não encontradas", () => {
+  it("mantém o Bestiário público para consultar monstros e chefes", () => {
     render(<CollectionView ownedCatalogIds={["iara"]} />);
 
-    expect(screen.getAllByText("Iara").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Boitatá")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Carta não descoberta")).toHaveLength(
-      Math.min(CREATURES.length, 24) - 1,
+    expect(screen.getAllByText("Gota de Iara").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Boitatá").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Carta não descoberta")).not.toBeInTheDocument();
+    expect(screen.getByText("Bestiário de Folklard")).toBeInTheDocument();
+  });
+
+  it("mantém a loja focada em suprimentos e cosméticos sem ofertas de armadura", () => {
+    render(
+      <VillageView
+        coins={500}
+        energy={{ fire: 0, water: 0, nature: 0, storm: 0, spirit: 0 }}
+        ownedItemKeys={[]}
+        onBack={vi.fn()}
+        onBuy={vi.fn()}
+        onBuyItem={vi.fn()}
+      />,
     );
-    expect(screen.getByText(`1/${CREATURES.length}`)).toBeInTheDocument();
+
+    expect(screen.getByText("Mercadora de energias")).toBeInTheDocument();
+    expect(screen.getByText("Itens e cosméticos")).toBeInTheDocument();
+    expect(screen.getByText(/Armas e relíquias são conquistadas nas masmorras/i)).toBeInTheDocument();
+    expect(screen.queryByText(/armadura|armor/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Estante de Lendas")).toBeInTheDocument();
   });
 });

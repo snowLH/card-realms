@@ -1,12 +1,28 @@
 "use client";
 
-import { Coins, LayoutDashboard, ShieldCheck, Volume2, VolumeX } from "lucide-react";
+import { Coins, ShieldCheck, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { HubDestinationId } from "@/game/arpg/hub/content";
+import type { PlayableLegendId } from "@/game/arpg/content/legends";
 import { ArpgBridge } from "@/game/arpg/runtime/bridge";
 import { createArpgHubGame } from "@/game/arpg/runtime/create-hub-game";
+import {
+  getSoundEnabledSnapshot,
+  setSoundEnabledPreference,
+  subscribeSoundPreference,
+} from "@/game/arpg/runtime/sound-preference";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
 import { HubTouchControls } from "./hub-touch-controls";
+
+function formatHubPrompt(message: string, touchInput: boolean) {
+  if (!touchInput) return message;
+  return message
+    .replace(/Clique ou toque no chão/gi, "Toque no chão")
+    .replace(/WASD e joystick também funcionam/gi, "Use o joystick para mover")
+    .replace(/WASD, joystick ou direcional movem sua Lenda/gi, "Use o joystick para mover")
+    .replace(/Pressione E\b/g, "Toque em Interagir")
+    .replace(/pressione E\b/g, "toque em Interagir");
+}
 
 export function ArpgHub({
   playerName,
@@ -14,14 +30,12 @@ export function ArpgHub({
   coins,
   avatarConfig = DEFAULT_AVATAR_CONFIG,
   onNavigate,
-  onOpenClassic,
 }: {
   playerName: string;
   level: number;
   coins: number;
   avatarConfig?: AvatarConfig;
-  onNavigate: (destination: HubDestinationId) => void;
-  onOpenClassic: () => void;
+  onNavigate: (destination: HubDestinationId, legendId?: PlayableLegendId) => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const navigateRef = useRef(onNavigate);
@@ -31,29 +45,24 @@ export function ArpgHub({
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("Carregando Guilda dos Cartógrafos...");
   const [portraitMobile, setPortraitMobile] = useState(false);
+  const [touchDevice, setTouchDevice] = useState(false);
 
   useEffect(() => {
     navigateRef.current = onNavigate;
   }, [onNavigate]);
 
   useEffect(() => {
-    const unsubscribe = bridge.onSoundEnabled((enabled) => {
+    const unsubscribeBridge = bridge.onSoundEnabled((enabled) => {
       setSoundEnabled(enabled);
-      try {
-        window.localStorage.setItem("arpg.soundEnabled", String(enabled));
-      } catch {
-        // The toggle still applies to the current hub if storage is blocked.
-      }
+      setSoundEnabledPreference(enabled);
     });
-
-    try {
-      const saved = window.localStorage.getItem("arpg.soundEnabled");
-      if (saved === "true" || saved === "false") bridge.setSoundEnabled(saved === "true");
-    } catch {
-      // Sound preferences remain available for the current hub if storage is blocked.
-    }
-
-    return unsubscribe;
+    const syncPreference = () => bridge.setSoundEnabled(getSoundEnabledSnapshot());
+    syncPreference();
+    const unsubscribePreference = subscribeSoundPreference(syncPreference);
+    return () => {
+      unsubscribeBridge();
+      unsubscribePreference();
+    };
   }, [bridge]);
 
   useEffect(() => {
@@ -65,7 +74,15 @@ export function ArpgHub({
   }, []);
 
   useEffect(() => {
-    if (portraitMobile || !hostRef.current) return;
+    const query = window.matchMedia("(pointer: coarse)");
+    const update = () => setTouchDevice(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!hostRef.current) return;
     let disposed = false;
     let destroyGame: (() => void) | null = null;
     setReady(false);
@@ -74,8 +91,8 @@ export function ArpgHub({
     void createArpgHubGame(
       hostRef.current,
       bridge,
-      (destination) => navigateRef.current(destination),
-      (message) => setPrompt(message),
+      (destination, legendId) => navigateRef.current(destination, legendId),
+      (message) => setPrompt(formatHubPrompt(message, touchDevice || portraitMobile)),
       avatarConfig,
     ).then((session) => {
       if (disposed) return session.destroy();
@@ -90,20 +107,13 @@ export function ArpgHub({
       destroyGame?.();
       bridge.setMove(0, 0);
     };
-  }, [avatarConfig, bridge, portraitMobile]);
-
-  if (portraitMobile) {
-    return (
-      <section className="arpg-hub-rotate">
-        <strong>Gire o dispositivo para explorar a Guilda</strong>
-        <span>O HUB físico usa o mesmo modo paisagem das expedições.</span>
-        <button type="button" onClick={onOpenClassic}>Usar menu clássico</button>
-      </section>
-    );
-  }
+  }, [avatarConfig, bridge, portraitMobile, touchDevice]);
 
   return (
-    <section className="arpg-hub-shell" aria-label="Guilda dos Cartógrafos">
+    <section
+      className={`arpg-hub-shell${portraitMobile ? " arpg-hub-shell--portrait-mobile" : ""}`}
+      aria-label="Guilda dos Cartógrafos"
+    >
       <div className="arpg-hub-topbar">
         <div>
           <small>HUB JOGÁVEL</small>
@@ -121,12 +131,10 @@ export function ArpgHub({
             aria-pressed={soundEnabled}
             title={soundEnabled ? "Desativar música e sons" : "Ativar música e sons"}
           >
-            {soundEnabled ? <Volume2 /> : <VolumeX />}
-          </button>
-          <button type="button" onClick={onOpenClassic}>
-            <LayoutDashboard /> Menu clássico
+            {soundEnabled ? <Volume2 aria-hidden="true" /> : <VolumeX aria-hidden="true" />}
           </button>
         </div>
+        <div className="arpg-hub-topbar__menu-space" aria-hidden="true" />
       </div>
 
       <div className="arpg-hub-stage">
@@ -140,7 +148,7 @@ export function ArpgHub({
       <div className="arpg-hub-help">
         <span>WASD / joystick: mover</span>
         <span>E / RB / Interagir: entrar</span>
-        <span>Também é possível tocar/clicar diretamente em uma estação.</span>
+        <span>Chegue perto de uma estação para interagir.</span>
       </div>
     </section>
   );

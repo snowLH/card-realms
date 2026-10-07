@@ -3,6 +3,8 @@
 /.npm-cache/
 /.agent-browser/
 /.chrome-arpg-smoke/
+/tmp/
+/artifacts/
 
 # next.js
 /.next/
@@ -30,3 +32,27 @@ yarn-error.log*
 # Supabase local state
 /supabase/.branches
 /supabase/.temp
+/supabase/migrations_archive/
+
+# Local browser QA captures generated at the repository root
+/arpg-*.png
+/arpg-*.json
+/title-*.png
+/title-*.json
+/mobile-*.png
+/mobile-*.json
+/mobile-dom.html
+/expeditions-*.png
+/expeditions-*.json
+/arsenal-*.png
+/arsenal-*.json
+/arquipelago-*.png
+/arquipelago-*.json
+/montanhas-*.png
+/montanhas-*.json
+/curupira-*.png
+/amarok-*.png
+/iara-*.png
+/mares-*.png
+/breakable-*.png
+/treasure-chest-open-smoke.png

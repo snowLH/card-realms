@@ -52,7 +52,7 @@ export const ROOTS_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Em narrativas amazônicas, pode assumir forma de ave ou de uma pessoa idosa e cobrar a promessa de tabaco feita para silenciar seu assobio.",
       folklore: { tradition: "Folclore amazônico", origin: "Amazônia, Brasil", sourceNote: "Os relatos variam entre localidades e alternam formas humanas, aviárias e encantadas.", adaptation: "Preserva o assobio, a metamorfose e a promessa; evita fixar uma única aparência como universal." },
       regionId: "roots", element: "spirit", traits: ["metamorfa", "assobio", "noturna"], rarity: "rare", role: "controller",
-      hp: 118, defense: 48, speed: 82, moves: ["Assobio Distante", "Promessa da Noite", "Voo da Matinta"], obtainableBy: "Clareira dos Sussurros", spriteIndex: 0, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 118, defense: 48, speed: 82, moves: ["Assobio Distante", "Promessa da Noite", "Voo da Matinta"], obtainableBy: "Clareira dos Sussurros", spriteIndex: 0, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "cobra-grande", name: "Cobra Grande", title: "Serpente dos Rios Profundos",
@@ -60,7 +60,7 @@ export const ROOTS_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Também chamada Boiúna em diferentes narrativas, desloca águas, cria caminhos e inspira cautela nas margens durante a noite.",
       folklore: { tradition: "Folclore amazônico", origin: "Amazônia, Brasil", sourceNote: "Nomes, dimensões e feitos mudam entre comunidades ribeirinhas.", adaptation: "Mantém o vínculo com rios, tamanho extraordinário e presença noturna." },
       regionId: "roots", element: "water", traits: ["serpente", "fluvial", "colossal"], rarity: "epic", role: "guardian",
-      hp: 198, defense: 84, speed: 34, moves: ["Cauda de Corrente", "Olhos da Boiúna", "Rio sem Margem"], obtainableBy: "Coração das Raízes", spriteIndex: 1, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 198, defense: 84, speed: 34, moves: ["Cauda de Corrente", "Olhos da Boiúna", "Rio sem Margem"], obtainableBy: "Coração das Raízes", spriteIndex: 1, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "anhanga", name: "Anhangá", title: "Protetor de Olhos de Fogo",
@@ -68,7 +68,7 @@ export const ROOTS_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Relatos de matriz tupi o relacionam à defesa dos animais e ao castigo de caçadores que violam os pactos da floresta.",
       folklore: { tradition: "Tradições indígenas brasileiras registradas historicamente", origin: "Brasil", sourceNote: "Grafias e interpretações variam, e nem toda tradição o descreve da mesma maneira.", adaptation: "Usa a forma de cervo branco e olhos luminosos como uma representação, não como definição única." },
       regionId: "roots", element: "nature", traits: ["cervo", "guardião", "luminoso"], rarity: "legendary", role: "support",
-      hp: 174, defense: 80, speed: 76, moves: ["Passo Branco", "Olhar Protetor", "Pacto de Anhangá"], obtainableBy: "Ruínas da Guardiã", spriteIndex: 2, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 174, defense: 80, speed: 76, moves: ["Passo Branco", "Olhar Protetor", "Pacto de Anhangá"], obtainableBy: "Ruínas da Guardiã", spriteIndex: 2, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "comadre-fulozinha", name: "Comadre Fulozinha", title: "Guardiã dos Cabelos Longos",
@@ -76,7 +76,7 @@ export const ROOTS_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Seu assobio, seus cabelos e a oferta de fumo aparecem em narrativas do Nordeste brasileiro, com muitas formas locais.",
       folklore: { tradition: "Folclore do Nordeste brasileiro", origin: "Nordeste do Brasil", sourceNote: "Características variam por estado e tradição oral.", adaptation: "Preserva o papel guardião, o assobio e os longos cabelos sem misturá-la à Caipora." },
       regionId: "roots", element: "nature", traits: ["encantada", "guardiã", "assobio"], rarity: "rare", role: "skirmisher",
-      hp: 124, defense: 52, speed: 90, moves: ["Trança da Mata", "Assobio Cruzado", "Caminho de Fulozinha"], obtainableBy: "Trilha Invertida", spriteIndex: 3, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 124, defense: 52, speed: 90, moves: ["Trança da Mata", "Assobio Cruzado", "Caminho de Fulozinha"], obtainableBy: "Trilha Invertida", spriteIndex: 3, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "uirapuru-encantado", name: "Uirapuru Encantado", title: "Canto que Silencia a Floresta",
@@ -84,6 +84,6 @@ export const ROOTS_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Histórias amazônicas explicam seu canto raro por amores, metamorfoses e promessas, em versões que mudam de narrador para narrador.",
       folklore: { tradition: "Narrativas amazônicas", origin: "Amazônia, Brasil", sourceNote: "O pássaro real e as narrativas encantadas convivem sem formar uma única versão canônica.", adaptation: "Amplifica o canto como poder de apoio e mantém a pequena forma aviária." },
       regionId: "roots", element: "storm", traits: ["ave", "canto", "encantado"], rarity: "uncommon", role: "support",
-      hp: 96, defense: 36, speed: 102, moves: ["Canto Raro", "Pausa da Mata", "Voo Encantado"], obtainableBy: "Portal da Mata", spriteIndex: 4, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 96, defense: 36, speed: 102, moves: ["Canto Raro", "Pausa da Mata", "Voo Encantado"], obtainableBy: "Portal da Mata", spriteIndex: 4, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
 ];

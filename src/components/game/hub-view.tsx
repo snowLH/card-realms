@@ -102,7 +102,7 @@ export function HubView({
           <span>
             <small>Evento cooperativo</small>
             <strong>Raid Mítica</strong>
-            <em>Sábado · até 5 amigos</em>
+            <em>2–4 jogadores · sala com convite</em>
           </span>
           <ArrowRight />
         </button>
@@ -112,7 +112,7 @@ export function HubView({
           <span>
             <small>Partida online</small>
             <strong>Salão de Duelos</strong>
-            <em>{combatReady ? "Avatar e 2 poderes prontos" : "Prepare avatar e 2 poderes"}</em>
+            <em>{combatReady ? "Lenda ativa e 2 ataques próprios prontos" : "Escolha uma Lenda e ative seus 2 ataques"}</em>
           </span>
           <ArrowRight />
         </button>
@@ -146,7 +146,7 @@ export function HubView({
           <span className="hub-action-card__icon"><Layers3 /></span>
           <small>Loadout ARPG</small>
           <strong>Arsenal</strong>
-          <span>Arma, armadura, relíquia e 2 ataques</span>
+          <span>Armas e relíquias das masmorras; 2 ataques da Lenda ativa</span>
           <ArrowRight className="hub-action-card__status" />
         </button>
 
@@ -154,7 +154,7 @@ export function HubView({
           <span className="hub-action-card__icon"><Home /></span>
           <small>Espaço pessoal</small>
           <strong>Seu refúgio</strong>
-          <span>Sua casa e criaturas da coleção</span>
+          <span>Personalize seu espaço e decoração</span>
           <ArrowRight className="hub-action-card__status" />
         </button>
       </div>

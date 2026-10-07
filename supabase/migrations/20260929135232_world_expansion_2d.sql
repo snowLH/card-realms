@@ -6,7 +6,6 @@ alter table public.profiles
     '{"skin":"copper","hair":"braids","outfit":"traveler","armor":"none","accent":"gold"}'::jsonb,
   add constraint profiles_avatar_config_object
     check (jsonb_typeof(avatar_config) = 'object');
-
 create table public.region_areas (
   id text primary key check (id ~ '^[a-z0-9][a-z0-9_-]{1,79}$'),
   region_id text not null references public.regions(id) on delete cascade,
@@ -19,9 +18,7 @@ create table public.region_areas (
   created_at timestamptz not null default now(),
   unique (region_id, sort_order)
 );
-
 create index region_areas_region_idx on public.region_areas (region_id, sort_order);
-
 insert into public.region_areas (id, region_id, name, subtitle, activity, level_label, sort_order) values
   ('roots-gate','roots','Portal da Mata','O primeiro marco dos cartógrafos.','explore','1–3',1),
   ('roots-inverted','roots','Trilha Invertida','Pegadas apontam para o caminho errado.','wild','3–5',2),
@@ -55,20 +52,17 @@ on conflict (id) do update set
   level_label = excluded.level_label,
   sort_order = excluded.sort_order,
   enabled = true;
-
 alter table public.region_areas enable row level security;
 create policy "enabled region areas are readable"
   on public.region_areas for select to anon, authenticated
   using (enabled);
 revoke all on public.region_areas from public;
 grant select on public.region_areas to anon, authenticated;
-
 alter table public.player_world_state
   add column current_area_id text references public.region_areas(id),
   add column visited_area_ids text[] not null default '{}'::text[],
   add constraint player_world_visited_area_limit
     check (cardinality(visited_area_ids) between 0 and 200);
-
 with first_areas as (
   select distinct on (areas.region_id) areas.region_id, areas.id
   from public.region_areas areas
@@ -80,7 +74,6 @@ set current_area_id = first_areas.id,
     visited_area_ids = array[first_areas.id]
 from first_areas
 where first_areas.region_id = world.current_region_id;
-
 create or replace function private.travel_to_region(target_region_id text)
 returns jsonb
 language plpgsql
@@ -143,10 +136,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.travel_to_region(text) from public, anon;
 grant execute on function private.travel_to_region(text) to authenticated, service_role;
-
 create or replace function private.visit_region_area(target_region_id text, target_area_id text)
 returns jsonb
 language plpgsql
@@ -213,20 +204,16 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.visit_region_area(text, text) from public, anon;
 grant execute on function private.visit_region_area(text, text) to authenticated, service_role;
-
 create or replace function public.visit_region_area(target_region_id text, target_area_id text)
 returns jsonb
 language sql
 security invoker
 set search_path = ''
 as $$ select private.visit_region_area(target_region_id, target_area_id); $$;
-
 revoke all on function public.visit_region_area(text, text) from public, anon;
 grant execute on function public.visit_region_area(text, text) to authenticated, service_role;
-
 create or replace function private.buy_energy_pack(target_element public.card_element, target_quantity integer)
 returns jsonb
 language plpgsql
@@ -277,20 +264,16 @@ begin
   return jsonb_build_object('coins', current_coins, 'energy', coalesce(energy, '{}'::jsonb));
 end;
 $$;
-
 revoke all on function private.buy_energy_pack(public.card_element, integer) from public, anon;
 grant execute on function private.buy_energy_pack(public.card_element, integer) to authenticated, service_role;
-
 create or replace function public.buy_energy_pack(target_element public.card_element, target_quantity integer)
 returns jsonb
 language sql
 security invoker
 set search_path = ''
 as $$ select private.buy_energy_pack(target_element, target_quantity); $$;
-
 revoke all on function public.buy_energy_pack(public.card_element, integer) from public, anon;
 grant execute on function public.buy_energy_pack(public.card_element, integer) to authenticated, service_role;
-
 create or replace function private.save_avatar_config(target_config jsonb)
 returns jsonb
 language plpgsql
@@ -330,20 +313,16 @@ begin
   return target_config;
 end;
 $$;
-
 revoke all on function private.save_avatar_config(jsonb) from public, anon;
 grant execute on function private.save_avatar_config(jsonb) to authenticated, service_role;
-
 create or replace function public.save_avatar_config(target_config jsonb)
 returns jsonb
 language sql
 security invoker
 set search_path = ''
 as $$ select private.save_avatar_config(target_config); $$;
-
 revoke all on function public.save_avatar_config(jsonb) from public, anon;
 grant execute on function public.save_avatar_config(jsonb) to authenticated, service_role;
-
 with catalog (
   id, name, title, element, rarity, region_id, role, hp, defense, speed,
   description, tradition, origin, traits, moves, obtainable_by, art_slot
@@ -404,7 +383,6 @@ on conflict (id) do update set
   folklore_source_note=excluded.folklore_source_note,adaptation_note=excluded.adaptation_note,
   traits=excluded.traits,attacks=excluded.attacks,obtainable_by=excluded.obtainable_by,
   art_slot=excluded.art_slot,sprite_key=excluded.sprite_key,event_exclusive=false,enabled=true;
-
 create or replace function private.claim_region_treasure(target_region_id text)
 returns jsonb
 language plpgsql
@@ -464,6 +442,5 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.claim_region_treasure(text) from public, anon;
 grant execute on function private.claim_region_treasure(text) to authenticated, service_role;

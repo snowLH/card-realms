@@ -4,6 +4,7 @@ export const ARPG_MERCHANT_PRODUCTS = [
   {
     itemKey: REFUGE_FURNITURE_UNLOCK_ITEM_KEYS.books!,
     category: "cosmetic",
+    icon: "books",
     kind: "Cosmético do Refúgio",
     name: "Estante de Lendas",
     description: "Desbloqueia livros decorativos para a casa do Cartógrafo.",
@@ -12,6 +13,7 @@ export const ARPG_MERCHANT_PRODUCTS = [
   {
     itemKey: REFUGE_FURNITURE_UNLOCK_ITEM_KEYS.chest!,
     category: "cosmetic",
+    icon: "chest",
     kind: "Cosmético do Refúgio",
     name: "Baú Entalhado",
     description: "Desbloqueia um baú decorativo para a casa do Cartógrafo.",
@@ -20,6 +22,7 @@ export const ARPG_MERCHANT_PRODUCTS = [
   {
     itemKey: REFUGE_FURNITURE_UNLOCK_ITEM_KEYS["map-stand"]!,
     category: "cosmetic",
+    icon: "map",
     kind: "Cosmético do Refúgio",
     name: "Suporte de Mapas",
     description: "Desbloqueia mapas decorativos para a casa do Cartógrafo.",

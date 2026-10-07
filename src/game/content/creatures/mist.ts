@@ -43,7 +43,7 @@ export const MIST_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Pode ajudar uma casa bem cuidada ou perturbar seus moradores, dependendo da tradição e da relação com o lar.",
       folklore: { tradition: "Folclores eslavos", origin: "Europa Oriental", sourceNote: "Há versões domésticas e versões ligadas a pântanos.", adaptation: "Combina pequena figura doméstica e sinais do brejo sem tratá-los como forma universal." },
       regionId: "mist", element: "spirit", traits: ["doméstico", "fiandeira", "presságio"], rarity: "uncommon", role: "controller",
-      hp: 98, defense: 52, speed: 70, moves: ["Fio Embaraçado", "Ruído na Parede", "Presságio da Kikimora"], obtainableBy: "Casa da Névoa", spriteIndex: 15, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 98, defense: 52, speed: 70, moves: ["Fio Embaraçado", "Ruído na Parede", "Presságio da Kikimora"], obtainableBy: "Casa da Névoa", spriteIndex: 15, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "rusalka", name: "Rusalka", title: "Espírito das Águas Verdes",
@@ -51,7 +51,7 @@ export const MIST_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "As descrições variam muito por época e região, indo de presenças férteis a aparições perigosas.",
       folklore: { tradition: "Folclores eslavos", origin: "Europa Oriental", sourceNote: "Não corresponde exatamente à sereia marítima ocidental.", adaptation: "Mantém o vínculo com água doce, cabelos e vegetação, reconhecendo sua variedade." },
       regionId: "mist", element: "water", traits: ["água doce", "vegetação", "aparição"], rarity: "rare", role: "controller",
-      hp: 116, defense: 46, speed: 78, moves: ["Cabelo de Junco", "Canto do Lago", "Dança da Rusalka"], obtainableBy: "Charco dos Ecos", spriteIndex: 16, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 116, defense: 46, speed: 78, moves: ["Cabelo de Junco", "Canto do Lago", "Dança da Rusalka"], obtainableBy: "Charco dos Ecos", spriteIndex: 16, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "puca", name: "Púca", title: "Metamorfo dos Caminhos",
@@ -59,7 +59,7 @@ export const MIST_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Pode assustar, aconselhar ou levar viajantes a corridas imprevisíveis, conforme a narrativa.",
       folklore: { tradition: "Folclore irlandês", origin: "Irlanda", sourceNote: "Grafia, temperamento e formas mudam entre regiões e traduções.", adaptation: "Usa a forma equina negra como uma dentre várias possibilidades." },
       regionId: "mist", element: "spirit", traits: ["metamorfo", "equino", "travesso"], rarity: "epic", role: "skirmisher",
-      hp: 142, defense: 54, speed: 96, moves: ["Salto do Caminho", "Forma Imprevista", "Corrida do Púca"], obtainableBy: "Bosque Móvel", spriteIndex: 17, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 142, defense: 54, speed: 96, moves: ["Salto do Caminho", "Forma Imprevista", "Corrida do Púca"], obtainableBy: "Bosque Móvel", spriteIndex: 17, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "dullahan", name: "Dullahan", title: "Cavaleiro sem Cabeça",
@@ -67,7 +67,7 @@ export const MIST_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Quando interrompe sua cavalgada e pronuncia um nome, o destino anunciado se cumpre em muitos relatos.",
       folklore: { tradition: "Folclore irlandês", origin: "Irlanda", sourceNote: "Detalhes sobre montaria, carruagem e objetos carregados variam.", adaptation: "Mantém a cabeça carregada, o cavalo e o papel de mensageiro fatal." },
       regionId: "mist", element: "spirit", traits: ["cavaleiro", "sem cabeça", "presságio"], rarity: "legendary", role: "striker",
-      hp: 178, defense: 70, speed: 86, moves: ["Rédea Sombria", "Nome Derradeiro", "Cavalgada do Dullahan"], obtainableBy: "Vila Afundada", spriteIndex: 18, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 178, defense: 70, speed: 86, moves: ["Rédea Sombria", "Nome Derradeiro", "Cavalgada do Dullahan"], obtainableBy: "Vila Afundada", spriteIndex: 18, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "fogo-fatuo", name: "Fogo-fátuo", title: "Luz que Desvia Viajantes",
@@ -75,6 +75,6 @@ export const MIST_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Muitas culturas descrevem luzes que afastam viajantes da estrada ou marcam lugares de memória e perigo.",
       folklore: { tradition: "Folclores europeus e narrativas difundidas globalmente", origin: "Múltiplas regiões", sourceNote: "Nomes e interpretações locais não são equivalentes entre si.", adaptation: "Transforma o motivo da luz errante em criatura sem atribuir uma origem única." },
       regionId: "mist", element: "fire", traits: ["luz", "errante", "pântano"], rarity: "common", role: "skirmisher",
-      hp: 82, defense: 28, speed: 112, moves: ["Faísca Errante", "Desvio da Trilha", "Brilho do Brejo"], obtainableBy: "Margem Enevoada", spriteIndex: 19, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 82, defense: 28, speed: 112, moves: ["Faísca Errante", "Desvio da Trilha", "Brilho do Brejo"], obtainableBy: "Margem Enevoada", spriteIndex: 19, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
 ];

@@ -1,25 +1,21 @@
 "use client";
 
-import {
-  Album,
-  Coins,
-  Crown,
-  Gamepad2,
-  Home,
-  LayoutDashboard,
-  Layers3,
-  Map,
-  ShieldCheck,
-  Swords,
-  Trophy,
-  UserRound,
-} from "lucide-react";
+import { Trophy } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREATURES, REGIONS } from "@/game/catalog";
-import { ARPG_ABILITY_CARD_BY_ID, ARPG_ABILITY_CARD_IDS } from "@/game/arpg/content/ability-cards";
-import { ARPG_ARMORS, ARPG_WEAPONS, getDefaultSecondaryArpgWeaponId } from "@/game/arpg/content/equipment";
+import { ARPG_ABILITY_CARD_IDS } from "@/game/arpg/content/ability-cards";
+import { ARPG_WEAPONS } from "@/game/arpg/content/equipment";
+import {
+  getLegendAppearance,
+  getLegendSignatureAbilityIds,
+  hasExactLegendPowers,
+  legendInventoryKey,
+  PLAYABLE_LEGENDS,
+  PLAYABLE_LEGEND_BY_ID,
+  type PlayableLegendId,
+} from "@/game/arpg/content/legends";
 import {
   ARPG_MERCHANT_PRODUCT_BY_KEY,
   ARPG_MERCHANT_PRODUCT_KEYS,
@@ -28,8 +24,12 @@ import {
   DEFAULT_ARPG_EXPEDITION_ID,
   type ArpgExpeditionId,
 } from "@/game/arpg/content/expeditions";
+import {
+  getArpgExpeditionForAtlasRegion,
+  resolveAtlasEncounterTarget,
+  type AtlasEncounterReference,
+} from "@/game/arpg/content/atlas-encounters";
 import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
-import { getOwnedArpgAbilityCardIds } from "@/game/arpg/domain/powers";
 import { normalizeLegacyArpgLoadout } from "@/game/arpg/domain/loadout-schema";
 import { resolveHubNavigation } from "@/game/arpg/hub/navigation";
 import { ARPG_RELIC_BY_ID, ARPG_RELIC_IDS, STARTER_ARPG_RELIC_ID } from "@/game/arpg/content/relics";
@@ -39,10 +39,9 @@ import type { PlayerBootstrap } from "@/game/player";
 import type { RaidGameplayMode } from "@/game/raid";
 import { resolveBattleBoard, type BattleBoardId } from "@/game/battle/presentation";
 import type { RefugeSavePayload } from "@/game/refuge";
-import type { BattleEncounter, BattleReward, Element, EnergyPool, RegionAreaDefinition, RegionDefinition } from "@/game/types";
+import type { BattleEncounter, Element, EnergyPool, RegionAreaDefinition, RegionDefinition } from "@/game/types";
 import {
   DEFAULT_AVATAR_CONFIG,
-  AvatarConfigSchema,
   DEFAULT_LOCAL_PROGRESS,
   loadLocalProgress,
   saveLocalProgress,
@@ -50,14 +49,10 @@ import {
 } from "@/game/save/local-progress";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { cn } from "@/lib/utils";
-import { LoginDialog } from "@/components/auth/login-dialog";
 import { ArpgExpeditionSelect } from "@/components/arpg/expedition-select";
 import { ArpgLoadoutView, type ArpgLoadoutFocus } from "@/components/arpg/loadout-view";
-import { ArpgPowerGacha } from "@/components/arpg/power-gacha";
-import { Badge } from "@/components/ui/badge";
 import { CollectionView } from "./collection-view";
-import { HubView } from "./hub-view";
-import { MissionPanel } from "./mission-panel";
+import { GameMenu, type GameMenuAction } from "./game-menu";
 import { RefugeView } from "./refuge-view";
 import { PvpView } from "./pvp-view";
 import { RaidView } from "./raid-view";
@@ -102,7 +97,7 @@ const ArpgRaidArena = dynamic(
 
 const ArpgGame = dynamic(
   () => import("@/components/arpg/arpg-game").then((module) => module.ArpgGame),
-  { ssr: false, loading: () => <div className="battle-loading">Carregando Card Realms ARPG...</div> },
+  { ssr: false, loading: () => <div className="battle-loading">Carregando Folklard...</div> },
 );
 
 const ArpgHub = dynamic(
@@ -112,25 +107,8 @@ const ArpgHub = dynamic(
 
 type View = "hub" | "expeditions" | "play" | "map" | "village" | "collection" | "loadout" | "refuge" | "raid" | "pvp" | "profile";
 
-const navigation = [
-  { id: "hub", label: "Início", icon: LayoutDashboard },
-  { id: "expeditions", label: "Jogar", icon: Gamepad2 },
-  { id: "map", label: "Mapa", icon: Map },
-  { id: "collection", label: "Coleção", icon: Album },
-  { id: "loadout", label: "Arsenal", icon: Layers3 },
-  { id: "refuge", label: "Refúgio", icon: Home },
-  { id: "raid", label: "Raids", icon: Crown },
-  { id: "pvp", label: "Duelos", icon: Swords },
-  { id: "profile", label: "Perfil", icon: UserRound },
-] satisfies Array<{ id: View; label: string; icon: typeof Map }>;
-
-const mobileNavigation = navigation.filter((item) =>
-  ["expeditions", "map", "collection", "loadout", "raid", "profile"].includes(item.id),
-);
-
 const ARPG_EQUIPMENT_IDS = new Set([
   ...ARPG_WEAPONS.map((item) => item.id),
-  ...ARPG_ARMORS.map((item) => item.id),
 ]);
 
 const ARPG_INVENTORY_ITEM_IDS = new Set([
@@ -138,33 +116,36 @@ const ARPG_INVENTORY_ITEM_IDS = new Set([
   ...ARPG_RELIC_IDS,
   ...ARPG_ABILITY_CARD_IDS,
   ...ARPG_MERCHANT_PRODUCT_KEYS,
+  ...PLAYABLE_LEGENDS.map((legend) => legendInventoryKey(legend.id)),
 ]);
 
-function normalizeArpgLoadoutOwnership(loadout: ArpgLoadout, inventoryItemKeys: readonly string[]): ArpgLoadout {
+function getOwnedPlayableLegendIds(inventoryItemKeys: readonly string[]): PlayableLegendId[] {
+  const inventory = new Set(inventoryItemKeys);
+  return ["curupira", ...PLAYABLE_LEGENDS
+    .filter((legend) => legend.id !== "curupira" && inventory.has(legendInventoryKey(legend.id)))
+    .map((legend) => legend.id)];
+}
+
+function normalizeArpgLoadoutOwnership(
+  loadout: ArpgLoadout,
+  inventoryItemKeys: readonly string[],
+  legendId: PlayableLegendId,
+): ArpgLoadout {
   const owned = new Set([
     DEFAULT_ARPG_LOADOUT.weaponId,
-    DEFAULT_ARPG_LOADOUT.secondaryWeaponId!,
     DEFAULT_ARPG_LOADOUT.armorId,
     STARTER_ARPG_RELIC_ID,
-    ...getOwnedArpgAbilityCardIds(inventoryItemKeys),
     ...inventoryItemKeys,
   ]);
-  const abilityIds = loadout.abilityIds.map((id, index) =>
-    ARPG_ABILITY_CARD_IDS.has(id) && owned.has(id) ? id : DEFAULT_ARPG_LOADOUT.abilityIds[index]
-  ) as [string, string];
-  const weaponId = owned.has(loadout.weaponId) ? loadout.weaponId : DEFAULT_ARPG_LOADOUT.weaponId;
-  const requestedSecondaryWeaponId = loadout.secondaryWeaponId
-    ?? getDefaultSecondaryArpgWeaponId(weaponId);
-  const secondaryWeaponId = requestedSecondaryWeaponId !== weaponId && owned.has(requestedSecondaryWeaponId)
-    ? requestedSecondaryWeaponId
-    : [DEFAULT_ARPG_LOADOUT.secondaryWeaponId, DEFAULT_ARPG_LOADOUT.weaponId]
-      .find((id): id is string => Boolean(id && id !== weaponId && owned.has(id)))
-      ?? getDefaultSecondaryArpgWeaponId(weaponId);
+  const abilityIds: [string, string] = hasExactLegendPowers(loadout.abilityIds, legendId)
+    ? [...loadout.abilityIds]
+    : getLegendSignatureAbilityIds(legendId);
   return {
     ...loadout,
-    weaponId,
-    secondaryWeaponId,
-    armorId: owned.has(loadout.armorId) ? loadout.armorId : DEFAULT_ARPG_LOADOUT.armorId,
+    weaponId: owned.has(loadout.weaponId) ? loadout.weaponId : DEFAULT_ARPG_LOADOUT.weaponId,
+    // Retain the legacy field for persisted run compatibility, but new runs
+    // always enter without defensive equipment.
+    armorId: DEFAULT_ARPG_LOADOUT.armorId,
     relicId: ARPG_RELIC_IDS.has(loadout.relicId) && owned.has(loadout.relicId)
       ? loadout.relicId
       : STARTER_ARPG_RELIC_ID,
@@ -213,19 +194,21 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   const [titleOpen, setTitleOpen] = useState(true);
   const [view, setView] = useState<View>("hub");
   const [loadoutFocus, setLoadoutFocus] = useState<ArpgLoadoutFocus>("all");
+  const [focusedLegendId, setFocusedLegendId] = useState<PlayableLegendId | null>(null);
+  const [pendingLegendId, setPendingLegendId] = useState<PlayableLegendId | null>(null);
   const [villageReturnView, setVillageReturnView] = useState<"map" | "hub">("map");
-  const [classicHub, setClassicHub] = useState(false);
   const [selectedExpeditionId, setSelectedExpeditionId] = useState<ArpgExpeditionId>(DEFAULT_ARPG_EXPEDITION_ID);
+  const [selectedAtlasEncounter, setSelectedAtlasEncounter] = useState<AtlasEncounterReference | null>(null);
+  const [playReturnView, setPlayReturnView] = useState<"hub" | "map">("hub");
   const [guestPreview, setGuestPreview] = useState(false);
   const initialRegion = REGIONS.find(
     (region) => region.id === remoteSnapshot?.world.currentRegionId,
   ) ?? REGIONS[0];
   const [selectedRegion, setSelectedRegion] = useState<RegionDefinition | null>(initialRegion);
   const [playerRegionId, setPlayerRegionId] = useState(initialRegion.id);
-  const [battleOpen, setBattleOpen] = useState(false);
-  const [battleEncounter, setBattleEncounter] = useState<BattleEncounter | null>(null);
   const [pvpBattleId, setPvpBattleId] = useState<string | null>(null);
   const [raidRoomId, setRaidRoomId] = useState<string | null>(null);
+  const [dismissedRaidRoomId, setDismissedRaidRoomId] = useState<string | null>(null);
   const [raidGameplayMode, setRaidGameplayMode] = useState<RaidGameplayMode>("avatar");
   const [coins, setCoins] = useState(remoteSnapshot?.profile.coins ?? DEFAULT_LOCAL_PROGRESS.coins);
   const [xp, setXp] = useState(remoteSnapshot?.profile.xp ?? DEFAULT_LOCAL_PROGRESS.xp);
@@ -240,20 +223,22 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   );
   const [energy, setEnergy] = useState<EnergyPool>(remoteSnapshot?.energy ?? DEFAULT_LOCAL_PROGRESS.energy);
   const [avatar, setAvatar] = useState<AvatarConfig>(remoteSnapshot?.profile.avatarConfig ?? DEFAULT_AVATAR_CONFIG);
+  const avatarSavePending = useRef(false);
   const [localRefuge, setLocalRefuge] = useState<RefugeSavePayload>(DEFAULT_LOCAL_PROGRESS.refuge);
   const [battleBoard, setBattleBoard] = useState<BattleBoardId>(() => resolveBattleBoard(remoteSnapshot?.house?.layout?.preferredBattleBoard));
   const [equipmentIds, setEquipmentIds] = useState<string[]>(() => {
     const remoteArpgItems = remoteSnapshot?.inventory
-      .filter((item) => ARPG_INVENTORY_ITEM_IDS.has(item.itemKey))
+      .filter((item) => item.quantity > 0 && ARPG_INVENTORY_ITEM_IDS.has(item.itemKey))
       .map((item) => item.itemKey) ?? [];
     return [...new Set(remoteArpgItems)];
   });
-  const [arpgLoadout, setArpgLoadout] = useState<ArpgLoadout>(() =>
-    remoteSnapshot?.arpgLoadout
-      ?? (typeof window === "undefined"
-        ? DEFAULT_ARPG_LOADOUT
-        : readArpgLoadout(`card-realms-arpg-loadout-v1:${bootstrap.identity?.id ?? "guest"}`))
-  );
+  const ownedLegendIds = getOwnedPlayableLegendIds(equipmentIds);
+  const activeLegendId = ownedLegendIds.includes(avatar.legendId) ? avatar.legendId : "curupira";
+  const [arpgLoadout, setArpgLoadout] = useState<ArpgLoadout>(() => normalizeArpgLoadoutOwnership(
+    remoteSnapshot?.arpgLoadout ?? DEFAULT_ARPG_LOADOUT,
+    equipmentIds,
+    activeLegendId,
+  ));
   const [arpgLoadoutDirty, setArpgLoadoutDirty] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [newlyOwnedCatalogIds, setNewlyOwnedCatalogIds] = useState<string[]>([]);
@@ -264,8 +249,8 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   const cacheAccountId = bootstrap.identity?.id ?? null;
   const arpgLoadoutStorageKey = `card-realms-arpg-loadout-v1:${cacheAccountId ?? "guest"}`;
   const playableArpgLoadout = useMemo(
-    () => normalizeArpgLoadoutOwnership(arpgLoadout, equipmentIds),
-    [arpgLoadout, equipmentIds],
+    () => normalizeArpgLoadoutOwnership(arpgLoadout, equipmentIds, activeLegendId),
+    [activeLegendId, arpgLoadout, equipmentIds],
   );
 
   useEffect(() => {
@@ -279,9 +264,17 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       setVisitedAreaIds(parsed.visitedAreaIds);
       setMapPositions(parsed.mapPositions);
       setEnergy(parsed.energy);
-      setAvatar(parsed.avatar);
       const legacyArpgCards = readLegacyArpgAbilityIds(arpgLoadoutStorageKey);
-      setEquipmentIds([...new Set([...parsed.equipmentIds, ...legacyArpgCards])]);
+      const savedEquipmentIds = [...new Set([...parsed.equipmentIds, ...legacyArpgCards])];
+      const savedLegendIds = getOwnedPlayableLegendIds(savedEquipmentIds);
+      const savedLegendId = savedLegendIds.includes(parsed.avatar.legendId) ? parsed.avatar.legendId : "curupira";
+      setAvatar({ ...parsed.avatar, legendId: savedLegendId });
+      setEquipmentIds(savedEquipmentIds);
+      setArpgLoadout(normalizeArpgLoadoutOwnership(
+        readArpgLoadout(arpgLoadoutStorageKey),
+        savedEquipmentIds,
+        savedLegendId,
+      ));
       setLocalRefuge(parsed.refuge);
       const savedRegion = REGIONS.find(
         (region) => region.id === parsed.playerRegionId && region.status === "open",
@@ -318,27 +311,39 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   }, [avatar, cacheAccountId, coins, currentAreaId, energy, equipmentIds, localRefuge, mapPositions, openedTreasures, playerRegionId, progressLoaded, visitedAreaIds, xp]);
 
   useEffect(() => {
+    if (!progressLoaded) return;
+    try {
+      window.localStorage.setItem(arpgLoadoutStorageKey, JSON.stringify(playableArpgLoadout));
+    } catch (error) {
+      console.warn("Não foi possível salvar o loadout ARPG localmente.", error);
+    }
+  }, [arpgLoadoutStorageKey, playableArpgLoadout, progressLoaded]);
+
+  useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(null), 3500);
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  const openLoadoutFocus = (focus: Exclude<ArpgLoadoutFocus, "all">) => {
+  const openLoadoutFocus = (
+    focus: Exclude<ArpgLoadoutFocus, "all">,
+    focusLegendId: PlayableLegendId | null = null,
+  ) => {
     setLoadoutFocus(focus);
+    setFocusedLegendId(focusLegendId);
     setView("loadout");
   };
 
-  const handleArpgLoadoutChange = useCallback((next: ArpgLoadout) => {
-    setArpgLoadout(next);
+  const handleArpgLoadoutChange = useCallback((next: ArpgLoadout, legendId = activeLegendId) => {
+    setArpgLoadout(normalizeArpgLoadoutOwnership(next, equipmentIds, legendId));
     setArpgLoadoutDirty(true);
-    try {
-      window.localStorage.setItem(arpgLoadoutStorageKey, JSON.stringify(next));
-    } catch (error) {
-      console.warn("Não foi possível salvar o loadout ARPG localmente.", error);
-    }
-  }, [arpgLoadoutStorageKey]);
+  }, [activeLegendId, equipmentIds]);
 
   const persistArpgLoadout = async (force = false) => {
+    if (avatarSavePending.current) {
+      setToast("Aguarde a confirmação da Lenda escolhida antes de continuar.");
+      return false;
+    }
     if (bootstrap.source !== "supabase" || (!arpgLoadoutDirty && !force)) return true;
     try {
       const response = await fetch("/api/arpg/loadout", {
@@ -357,12 +362,12 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   };
 
   const navigate = async (next: View) => {
+    const requiresRemoteLoadout = next === "pvp" || next === "raid";
     await runAfterPersistingLoadout(
-      next !== "loadout" && (arpgLoadoutDirty || next === "pvp"),
-      () => persistArpgLoadout(next === "pvp"),
+      next !== "loadout" && (arpgLoadoutDirty || requiresRemoteLoadout),
+      () => persistArpgLoadout(requiresRemoteLoadout),
       () => {
         if (next === "loadout") setLoadoutFocus("all");
-        if (next === "hub") setClassicHub(false);
         setView(next);
       },
     );
@@ -370,22 +375,37 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
 
   const handleBackToHub = async () => {
     if (!await persistArpgLoadout()) return;
-    setClassicHub(false);
     setView("hub");
   };
 
   const handleStartArpg = async (expeditionId: ArpgExpeditionId = selectedExpeditionId) => {
-    if (!await persistArpgLoadout()) return;
+    if (!await persistArpgLoadout(true)) return;
+    setSelectedAtlasEncounter(null);
     setSelectedExpeditionId(expeditionId);
+    setPlayReturnView("hub");
     setView("play");
   };
 
   const handleBattle = async (encounter: BattleEncounter) => {
-    await runAfterPersistingLoadout(bootstrap.source === "supabase", () => persistArpgLoadout(true), () => {
-      setToast(null);
-      setBattleEncounter(encounter);
-      setBattleOpen(true);
-    });
+    const expeditionId = getArpgExpeditionForAtlasRegion(encounter.regionId);
+    if (!expeditionId) {
+      setToast("Ainda não há uma expedição de ação para esta região.");
+      return;
+    }
+    const atlasEncounter: AtlasEncounterReference | null = encounter.kind === "wild"
+      ? { kind: "wild", regionId: encounter.regionId, id: encounter.creatureId }
+      : encounter.kind === "npc"
+        ? { kind: "npc", regionId: encounter.regionId, id: encounter.npcId }
+        : null;
+    if (atlasEncounter && !resolveAtlasEncounterTarget(atlasEncounter)) {
+      setToast("Este alvo não pertence ao Atlas desta região.");
+      return;
+    }
+    if (!await persistArpgLoadout(true)) return;
+    setSelectedExpeditionId(expeditionId);
+    setSelectedAtlasEncounter(atlasEncounter);
+    setPlayReturnView("map");
+    setView("play");
   };
 
   const handleTreasure = async (region: RegionDefinition) => {
@@ -407,7 +427,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
         if (result.creatureId) {
           setNewlyOwnedCatalogIds((current) => [...new Set([...current, result.creatureId!])]);
         }
-        if (result.itemKey) {
+        if (result.itemKey && ARPG_INVENTORY_ITEM_IDS.has(result.itemKey)) {
           setEquipmentIds((current) => [...new Set([...current, result.itemKey!])]);
         }
         const cardName = result.creatureId
@@ -425,15 +445,15 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     setOpenedTreasures((current) => [...current, region.id]);
     setCoins((current) => current + 45);
     const equipmentByRegion: Partial<Record<string, string>> = {
-      roots: "guardian-armor",
-      runic: "runic-armor",
+      roots: "forest-bow",
+      runic: "runic-sabre",
     };
     const equipment = equipmentByRegion[region.id];
     if (equipment) setEquipmentIds((current) => [...new Set([...current, equipment])]);
     setToast(
       bootstrap.source === "supabase-unavailable"
         ? "Baú salvo somente no cache; a conta remota está indisponível."
-        : `Baú cartográfico encontrado: +45 moedas e 1 fragmento de vínculo${equipment ? " · nova armadura" : ""}.`,
+        : `Baú cartográfico encontrado: +45 moedas e 1 fragmento de vínculo${equipment ? " · nova arma" : ""}.`,
     );
   };
 
@@ -545,49 +565,116 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   };
 
   const handleSaveAvatar = async (nextAvatar: AvatarConfig) => {
-    setAvatar(nextAvatar);
-    if (bootstrap.source !== "supabase") return;
-    const response = await fetch("/api/player/avatar", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(nextAvatar),
-    });
-    const payload = (await response.json()) as { error?: string };
-    if (!response.ok) throw new Error(payload.error ?? "O personagem não pôde ser salvo.");
-    setToast("Personagem sincronizado com sua conta.");
+    if (avatarSavePending.current) return false;
+    avatarSavePending.current = true;
+    try {
+      if (bootstrap.source === "supabase") {
+        const response = await fetch("/api/player/avatar", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(nextAvatar),
+        });
+        const payload = (await response.json()) as { error?: string };
+        if (!response.ok) throw new Error(payload.error ?? "O personagem não pôde ser salvo.");
+      }
+      setAvatar(nextAvatar);
+      return true;
+    } finally {
+      avatarSavePending.current = false;
+    }
   };
 
-  const handlePurchaseAbilityCard = async (cardId: string) => {
-    const card = ARPG_ABILITY_CARD_BY_ID.get(cardId);
-    if (!card || !card.purchasable || card.purchasePrice === null) throw new Error("Este poder não está disponível para compra.");
-    const ownedAbilityIds = getOwnedArpgAbilityCardIds(equipmentIds);
-    if (ownedAbilityIds.includes(cardId)) return { coins, ownedAbilityIds };
-    if (coins < card.purchasePrice) throw new Error("Moedas insuficientes para esta compra.");
+  const handleSelectLegend = async (legendId: PlayableLegendId) => {
+    const legend = PLAYABLE_LEGEND_BY_ID.get(legendId);
+    if (!legend || !ownedLegendIds.includes(legendId)) return;
+    const nextAvatar: AvatarConfig = {
+      ...avatar,
+      ...getLegendAppearance(legendId),
+      favoriteLegendId: avatar.favoriteLegendId,
+    };
+    const nextLoadout = {
+      ...playableArpgLoadout,
+      abilityIds: getLegendSignatureAbilityIds(legendId),
+    };
+    try {
+      if (!await handleSaveAvatar(nextAvatar)) return;
+      handleArpgLoadoutChange(nextLoadout, legendId);
+      setToast(`${legend.name} foi escolhida para as próximas aventuras. Você poderá trocar na Guilda quando quiser.`);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "A Lenda escolhida não pôde ser salva.");
+    }
+  };
 
-    if (bootstrap.source === "supabase") {
-      const response = await fetch("/api/arpg/powers/purchase", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ cardId }),
-      });
-      const payload = await response.json() as {
-        coins?: number;
-        ownedAbilityIds?: string[];
-        error?: string;
-      };
-      if (!response.ok || typeof payload.coins !== "number" || !Array.isArray(payload.ownedAbilityIds)) {
-        throw new Error(payload.error ?? "A compra não pôde ser concluída.");
-      }
-      setCoins(payload.coins);
-      setEquipmentIds((current) => [...new Set([...current, ...payload.ownedAbilityIds!])]);
-      return { coins: payload.coins, ownedAbilityIds: payload.ownedAbilityIds };
+  const handleToggleFavoriteLegend = async (legendId: PlayableLegendId) => {
+    if (!ownedLegendIds.includes(legendId)) return;
+    const nextAvatar: AvatarConfig = {
+      ...avatar,
+      favoriteLegendId: avatar.favoriteLegendId === legendId ? null : legendId,
+    };
+    try {
+      if (!await handleSaveAvatar(nextAvatar)) return;
+      setToast(nextAvatar.favoriteLegendId
+        ? `${PLAYABLE_LEGEND_BY_ID.get(legendId)?.name ?? "Lenda"} agora aparece como sua favorita no perfil.`
+        : "Lenda favorita removida do perfil.");
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "A Lenda favorita não pôde ser salva.");
+    }
+  };
+
+  const handlePurchaseLegend = async (legendId: PlayableLegendId) => {
+    const legend = PLAYABLE_LEGEND_BY_ID.get(legendId);
+    if (!legend || legend.price <= 0) return;
+    if (ownedLegendIds.includes(legendId)) return;
+    if (coins < legend.price) {
+      setToast("Moedas insuficientes para esta lenda.");
+      return;
     }
 
-    const nextCoins = coins - card.purchasePrice;
-    const nextOwnedAbilityIds = [...new Set([...ownedAbilityIds, cardId])];
-    setCoins(nextCoins);
-    setEquipmentIds((current) => [...new Set([...current, cardId])]);
-    return { coins: nextCoins, ownedAbilityIds: nextOwnedAbilityIds };
+    setPendingLegendId(legendId);
+    try {
+      if (bootstrap.source === "supabase") {
+      const response = await fetch("/api/player/legends/purchase", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ legendId }),
+        });
+        const payload = await response.json() as {
+          coins?: number;
+          itemKey?: string;
+          signatureAbilityIds?: string[];
+          ownedAbilityIds?: string[];
+          error?: string;
+        };
+        if (
+          !response.ok
+          || typeof payload.coins !== "number"
+          || payload.itemKey !== legendInventoryKey(legendId)
+          || !Array.isArray(payload.signatureAbilityIds)
+          || payload.signatureAbilityIds[0] !== legend.signatureAbilityIds[0]
+          || payload.signatureAbilityIds[1] !== legend.signatureAbilityIds[1]
+        ) {
+          throw new Error(payload.error ?? "A compra da lenda não pôde ser concluída.");
+        }
+        setCoins(payload.coins);
+        setEquipmentIds((current) => [...new Set([
+          ...current,
+          legendInventoryKey(legendId),
+          ...(payload.ownedAbilityIds ?? legend.signatureAbilityIds),
+        ])]);
+      } else {
+        setCoins((current) => current - legend.price);
+        setEquipmentIds((current) => [...new Set([
+          ...current,
+          legendInventoryKey(legendId),
+          ...legend.signatureAbilityIds,
+        ])]);
+      }
+      setToast(`${legend.name} desbloqueada. Os dois ataques dela também foram adicionados.`);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "A compra da lenda não pôde ser concluída.");
+    } finally {
+      setPendingLegendId(null);
+    }
   };
 
   const handleSaveRefuge = async (payload: RefugeSavePayload) => {
@@ -601,38 +688,6 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     setToast(bootstrap.source === "supabase-unavailable"
       ? "Refúgio salvo neste aparelho enquanto a conta está indisponível."
       : "Refúgio salvo neste aparelho.");
-  };
-
-  const handleEvolveCreature = async (instanceId: string) => {
-    if (bootstrap.source !== "supabase") {
-      throw new Error("Entre com uma conta para evoluir cartas.");
-    }
-    const result = await mutateRemoteProgress({
-      action: "evolve_creature",
-      instanceId,
-    }) as { coins?: number; evolutionStage?: number };
-    if (typeof result.coins === "number") setCoins(result.coins);
-    setToast("Vínculo persistente evoluído.");
-    router.refresh();
-  };
-
-  const handleClaimMission = async (missionId: string) => {
-    if (bootstrap.source !== "supabase") {
-      throw new Error("Entre com uma conta para resgatar missões.");
-    }
-    const result = await mutateRemoteProgress({
-      action: "claim_mission",
-      missionId,
-    }) as { coins?: number; xp?: number; coinsAwarded?: number; xpAwarded?: number };
-    if (typeof result.coins === "number") setCoins(result.coins);
-    if (typeof result.xp === "number") setXp(result.xp);
-    setToast(
-      "Missão resgatada"
-      + (result.coinsAwarded ? ": +" + result.coinsAwarded + " moedas" : "")
-      + (result.xpAwarded ? " e +" + result.xpAwarded + " XP" : "")
-      + ".",
-    );
-    router.refresh();
   };
 
   const handleSaveBattleBoard = async (nextBoard: BattleBoardId) => {
@@ -651,27 +706,11 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     }
   };
 
-  const handleVictory = useCallback((reward?: BattleReward) => {
-    if (bootstrap.source === "supabase") {
-      if (reward && !reward.replayed) {
-        setCoins((current) => current + reward.coins);
-        setXp((current) => current + reward.xp);
-        setToast("Vitória registrada: moedas e experiência recebidas. Criaturas vão para a coleção; novos poderes ficam no Arquivo.");
-      }
-      return;
-    }
-    setCoins((current) => current + 120);
-    setXp((current) => current + 80);
-  }, [bootstrap.source]);
-
-  const ownedAbilityCardIds = useMemo(
-    () => getOwnedArpgAbilityCardIds(equipmentIds),
-    [equipmentIds],
-  );
-  const combatReady = AvatarConfigSchema.safeParse(avatar).success
-    && arpgLoadout.abilityIds.length === 2
-    && new Set(arpgLoadout.abilityIds).size === 2
-    && arpgLoadout.abilityIds.every((id) => ARPG_ABILITY_CARD_IDS.has(id) && ownedAbilityCardIds.includes(id));
+  const activeAvatar = useMemo(() => ({
+    ...avatar,
+    ...getLegendAppearance(activeLegendId),
+    favoriteLegendId: avatar.favoriteLegendId,
+  }), [activeLegendId, avatar]);
   const ownedCatalogIds = useMemo(() => remoteSnapshot
     ? [...new Set([
       ...remoteSnapshot.collection.map((creature) => creature.catalogId),
@@ -683,6 +722,9 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     [bootstrap.identity, ownedCatalogIds],
   );
   const playerLevel = remoteSnapshot?.profile.level ?? Math.max(1, Math.floor(xp / 600) + 1);
+  const playerName = remoteSnapshot?.profile.displayName
+    ?? bootstrap.identity?.email?.split("@")[0]
+    ?? "Explorador";
   const discoveredByRegion = useMemo(() => {
     const visibleIds = new Set(visibleOwnedCatalogIds ?? CREATURES.map((creature) => creature.id));
     return Object.fromEntries(REGIONS.map((region) => [
@@ -690,13 +732,39 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       CREATURES.filter((creature) => creature.regionId === region.id && visibleIds.has(creature.id)).length,
     ]));
   }, [visibleOwnedCatalogIds]);
-  const currentRegion = REGIONS.find((region) => region.id === playerRegionId) ?? REGIONS[0];
   const showWelcome = isSupabaseConfigured() && !bootstrap.identity && !guestPreview;
   const pvpSession = useMemo(() => (
     pvpBattleId && bootstrap.identity
       ? { battleId: pvpBattleId, playerId: bootstrap.identity.id }
       : undefined
   ), [bootstrap.identity, pvpBattleId]);
+  const beginTitleMode = (nextView: View) => {
+    if (showWelcome) setGuestPreview(true);
+    setTitleOpen(false);
+    if (nextView !== "hub") void navigate(nextView);
+  };
+
+  const handleGameMenuAction = (action: GameMenuAction) => {
+    if (action === "powers") {
+      openLoadoutFocus("cards");
+      return;
+    }
+    if (action === "appearance") {
+      openLoadoutFocus("legend");
+      return;
+    }
+    const destination: Record<Exclude<GameMenuAction, "powers" | "appearance">, View> = {
+      lobby: "hub",
+      expeditions: "expeditions",
+      arsenal: "loadout",
+      bestiary: "collection",
+      refuge: "refuge",
+      pvp: "pvp",
+      cooperative: "raid",
+      profile: "profile",
+    };
+    void navigate(destination[action]);
+  };
 
   return (
     <main className={cn("game-app", showWelcome && "game-app--welcome", titleOpen && "game-app--title")}>
@@ -704,107 +772,32 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
         <TitleScreen
           loginEnabled={isSupabaseConfigured()}
           signedIn={Boolean(bootstrap.identity)}
-          onPlay={() => {
-            if (showWelcome) setGuestPreview(true);
-            setTitleOpen(false);
-          }}
+          onPlay={() => beginTitleMode("hub")}
+          onPvp={() => beginTitleMode("pvp")}
+          onCooperative={() => beginTitleMode("raid")}
         />
       ) : null}
-      {!titleOpen ? <header className="app-header">
-        <button type="button" className="brand" onClick={() => navigate("hub")}>
-          <span className="brand__mark">CR</span>
-          <span><strong>Card Realms</strong><small>Atlas de Aurória</small></span>
-        </button>
-        <div className="header-stats">
-          <span><Coins /> {coins.toLocaleString("pt-BR")}</span>
-          <span><ShieldCheck /> Nv. {playerLevel}</span>
-        </div>
-        <div className="header-actions">
-          <LoginDialog />
-        </div>
-      </header> : null}
 
-      {!showWelcome && !titleOpen ? <aside className="side-nav">
-        <nav>
-          {navigation.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                className={cn(view === item.id && "is-active")}
-                onClick={() => navigate(item.id)}
-              >
-                <Icon /> <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-        {remoteSnapshot ? (
-          <MissionPanel
-            missions={remoteSnapshot.missions}
-            onClaim={bootstrap.source === "supabase" ? handleClaimMission : undefined}
-          />
-        ) : (
-          <div className="side-quest">
-            <span>Missões online</span>
-            <strong>Progresso autoritativo</strong>
-            <p>Entre com sua conta para avançar e resgatar missões.</p>
-          </div>
-        )}
-        <Badge className="side-build">
-          {bootstrap.source === "supabase"
-            ? "Conta online · Supabase é a fonte de verdade"
-            : bootstrap.source === "supabase-unavailable"
-              ? "Conta online · cache local de emergência"
-              : "Visitante · progresso salvo neste aparelho"}
-        </Badge>
-      </aside> : null}
-
-      {!titleOpen ? <div className={cn("app-content", showWelcome && "app-content--welcome")}>
+      {!titleOpen ? <div className={cn("app-content", !showWelcome && "app-content--game", showWelcome && "app-content--welcome")}>
         {showWelcome ? <WelcomeView onPreview={() => setGuestPreview(true)} /> : null}
         {!showWelcome && view === "hub" ? (
-          classicHub ? (
-          <HubView
-            playerName={remoteSnapshot?.profile.displayName ?? bootstrap.identity?.email?.split("@")[0] ?? "Explorador"}
+            <ArpgHub
+            playerName={playerName}
             level={playerLevel}
             coins={coins}
-            xp={xp}
-            collectionCount={visibleOwnedCatalogIds?.length ?? CREATURES.length}
-            currentRegionDiscoveryCount={discoveredByRegion[currentRegion.id] ?? 0}
-            combatReady={combatReady}
-            currentRegion={currentRegion}
-            source={bootstrap.source}
-            treasureClaimed={openedTreasures.includes(playerRegionId)}
-            onContinue={() => navigate("expeditions")}
-            onOpenCollection={() => navigate("collection")}
-            onOpenTeam={() => navigate("loadout")}
-            onOpenRefuge={() => navigate("refuge")}
-            onOpenRaid={() => navigate("raid")}
-            onOpenPvp={() => navigate("pvp")}
-            onClaimTreasure={() => void handleTreasure(currentRegion)}
+            avatarConfig={activeAvatar}
+            onNavigate={(destination, legendId) => {
+              const action = resolveHubNavigation(destination);
+              if (action.kind === "loadout-focus") {
+                openLoadoutFocus(action.focus, legendId ?? null);
+                if (legendId && ownedLegendIds.includes(legendId)) void handleSelectLegend(legendId);
+                return;
+              }
+              if (action.view === "village") setVillageReturnView("hub");
+              if (action.toast) setToast(action.toast);
+              void navigate(action.view);
+            }}
           />
-          ) : (
-            <ArpgHub
-              playerName={remoteSnapshot?.profile.displayName ?? bootstrap.identity?.email?.split("@")[0] ?? "Explorador"}
-              level={playerLevel}
-              coins={coins}
-              avatarConfig={avatar}
-              onNavigate={(destination) => {
-                const action = resolveHubNavigation(destination);
-                if (action.kind === "loadout-focus") {
-                  openLoadoutFocus(action.focus);
-                  return;
-                }
-                if (action.view === "village") {
-                  setVillageReturnView("hub");
-                }
-                if (action.toast) setToast(action.toast);
-                navigate(action.view);
-              }}
-              onOpenClassic={() => setClassicHub(true)}
-            />
-          )
         ) : null}
         {!showWelcome && view === "expeditions" ? (
           <ArpgExpeditionSelect onSelect={(id) => void handleStartArpg(id)} />
@@ -812,19 +805,38 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
         {!showWelcome && view === "play" ? (
           <ArpgGame
             loadout={playableArpgLoadout}
-            avatarConfig={avatar}
+            avatarConfig={activeAvatar}
             expeditionId={selectedExpeditionId}
-            onExit={() => navigate("hub")}
+            atlasEncounter={selectedAtlasEncounter}
+            exitLabel={playReturnView === "map" ? "Voltar ao Atlas" : "Voltar à Guilda"}
+            onExit={() => navigate(playReturnView)}
             onRunComplete={(state, extraction) => {
               const newItems = extraction?.reward.newItems ?? [];
               const runLootItems = extraction?.reward.runLootItems ?? [];
+              const localVictoryReward = bootstrap.source !== "supabase"
+                && state.victory
+                && extraction
+                && !extraction.persisted
+                && !extraction.reward.replayed
+                ? extraction.reward
+                : null;
+              if (localVictoryReward) {
+                setCoins((current) => current + localVictoryReward.coins);
+                setXp((current) => current + localVictoryReward.xp);
+              }
               if (extraction?.persisted && !extraction.reward.replayed) {
                 setCoins((current) => current + extraction.reward.coins);
                 setXp((current) => current + extraction.reward.xp);
-                setEquipmentIds((current) => [...new Set([...current, ...extraction.reward.items])]);
+                setEquipmentIds((current) => [...new Set([
+                  ...current,
+                  ...extraction.reward.items.filter((itemKey) => ARPG_INVENTORY_ITEM_IDS.has(itemKey)),
+                ])]);
               }
               if (extraction?.persisted && (newItems.length > 0 || runLootItems.length > 0)) {
-                setEquipmentIds((current) => [...new Set([...current, ...newItems, ...runLootItems])]);
+                setEquipmentIds((current) => [...new Set([
+                  ...current,
+                  ...[...newItems, ...runLootItems].filter((itemKey) => ARPG_INVENTORY_ITEM_IDS.has(itemKey)),
+                ])]);
               }
               if (bootstrap.source === "supabase" && extraction?.persisted) router.refresh();
               const unlockedRelic = newItems
@@ -839,9 +851,11 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
                         ? extraction.reward.replayed
                           ? "A primeira recompensa desta expedição já havia sido extraída nesta conta."
                           : `Extração registrada: +${extraction.reward.coins} moedas e +${extraction.reward.xp} XP.`
-                        : state.victory
-                          ? `Run concluída: ${state.xpEarned} XP de expedição local.`
-                          : `Expedição encerrada na sala ${state.room}.`,
+                        : localVictoryReward
+                          ? `Vitória local: +${localVictoryReward.coins} moedas e +${localVictoryReward.xp} XP.`
+                          : state.victory
+                            ? `Run concluída: ${state.xpEarned} XP de expedição local.`
+                            : `Expedição encerrada na sala ${state.room}.`,
               );
             }}
           />
@@ -853,7 +867,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             currentAreaId={currentAreaId}
             visitedAreaIds={visitedAreaIds}
             openedTreasures={openedTreasures}
-            avatar={avatar}
+            avatar={activeAvatar}
             mapPositions={mapPositions}
             discoveredByRegion={discoveredByRegion}
             onlineParty={bootstrap.source === "supabase"}
@@ -883,43 +897,29 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
           />
         ) : null}
         {!showWelcome && view === "collection" ? (
-          <CollectionView
-            ownedCatalogIds={visibleOwnedCatalogIds}
-            collection={remoteSnapshot?.collection ?? []}
-            coins={coins}
-            onEvolve={bootstrap.source === "supabase" ? handleEvolveCreature : undefined}
-          />
+          <CollectionView />
         ) : null}
         {!showWelcome && view === "loadout" ? (
           <ArpgLoadoutView
             focus={loadoutFocus}
+            focusLegendId={focusedLegendId}
             loadout={playableArpgLoadout}
             inventoryItemKeys={equipmentIds}
-            ownedAbilityCardIds={ownedAbilityCardIds}
+            ownedLegendIds={ownedLegendIds}
             coins={coins}
-            avatarConfig={avatar}
+            avatarConfig={activeAvatar}
+            pendingLegendId={pendingLegendId}
             onChange={handleArpgLoadoutChange}
-            onPurchaseAbilityCard={handlePurchaseAbilityCard}
-            onSaveAvatar={handleSaveAvatar}
+            onSelectLegend={handleSelectLegend}
+            onPurchaseLegend={handlePurchaseLegend}
+            onToggleFavoriteLegend={handleToggleFavoriteLegend}
             onBack={() => void handleBackToHub()}
             onPlay={() => navigate("expeditions")}
-          >
-            {loadoutFocus === "cards" ? (
-              <ArpgPowerGacha
-                authenticated={bootstrap.source === "supabase"}
-                accountId={bootstrap.identity?.id ?? null}
-                onResult={(result) => {
-                  setCoins(result.coins);
-                  setEquipmentIds((current) => [...new Set([...current, result.itemId])]);
-                  if (bootstrap.source === "supabase") router.refresh();
-                }}
-              />
-            ) : null}
-          </ArpgLoadoutView>
+          />
         ) : null}
         {!showWelcome && view === "refuge" ? (
           <RefugeView
-            ownedCatalogIds={visibleOwnedCatalogIds ?? []}
+            avatarConfig={activeAvatar}
             ownedItemKeys={equipmentIds}
             house={remoteSnapshot?.house ?? null}
             savedLayout={bootstrap.source === "supabase" ? undefined : localRefuge}
@@ -930,7 +930,10 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
         {!showWelcome && view === "raid" ? (
           <RaidView
             bootstrap={bootstrap}
+            dismissedRoomId={dismissedRaidRoomId}
+            onDismissRaid={setDismissedRaidRoomId}
             onOpenRaid={(roomId, mode) => {
+              setDismissedRaidRoomId(null);
               setRaidGameplayMode(mode);
               setRaidRoomId(roomId);
             }}
@@ -945,30 +948,22 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             collectionCount={visibleOwnedCatalogIds?.length ?? CREATURES.length}
             source={bootstrap.source}
             snapshot={remoteSnapshot}
-            avatar={avatar}
-            equipmentIds={equipmentIds.filter((id) => ARPG_EQUIPMENT_IDS.has(id))}
-            onSaveAvatar={handleSaveAvatar}
+            avatar={activeAvatar}
             preferredBattleBoard={battleBoard}
             onSaveBattleBoard={handleSaveBattleBoard}
           />
         ) : null}
       </div> : null}
 
-      {!showWelcome && !titleOpen ? <nav className="mobile-nav" aria-label="Navegação principal">
-        {mobileNavigation.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className={cn(view === item.id && "is-active")}
-              onClick={() => navigate(item.id)}
-            >
-              <Icon /><span>{item.label}</span>
-            </button>
-          );
-        })}
-      </nav> : null}
+      {!showWelcome && !titleOpen && view !== "play" && !raidRoomId && !pvpSession ? (
+        <GameMenu
+          currentView={view === "hub" ? "hub" : "other"}
+          playerName={playerName}
+          level={playerLevel}
+          coins={coins}
+          onNavigate={handleGameMenuAction}
+        />
+      ) : null}
 
       {toast ? <div className="game-toast" role="status" aria-live="polite"><Trophy /> {toast}</div> : null}
       {raidRoomId && bootstrap.identity ? (
@@ -978,6 +973,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
               roomId={raidRoomId}
               playerId={bootstrap.identity.id}
               onClose={() => {
+                setDismissedRaidRoomId(raidRoomId);
                 setRaidRoomId(null);
                 if (bootstrap.source === "supabase") router.refresh();
               }}
@@ -989,6 +985,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
               gameplayMode={raidGameplayMode}
               onClose={() => {
                 setRaidRoomId(null);
+                setDismissedRaidRoomId(raidRoomId);
                 setRaidGameplayMode("avatar");
                 if (bootstrap.source === "supabase") router.refresh();
               }}
@@ -996,25 +993,15 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
           )}
         </div>
       ) : null}
-      {battleOpen || pvpSession ? (
+      {pvpSession ? (
         <div className="battle-overlay">
           <BattleArena
             open
             pvp={pvpSession}
-            encounter={pvpSession ? undefined : battleEncounter ?? undefined}
-            playerEnergy={energy}
-            guestSetup={bootstrap.source === "supabase" ? undefined : {
-              avatarConfig: avatar,
-              abilityIds: playableArpgLoadout.abilityIds,
-            }}
-            battleBoard={battleBoard}
             onClose={() => {
-              setBattleOpen(false);
-              setBattleEncounter(null);
               setPvpBattleId(null);
               if (bootstrap.source === "supabase") router.refresh();
             }}
-            onVictory={pvpSession ? () => undefined : handleVictory}
           />
         </div>
       ) : null}

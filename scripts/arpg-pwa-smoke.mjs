@@ -17,8 +17,8 @@ const staticCacheName = `${cacheVersion}-static`;
 const previousStaticCacheName = `${previousCacheVersion}-static`;
 const expectedCachePaths = [...coreAssetsBody.matchAll(/"([^\"]+)"/g)].map((match) => match[1]);
 const requiredGameAssets = [
-  "/art/guild-bestiary-keeper-spritesheet.png",
-  "/art/treasure-chest-spritesheet-v2.png",
+  "/art/guild-bestiary-keeper-spritesheet-v1.webp",
+  "/art/treasure-chest-spritesheet-v2.webp",
 ];
 const expectedIcons = [
   { src: "/icon.svg", size: null, purpose: "any" },

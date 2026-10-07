@@ -181,7 +181,6 @@ begin
   return committed_result;
 end;
 $$;
-
 revoke all on function public.commit_pvp_action(
   uuid, uuid, integer, uuid, text, jsonb, jsonb, jsonb
 ) from public, anon, authenticated;

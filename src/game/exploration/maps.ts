@@ -38,7 +38,7 @@ export const LOCAL_MAPS: Record<string, LocalMapDefinition> = {
   roots: {
     ...common,
     regionId: "roots",
-    art: "/art/local-map-roots.png",
+    art: "/art/local-map-roots-pixel-v2.webp",
     entry: { x: 4, y: 20 },
     blocked: [
       { x: 0, y: 0, width: 8, height: 8 },
@@ -72,7 +72,7 @@ export const LOCAL_MAPS: Record<string, LocalMapDefinition> = {
   archipelago: {
     ...common,
     regionId: "archipelago",
-    art: "/art/local-map-archipelago.png",
+    art: "/art/local-map-archipelago-pixel-v2.webp",
     entry: { x: 3, y: 20 },
     blocked: [
       { x: 0, y: 0, width: 9, height: 7 }, { x: 13, y: 0, width: 8, height: 5 },
@@ -100,7 +100,7 @@ export const LOCAL_MAPS: Record<string, LocalMapDefinition> = {
   runic: {
     ...common,
     regionId: "runic",
-    art: "/art/local-map-runic.png",
+    art: "/art/local-map-runic-pixel-v2.webp",
     entry: { x: 4, y: 21 },
     blocked: [
       { x: 0, y: 0, width: 8, height: 8 }, { x: 13, y: 0, width: 8, height: 6 },
@@ -128,7 +128,7 @@ export const LOCAL_MAPS: Record<string, LocalMapDefinition> = {
   mist: {
     ...common,
     regionId: "mist",
-    art: "/art/local-map-mist.png",
+    art: "/art/local-map-mist-pixel-v2.webp",
     entry: { x: 3, y: 21 },
     blocked: [
       { x: 0, y: 0, width: 9, height: 7 }, { x: 14, y: 0, width: 7, height: 6 },
@@ -156,7 +156,7 @@ export const LOCAL_MAPS: Record<string, LocalMapDefinition> = {
   desert: {
     ...common,
     regionId: "desert",
-    art: "/art/local-map-desert.png",
+    art: "/art/local-map-desert-pixel-v2.webp",
     entry: { x: 4, y: 21 },
     blocked: [
       { x: 0, y: 0, width: 8, height: 8 }, { x: 13, y: 0, width: 8, height: 6 },

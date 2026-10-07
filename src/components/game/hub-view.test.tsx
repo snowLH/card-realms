@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 describe("atalhos do menu clássico", () => {
-  it("resume o Arsenal ARPG com dois ataques e descreve o Refúgio sem papel de combate", () => {
+  it("resume o Arsenal ARPG com dois ataques da Lenda e descreve o Refúgio sem papel de combate", () => {
     vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
     const { container } = render(
       <HubView
@@ -40,12 +40,14 @@ describe("atalhos do menu clássico", () => {
     const refuge = cards.find((card) => card.textContent?.includes("Seu refúgio"));
 
     expect(arsenal).toBeDefined();
-    expect(arsenal!).toHaveTextContent("Arma, armadura, relíquia e 2 ataques");
-    expect(arsenal!).not.toHaveTextContent(/suporte|4 cartas/i);
+    expect(arsenal!).toHaveTextContent("Armas e relíquias das masmorras; 2 ataques da Lenda ativa");
+    expect(arsenal!).not.toHaveTextContent(/armadura|suporte|4 cartas/i);
     expect(refuge).toBeDefined();
-    expect(refuge!).toHaveTextContent("Sua casa e criaturas da coleção");
+    expect(refuge!).toHaveTextContent("Personalize seu espaço e decoração");
     expect(refuge!).not.toHaveTextContent(/companheiros/i);
-    expect(container).toHaveTextContent("Prepare avatar e 2 poderes");
+    expect(container).toHaveTextContent("Escolha uma Lenda e ative seus 2 ataques");
+    expect(container).toHaveTextContent("2–4 jogadores · sala com convite");
+    expect(container).not.toHaveTextContent(/até 5 amigos|cinco jogadores/i);
     expect(container).not.toHaveTextContent(/equipe de seis/i);
   });
 
@@ -73,7 +75,7 @@ describe("atalhos do menu clássico", () => {
       />,
     );
 
-    expect(container).toHaveTextContent("Avatar e 2 poderes prontos");
+    expect(container).toHaveTextContent("Lenda ativa e 2 ataques próprios prontos");
     expect(container).not.toHaveTextContent(/equipe de seis/i);
   });
 });

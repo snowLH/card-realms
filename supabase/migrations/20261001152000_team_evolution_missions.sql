@@ -5,7 +5,6 @@ alter table public.player_creatures
   add column if not exists evolution_stage smallint not null default 0
     check (evolution_stage between 0 and 2),
   add column if not exists evolved_at timestamptz;
-
 create table if not exists public.mission_event_ledger (
   user_id uuid not null references public.profiles(id) on delete cascade,
   event_id text not null,
@@ -13,12 +12,9 @@ create table if not exists public.mission_event_ledger (
   created_at timestamptz not null default now(),
   primary key (user_id, event_id)
 );
-
 alter table public.mission_event_ledger enable row level security;
-
 revoke all on public.mission_event_ledger from public, anon, authenticated;
 grant all privileges on public.mission_event_ledger to service_role;
-
 insert into public.missions (id, title, description, objective, rewards, repeatable, enabled)
 values
   (
@@ -64,20 +60,17 @@ set title = excluded.title,
     rewards = excluded.rewards,
     repeatable = excluded.repeatable,
     enabled = excluded.enabled;
-
 -- The older daily/weekly placeholders did not have reset semantics implemented.
 -- Keep them out of the active mission UI until a proper season/reset system exists.
 update public.missions
 set enabled = false
 where id in ('daily-explore', 'weekly-bonds');
-
 insert into public.player_missions (user_id, mission_id)
 select profiles.id, missions.id
 from public.profiles profiles
 cross join public.missions missions
 where missions.enabled
 on conflict (user_id, mission_id) do nothing;
-
 create or replace function private.seed_player_missions()
 returns trigger
 language plpgsql
@@ -93,15 +86,12 @@ begin
   return new;
 end;
 $mission$;
-
 drop trigger if exists seed_player_missions_after_profile on public.profiles;
 create trigger seed_player_missions_after_profile
 after insert on public.profiles
 for each row execute function private.seed_player_missions();
-
 revoke all on function private.seed_player_missions() from public, anon, authenticated;
 grant execute on function private.seed_player_missions() to service_role;
-
 create or replace function public.save_active_team(
   target_member_ids uuid[],
   target_name text default null
@@ -189,10 +179,8 @@ begin
   );
 end;
 $team$;
-
 revoke all on function public.save_active_team(uuid[], text) from public, anon;
 grant execute on function public.save_active_team(uuid[], text) to authenticated, service_role;
-
 create or replace function public.evolve_owned_creature(target_instance_id uuid)
 returns jsonb
 language plpgsql
@@ -282,10 +270,8 @@ begin
   );
 end;
 $evolve$;
-
 revoke all on function public.evolve_owned_creature(uuid) from public, anon;
 grant execute on function public.evolve_owned_creature(uuid) to authenticated, service_role;
-
 create or replace function public.record_mission_events(
   target_player_id uuid,
   target_events jsonb,
@@ -387,12 +373,10 @@ begin
   );
 end;
 $missions$;
-
 revoke all on function public.record_mission_events(uuid, jsonb, jsonb)
 from public, anon, authenticated;
 grant execute on function public.record_mission_events(uuid, jsonb, jsonb)
 to service_role;
-
 create or replace function public.claim_mission_reward(target_mission_id text)
 returns jsonb
 language plpgsql
@@ -459,12 +443,9 @@ begin
   );
 end;
 $claim$;
-
 revoke all on function public.claim_mission_reward(text) from public, anon;
 grant execute on function public.claim_mission_reward(text) to authenticated, service_role;
-
 create index if not exists player_creatures_user_catalog_idx
   on public.player_creatures (user_id, creature_id, acquired_at);
-
 create index if not exists mission_event_ledger_user_created_idx
   on public.mission_event_ledger (user_id, created_at desc);

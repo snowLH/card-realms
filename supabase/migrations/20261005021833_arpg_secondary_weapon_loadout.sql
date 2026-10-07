@@ -2,7 +2,6 @@
 -- rewriting completed Raid snapshots.
 alter table public.player_arpg_loadouts
   add column if not exists secondary_weapon_id text;
-
 -- Most saved primary weapons differ from the default secondary. Rows that had
 -- iron-sword as their primary receive the free forest-bow as their second slot.
 update public.player_arpg_loadouts
@@ -12,7 +11,6 @@ set secondary_weapon_id = case
 end
 where secondary_weapon_id is null
    or secondary_weapon_id = weapon_id;
-
 -- A legacy iron-sword primary now pairs with the starter bow. Keep that
 -- already-valid loadout usable by the existing ownership checks.
 insert into public.inventory_items (user_id, item_key, quantity, metadata)
@@ -28,7 +26,6 @@ on conflict (user_id, item_key) do update
 set quantity = greatest(public.inventory_items.quantity, 1),
     metadata = public.inventory_items.metadata || excluded.metadata,
     updated_at = now();
-
 alter table public.player_arpg_loadouts
   alter column secondary_weapon_id set default 'iron-sword';
 alter table public.player_arpg_loadouts
@@ -45,13 +42,11 @@ alter table public.player_arpg_loadouts
       'runic-sabre', 'alicanto-bow', 'raiju-staff'
     )
   );
-
 -- Replace the four-argument implementation with the five-argument contract.
 -- Keep a public four-argument wrapper for old SQL callers; new clients must
 -- supply both weapons explicitly.
 drop function if exists public.save_arpg_loadout(text, text, text, text[]);
 drop function if exists private.save_arpg_loadout(text, text, text, text[]);
-
 create or replace function private.save_arpg_loadout(
   target_weapon_id text,
   target_secondary_weapon_id text,
@@ -184,13 +179,11 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.save_arpg_loadout(text, text, text, text, text[])
   from public, anon, authenticated;
 grant usage on schema private to authenticated;
 grant execute on function private.save_arpg_loadout(text, text, text, text, text[])
   to authenticated;
-
 create or replace function public.save_arpg_loadout(
   target_weapon_id text,
   target_secondary_weapon_id text,
@@ -208,12 +201,10 @@ as $$
     target_armor_id, target_relic_id, target_ability_ids
   );
 $$;
-
 revoke all on function public.save_arpg_loadout(text, text, text, text, text[])
   from public, anon;
 grant execute on function public.save_arpg_loadout(text, text, text, text, text[])
   to authenticated;
-
 create or replace function public.save_arpg_loadout(
   target_weapon_id text,
   target_armor_id text,
@@ -233,10 +224,8 @@ as $$
     target_ability_ids
   );
 $$;
-
 revoke all on function public.save_arpg_loadout(text, text, text, text[]) from public, anon;
 grant execute on function public.save_arpg_loadout(text, text, text, text[]) to authenticated;
-
 -- New Raid snapshots carry and validate both weapons. Completed Raid JSON is
 -- left untouched; legacy snapshots without this property use the old default.
 create or replace function private.arpg_raid_loadout_snapshot(target_player_id uuid)
@@ -355,11 +344,9 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.arpg_raid_loadout_snapshot(uuid)
   from public, anon, authenticated;
 grant execute on function private.arpg_raid_loadout_snapshot(uuid) to service_role;
-
 create or replace function private.assert_arpg_raid_secondary_weapon_snapshot(
   target_room_id uuid,
   submitted_state jsonb
@@ -403,17 +390,14 @@ begin
   end if;
 end;
 $$;
-
 revoke all on function private.assert_arpg_raid_secondary_weapon_snapshot(uuid, jsonb)
   from public, anon, authenticated, service_role;
-
 -- Route calls through a narrow guard while retaining the already-versioned
 -- server authority bodies. Running rooms marked legacy keep their old behavior.
 alter function public.start_raid_room(uuid, jsonb)
   rename to start_raid_room_without_secondary_weapon_guard;
 revoke all on function public.start_raid_room_without_secondary_weapon_guard(uuid, jsonb)
   from public, anon, authenticated, service_role;
-
 create or replace function public.start_raid_room(
   target_room_id uuid,
   submitted_state jsonb
@@ -428,16 +412,13 @@ begin
   return public.start_raid_room_without_secondary_weapon_guard(target_room_id, submitted_state);
 end;
 $$;
-
 revoke all on function public.start_raid_room(uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.start_raid_room(uuid, jsonb) to service_role;
-
 alter function public.commit_raid_action(uuid, uuid, integer, uuid, text, jsonb, jsonb, jsonb)
   rename to commit_raid_action_without_secondary_weapon_guard;
 revoke all on function public.commit_raid_action_without_secondary_weapon_guard(
   uuid, uuid, integer, uuid, text, jsonb, jsonb, jsonb
 ) from public, anon, authenticated, service_role;
-
 create or replace function public.commit_raid_action(
   target_room_id uuid,
   acting_user_id uuid,
@@ -461,7 +442,6 @@ begin
   );
 end;
 $$;
-
 revoke all on function public.commit_raid_action(
   uuid, uuid, integer, uuid, text, jsonb, jsonb, jsonb
 ) from public, anon, authenticated;

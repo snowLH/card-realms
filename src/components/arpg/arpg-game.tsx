@@ -1,17 +1,17 @@
 "use client";
 
-import { Map as MapIcon, Maximize2, Pause, Play, RotateCcw, Volume2, VolumeX, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Map as MapIcon, Maximize2, Pause, Play, Volume2, VolumeX, X } from "lucide-react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   DEFAULT_ARPG_EXPEDITION_ID,
   getArpgExpedition,
   type ArpgExpeditionId,
 } from "@/game/arpg/content/expeditions";
 import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
-import { getDefaultSecondaryArpgWeaponId } from "@/game/arpg/content/equipment";
 import type { ArpgHudState, ArpgLoadout, ArpgRunCheckpointState } from "@/game/arpg/domain/types";
 import type { ArpgRunCheckpoint } from "@/game/arpg/dungeon/run-checkpoint";
 import type { ArpgDungeonCombatState } from "@/game/arpg/dungeon/combat-authority";
+import { getLocalDungeonCompletionReward } from "@/game/arpg/dungeon/rewards";
 import { ArpgBridge } from "@/game/arpg/runtime/bridge";
 import { createArpgGame } from "@/game/arpg/runtime/create-game";
 import { LootChoice } from "./loot-choice";
@@ -19,6 +19,11 @@ import { RoomChoice } from "./room-choice";
 import { DungeonMapOverlay, RunHud } from "./run-hud";
 import { TouchControls } from "./touch-controls";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
+import {
+  resolveAtlasEncounterTarget,
+  type AtlasEncounterReference,
+  type AtlasEncounterTarget,
+} from "@/game/arpg/content/atlas-encounters";
 
 type ArpgExtractionResult = {
   persisted: boolean;
@@ -34,21 +39,42 @@ type ArpgExtractionResult = {
   };
 };
 
+const PORTRAIT_MOBILE_QUERY = "(max-width: 900px) and (orientation: portrait)";
+
+function subscribeToPortraitMode(onChange: () => void) {
+  const query = window.matchMedia(PORTRAIT_MOBILE_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+function getPortraitModeSnapshot() {
+  return window.matchMedia(PORTRAIT_MOBILE_QUERY).matches;
+}
+
+function getPortraitModeServerSnapshot() {
+  return null;
+}
+
 export function ArpgGame({
   onExit,
+  exitLabel = "Voltar à Guilda",
   onRunComplete,
   loadout = DEFAULT_ARPG_LOADOUT,
   expeditionId = DEFAULT_ARPG_EXPEDITION_ID,
   avatarConfig = DEFAULT_AVATAR_CONFIG,
+  atlasEncounter = null,
 }: {
   onExit: () => void;
+  exitLabel?: string;
   onRunComplete?: (state: ArpgHudState, extraction?: ArpgExtractionResult) => void;
   loadout?: ArpgLoadout;
   expeditionId?: ArpgExpeditionId;
   avatarConfig?: AvatarConfig;
+  atlasEncounter?: AtlasEncounterReference | null;
 }) {
   const expedition = getArpgExpedition(expeditionId);
   const hostRef = useRef<HTMLDivElement>(null);
+  const mapButtonRef = useRef<HTMLButtonElement>(null);
   const gameControlRef = useRef<{ setPaused: (paused: boolean) => void } | null>(null);
   const loadoutForBootRef = useRef(loadout);
   const bootStartedRef = useRef(false);
@@ -57,9 +83,14 @@ export function ArpgGame({
   const checkpointRevisionRef = useRef(0);
   const checkpointQueueRef = useRef<Promise<void>>(Promise.resolve());
   const onRunCompleteRef = useRef(onRunComplete);
+  const runCompletedRef = useRef(false);
   const [bridge] = useState(() => new ArpgBridge());
   const [soundEnabled, setSoundEnabled] = useState(() => bridge.getSoundEnabled());
-  const [portraitMobile, setPortraitMobile] = useState(false);
+  const portraitMobile = useSyncExternalStore(
+    subscribeToPortraitMode,
+    getPortraitModeSnapshot,
+    getPortraitModeServerSnapshot,
+  );
   const [hud, setHud] = useState<ArpgHudState | null>(null);
   const [message, setMessage] = useState(() => `Entrando em ${expedition.name}...`);
   const [ready, setReady] = useState(false);
@@ -68,6 +99,8 @@ export function ArpgGame({
   const [mapOpen, setMapOpen] = useState(false);
   const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
   const [bootError, setBootError] = useState<string | null>(null);
+  const [atlasTarget, setAtlasTarget] = useState<AtlasEncounterTarget | null>(null);
+  const hasDungeonMap = Boolean(hud?.dungeonMap);
 
   useEffect(() => {
     onRunCompleteRef.current = onRunComplete;
@@ -100,19 +133,15 @@ export function ArpgGame({
   }, [loadout]);
 
   useEffect(() => {
-    const query = window.matchMedia("(max-width: 900px) and (orientation: portrait)");
-    const update = () => setPortraitMobile(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-
-  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat || !ready || runResult) return;
-      if (event.code === "Tab") {
-        event.preventDefault();
-        if (!paused) setMapOpen((current) => !current);
+      if (event.repeat || !ready || runResult || event.defaultPrevented) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || target.matches("input, textarea, select"))) return;
+      if (event.code === "KeyM") {
+        if (!paused && hasDungeonMap) {
+          event.preventDefault();
+          setMapOpen((current) => !current);
+        }
       } else if (event.code === "Escape") {
         event.preventDefault();
         if (mapOpen) setMapOpen(false);
@@ -121,14 +150,14 @@ export function ArpgGame({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [ready, runResult, mapOpen, paused]);
+  }, [ready, runResult, mapOpen, paused, hasDungeonMap]);
 
   useEffect(() => {
     gameControlRef.current?.setPaused(paused || mapOpen);
   }, [paused, mapOpen]);
 
   useEffect(() => {
-    if (portraitMobile || !hostRef.current) return;
+    if (!hostRef.current) return;
     let disposed = false;
     let destroyGame: (() => void) | null = null;
 
@@ -197,11 +226,24 @@ export function ArpgGame({
     };
 
     const completeRun = async (state: ArpgHudState) => {
+      if (runCompletedRef.current) return;
+      runCompletedRef.current = true;
       setRunResult(state);
+      const localExtraction: ArpgExtractionResult = {
+        persisted: false,
+        reward: {
+          ...getLocalDungeonCompletionReward(expeditionId, state.victory),
+          victory: state.victory,
+          items: [],
+          replayed: false,
+        },
+      };
       const token = runTokenRef.current;
       if (!token) {
-        setExtractionMessage("Run concluída localmente; sessão de extração indisponível.");
-        onRunCompleteRef.current?.(state);
+        setExtractionMessage(state.victory
+          ? `Vitória local: +${localExtraction.reward.coins} moedas e +${localExtraction.reward.xp} XP.`
+          : "Expedição local encerrada sem recompensa de vitória.");
+        onRunCompleteRef.current?.(state, persistentRunRef.current ? undefined : localExtraction);
         return;
       }
       setExtractionMessage("Validando extração...");
@@ -214,11 +256,19 @@ export function ArpgGame({
         });
         const payload = await response.json() as ArpgExtractionResult & { error?: string };
         if (!response.ok) throw new Error(payload.error ?? "A extração não pôde ser validada.");
-        setExtractionMessage(payload.persisted ? "Extração registrada na conta." : "Run de visitante: progresso permanente não alterado.");
+        setExtractionMessage(payload.persisted
+          ? "Extração registrada na conta."
+          : state.victory
+            ? `Vitória local: +${payload.reward.coins} moedas e +${payload.reward.xp} XP.`
+            : "Expedição local encerrada sem recompensa de vitória.");
         onRunCompleteRef.current?.(state, payload);
       } catch (error) {
-        setExtractionMessage(error instanceof Error ? error.message : "Falha ao registrar extração.");
-        onRunCompleteRef.current?.(state);
+        setExtractionMessage(persistentRunRef.current
+          ? error instanceof Error ? error.message : "Falha ao registrar extração."
+          : state.victory
+            ? `Vitória local: +${localExtraction.reward.coins} moedas e +${localExtraction.reward.xp} XP.`
+            : "Expedição local encerrada sem recompensa de vitória.");
+        onRunCompleteRef.current?.(state, persistentRunRef.current ? undefined : localExtraction);
       }
     };
 
@@ -227,10 +277,15 @@ export function ArpgGame({
 
     const boot = async () => {
       try {
+        runCompletedRef.current = false;
         const response = await fetch("/api/arpg/run", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ action: "start", expeditionId }),
+          body: JSON.stringify({
+            action: "start",
+            expeditionId,
+            ...(atlasEncounter ? { atlasEncounter } : {}),
+          }),
         });
         const payload = await response.json() as {
           token?: string;
@@ -238,15 +293,22 @@ export function ArpgGame({
           runSeed?: string;
           checkpoint?: ArpgRunCheckpoint;
           loadout?: ArpgLoadout;
+          avatarConfig?: AvatarConfig | null;
           revision?: number;
           persistent?: boolean;
           resumed?: boolean;
+          atlasEncounter?: AtlasEncounterReference | null;
           error?: string;
         };
         if (!response.ok || !payload.token || !payload.runSeed || !payload.checkpoint) {
           throw new Error(payload.error ?? "A sessão da run não pôde ser criada.");
         }
         runTokenRef.current = payload.token;
+        const resolvedTarget = resolveAtlasEncounterTarget(payload.atlasEncounter ?? null);
+        if (atlasEncounter && !resolvedTarget) {
+          throw new Error("O alvo selecionado do Atlas não foi preservado pela sessão.");
+        }
+        setAtlasTarget(resolvedTarget);
         persistentRunRef.current = payload.persistent === true;
         bridge.setServerAuthoritativeCombat(persistentRunRef.current);
         checkpointRevisionRef.current = payload.revision ?? 0;
@@ -265,7 +327,7 @@ export function ArpgGame({
           payload.lootItemIds,
           payload.runSeed,
           payload.resumed ? payload.checkpoint : undefined,
-          avatarConfig,
+          payload.avatarConfig ?? avatarConfig,
         );
         if (disposed) {
           session.destroy();
@@ -295,7 +357,7 @@ export function ArpgGame({
       destroyGame?.();
       setReady(false);
     };
-  }, [avatarConfig, bridge, expedition, expeditionId, portraitMobile]);
+  }, [atlasEncounter, avatarConfig, bridge, expedition, expeditionId]);
 
   const requestFullscreen = async () => {
     const element = document.documentElement;
@@ -312,96 +374,99 @@ export function ArpgGame({
     && !hud?.runEnded,
   );
 
-  if (portraitMobile) {
-    return (
-      <section className="arpg-rotate-gate">
-        <RotateCcw />
-        <strong>Gire o dispositivo para jogar</strong>
-        <span>Card Realms foi projetado para gameplay em modo paisagem.</span>
-        <button type="button" onClick={onExit}>Voltar à Guilda</button>
-      </section>
-    );
-  }
   return (
-    <section className="arpg-shell">
-      <div className="arpg-shell__topbar">
-        <div>
-          <strong>{expedition.name}</strong>
-          <span>{message}</span>
+    <section className={`arpg-shell${portraitMobile === true ? " arpg-shell--portrait-mobile" : ""}`}>
+      <div className="arpg-playfield">
+        <div className="arpg-shell__topbar">
+          <div>
+            <strong>{expedition.name}</strong>
+            <span>{message}</span>
+            {atlasTarget ? (
+              <em className="arpg-shell__atlas-target">
+                {atlasTarget.kind === "npc" ? "Duelo com" : "Alvo do Atlas"}: {atlasTarget.name}
+              </em>
+            ) : null}
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => bridge.setSoundEnabled(!soundEnabled)}
+              aria-label={soundEnabled ? "Desativar som" : "Ativar som"}
+              aria-pressed={soundEnabled}
+              title={soundEnabled ? "Desativar som" : "Ativar som"}
+            >
+              {soundEnabled ? <Volume2 /> : <VolumeX />}
+            </button>
+            <button
+              type="button"
+              aria-label={paused ? "Retomar jogo" : "Pausar jogo"}
+              aria-pressed={paused}
+              disabled={!ready || Boolean(runResult)}
+              onClick={() => {
+                setMapOpen(false);
+                setPaused((current) => !current);
+              }}
+            >
+              {paused ? <Play /> : <Pause />}
+            </button>
+            <button
+              ref={mapButtonRef}
+              type="button"
+              aria-label={mapOpen ? "Fechar mapa (M)" : "Abrir mapa (M)"}
+              aria-pressed={mapOpen}
+              disabled={!ready || Boolean(runResult) || paused || !hud?.dungeonMap}
+              onClick={() => setMapOpen((current) => !current)}
+            >
+              <MapIcon />
+            </button>
+            <button type="button" onClick={() => void requestFullscreen()} aria-label="Tela cheia">
+              <Maximize2 />
+            </button>
+            <button type="button" onClick={onExit} aria-label={exitLabel}>
+              <X />
+            </button>
+          </div>
         </div>
-        <div>
-          <button
-            type="button"
-            onClick={() => bridge.setSoundEnabled(!soundEnabled)}
-            aria-label={soundEnabled ? "Desativar som" : "Ativar som"}
-            aria-pressed={soundEnabled}
-            title={soundEnabled ? "Desativar som" : "Ativar som"}
-          >
-            {soundEnabled ? <Volume2 /> : <VolumeX />}
-          </button>
-          <button
-            type="button"
-            aria-label={paused ? "Retomar jogo" : "Pausar jogo"}
-            aria-pressed={paused}
-            disabled={!ready || Boolean(runResult)}
-            onClick={() => {
-              setMapOpen(false);
-              setPaused((current) => !current);
-            }}
-          >
-            {paused ? <Play /> : <Pause />}
-          </button>
-          <button
-            type="button"
-            aria-label={mapOpen ? "Fechar mapa" : "Abrir mapa"}
-            aria-pressed={mapOpen}
-            disabled={!ready || Boolean(runResult) || paused || !hud?.dungeonMap}
-            onClick={() => setMapOpen((current) => !current)}
-          >
-            <MapIcon />
-          </button>
-          <button type="button" onClick={() => void requestFullscreen()} aria-label="Tela cheia">
-            <Maximize2 />
-          </button>
-          <button type="button" onClick={onExit} aria-label="Voltar ao HUB">
-            <X />
-          </button>
-        </div>
-      </div>
 
-      <div className="arpg-stage">
-        <div ref={hostRef} className="arpg-stage__canvas" />
-        {!ready ? <div className="arpg-stage__loading">{bootError ?? "Carregando motor ARPG..."}</div> : null}
-        <RunHud state={hud} />
-        <TouchControls
-          bridge={bridge}
-          weaponId={hud?.weaponId ?? loadout.weaponId}
-          secondaryWeaponId={hud?.secondaryWeaponId ?? loadout.secondaryWeaponId ?? getDefaultSecondaryArpgWeaponId(loadout.weaponId)}
-          abilityIds={hud?.abilityIds ?? loadout.abilityIds}
-          abilityReadyAt={hud?.abilityReadyAt ?? {}}
-          nowMs={hud?.nowMs ?? 0}
-          dashReadyAt={hud?.dashReadyAt ?? 0}
-          chestAvailable={hud?.chestAvailable ?? false}
-          exitPortalAvailable={hud?.exitPortalAvailable ?? false}
-          specialRoomAvailable={specialRoomAvailable}
-        />
-        <LootChoice state={hud} bridge={bridge} />
-        <RoomChoice state={hud} bridge={bridge} />
-        {paused ? (
-          <section className="arpg-pause" role="dialog" aria-modal="true" aria-labelledby="arpg-pause-title">
-            <div className="arpg-pause__panel">
-              <small>EXPEDIÇÃO INTERROMPIDA</small>
-              <h1 id="arpg-pause-title">Pausa</h1>
-              <p>Retome quando estiver pronto para continuar a jornada.</p>
-              <button type="button" autoFocus onClick={() => setPaused(false)}>Retomar</button>
-              <button type="button" onClick={onExit}>Voltar à Guilda</button>
-            </div>
-          </section>
-        ) : null}
-        {mapOpen && hud?.dungeonMap ? (
-          <DungeonMapOverlay map={hud.dungeonMap} onClose={() => setMapOpen(false)} />
-        ) : null}
-      </div>
+        <div className="arpg-stage">
+          <div ref={hostRef} className="arpg-stage__canvas" />
+          {!ready ? <div className="arpg-stage__loading">{bootError ?? "Carregando motor ARPG..."}</div> : null}
+          <RunHud state={hud} />
+          <TouchControls
+            bridge={bridge}
+            abilityIds={hud?.abilityIds ?? loadout.abilityIds}
+            abilityReadyAt={hud?.abilityReadyAt ?? {}}
+            nowMs={hud?.nowMs ?? 0}
+            dashReadyAt={hud?.dashReadyAt ?? 0}
+            chestAvailable={hud?.chestAvailable ?? false}
+            exitPortalAvailable={hud?.exitPortalAvailable ?? false}
+            specialRoomAvailable={specialRoomAvailable}
+            weaponBId={hud?.weaponSlots?.B ?? null}
+            activeWeaponSlot={hud?.weaponSlots?.active ?? "A"}
+          />
+          <LootChoice state={hud} bridge={bridge} />
+          <RoomChoice state={hud} bridge={bridge} />
+          {paused ? (
+            <section className="arpg-pause" role="dialog" aria-modal="true" aria-labelledby="arpg-pause-title">
+              <div className="arpg-pause__panel">
+                <small>EXPEDIÇÃO INTERROMPIDA</small>
+                <h1 id="arpg-pause-title">Pausa</h1>
+                <p>Retome quando estiver pronto para continuar a jornada.</p>
+                <button type="button" autoFocus onClick={() => setPaused(false)}>Retomar</button>
+                <button type="button" onClick={onExit}>{exitLabel}</button>
+              </div>
+            </section>
+          ) : null}
+          {hud?.dungeonMap ? (
+            <DungeonMapOverlay
+              map={hud.dungeonMap}
+              open={mapOpen}
+              onClose={() => setMapOpen(false)}
+              restoreFocus={() => mapButtonRef.current?.focus()}
+            />
+          ) : null}
+        </div>
+        </div>
 
       <div className="arpg-help">
         <span>WASD mover</span>
@@ -410,6 +475,8 @@ export function ArpgGame({
         <span>SPACE dash</span>
         <span>1 / 2 ataques</span>
         <span>E interagir/abrir baú</span>
+        <span>M mapa</span>
+        <span>ESC pausar/retomar</span>
         <span>Click direito: ataque 2</span>
         <span>Gamepad: LS mover · RS mirar · A atacar · B dash</span>
         <span>D-pad ↑ / ↓ ataques · RB interagir</span>
@@ -428,7 +495,7 @@ export function ArpgGame({
             </div>
             <small>{runResult.victory ? "Loot elegível para extração." : "Loot da run ainda não foi extraído."}</small>
             {extractionMessage ? <span className="arpg-run-result__extraction">{extractionMessage}</span> : null}
-            <button type="button" onClick={onExit}>Voltar à Guilda</button>
+            <button type="button" onClick={onExit}>{exitLabel}</button>
           </div>
         </div>
       ) : null}

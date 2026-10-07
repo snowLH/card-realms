@@ -7,7 +7,7 @@ import { DungeonManager } from "../dungeon/manager";
 import type { ArpgRunCheckpoint } from "../dungeon/run-checkpoint";
 import type { ArpgLoadout, ArpgRuntimeBridge } from "../domain/types";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
-import { ARPG_LOGICAL_VIEWPORT, ARPG_PIXEL_RENDER_SETTINGS } from "./render-config";
+import { ARPG_GAMEPLAY_VIEWPORT, ARPG_PIXEL_RENDER_SETTINGS } from "./render-config";
 
 export async function createArpgGame(
   parent: HTMLElement,
@@ -18,6 +18,7 @@ export async function createArpgGame(
   runSeed?: string,
   checkpoint?: ArpgRunCheckpoint,
   avatarConfig: AvatarConfig = DEFAULT_AVATAR_CONFIG,
+  viewport: { width: number; height: number } = ARPG_GAMEPLAY_VIEWPORT,
 ) {
   const dungeon = ARPG_DUNGEON_CONFIGS[expeditionId];
   if (!dungeon) throw new Error("Configuração da expedição não encontrada.");
@@ -35,7 +36,7 @@ export async function createArpgGame(
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent,
-    ...ARPG_LOGICAL_VIEWPORT,
+    ...viewport,
     backgroundColor: "#102018",
     ...ARPG_PIXEL_RENDER_SETTINGS,
     physics: {
@@ -45,7 +46,7 @@ export async function createArpgGame(
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
-      ...ARPG_LOGICAL_VIEWPORT,
+      ...viewport,
     },
     scene: [DungeonScene],
   });

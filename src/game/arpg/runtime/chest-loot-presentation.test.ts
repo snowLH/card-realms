@@ -11,17 +11,9 @@ import { buildDungeonPixelLayout } from "../dungeon/layout";
 import { gridCellKey, worldToGridCell } from "../navigation/grid-path";
 
 describe("chest loot presentation", () => {
-  it("uses the assigned weapon or armor silhouette and its declared rarity", () => {
+  it("uses the assigned weapon silhouette and its declared rarity", () => {
     expect(getChestLootVisualDetails({ kind: "weapon", id: "raiju-staff", label: "Cajado do Raijū" }))
       .toMatchObject({ silhouette: "staff", rarity: "epic" });
-    expect(getChestLootVisualDetails({ kind: "armor", id: "carbunclo-mantle", label: "Manto" }))
-      .toMatchObject({ silhouette: "mantle", rarity: "epic" });
-    expect(getChestLootVisualDetails({ kind: "armor", id: "kelpie-mist-cloak", label: "Manto da Névoa" }))
-      .toMatchObject({ silhouette: "mantle", rarity: "rare" });
-    expect(getChestLootVisualDetails({ kind: "armor", id: "leather-armor", label: "Armadura de Couro" }))
-      .toMatchObject({ silhouette: "breastplate", rarity: "common" });
-    expect(getChestLootVisualDetails({ kind: "armor", id: "amarok-hunter-armor", label: "Couraça" }))
-      .toMatchObject({ silhouette: "breastplate", rarity: "rare" });
   });
 
   it("keeps rarity feedback defined across the full rarity union", () => {

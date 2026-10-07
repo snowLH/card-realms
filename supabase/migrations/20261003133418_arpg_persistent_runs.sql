@@ -27,19 +27,15 @@ create table private.arpg_runs (
     or (status <> 'active' and finished_at is not null)
   )
 );
-
 create unique index arpg_runs_one_active_per_user
   on private.arpg_runs (user_id)
   where status = 'active';
-
 create index arpg_runs_user_recent
   on private.arpg_runs (user_id, updated_at desc);
-
 alter table private.arpg_runs enable row level security;
 revoke all on table private.arpg_runs from public, anon, authenticated;
 grant select, insert, update, delete on table private.arpg_runs to service_role;
 grant usage on schema private to service_role;
-
 create or replace function private.begin_or_resume_arpg_run(
   target_player_id uuid,
   target_run_id uuid,
@@ -157,7 +153,6 @@ begin
   );
 end;
 $$;
-
 create or replace function private.get_active_arpg_run(target_player_id uuid)
 returns jsonb
 language sql
@@ -179,7 +174,6 @@ as $$
   order by run.started_at desc
   limit 1;
 $$;
-
 create or replace function private.save_arpg_run_checkpoint(
   target_player_id uuid,
   target_run_id uuid,
@@ -247,7 +241,6 @@ begin
   );
 end;
 $$;
-
 create or replace function private.finish_arpg_run(
   target_player_id uuid,
   target_run_id uuid,
@@ -324,7 +317,6 @@ begin
   return reward;
 end;
 $$;
-
 revoke all on function private.begin_or_resume_arpg_run(uuid, uuid, text, text, text, text, text[], text, jsonb)
   from public, anon, authenticated;
 revoke all on function private.get_active_arpg_run(uuid)
@@ -341,7 +333,6 @@ grant execute on function private.save_arpg_run_checkpoint(uuid, uuid, integer, 
   to service_role;
 grant execute on function private.finish_arpg_run(uuid, uuid, text, boolean, text[])
   to service_role;
-
 create or replace function public.begin_or_resume_arpg_run(
   target_player_id uuid,
   target_run_id uuid,
@@ -364,7 +355,6 @@ as $$
     target_signed_token, target_checkpoint
   );
 $$;
-
 create or replace function public.get_active_arpg_run(target_player_id uuid)
 returns jsonb
 language sql
@@ -373,7 +363,6 @@ set search_path = ''
 as $$
   select private.get_active_arpg_run(target_player_id);
 $$;
-
 create or replace function public.save_arpg_run_checkpoint(
   target_player_id uuid,
   target_run_id uuid,
@@ -389,7 +378,6 @@ as $$
     target_player_id, target_run_id, target_expected_revision, target_checkpoint
   );
 $$;
-
 create or replace function public.finish_arpg_run(
   target_player_id uuid,
   target_run_id uuid,
@@ -407,7 +395,6 @@ as $$
     target_victory, target_loot_item_ids
   );
 $$;
-
 revoke all on function public.begin_or_resume_arpg_run(uuid, uuid, text, text, text, text, text[], text, jsonb)
   from public, anon, authenticated;
 revoke all on function public.get_active_arpg_run(uuid)

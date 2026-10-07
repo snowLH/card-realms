@@ -65,6 +65,5 @@ begin
   );
 end;
 $raid$;
-
 revoke all on function public.start_raid_room(uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.start_raid_room(uuid, jsonb) to service_role;

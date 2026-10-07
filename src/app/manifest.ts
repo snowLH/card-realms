@@ -2,13 +2,13 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Card Realms — Folklore ARPG",
-    short_name: "Card Realms",
-    description: "ARPG 2D de folclore com dungeons roguelite, cartas-habilidade, suportes e loot.",
+    name: "Folklard — Crônicas de Aurória",
+    short_name: "Folklard",
+    description: "ARPG 2D de folclore com avatar próprio, dois poderes e expedições em masmorras.",
     start_url: "/",
     display: "standalone",
-    background_color: "#0b100d",
-    theme_color: "#18100f",
+    background_color: "#071616",
+    theme_color: "#071616",
     orientation: "landscape",
     categories: ["games", "entertainment"],
     lang: "pt-BR",

@@ -10,7 +10,6 @@ create table public.map_sessions (
   created_at timestamptz not null default now(),
   closed_at timestamptz
 );
-
 create table public.map_session_members (
   session_id uuid not null references public.map_sessions(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -22,16 +21,12 @@ create table public.map_session_members (
   last_seen_at timestamptz not null default now(),
   primary key (session_id, user_id)
 );
-
 create unique index map_session_members_one_active_session_idx
   on public.map_session_members (user_id);
-
 create index map_sessions_region_status_idx
   on public.map_sessions (region_id, status, created_at desc);
-
 alter table public.map_sessions enable row level security;
 alter table public.map_session_members enable row level security;
-
 create or replace function private.is_map_session_member(target_session_id uuid)
 returns boolean
 language sql
@@ -46,23 +41,18 @@ as $map$
       and member.user_id = auth.uid()
   );
 $map$;
-
 revoke all on function private.is_map_session_member(uuid) from public, anon;
 grant execute on function private.is_map_session_member(uuid) to authenticated, service_role;
-
 create policy "map members read session"
 on public.map_sessions for select to authenticated
 using (private.is_map_session_member(id));
-
 create policy "map members read party"
 on public.map_session_members for select to authenticated
 using (private.is_map_session_member(session_id));
-
 revoke all on public.map_sessions, public.map_session_members
 from public, anon, authenticated;
 grant select on public.map_sessions, public.map_session_members to authenticated;
 grant all privileges on public.map_sessions, public.map_session_members to service_role;
-
 create or replace function public.create_map_session()
 returns jsonb
 language plpgsql
@@ -116,10 +106,8 @@ begin
   );
 end;
 $map$;
-
 revoke all on function public.create_map_session() from public, anon;
 grant execute on function public.create_map_session() to authenticated, service_role;
-
 create or replace function public.join_map_session(target_invite_code text)
 returns jsonb
 language plpgsql
@@ -186,10 +174,8 @@ begin
   );
 end;
 $map$;
-
 revoke all on function public.join_map_session(text) from public, anon;
 grant execute on function public.join_map_session(text) to authenticated, service_role;
-
 create or replace function public.leave_map_session(target_session_id uuid)
 returns jsonb
 language plpgsql
@@ -234,10 +220,8 @@ begin
   return jsonb_build_object('sessionId', session.id, 'left', true);
 end;
 $map$;
-
 revoke all on function public.leave_map_session(uuid) from public, anon;
 grant execute on function public.leave_map_session(uuid) to authenticated, service_role;
-
 create or replace function public.update_map_session_position(
   target_session_id uuid,
   target_x integer,
@@ -292,10 +276,8 @@ begin
   );
 end;
 $map$;
-
 revoke all on function public.update_map_session_position(uuid, integer, integer) from public, anon;
 grant execute on function public.update_map_session_position(uuid, integer, integer) to authenticated, service_role;
-
 create or replace function private.broadcast_map_session_member()
 returns trigger
 language plpgsql
@@ -316,7 +298,6 @@ begin
   return new;
 end;
 $map$;
-
 create or replace function private.broadcast_map_session()
 returns trigger
 language plpgsql
@@ -331,17 +312,14 @@ begin
   return new;
 end;
 $map$;
-
 drop trigger if exists map_session_members_broadcast_changes on public.map_session_members;
 create trigger map_session_members_broadcast_changes
 after insert or update or delete on public.map_session_members
 for each row execute function private.broadcast_map_session_member();
-
 drop trigger if exists map_sessions_broadcast_changes on public.map_sessions;
 create trigger map_sessions_broadcast_changes
 after update on public.map_sessions
 for each row execute function private.broadcast_map_session();
-
 drop policy if exists "map party receives private broadcasts" on realtime.messages;
 create policy "map party receives private broadcasts"
 on realtime.messages for select to authenticated
@@ -353,7 +331,6 @@ using (
       and topic = 'map:room:' || member.session_id::text
   )
 );
-
 revoke all on function private.broadcast_map_session_member() from public, anon, authenticated;
 revoke all on function private.broadcast_map_session() from public, anon, authenticated;
 grant execute on function private.broadcast_map_session_member(), private.broadcast_map_session()

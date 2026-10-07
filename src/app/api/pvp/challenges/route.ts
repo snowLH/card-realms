@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { AvatarConfigSchema, DEFAULT_AVATAR_CONFIG } from "@/game/save/local-progress";
 import { CreateChallengeSchema, RespondChallengeSchema } from "@/game/pvp";
+import { hasMatchingLegendPowerPair } from "@/game/pvp/legend-readiness";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -61,7 +62,9 @@ export async function GET() {
     const ownOwnership = ownAbilities?.success
       ? await validateArpgAbilityOwnership(admin, auth.userId, { abilityIds: ownAbilities.data })
       : null;
-    playerReady = ownAvatar.success && Boolean(ownOwnership?.valid);
+    playerReady = ownAvatar.success
+      && hasMatchingLegendPowerPair(ownAvatar.data, ownAbilities?.success ? ownAbilities.data : null)
+      && Boolean(ownOwnership?.valid);
 
     const friendIds = [...new Set((relationships ?? []).map((relationship) =>
       relationship.requester_id === auth.userId
@@ -86,7 +89,9 @@ export async function GET() {
         return {
           id: profile.id,
           name: profile.display_name,
-          hasCombatReady: parsedAvatar.success && Boolean(ownership?.valid),
+          hasCombatReady: parsedAvatar.success
+            && hasMatchingLegendPowerPair(parsedAvatar.data, parsedAbilities?.success ? parsedAbilities.data : null)
+            && Boolean(ownership?.valid),
         };
       }));
     }

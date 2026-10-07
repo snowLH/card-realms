@@ -274,7 +274,7 @@ input:focus-visible {
   background-image:
     linear-gradient(90deg, rgba(5, 15, 14, .94) 0%, rgba(5, 15, 14, .8) 23%, rgba(5, 15, 14, .32) 49%, rgba(5, 15, 14, .02) 76%),
     linear-gradient(0deg, rgba(5, 12, 12, .48), transparent 34%),
-    url("/art/title-screen-forest-portal.png");
+    url("/art/folklard-title-forest-portal-pixel-v3.webp");
   background-position: center;
   background-size: cover;
 }
@@ -558,7 +558,7 @@ input:focus-visible {
     background-image:
       linear-gradient(180deg, rgba(5, 15, 14, .72), rgba(5, 15, 14, .48) 31%, rgba(5, 15, 14, .84) 100%),
       linear-gradient(90deg, rgba(5, 15, 14, .55), transparent 90%),
-      url("/art/title-screen-forest-portal.png");
+      url("/art/folklard-title-forest-portal-pixel-v3.webp");
     background-position: 61% center;
   }
 

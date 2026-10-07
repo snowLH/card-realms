@@ -4,6 +4,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ArpgHub } from "./arpg-hub";
+import { DEFAULT_AVATAR_CONFIG } from "@/game/save/local-progress";
 
 const createHubGameMock = vi.hoisted(() => vi.fn());
 vi.mock("@/game/arpg/runtime/create-hub-game", () => ({ createArpgHubGame: createHubGameMock }));
@@ -41,7 +42,6 @@ describe("ArpgHub audio control", () => {
         level={1}
         coins={500}
         onNavigate={vi.fn()}
-        onOpenClassic={vi.fn()}
       />,
     );
 
@@ -55,6 +55,7 @@ describe("ArpgHub audio control", () => {
 
   it("passes the saved avatar configuration into the physical Guilda", async () => {
     const avatarConfig = {
+      ...DEFAULT_AVATAR_CONFIG,
       skin: "rose" as const,
       hair: "waves" as const,
       outfit: "ranger" as const,
@@ -69,7 +70,6 @@ describe("ArpgHub audio control", () => {
         coins={500}
         avatarConfig={avatarConfig}
         onNavigate={vi.fn()}
-        onOpenClassic={vi.fn()}
       />,
     );
 

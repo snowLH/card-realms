@@ -1,4 +1,5 @@
 import { ARPG_ASSET_MANIFEST, registerArpgSpriteSheetAnimations } from "../assets";
+import { getPixelArtTextureKey } from "./pixel-art-sheet";
 
 const ENEMY_ASSETS = ARPG_ASSET_MANIFEST.enemies;
 
@@ -22,7 +23,9 @@ export const SPROUT_ENEMY_ANIMATIONS = ENEMY_ASSETS["sprout-enemy"].animations;
 export const BOTO_ENEMY_ANIMATIONS = ENEMY_ASSETS["boto-enemy"].animations;
 export const RAIJU_ENEMY_ANIMATIONS = ENEMY_ASSETS["raiju-enemy"].animations;
 
-export type ArpgEnemyAnimation = keyof typeof CURUPIRA_BOSS_ANIMATIONS;
+export type ArpgEnemyAnimation =
+  | keyof typeof CURUPIRA_BOSS_ANIMATIONS
+  | keyof typeof ENEMY_ASSETS["shade-enemy"]["animations"];
 export const ARPG_ENEMY_ANIMATION_PROFILES = ENEMY_ASSETS;
 
 export type ArpgEnemyAnimationProfile = keyof typeof ARPG_ENEMY_ANIMATION_PROFILES;
@@ -41,7 +44,7 @@ export function registerArpgEnemyAnimations(
 ) {
   const profileDefinition = getArpgEnemyAnimationProfile(profile);
   registerArpgSpriteSheetAnimations(scene, {
-    textureKey: profileDefinition.textureKey,
+    textureKey: getPixelArtTextureKey(profileDefinition.textureKey),
     animations: profileDefinition.animations,
     columns: profileDefinition.columns,
     keyPrefix: profileDefinition.animationKeyPrefix!,

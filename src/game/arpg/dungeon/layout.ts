@@ -3,7 +3,8 @@ import { ARPG_ROOM_TEMPLATE_BY_ID } from "./templates";
 import type { DungeonDirection, DungeonGraph } from "./types";
 
 export const DUNGEON_TILE_SIZE = 32;
-export const DUNGEON_CELL_SIZE = 896;
+export const DUNGEON_CELL_SIZE_X = 1344;
+export const DUNGEON_CELL_SIZE_Y = 896;
 export const DUNGEON_WORLD_MARGIN = 160;
 export const DUNGEON_CORRIDOR_WIDTH = 128;
 
@@ -59,8 +60,8 @@ export function buildDungeonPixelLayout(graph: DungeonGraph): DungeonPixelLayout
 
   for (const room of roomList) {
     const size = roomSizePx(room.templateId);
-    const centerX = DUNGEON_WORLD_MARGIN + (room.gridX - minGridX) * DUNGEON_CELL_SIZE + DUNGEON_CELL_SIZE / 2;
-    const centerY = DUNGEON_WORLD_MARGIN + (room.gridY - minGridY) * DUNGEON_CELL_SIZE + DUNGEON_CELL_SIZE / 2;
+    const centerX = DUNGEON_WORLD_MARGIN + (room.gridX - minGridX) * DUNGEON_CELL_SIZE_X + DUNGEON_CELL_SIZE_X / 2;
+    const centerY = DUNGEON_WORLD_MARGIN + (room.gridY - minGridY) * DUNGEON_CELL_SIZE_Y + DUNGEON_CELL_SIZE_Y / 2;
     const base = {
       roomId: room.id,
       centerX,
@@ -107,8 +108,8 @@ export function buildDungeonPixelLayout(graph: DungeonGraph): DungeonPixelLayout
   }
 
   return {
-    width: (maxGridX - minGridX + 1) * DUNGEON_CELL_SIZE + DUNGEON_WORLD_MARGIN * 2,
-    height: (maxGridY - minGridY + 1) * DUNGEON_CELL_SIZE + DUNGEON_WORLD_MARGIN * 2,
+    width: (maxGridX - minGridX + 1) * DUNGEON_CELL_SIZE_X + DUNGEON_WORLD_MARGIN * 2,
+    height: (maxGridY - minGridY + 1) * DUNGEON_CELL_SIZE_Y + DUNGEON_WORLD_MARGIN * 2,
     rooms,
     corridors,
   };

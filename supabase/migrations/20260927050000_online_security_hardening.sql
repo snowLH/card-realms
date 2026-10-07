@@ -6,39 +6,32 @@ drop policy if exists "participants read battles" on public.battles;
 drop policy if exists "participants read participants" on public.battle_participants;
 drop policy if exists "participants read actions" on public.battle_actions;
 drop policy if exists "participants read battle events" on public.battle_events;
-
 revoke all on public.battles, public.battle_participants,
   public.battle_actions, public.battle_events from anon, authenticated;
-
 do $$
 begin
   alter publication supabase_realtime drop table public.battle_events;
 exception
   when undefined_object then null;
 end $$;
-
 -- Friendship rows may only be created as pending and only the addressee may
 -- accept/block them. Column grants make participant IDs immutable to clients.
 drop policy if exists "friends see shared requests" on public.friendships;
 drop policy if exists "players send friend requests" on public.friendships;
 drop policy if exists "addressees respond to friend requests" on public.friendships;
 drop policy if exists "friends remove shared requests" on public.friendships;
-
 revoke insert, update on public.friendships from authenticated;
 grant insert (requester_id, addressee_id) on public.friendships to authenticated;
 grant update (status) on public.friendships to authenticated;
-
 create policy "friends see shared requests" on public.friendships
 for select to authenticated
 using ((select auth.uid()) in (requester_id, addressee_id));
-
 create policy "players send pending friend requests" on public.friendships
 for insert to authenticated
 with check (
   (select auth.uid()) = requester_id
   and status = 'pending'
 );
-
 create policy "addressees respond to friend requests" on public.friendships
 for update to authenticated
 using (
@@ -49,22 +42,18 @@ with check (
   (select auth.uid()) = addressee_id
   and status in ('accepted', 'blocked')
 );
-
 create policy "friends remove shared requests" on public.friendships
 for delete to authenticated
 using ((select auth.uid()) in (requester_id, addressee_id));
-
 create unique index one_friendship_per_pair
 on public.friendships (
   least(requester_id, addressee_id),
   greatest(requester_id, addressee_id)
 );
-
 -- Realtime Authorization must use the requested topic, not a client-published
 -- payload field. Clients receive Broadcast only; they never receive presence or
 -- permission to publish authoritative game messages.
 drop policy if exists "players receive own pvp broadcasts" on realtime.messages;
-
 create policy "players receive own pvp broadcasts"
 on realtime.messages for select to authenticated
 using (
@@ -81,7 +70,6 @@ using (
     end
   )
 );
-
 -- Index every frequently traversed foreign key that is not already covered by
 -- a primary/unique index. This also keeps cascades and RLS membership checks
 -- from degrading as staging data grows.

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { PLAYABLE_LEGEND_BY_ID } from "@/game/arpg/content/legends";
+import { DEFAULT_AVATAR_CONFIG, AvatarConfigSchema } from "@/game/save/local-progress";
 import { RaidLobbyActionSchema } from "@/game/raid";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -55,6 +57,35 @@ async function findCurrentRaidRoom(
   };
 }
 
+async function validateActiveLegendPowers(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+) {
+  const [profileResult, loadoutResult] = await Promise.all([
+    supabase.from("profiles").select("avatar_config").eq("id", userId).maybeSingle(),
+    supabase.from("player_arpg_loadouts").select("ability_ids").eq("user_id", userId).maybeSingle(),
+  ]);
+
+  if (profileResult.error || loadoutResult.error) {
+    return { error: "Não foi possível validar a Lenda ativa e os poderes do perfil.", status: 503 } as const;
+  }
+  if (!profileResult.data || !loadoutResult.data) {
+    return { error: "Salve sua Lenda e equipe os dois poderes no Arsenal antes da Raid.", status: 409 } as const;
+  }
+
+  const avatar = AvatarConfigSchema.safeParse(profileResult.data.avatar_config ?? DEFAULT_AVATAR_CONFIG);
+  const legend = avatar.success ? PLAYABLE_LEGEND_BY_ID.get(avatar.data.legendId) : undefined;
+  const selected = loadoutResult.data.ability_ids;
+  const matches = legend
+    && Array.isArray(selected)
+    && selected.length === 2
+    && new Set(selected).size === 2
+    && selected.every((id) => typeof id === "string" && legend.signatureAbilityIds.includes(id));
+  return matches
+    ? null
+    : { error: `Equipe exatamente os dois poderes da Lenda ativa antes da Raid.`, status: 409 } as const;
+}
+
 export async function GET() {
   const auth = await authenticated();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -93,6 +124,13 @@ export async function POST(request: Request) {
     const action = RaidLobbyActionSchema.parse(await request.json());
     const auth = await authenticated();
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+    if (action.action !== "leave" && !(action.action === "ready" && action.ready === false)) {
+      const powerValidation = await validateActiveLegendPowers(auth.supabase, auth.userId);
+      if (powerValidation) {
+        return NextResponse.json({ error: powerValidation.error }, { status: powerValidation.status });
+      }
+    }
 
     const rpc = action.action === "create"
       ? { name: "create_raid_room", args: { target_event_id: action.eventId } }

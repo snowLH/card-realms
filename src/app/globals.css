@@ -894,12 +894,31 @@ button.creature-card:disabled {
 }
 
 .pixel-creature {
+  position: relative;
+  display: block;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   background-repeat: no-repeat;
   image-rendering: pixelated;
   transform: scaleX(var(--sprite-scale-x, 1));
   transform-origin: center;
+}
+
+.pixel-creature > .pixel-creature__canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 .creature-card__source {
@@ -1343,7 +1362,7 @@ button.creature-card:disabled {
   position: absolute;
   z-index: -2;
   inset: 0;
-  background-image: url("/art/forest-sanctuary-arena-v2.png");
+  background-image: url("/art/forest-sanctuary-arena-v2.webp");
   background-position: center;
   background-size: cover;
   image-rendering: pixelated;
@@ -3169,7 +3188,6 @@ button.creature-card:disabled {
   transform: scale(.48);
   transform-origin: center bottom;
   margin: -42px 0 -33px;
-  animation: battle-avatar-idle 2.4s steps(2, end) infinite;
 }
 
 .battle-avatar > span {
@@ -4273,10 +4291,6 @@ button.creature-card:disabled {
 .pixel-creature--evolved {
   position: relative;
   filter:
-    saturate(1.42)
-    brightness(1.12)
-    contrast(1.12)
-    hue-rotate(9deg)
     drop-shadow(0 0 3px rgba(255, 226, 126, .92))
     drop-shadow(0 0 8px rgba(255, 190, 70, .48));
   transform: scaleX(var(--sprite-scale-x, 1)) scale(1.07);
@@ -6860,6 +6874,64 @@ button.creature-card:disabled {
 .avatar-battle-profile--player { grid-column: 1; grid-row: 1; }
 .avatar-battle-profile .character-avatar-2d { width: 76px; height: 112px; }
 
+.avatar-battle-ability-vfx {
+  --battle-vfx-side-offset: clamp(7rem, 29vw, 19.375rem);
+  position: absolute;
+  z-index: 6;
+  top: 52%;
+  left: 50%;
+  width: clamp(3rem, 8vw, 6.5rem);
+  aspect-ratio: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 0 8px rgba(223, 232, 186, .55));
+  image-rendering: pixelated;
+}
+
+.avatar-battle-ability-vfx svg { display: block; width: 100%; height: 100%; shape-rendering: crispEdges; }
+.avatar-battle-ability-vfx.is-from-opponent svg { transform: scaleX(-1); }
+.avatar-battle-ability-vfx.is-flight.is-from-player { animation: avatar-battle-power-flight-player var(--battle-vfx-duration, 620ms) steps(6, end) both; }
+.avatar-battle-ability-vfx.is-flight.is-from-opponent { animation: avatar-battle-power-flight-opponent var(--battle-vfx-duration, 620ms) steps(6, end) both; }
+.avatar-battle-ability-vfx.is-burst.is-from-player { animation: avatar-battle-power-burst-player var(--battle-vfx-duration, 620ms) steps(4, end) both; }
+.avatar-battle-ability-vfx.is-burst.is-from-opponent { animation: avatar-battle-power-burst-opponent var(--battle-vfx-duration, 620ms) steps(4, end) both; }
+.avatar-battle-ability-vfx.is-self.is-from-player { animation: avatar-battle-power-self-player var(--battle-vfx-duration, 620ms) steps(4, end) both; }
+.avatar-battle-ability-vfx.is-self.is-from-opponent { animation: avatar-battle-power-self-opponent var(--battle-vfx-duration, 620ms) steps(4, end) both; }
+
+@keyframes avatar-battle-power-flight-player {
+  0% { opacity: 0; transform: translateX(calc(-50% - var(--battle-vfx-side-offset))) translateY(-50%) scale(.55); }
+  18% { opacity: 1; }
+  100% { opacity: 1; transform: translateX(calc(-50% + var(--battle-vfx-side-offset))) translateY(-50%) scale(1.05); }
+}
+
+@keyframes avatar-battle-power-flight-opponent {
+  0% { opacity: 0; transform: translateX(calc(-50% + var(--battle-vfx-side-offset))) translateY(-50%) scale(.55); }
+  18% { opacity: 1; }
+  100% { opacity: 1; transform: translateX(calc(-50% - var(--battle-vfx-side-offset))) translateY(-50%) scale(1.05); }
+}
+
+@keyframes avatar-battle-power-burst-player {
+  0% { opacity: 0; transform: translateX(calc(-50% + var(--battle-vfx-side-offset))) translateY(-50%) scale(.5); }
+  22% { opacity: 1; transform: translateX(calc(-50% + var(--battle-vfx-side-offset))) translateY(-50%) scale(1.15); }
+  100% { opacity: 0; transform: translateX(calc(-50% + var(--battle-vfx-side-offset))) translateY(-50%) scale(1.35); }
+}
+
+@keyframes avatar-battle-power-burst-opponent {
+  0% { opacity: 0; transform: translateX(calc(-50% - var(--battle-vfx-side-offset))) translateY(-50%) scale(.5); }
+  22% { opacity: 1; transform: translateX(calc(-50% - var(--battle-vfx-side-offset))) translateY(-50%) scale(1.15); }
+  100% { opacity: 0; transform: translateX(calc(-50% - var(--battle-vfx-side-offset))) translateY(-50%) scale(1.35); }
+}
+
+@keyframes avatar-battle-power-self-player {
+  0% { opacity: 0; transform: translateX(calc(-50% - var(--battle-vfx-side-offset))) translateY(-50%) scale(.6); }
+  24% { opacity: 1; }
+  100% { opacity: 1; transform: translateX(calc(-50% - var(--battle-vfx-side-offset))) translateY(-50%) scale(1.2); }
+}
+
+@keyframes avatar-battle-power-self-opponent {
+  0% { opacity: 0; transform: translateX(calc(-50% + var(--battle-vfx-side-offset))) translateY(-50%) scale(.6); }
+  24% { opacity: 1; }
+  100% { opacity: 1; transform: translateX(calc(-50% + var(--battle-vfx-side-offset))) translateY(-50%) scale(1.2); }
+}
+
 .avatar-battle-status { width: 100%; min-width: 0; }
 .avatar-battle-status__heading { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; margin-bottom: .4rem; }
 .avatar-battle-status__heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff2cf; }
@@ -6913,6 +6985,135 @@ button.creature-card:disabled {
 .avatar-battle .battle-log { position: static; width: min(100%, 1180px); margin: 0 auto; }
 .avatar-battle-mobile-close { display: none; }
 
+.pvp-realtime {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(.6rem, 1.5vh, 1rem);
+  overflow-y: auto;
+  padding: max(.75rem, env(safe-area-inset-top)) clamp(.7rem, 3vw, 2rem) max(.75rem, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(45, 104, 111, .24), transparent 55%),
+    linear-gradient(155deg, #091523 8%, #0a1d27 50%, #11182a 100%);
+}
+
+.pvp-realtime__header,
+.pvp-realtime__scoreboard,
+.pvp-realtime__controls {
+  width: min(100%, 1180px);
+  margin-inline: auto;
+}
+
+.pvp-realtime__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 48px;
+}
+
+.pvp-realtime__header h1 { margin: .12rem 0 0; color: #fff1ce; font-size: clamp(1.12rem, 2.4vw, 1.7rem); }
+.pvp-realtime__header .view-eyebrow { color: #8fd9c6; font-size: .62rem; font-weight: 900; letter-spacing: .13em; }
+.pvp-realtime__connection { display: flex; align-items: center; gap: .4rem; margin-left: auto; color: #a8e8c4; font-size: .65rem; font-weight: 900; letter-spacing: .08em; }
+.pvp-realtime__connection i { width: 8px; height: 8px; border-radius: 50%; background: #62e9a9; box-shadow: 0 0 12px rgba(98, 233, 169, .8); }
+.pvp-realtime__close { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid rgba(239, 224, 190, .2); border-radius: .7rem; background: rgba(10, 20, 30, .8); color: #fff1ce; }
+.pvp-realtime__close svg { width: 18px; height: 18px; }
+
+.pvp-realtime__scoreboard { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.pvp-realtime__player-card { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; gap: .6rem; min-width: 0; padding: .5rem .7rem; border: 1px solid rgba(236, 224, 192, .16); border-radius: .9rem; background: rgba(9, 17, 27, .74); }
+.pvp-realtime__player-card.is-local { border-color: rgba(100, 224, 196, .4); }
+.pvp-realtime__player-card > .character-avatar-2d { width: 50px; height: 64px; }
+.pvp-realtime__player-info { min-width: 0; }
+.pvp-realtime__player-info > div:first-child { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.pvp-realtime__player-info strong { overflow: hidden; color: #fff1ce; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
+.pvp-realtime__player-info span { flex: 0 0 auto; color: #8fd9c6; font-size: .55rem; font-weight: 900; letter-spacing: .08em; }
+.pvp-realtime__player-info small { color: rgba(245, 237, 218, .7); font-size: .63rem; }
+.pvp-realtime__health { height: 8px; overflow: hidden; margin: .32rem 0 .12rem; border-radius: 999px; background: rgba(255, 255, 255, .12); }
+.pvp-realtime__health i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #df6653, #f5cf72); transition: width .2s ease; }
+
+.pvp-realtime__field-shell { display: grid; flex: 1 0 auto; place-items: center; min-height: 200px; }
+.pvp-realtime__field { position: relative; isolation: isolate; width: min(100%, 1180px); aspect-ratio: 16 / 9; min-height: 220px; max-height: min(58vh, 700px); overflow: hidden; border: 1px solid rgba(183, 226, 199, .32); border-radius: clamp(.9rem, 2vw, 1.6rem); background:
+  radial-gradient(ellipse at 50% 48%, rgba(79, 139, 115, .4) 0, rgba(37, 83, 77, .24) 36%, transparent 67%),
+  radial-gradient(ellipse at center, #203e3a 0, #132d31 63%, #0c1c29 100%); box-shadow: inset 0 0 80px rgba(1, 8, 13, .55), 0 15px 45px rgba(0, 0, 0, .25); cursor: crosshair; touch-action: none; }
+.pvp-realtime__field::before { position: absolute; z-index: -1; inset: 5%; border: 1px solid rgba(222, 210, 160, .16); border-radius: 50%; content: ""; }
+.pvp-realtime__field::after { position: absolute; z-index: -1; inset: 11% 23%; border: 1px dashed rgba(220, 216, 177, .12); border-radius: 50%; content: ""; }
+.pvp-realtime__arena-glow { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(circle, rgba(221, 231, 190, .23) 0 1px, transparent 1.8px); background-position: 8px 9px; background-size: 34px 31px; mask-image: radial-gradient(ellipse, #000, transparent 73%); }
+.pvp-realtime__center-rune { position: absolute; top: 50%; left: 50%; display: grid; width: 16%; aspect-ratio: 1; place-items: center; transform: translate(-50%, -50%); border: 1px solid rgba(240, 211, 125, .18); border-radius: 50%; color: rgba(240, 211, 125, .4); font-size: clamp(1.5rem, 5vw, 4rem); }
+.pvp-realtime__combatant { position: absolute; z-index: 2; display: grid; justify-items: center; width: clamp(62px, 8vw, 100px); transform: translate(-50%, -62%); pointer-events: none; filter: drop-shadow(0 6px 5px rgba(0, 0, 0, .55)); }
+.pvp-realtime__combatant > .character-avatar-2d { width: clamp(54px, 7vw, 82px); height: clamp(76px, 10vw, 118px); }
+.pvp-realtime__combatant.is-opponent > .character-avatar-2d { transform: scaleX(-1); }
+.pvp-realtime__combatant.is-rooted::after { position: absolute; bottom: 9%; width: 90%; height: 12px; border: 1px solid rgba(130, 218, 162, .85); border-radius: 50%; box-shadow: 0 0 12px rgba(130, 218, 162, .6); content: ""; }
+.pvp-realtime__combatant.is-dashing { filter: drop-shadow(0 0 10px rgba(117, 227, 234, .8)); }
+.pvp-realtime__nameplate { max-width: 150px; overflow: hidden; padding: .18rem .45rem; border: 1px solid rgba(238, 225, 196, .26); border-radius: 999px; background: rgba(6, 12, 19, .84); color: #fff1ce; font-size: clamp(.55rem, 1vw, .7rem); font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.pvp-realtime__cast-label,
+.pvp-realtime__status-label { position: absolute; top: -1.4rem; padding: .15rem .38rem; border-radius: 999px; background: rgba(8, 17, 23, .84); color: #ffe8a8; font-size: .55rem; font-weight: 900; white-space: nowrap; }
+.pvp-realtime__status-label { top: auto; bottom: 5%; color: #a9edb2; }
+.pvp-realtime__event-callout { position: absolute; z-index: 5; top: 12%; left: 50%; padding: .4rem .75rem; transform: translateX(-50%); border: 1px solid rgba(248, 214, 137, .45); border-radius: 999px; background: rgba(14, 20, 26, .8); color: #ffe8a8; font-size: clamp(.66rem, 1.5vw, .9rem); font-weight: 900; letter-spacing: .08em; white-space: nowrap; }
+.pvp-realtime__world-size { position: absolute; right: .6rem; bottom: .45rem; color: rgba(230, 233, 211, .34); font: 600 .55rem ui-monospace, monospace; }
+
+.pvp-realtime__controls { display: grid; gap: .55rem; padding: .7rem; border: 1px solid rgba(230, 215, 181, .16); border-radius: 1rem; background: rgba(7, 14, 22, .8); }
+.pvp-realtime__control-hint { color: rgba(244, 235, 214, .68); font-size: .62rem; text-align: center; }
+.pvp-realtime__control-hint strong { color: #d8e6cb; }
+.pvp-realtime__power-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; }
+.pvp-realtime__power-row > button { min-width: 0; min-height: 50px; }
+.pvp-realtime__power { display: flex; justify-content: space-between; gap: .4rem; text-align: left; }
+.pvp-realtime__power > span:first-child { display: grid; gap: .18rem; min-width: 0; }
+.pvp-realtime__power small { color: #8fd9c6; font-size: .54rem; font-weight: 900; letter-spacing: .08em; }
+.pvp-realtime__power strong { overflow: hidden; font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
+.pvp-realtime__power.is-fire { --power-accent: #f58b55; }
+.pvp-realtime__power.is-water { --power-accent: #69bce5; }
+.pvp-realtime__power.is-nature { --power-accent: #9bc879; }
+.pvp-realtime__power.is-storm { --power-accent: #c9b5f1; }
+.pvp-realtime__power.is-spirit { --power-accent: #d6a9de; }
+.pvp-realtime__cooldown { align-self: center; flex: 0 0 auto; color: var(--power-accent, #9bdcc8); font-size: .6rem; font-weight: 900; }
+.pvp-realtime__mobile-pad { display: none; }
+.pvp-realtime__error { margin: 0; color: #ff9b8d; font-size: .78rem; }
+.pvp-realtime__result { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: .6rem; padding: .4rem; color: #ffedc4; }
+.pvp-realtime__result > strong { font-size: 1rem; }
+.pvp-realtime__result > span { color: rgba(255, 237, 196, .72); font-size: .75rem; }
+.pvp-realtime__footer { display: flex; align-items: center; justify-content: space-between; gap: .7rem; color: #e8e0ce; }
+.pvp-realtime__footer > p { overflow: hidden; margin: 0; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+.pvp-realtime__confirm { display: flex; align-items: center; flex-wrap: wrap; justify-content: end; gap: .4rem; color: #ffe3bd; font-size: .75rem; }
+
+@media (max-width: 760px) {
+  .pvp-realtime { gap: .5rem; padding-inline: .45rem; }
+  .pvp-realtime__header { min-height: 40px; }
+  .pvp-realtime__header h1 { font-size: 1.05rem; }
+  .pvp-realtime__connection { font-size: .55rem; }
+  .pvp-realtime__close { width: 34px; height: 34px; }
+  .pvp-realtime__scoreboard { gap: .38rem; }
+  .pvp-realtime__player-card { grid-template-columns: 32px minmax(0, 1fr); gap: .35rem; padding: .35rem; }
+  .pvp-realtime__player-card > .character-avatar-2d { width: 32px; height: 42px; }
+  .pvp-realtime__player-info strong { font-size: .68rem; }
+  .pvp-realtime__player-info span { font-size: .48rem; }
+  .pvp-realtime__player-info small { font-size: .55rem; }
+  .pvp-realtime__health { height: 6px; }
+  .pvp-realtime__field-shell { min-height: 150px; }
+  .pvp-realtime__field { min-height: 170px; max-height: 40vh; }
+  .pvp-realtime__combatant { width: 55px; }
+  .pvp-realtime__combatant > .character-avatar-2d { width: 48px; height: 70px; }
+  .pvp-realtime__power-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pvp-realtime__power-row > button { min-height: 42px; }
+  .pvp-realtime__control-hint { display: none; }
+  .pvp-realtime__mobile-pad { display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(2, 34px); justify-content: center; gap: .2rem; }
+  .pvp-realtime__mobile-pad button { display: grid; place-items: center; border: 1px solid rgba(230, 215, 181, .24); border-radius: .55rem; background: #14283a; color: #ecf7f4; touch-action: none; }
+  .pvp-realtime__mobile-pad button:first-child { grid-column: 2; }
+  .pvp-realtime__mobile-pad button:nth-child(2) { grid-column: 1; grid-row: 2; }
+  .pvp-realtime__mobile-pad button:nth-child(3) { grid-column: 2; grid-row: 2; }
+  .pvp-realtime__mobile-pad button:nth-child(4) { grid-column: 3; grid-row: 2; }
+  .pvp-realtime__mobile-pad svg { width: 16px; height: 16px; }
+  .pvp-realtime__footer { align-items: start; }
+  .pvp-realtime__footer > p { max-width: 45%; white-space: normal; }
+  .pvp-realtime__confirm { font-size: .66rem; }
+}
+
+@media (max-height: 620px) and (min-width: 761px) {
+  .pvp-realtime { gap: .4rem; }
+  .pvp-realtime__scoreboard { max-width: 760px; }
+  .pvp-realtime__player-card { padding-block: .28rem; }
+  .pvp-realtime__player-card > .character-avatar-2d { width: 34px; height: 44px; }
+  .pvp-realtime__field { max-height: 40vh; }
+  .pvp-realtime__controls { gap: .35rem; padding: .4rem; }
+}
+
 @keyframes avatar-battle-hit { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 
 @media (max-width: 720px) {
@@ -6940,6 +7141,26 @@ button.creature-card:disabled {
   .avatar-battle-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .avatar-battle-actions > button:first-child { grid-column: 1 / -1; }
   .avatar-battle-actions > button { font-size: .72rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-battle-ability-vfx {
+    animation: none !important;
+    opacity: 1;
+    transform: translateX(-50%) translateY(-50%);
+  }
+
+  .avatar-battle-ability-vfx.is-flight.is-from-opponent,
+  .avatar-battle-ability-vfx.is-burst.is-from-opponent,
+  .avatar-battle-ability-vfx.is-self.is-from-player {
+    transform: translateX(calc(-50% - var(--battle-vfx-side-offset))) translateY(-50%);
+  }
+
+  .avatar-battle-ability-vfx.is-flight.is-from-player,
+  .avatar-battle-ability-vfx.is-burst.is-from-player,
+  .avatar-battle-ability-vfx.is-self.is-from-opponent {
+    transform: translateX(calc(-50% + var(--battle-vfx-side-offset))) translateY(-50%);
+  }
 }
 
 .raid-avatar-stage { min-height: 540px; }

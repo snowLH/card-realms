@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { visiblePvpState } from "@/game/pvp";
+import { visiblePvpRealtimeState } from "@/game/pvp/realtime";
 import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthoritativePvpBattle, PvpBattleAccessError, PvpBattleHistoricalError } from "@/server/pvp/battles";
@@ -22,15 +22,13 @@ export async function GET(
   }
 
   try {
-    const { battle, boardId } = await loadAuthoritativePvpBattle(battleId, claimsData.claims.sub);
-    const visible = visiblePvpState(battle.state, claimsData.claims.sub);
+    const { battle } = await loadAuthoritativePvpBattle(battleId, claimsData.claims.sub);
+    const visible = visiblePvpRealtimeState(battle.state, claimsData.claims.sub);
     return NextResponse.json({
-      state: visible.state,
+      state: visible,
       events: [],
       version: battle.version,
-      boardId,
       authority: "server",
-      hidden: visible.hidden,
     });
   } catch (error) {
     if (error instanceof PvpBattleAccessError) {

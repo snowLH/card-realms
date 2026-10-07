@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ArpgBridge } from "@/game/arpg/runtime/bridge";
 import { TouchControls } from "./touch-controls";
 
+const CURUPIRA_ABILITIES = ["curupira-root-snare", "curupira-ember-arrow"] as [string, string];
+
 afterEach(() => cleanup());
 
 describe("TouchControls ability cards", () => {
@@ -14,15 +16,15 @@ describe("TouchControls ability cards", () => {
     render(
       <TouchControls
         bridge={bridge}
-        abilityIds={["ancestral-roots", "boitata-flame"]}
-        abilityReadyAt={{ "ancestral-roots": 3000 }}
+        abilityIds={CURUPIRA_ABILITIES}
+        abilityReadyAt={{ "curupira-root-snare": 3000 }}
         nowMs={1000}
         dashReadyAt={0}
         chestAvailable={false}
       />,
     );
 
-    const coolingCard = screen.getByRole("button", { name: /Raízes Ancestrais: 2\.0s/ });
+    const coolingCard = screen.getByRole("button", { name: /Poder 1: Raízes do Curupira, 2\.0s/ });
     expect(coolingCard).toHaveClass("is-cooling");
     expect(coolingCard).toHaveTextContent("2.0s");
 
@@ -31,29 +33,7 @@ describe("TouchControls ability cards", () => {
     fireEvent.click(coolingCard, { detail: 1 });
     expect(bridge.queueAbility).toHaveBeenCalledOnce();
 
-    expect(screen.getByRole("button", { name: /Chama do Boitatá: Pronta/ })).toHaveClass("is-ready");
-  });
-
-  it("shows the active and reserve weapon and queues a quick swap", () => {
-    const bridge = { queueWeaponSwap: vi.fn() } as unknown as ArpgBridge;
-    render(
-      <TouchControls
-        bridge={bridge}
-        weaponId="forest-bow"
-        secondaryWeaponId="iron-sword"
-        abilityIds={["ancestral-roots", "boitata-flame"]}
-        abilityReadyAt={{}}
-        nowMs={0}
-        dashReadyAt={0}
-        chestAvailable={false}
-      />,
-    );
-
-    const swap = screen.getByRole("button", { name: "Trocar arma: atual Arco da Mata, próxima Espada de Ferro" });
-    expect(swap).toHaveTextContent("Arma: Arco da Mata");
-    expect(swap).toHaveTextContent("Trocar por Espada de Ferro");
-    fireEvent.pointerDown(swap);
-    expect(bridge.queueWeaponSwap).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: /Poder 2: Flecha de Brasa, Pronta/ })).toHaveClass("is-ready");
   });
 
   it("shows exactly two attacks and has no support controls", () => {
@@ -61,7 +41,7 @@ describe("TouchControls ability cards", () => {
     const { container } = render(
       <TouchControls
         bridge={bridge}
-        abilityIds={["ancestral-roots", "boitata-flame"]}
+        abilityIds={CURUPIRA_ABILITIES}
         abilityReadyAt={{}}
         nowMs={0}
         dashReadyAt={0}
@@ -71,7 +51,7 @@ describe("TouchControls ability cards", () => {
 
     expect(container.querySelectorAll(".arpg-touch__cards button")).toHaveLength(2);
     expect(container.querySelector(".arpg-touch__support")).not.toBeInTheDocument();
-    const secondAttack = screen.getByRole("button", { name: /Chama do Boitatá: Pronta/ });
+    const secondAttack = screen.getByRole("button", { name: /Poder 2: Flecha de Brasa, Pronta/ });
     fireEvent.pointerDown(secondAttack);
     expect(bridge.queueAbility).toHaveBeenCalledWith(1);
   });
@@ -84,7 +64,7 @@ describe("TouchControls ability cards", () => {
     render(
       <TouchControls
         bridge={bridge}
-        abilityIds={["ancestral-roots", "boitata-flame"]}
+        abilityIds={CURUPIRA_ABILITIES}
         abilityReadyAt={{}}
         nowMs={0}
         dashReadyAt={0}
@@ -99,12 +79,32 @@ describe("TouchControls ability cards", () => {
     expect(bridge.queueInteract).toHaveBeenCalledOnce();
   });
 
+  it("offers a one-touch swap when a second weapon is equipped", () => {
+    const bridge = { queueWeaponSwitch: vi.fn() } as unknown as ArpgBridge;
+    render(
+      <TouchControls
+        bridge={bridge}
+        abilityIds={CURUPIRA_ABILITIES}
+        abilityReadyAt={{}}
+        nowMs={0}
+        dashReadyAt={0}
+        chestAvailable={false}
+        weaponBId="iron-sword"
+        activeWeaponSlot="A"
+      />,
+    );
+
+    const swap = screen.getByRole("button", { name: "Trocar arma para o slot B" });
+    fireEvent.pointerDown(swap);
+    expect(bridge.queueWeaponSwitch).toHaveBeenCalledOnce();
+  });
+
   it("retains attack while the touch pointer leaves the button and releases it on every end path", () => {
     const bridge = { setAttack: vi.fn() } as unknown as ArpgBridge;
     const { container } = render(
       <TouchControls
         bridge={bridge}
-        abilityIds={["ancestral-roots", "boitata-flame"]}
+        abilityIds={CURUPIRA_ABILITIES}
         abilityReadyAt={{}}
         nowMs={0}
         dashReadyAt={0}
@@ -138,7 +138,7 @@ describe("TouchControls ability cards", () => {
     const { container } = render(
       <TouchControls
         bridge={bridge}
-        abilityIds={["ancestral-roots", "boitata-flame"]}
+        abilityIds={CURUPIRA_ABILITIES}
         abilityReadyAt={{}}
         nowMs={0}
         dashReadyAt={0}

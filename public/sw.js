@@ -1,29 +1,38 @@
-const CACHE_VERSION = "card-realms-arpg-v15";
+const CACHE_VERSION = "card-realms-arpg-v20";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
+const DEVELOPMENT_ORIGIN = ["localhost", "127.0.0.1", "[::1]"].includes(self.location.hostname);
 const CORE_ASSETS = [
   "/icon.svg",
   "/icons/card-realms-192.png",
   "/icons/card-realms-512.png",
   "/icons/card-realms-maskable-512.png",
   "/apple-icon.png",
-  "/art/forest-sanctuary-arena-v2.png",
-  "/art/folklore-creatures-five-elements.png",
-  "/art/folklore-creatures-second-atlas.png",
-  "/art/curupira-boss-spritesheet.png",
-  "/art/amarok-boss-spritesheet-v2.png",
-  "/art/iara-boss-spritesheet.png",
-  "/art/sprout-enemy-spritesheet.png",
-  "/art/boto-enemy-spritesheet.png",
-  "/art/raiju-enemy-spritesheet.png",
-  "/art/guild-blacksmith-spritesheet.png",
-  "/art/guild-merchant-spritesheet.png",
-  "/art/guild-archivist-spritesheet.png",
-  "/art/guild-bestiary-keeper-spritesheet.png",
-  "/art/title-screen-forest-portal.png",
-  "/art/treasure-chest-spritesheet-v2.png",
+  "/art/forest-sanctuary-arena-v2.webp",
+  "/art/folklore-creatures-chibi-portraits-v1.webp",
+  "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
+  "/art/monster-curupira-ancestral-spritesheet-v2.webp",
+  "/art/monster-amarok-elder-wolf-spritesheet-v2.webp",
+  "/art/monster-iara-boss-spritesheet-v2.webp",
+  "/art/monster-sprout-spritesheet-v1.webp",
+  "/art/monster-boto-enemy-spritesheet-v1.webp",
+  "/art/monster-raiju-enemy-spritesheet-v1.webp",
+  "/art/guild-blacksmith-spritesheet-v1.webp",
+  "/art/guild-merchant-spritesheet-v1.webp",
+  "/art/guild-archivist-spritesheet-v1.webp",
+  "/art/guild-bestiary-keeper-spritesheet-v1.webp",
+  "/art/folklard-title-forest-portal-pixel-v3.webp",
+  "/art/guild-room-wide-background-v2.webp",
+  "/art/refuge-pixel-v2.webp",
+  "/art/village-tavern-pixel-v2.webp",
+  "/art/world-map-pixel-v2.webp",
+  "/art/treasure-chest-spritesheet-v2.webp",
 ];
 
 self.addEventListener("install", (event) => {
+  if (DEVELOPMENT_ORIGIN) {
+    event.waitUntil(self.skipWaiting());
+    return;
+  }
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then((cache) => cache.addAll(CORE_ASSETS))
@@ -35,7 +44,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys
-        .filter((key) => key.startsWith("card-realms-") && key !== STATIC_CACHE)
+        .filter((key) => key.startsWith("card-realms-") && (DEVELOPMENT_ORIGIN || key !== STATIC_CACHE))
         .map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
@@ -53,28 +62,20 @@ function isCacheableStatic(request) {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  if (request.method !== "GET" || !isCacheableStatic(request)) return;
+  // Development chunks keep the same URLs between rebuilds; never serve an old bundle.
+  if (DEVELOPMENT_ORIGIN || request.method !== "GET" || !isCacheableStatic(request)) return;
 
   event.respondWith((async () => {
-    const cached = await caches.match(request);
-    if (cached) {
-      event.waitUntil(fetch(request)
-        .then((response) => response.ok
-          ? caches.open(STATIC_CACHE).then((cache) => cache.put(request, response.clone()))
-          : undefined)
-        .catch(() => undefined));
-      return cached;
-    }
-
     try {
       const response = await fetch(request);
       if (response.ok) {
         const cache = await caches.open(STATIC_CACHE);
-        await cache.put(request, response.clone());
+        event.waitUntil(cache.put(request, response.clone()).catch(() => undefined));
       }
       return response;
     } catch {
-      return Response.error();
+      const cached = await caches.match(request);
+      return cached ?? Response.error();
     }
   })());
 });

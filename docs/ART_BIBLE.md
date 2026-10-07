@@ -17,7 +17,7 @@ ARPG de ação em pixel art, ambientado em tradições folclóricas. A leitura �
 | Célula de layout | 896 px entre centros |
 | Corredor | 128 px de largura |
 | Margem do mundo | 160 px |
-| Jogador | spritesheet 4 × 11 com frames de 189 × 189 px; renderização a 0,3× e collider de footprint 22 × 28 px |
+| Jogador | spritesheet 4 × 13 com frames de 189 × 189 px; collider de footprint 22 × 28 px |
 | Inimigo comum | 32–56 px de silhueta, collider guiado pelo footprint |
 | Baú de tesouro | spritesheet 2 × 2 com frames de 627 × 627 px; renderização nominal a 92 × 92 px |
 | Boss | 72–128 px de silhueta, com telegraph que não depende apenas de cor |
@@ -27,34 +27,34 @@ Phaser deve permanecer com pixelArt, antialias desligado e roundPixels ligado. A
 ## Avatar próprio do jogador
 
 - O personagem controlado é o avatar criado e customizado pelo próprio jogador no Ateliê; “Cartógrafo” é o nome histórico do perfil/runtime, não um companheiro folclórico.
-- A configuração existente do avatar (`AvatarConfig`) é reutilizada e passada tanto à Guilda quanto à dungeon. A spritesheet animada mantém a grade de 4 × 11 e os estados de movimento/combate; não se cria um segundo schema de avatar.
+- A configuração existente do avatar (`AvatarConfig`) é reutilizada e passada tanto à Guilda quanto à dungeon. A spritesheet animada usa uma grade de 4 × 13 com os estados de movimento, combate e duas poses de poder; não se cria um segundo schema de avatar.
 - O corpo de colisão segue a área dos pés e deixa a silhueta visual livre. Criaturas folclóricas aparecem como identidades e artes das cartas de poder, nunca como seguidores no combate.
-- O passe cobre o personagem do jogador, os três bosses, três inimigos comuns e NPCs originais do HUB: Mestre da Forja, Mercadora, Arquivista e Luzia, cada um com folha própria; os NPCs têm ciclos 4×4 de espera/trabalho ou estudo/fala/caminhada. Props quebráveis usam pixel art procedural por bioma. Mini bosses e outras definições de inimigo ainda não têm folhas animadas dedicadas; a composição ambiental completa e o passe visual de todas as salas seguem pendentes.
+- O catálogo atual cobre o personagem do jogador, bosses, inimigos comuns e demais perfis selecionados nas três dungeons, além dos NPCs originais do HUB: Mestre da Forja, Mercadora, Arquivista e Luzia, cada um com folha própria. As folhas atuais de NPC e inimigo usam seis linhas em grade 4×6. Props quebráveis usam pixel art procedural por bioma; ainda faltam revisão visual sistemática e composição ambiental completa de todas as salas.
 - As salas receberam detalhes procedurais animados por bioma: árvores, tochas e vaga-lumes na Mata; reflexos d'água no Arquipélago; cristais e luz rúnica nas Montanhas. Esses acentos ampliam os tiles atuais e ainda não substituem uma composição ambiental completa.
 
 ## Curupira Ancestral
 
-- A primeira folha animada de chefe é `public/art/curupira-boss-spritesheet.png`: PNG RGBA de 1254 × 1254 px, grade 4 × 4 e quadros de 313 × 313 px.
-- As linhas representam idle, caminhada, ataque e derrota. `src/game/arpg/runtime/enemy-sprites.ts` registra quatro quadros por estado; somente o boss da Mata usa esse perfil.
-- O renderer escala a arte para a arena e mantém collider no footprint, separado da silhueta transparente. `enemy-sprites.test.ts` valida formato PNG, grade e mapeamento das linhas.
+- A folha atual é `public/art/monster-curupira-ancestral-spritesheet-v2.webp`: WebP lossless RGBA de 1024 × 1536 px, grade 4 × 6 e quadros de 256 × 256 px.
+- As linhas representam idle, caminhada, ataque, disparo, dano e derrota. `src/game/arpg/runtime/enemy-sprites.ts` registra quatro quadros por estado; somente o boss da Mata usa esse perfil.
+- O renderer escala a arte para a arena e mantém collider no footprint, separado da silhueta transparente. `enemy-sprites.test.ts` valida formato WebP, canal alpha, grade e mapeamento das linhas.
 - A luta alterna padrões telegráficos: fase 1 combina arco e raízes; fase 2 usa rastros falsos, decoys e emboscadas; fase 3 altera temporariamente a arena com raízes físicas que bloqueiam caminhos.
-- O smoke browser observou os quatro estados e os padrões das três fases; a captura `curupira-root-arena-smoke.png` mostra duas barreiras físicas ativas. Além dos três bosses, Broto, Boto e Raijū têm folhas dedicadas com idle/walk/attack/defeat. Mini bosses e outras definições de inimigo ainda usam arte anterior; os objetos e as salas especiais precisam de acabamento visual próprio.
+- O smoke browser observou os quatro estados e os padrões das três fases; a captura `curupira-root-arena-smoke.png` mostra duas barreiras físicas ativas. Os perfis configurados para bosses, inimigos comuns, elites e mini-chefes usam folhas dedicadas; os atlases continuam como retratos e fallbacks para IDs não mapeados. Os objetos e as salas especiais ainda precisam de acabamento visual próprio.
 
 ## Amarok das Montanhas Rúnicas
 
-- `public/art/amarok-boss-spritesheet-v2.png` é uma folha PNG RGBA original de 1254 × 1254 px, grade 4 × 4 com quadros de 313 × 313 px.
-- As linhas são idle, caminhada, ataque e derrota. O runtime registra o perfil `amarok-boss` e usa collider no footprint para separar colisão da silhueta ampliada.
+- A folha atual é `public/art/monster-amarok-elder-wolf-spritesheet-v2.webp`, WebP lossless RGBA de 1024 × 1536 px em grade 4 × 6, com quadros de 256 × 256 px.
+- As linhas são idle, caminhada, ataque, disparo, dano e derrota. O runtime registra o perfil `amarok-boss` e usa collider no footprint para separar colisão da silhueta ampliada.
 - A folha mantém a paleta glacial azul/prata e os glifos de gelo da região. O smoke 844 × 390 observou idle, caminhada, ataque e derrota durante a execução completa das Montanhas Rúnicas.
 
 ## Iara das Profundezas
 
-- `public/art/iara-boss-spritesheet.png` é uma folha PNG RGBA original de 1254 × 1254 px, grade 4 × 4 com quadros de 313 × 313 px.
-- As linhas são idle, caminhada, ataque e derrota. O runtime registra o perfil `iara-boss`, ligado ao boss do Arquipélago das Marés, e mantém o collider no footprint.
+- A folha atual é `public/art/monster-iara-boss-spritesheet-v2.webp`, WebP lossless RGBA de 1024 × 1536 px em grade 4 × 6, com quadros de 256 × 256 px.
+- As linhas são idle, caminhada, ataque, disparo, dano e derrota. O runtime registra o perfil `iara-boss`, ligado ao boss do Arquipélago das Marés, e mantém o collider no footprint.
 - A silhueta, as águas profundas, as pérolas e os mantos de correnteza dão identidade visual própria à arena marítima. O smoke CDP de 844 × 390 observou idle, caminhada, ataque e derrota na run completa do Arquipélago.
 
 ## Baú de tesouro
 
-- `public/art/treasure-chest-spritesheet-v2.png` é o asset original do Card Realms, integrado como PNG de 1254 × 1254 px em grade 2 × 2; cada quadro mede 627 × 627 px. A arte não usa recursos do ZIP de referência.
+- `public/art/treasure-chest-spritesheet-v2.webp` é o asset original do Card Realms, servido como WebP lossless RGBA de 1254 × 1254 px em grade 2 × 2; cada quadro mede 627 × 627 px. A arte não usa recursos do ZIP de referência.
 - `src/game/arpg/runtime/treasure-chest-sprites.ts` mapeia o frame 0 como baú fechado e os frames 1–3 como abertura em execução única a 10 fps. A escala de renderização é calculada a partir do frame para manter o baú em 92 × 92 px.
 - Cada quadro ancora o desenho pelo mesmo baseline no chão. O surgimento procedural começa a 75% dessa escala e termina em 260 ms; o tween preserva o tamanho nominal. O prompt `[E] Abrir` aparece apenas ao alcance e vira `Abrindo…` durante a animação; o controle touch mantém o botão contextual existente.
 - Após os 300 ms da abertura, o item atribuído sobe por 260 ms, pausa 80 ms, cai por 260 ms até uma célula caminhável da mesma sala e tem contato de 160 ms. Física e input de gameplay ficam suspensos, mas a cena continua ativa para a escolha React. A silhueta deriva do item existente: espada, arco, cajado, peitoral ou manto, em textura procedural 32 × 32 px com contorno de 2 px; cache reutiliza o fragmento de 24 px. Nenhuma nova rolagem ocorre.
@@ -102,7 +102,7 @@ O primeiro passe implementa tiles de piso/detalhe/água/obstáculo, paredes de s
 
 Silhueta deve permanecer identificável no canvas de 844 × 390 CSS px. Contorno escuro de 1–2 pixels nativos, sombra simples sob a entidade e poucos detalhes de alto contraste. Estados necessários: idle, walk, attack, dash, hurt, death e interact. Inimigos precisam de telegraphs distintos para melee, ranged, charger e caster. O Curupira exige leitura própria para arco, corrida, raízes, rastros falsos e mudanças da arena.
 
-O Broto Enraivecido da Mata usa a arte original `public/art/sprout-enemy-spritesheet.png`: grade 4×4 de quadros 313×313, em ordem idle, walk, attack e defeat. Seu perfil aplica escala 0,2 e mantém o collider dimensionado pelo footprint, não pelas bordas transparentes da folha. O Boto-cor-de-rosa do Arquipélago usa `public/art/boto-enemy-spritesheet.png` e o Raijū das Montanhas usa `public/art/raiju-enemy-spritesheet.png`, ambos na mesma grade e escala 0,22. Uma pausa de 420 ms depois do surgimento permite ler o idle antes da perseguição. Essas três criaturas tiveram os quatro estados observados em smokes; mini bosses e demais definições de inimigo precisam de seu próprio passe visual.
+O Broto Enraivecido da Mata usa `public/art/monster-sprout-spritesheet-v1.webp`, WebP lossless RGBA de 1024 × 1536 px: grade 4×6 de quadros 256×256, em ordem idle, walk, attack, shoot, damage e defeat. Seu perfil aplica escala 0,25 e mantém o collider dimensionado pelo footprint, não pelas bordas transparentes da folha. O Boto-cor-de-rosa do Arquipélago usa `public/art/monster-boto-enemy-spritesheet-v1.webp` e o Raijū das Montanhas usa `public/art/monster-raiju-enemy-spritesheet-v1.webp`, ambos na mesma grade e escala 0,25. Uma pausa de 420 ms depois do surgimento permite ler o idle antes da perseguição. Essas três criaturas tiveram os estados observados em smokes; as demais folhas de inimigos constam do manifesto e são carregadas conforme o perfil da dungeon.
 
 ## HUD, controles e menus
 

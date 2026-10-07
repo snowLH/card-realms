@@ -26,7 +26,7 @@ function players(count: number) {
   }));
 }
 
-function raid(count = 5) {
+function raid(count = 4) {
   return createRaidState(
     "10000000-0000-4000-8000-000000000001",
     "20000000-0000-4000-8000-000000000002",
@@ -37,7 +37,7 @@ function raid(count = 5) {
 }
 
 describe("Raid cooperativa com avatar e dois poderes", () => {
-  it.each([2, 3, 4, 5])("inicia com %i avatares e dois poderes fixos por pessoa", (count) => {
+  it.each([2, 3, 4])("inicia com %i avatares e dois poderes fixos por pessoa", (count) => {
     const state = raid(count);
 
     expect(state.players).toHaveLength(count);
@@ -142,7 +142,7 @@ describe("Raid cooperativa com avatar e dois poderes", () => {
   });
 
   it("ataque em área do boss atinge todos os avatares ativos", () => {
-    const state = raid(5);
+    const state = raid(4);
     state.boss.phase = 2;
     state.turn.actorId = RAID_BOSS_ID;
     state.turn.actorKind = "boss";

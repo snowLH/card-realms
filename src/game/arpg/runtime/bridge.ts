@@ -30,9 +30,9 @@ export class ArpgBridge implements ArpgRuntimeBridge {
   };
 
   private dashQueued = false;
-  private weaponSwapQueued = false;
   private interactQueued = false;
-  private lootDecision: "equip" | "keep" | null = null;
+  private lootDecision: "equip" | "keep" | "replace-a" | "replace-b" | null = null;
+  private weaponSwitchQueued = false;
   private roomChoice: string | null = null;
   private abilityQueued = [false, false];
   private hudListeners = new Set<HudListener>();
@@ -103,8 +103,8 @@ export class ArpgBridge implements ArpgRuntimeBridge {
     this.input.aimY = 0;
     this.input.attack = false;
     this.dashQueued = false;
-    this.weaponSwapQueued = false;
     this.interactQueued = false;
+    this.weaponSwitchQueued = false;
     this.abilityQueued.fill(false);
   }
 
@@ -112,16 +112,16 @@ export class ArpgBridge implements ArpgRuntimeBridge {
     this.dashQueued = true;
   }
 
-  queueWeaponSwap() {
-    this.weaponSwapQueued = true;
-  }
-
   queueInteract() {
     this.interactQueued = true;
   }
 
-  queueLootDecision(decision: "equip" | "keep") {
+  queueLootDecision(decision: "equip" | "keep" | "replace-a" | "replace-b") {
     this.lootDecision = decision;
+  }
+
+  queueWeaponSwitch() {
+    this.weaponSwitchQueued = true;
   }
 
   queueRoomChoice(choiceId: string) {
@@ -138,12 +138,6 @@ export class ArpgBridge implements ArpgRuntimeBridge {
     return queued;
   }
 
-  consumeWeaponSwap() {
-    const queued = this.weaponSwapQueued;
-    this.weaponSwapQueued = false;
-    return queued;
-  }
-
   consumeInteract() {
     const queued = this.interactQueued;
     this.interactQueued = false;
@@ -154,6 +148,12 @@ export class ArpgBridge implements ArpgRuntimeBridge {
     const decision = this.lootDecision;
     this.lootDecision = null;
     return decision;
+  }
+
+  consumeWeaponSwitch() {
+    const queued = this.weaponSwitchQueued;
+    this.weaponSwitchQueued = false;
+    return queued;
   }
 
   consumeRoomChoice() {

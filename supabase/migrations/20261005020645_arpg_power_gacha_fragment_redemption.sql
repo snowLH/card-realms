@@ -16,9 +16,7 @@ as $$
     else null
   end;
 $$;
-
 revoke all on function private.arpg_power_gacha_fragment_cost(text) from public, anon, authenticated;
-
 create table private.arpg_power_gacha_redemptions (
   id bigint generated always as identity primary key,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -29,13 +27,10 @@ create table private.arpg_power_gacha_redemptions (
   created_at timestamptz not null default now(),
   unique (user_id, idempotency_key)
 );
-
 create index arpg_power_gacha_redemptions_user_created_idx
   on private.arpg_power_gacha_redemptions (user_id, created_at desc);
-
 revoke all on table private.arpg_power_gacha_redemptions from public, anon, authenticated;
 grant usage on schema private to authenticated;
-
 -- Include the authenticated account, current owned pool cards, and the fixed
 -- prices in the same state response used by the client panel.
 create or replace function private.get_arpg_power_gacha_state()
@@ -102,12 +97,10 @@ begin
   );
 end;
 $$;
-
 -- Keep the legacy implementation private, but require the client to bind its
 -- idempotency key to the expected authenticated account before invoking it.
 drop function if exists public.roll_arpg_power_gacha(uuid);
 revoke all on function private.roll_arpg_power_gacha(uuid) from public, anon, authenticated;
-
 create or replace function private.roll_arpg_power_gacha(
   target_idempotency_key uuid,
   target_user_id uuid
@@ -129,10 +122,8 @@ begin
   return private.roll_arpg_power_gacha(target_idempotency_key);
 end;
 $$;
-
 revoke all on function private.roll_arpg_power_gacha(uuid, uuid) from public, anon, authenticated;
 grant execute on function private.roll_arpg_power_gacha(uuid, uuid) to authenticated;
-
 create or replace function public.roll_arpg_power_gacha(
   target_idempotency_key uuid,
   target_user_id uuid
@@ -144,10 +135,8 @@ set search_path = ''
 as $$
   select private.roll_arpg_power_gacha(target_idempotency_key, target_user_id);
 $$;
-
 revoke all on function public.roll_arpg_power_gacha(uuid, uuid) from public, anon;
 grant execute on function public.roll_arpg_power_gacha(uuid, uuid) to authenticated;
-
 create or replace function private.redeem_arpg_power_gacha_card(
   target_user_id uuid,
   target_card_id text,
@@ -309,10 +298,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.redeem_arpg_power_gacha_card(uuid, text, uuid) from public, anon, authenticated;
 grant execute on function private.redeem_arpg_power_gacha_card(uuid, text, uuid) to authenticated;
-
 create or replace function public.redeem_arpg_power_gacha_card(
   target_user_id uuid,
   target_card_id text,
@@ -327,6 +314,5 @@ as $$
     target_user_id, target_card_id, target_idempotency_key
   );
 $$;
-
 revoke all on function public.redeem_arpg_power_gacha_card(uuid, text, uuid) from public, anon;
 grant execute on function public.redeem_arpg_power_gacha_card(uuid, text, uuid) to authenticated;

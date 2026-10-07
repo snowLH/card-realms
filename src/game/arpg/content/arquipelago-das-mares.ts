@@ -172,16 +172,16 @@ export const MARES_ROOM_LOOT_POOLS = [
     { kind: "weapon", id: "river-bow", label: "Arco Ribeirinho" },
   ],
   [
-    { kind: "armor", id: "river-shell-armor", label: "Armadura de Conchas" },
-    { kind: "armor", id: "kelpie-mist-cloak", label: "Manto da Névoa do Kelpie" },
+    { kind: "weapon", id: "tide-blade", label: "Lâmina das Marés" },
+    { kind: "weapon", id: "river-bow", label: "Arco Ribeirinho" },
   ],
   [
     { kind: "weapon", id: "iara-song-staff", label: "Cajado do Canto da Iara" },
     { kind: "weapon", id: "river-bow", label: "Arco Ribeirinho" },
   ],
   [
-    { kind: "armor", id: "ahuizotl-guard-armor", label: "Armadura do Ahuízotl" },
-    { kind: "armor", id: "kelpie-mist-cloak", label: "Manto da Névoa do Kelpie" },
+    { kind: "weapon", id: "iara-song-staff", label: "Cajado do Canto da Iara" },
+    { kind: "weapon", id: "river-bow", label: "Arco Ribeirinho" },
   ],
 ] as const;
 

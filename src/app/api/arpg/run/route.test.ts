@@ -78,7 +78,6 @@ async function beginPersistedRun(body: unknown = { action: "start", expeditionId
     checkpoint: Record<string, unknown>;
     loadout?: {
       weaponId: string;
-      secondaryWeaponId: string;
       armorId: string;
       relicId: string;
       abilityIds: [string, string];
@@ -97,6 +96,7 @@ function activeRunPayload(
     expeditionId: "mata-encantada",
     dungeonSeed: run.runSeed,
     checkpoint,
+    status: "active",
     updatedAt: "2026-10-03T10:00:00.000Z",
     expiresAt: "2026-10-10T10:00:00.000Z",
   };
@@ -212,8 +212,9 @@ describe("/api/arpg/run durable run endpoints", () => {
     loadoutQueryMock.mockResolvedValue({ data: null, error: null });
     ownershipQueryMock.mockResolvedValue({
       data: [
-        "ancestral-roots", "boitata-flame", "saci-whirlwind", "iara-song",
-        "iara-song-staff", "ahuizotl-guard-armor", "iara-shell-charm",
+        "curupira-root-snare", "curupira-ember-arrow",
+        "iara-enchanting-song", "iara-living-spring",
+        "iara-song-staff", "iara-shell-charm",
       ].map((item_key) => ({ item_key, quantity: 1 })),
       error: null,
     });
@@ -256,15 +257,13 @@ describe("/api/arpg/run durable run endpoints", () => {
   it("freezes the database-owned Arsenal loadout into the signed run token and start checkpoint", async () => {
     const savedLoadout = {
       weaponId: "iara-song-staff",
-      secondaryWeaponId: "iron-sword",
-      armorId: "ahuizotl-guard-armor",
+      armorId: "leather-armor",
       relicId: "iara-shell-charm",
-      abilityIds: ["saci-whirlwind", "iara-song"],
+      abilityIds: ["iara-enchanting-song", "iara-living-spring"],
     };
     loadoutQueryMock.mockResolvedValue({
       data: {
         weapon_id: savedLoadout.weaponId,
-        secondary_weapon_id: savedLoadout.secondaryWeaponId,
         armor_id: savedLoadout.armorId,
         relic_id: savedLoadout.relicId,
         ability_ids: savedLoadout.abilityIds,
@@ -280,17 +279,16 @@ describe("/api/arpg/run durable run endpoints", () => {
 
     const expectedLoadout = {
       weaponId: savedLoadout.weaponId,
-      secondaryWeaponId: savedLoadout.secondaryWeaponId,
       armorId: savedLoadout.armorId,
       relicId: savedLoadout.relicId,
-      abilityIds: ["saci-whirlwind", "iara-song"],
+      abilityIds: ["iara-enchanting-song", "iara-living-spring"],
     };
     expect(run.loadout).toEqual(expectedLoadout);
     expect(run.loadout).not.toHaveProperty("supportIds");
     expect(run.checkpoint).toMatchObject({
       weaponId: savedLoadout.weaponId,
       armorId: savedLoadout.armorId,
-      maxHp: 154,
+      maxHp: 120,
     });
     expect(verifyArpgRunToken(run.token).initialLoadout).toEqual(expectedLoadout);
   });
@@ -301,7 +299,7 @@ describe("/api/arpg/run durable run endpoints", () => {
         weapon_id: "invented-weapon",
         armor_id: "leather-armor",
         relic_id: "cartographer-compass",
-        ability_ids: ["ancestral-roots", "boitata-flame"],
+        ability_ids: ["curupira-root-snare", "curupira-ember-arrow"],
       },
       error: null,
     });
@@ -311,9 +309,43 @@ describe("/api/arpg/run durable run endpoints", () => {
     expect(rpcMock).not.toHaveBeenCalledWith("begin_or_resume_arpg_run", expect.anything());
   });
 
+  it.each([
+    {
+      description: "a mixed pair from different legends",
+      abilityIds: ["curupira-root-snare", "iara-living-spring"],
+    },
+    {
+      description: "a legacy generic pair",
+      abilityIds: ["ancestral-roots", "boitata-flame"],
+    },
+  ])("rejects $description before creating a run", async ({ abilityIds }) => {
+    loadoutQueryMock.mockResolvedValue({
+      data: {
+        weapon_id: "forest-bow",
+        armor_id: "leather-armor",
+        relic_id: "cartographer-compass",
+        ability_ids: abilityIds,
+      },
+      error: null,
+    });
+    ownershipQueryMock.mockResolvedValue({
+      data: abilityIds.map((item_key) => ({ item_key, quantity: 1 })),
+      error: null,
+    });
+
+    const response = await post({ action: "start", expeditionId: "mata-encantada" });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      error: expect.stringContaining("exatamente seus dois poderes de assinatura"),
+    });
+    expect(ownershipQueryMock).toHaveBeenCalledWith("item_key", expect.arrayContaining(abilityIds));
+    expect(rpcMock).not.toHaveBeenCalledWith("begin_or_resume_arpg_run", expect.anything());
+  });
+
   it("requires the account inventory to own both powers before creating a persistent run", async () => {
     ownershipQueryMock.mockResolvedValue({
-      data: [{ item_key: "ancestral-roots", quantity: 1 }],
+      data: [{ item_key: "curupira-root-snare", quantity: 1 }],
       error: null,
     });
 
@@ -336,15 +368,13 @@ describe("/api/arpg/run durable run endpoints", () => {
   it("resumes with the original signed loadout after the Arsenal changes", async () => {
     const originalLoadout = {
       weaponId: "iara-song-staff",
-      secondaryWeaponId: "iron-sword",
-      armorId: "ahuizotl-guard-armor",
+      armorId: "leather-armor",
       relicId: "iara-shell-charm",
-      abilityIds: ["saci-whirlwind", "iara-song"] as [string, string],
+      abilityIds: ["iara-enchanting-song", "iara-living-spring"] as [string, string],
     };
     loadoutQueryMock.mockResolvedValue({
       data: {
         weapon_id: originalLoadout.weaponId,
-        secondary_weapon_id: originalLoadout.secondaryWeaponId,
         armor_id: originalLoadout.armorId,
         relic_id: originalLoadout.relicId,
         ability_ids: originalLoadout.abilityIds,
@@ -357,10 +387,9 @@ describe("/api/arpg/run durable run endpoints", () => {
     loadoutQueryMock.mockResolvedValue({
       data: {
         weapon_id: "forest-bow",
-        secondary_weapon_id: "iron-sword",
         armor_id: "leather-armor",
         relic_id: "cartographer-compass",
-        ability_ids: ["ancestral-roots", "boitata-flame"],
+        ability_ids: ["curupira-root-snare", "curupira-ember-arrow"],
       },
       error: null,
     });
@@ -387,10 +416,9 @@ describe("/api/arpg/run durable run endpoints", () => {
     expect(resumed.resumed).toBe(true);
     const expectedLoadout = {
       weaponId: originalLoadout.weaponId,
-      secondaryWeaponId: originalLoadout.secondaryWeaponId,
       armorId: originalLoadout.armorId,
       relicId: originalLoadout.relicId,
-      abilityIds: ["saci-whirlwind", "iara-song"],
+      abilityIds: ["iara-enchanting-song", "iara-living-spring"],
     };
     expect(resumed.loadout).toEqual(expectedLoadout);
     expect(verifyArpgRunToken(resumed.token).initialLoadout).toEqual(expectedLoadout);
@@ -399,10 +427,9 @@ describe("/api/arpg/run durable run endpoints", () => {
   it("rejects a resumed snapshot if the account no longer owns one of its powers", async () => {
     const originalLoadout = {
       weaponId: "iara-song-staff",
-      secondaryWeaponId: "iron-sword",
-      armorId: "ahuizotl-guard-armor",
+      armorId: "leather-armor",
       relicId: "iara-shell-charm",
-      abilityIds: ["saci-whirlwind", "iara-song"] as [string, string],
+      abilityIds: ["iara-enchanting-song", "iara-living-spring"] as [string, string],
     };
     loadoutQueryMock.mockResolvedValue({ data: null, error: null });
     const existingRun = await beginPersistedRun();
@@ -431,12 +458,12 @@ describe("/api/arpg/run durable run endpoints", () => {
     });
     ownershipQueryMock
       .mockResolvedValueOnce({
-        data: ["ancestral-roots", "boitata-flame"].map((item_key) => ({ item_key, quantity: 1 })),
+        data: ["curupira-root-snare", "curupira-ember-arrow"].map((item_key) => ({ item_key, quantity: 1 })),
         error: null,
       })
       .mockResolvedValueOnce({
         data: [
-          "iara-song-staff", "ahuizotl-guard-armor", "iara-shell-charm", "iara-song",
+          "iara-song-staff", "iara-shell-charm", "iara-enchanting-song",
         ].map((item_key) => ({ item_key, quantity: 1 })),
         error: null,
       });
@@ -606,7 +633,7 @@ describe("/api/arpg/run durable run endpoints", () => {
       serverCombatState: state,
     };
     rpcMock.mockImplementation(async (name: string) => {
-      if (name === "get_active_arpg_run") {
+      if (name === "get_arpg_run_for_completion") {
         return { data: activeRunPayload(run, bossCheckpoint), error: null };
       }
       if (name === "finish_arpg_run") {
@@ -830,7 +857,17 @@ describe("/api/arpg/run durable run endpoints", () => {
       serverCombatState: {
         ...storedState,
         enemies: storedState.enemies.map((enemy) => enemy.definitionId === "boss"
-          ? { ...enemy, nextPatternAtMs: storedState.serverTimeMs + 50 }
+          ? {
+            ...enemy,
+            // Keep the deterministic boss telegraph inside its authoritative
+            // attack radius. The generated boss spawn may be farther than the
+            // ranged threshold from the physical doorway used to enter a room.
+            x: entry.x,
+            y: entry.y,
+            bossPhase: 1,
+            bossPatternIndex: 0,
+            nextPatternAtMs: storedState.serverTimeMs + 50,
+          }
           : enemy),
       },
     };

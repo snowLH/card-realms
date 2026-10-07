@@ -29,9 +29,15 @@ const BASE_LAYERS = [
   "COLLISION", "OBJECTS", "CHARACTERS", "FOREGROUND", "LIGHTS", "EFFECTS",
 ] as const;
 
+const ROOM_TILE_DIMENSIONS: Record<DungeonRoomSize, { widthTiles: number; heightTiles: number }> = {
+  small: { widthTiles: 21, heightTiles: 11 },
+  medium: { widthTiles: 31, heightTiles: 15 },
+  large: { widthTiles: 37, heightTiles: 17 },
+};
+
 function template(id: string, type: DungeonRoomType, size: DungeonRoomSize, pattern: RoomPattern, spawns: number, rewards = 1): RoomTemplateDefinition {
-  const tiles = size === "small" ? 11 : size === "medium" ? 15 : 21;
-  return { id, biome: "mata-encantada", type, size, pattern, widthTiles: tiles, heightTiles: tiles,
+  const dimensions = ROOM_TILE_DIMENSIONS[size];
+  return { id, biome: "mata-encantada", type, size, pattern, ...dimensions,
     allowedDoors: ALL_DOORS, enemySpawnPoints: spawns, rewardSpawnPoints: rewards, layers: BASE_LAYERS };
 }
 export const MATA_ROOM_TEMPLATES: readonly RoomTemplateDefinition[] = [
@@ -58,8 +64,8 @@ export function pickMataTemplate(type: DungeonRoomType, random: SeededRandom) {
 }
 
 function maresTemplate(id: string, type: DungeonRoomType, size: DungeonRoomSize, pattern: RoomPattern, spawns: number, rewards = 1): RoomTemplateDefinition {
-  const tiles = size === "small" ? 11 : size === "medium" ? 15 : 21;
-  return { id, biome: "arquipelago-das-mares", type, size, pattern, widthTiles: tiles, heightTiles: tiles,
+  const dimensions = ROOM_TILE_DIMENSIONS[size];
+  return { id, biome: "arquipelago-das-mares", type, size, pattern, ...dimensions,
     allowedDoors: ALL_DOORS, enemySpawnPoints: spawns, rewardSpawnPoints: rewards, layers: BASE_LAYERS };
 }
 
@@ -81,8 +87,8 @@ export const MARES_ROOM_TEMPLATES: readonly RoomTemplateDefinition[] = [
 export const MARES_ROOM_TEMPLATE_BY_ID = new Map(MARES_ROOM_TEMPLATES.map((item) => [item.id, item]));
 
 function runicTemplate(id: string, type: DungeonRoomType, size: DungeonRoomSize, pattern: RoomPattern, spawns: number, rewards = 1): RoomTemplateDefinition {
-  const tiles = size === "small" ? 11 : size === "medium" ? 15 : 21;
-  return { id, biome: "montanhas-runicas", type, size, pattern, widthTiles: tiles, heightTiles: tiles,
+  const dimensions = ROOM_TILE_DIMENSIONS[size];
+  return { id, biome: "montanhas-runicas", type, size, pattern, ...dimensions,
     allowedDoors: ALL_DOORS, enemySpawnPoints: spawns, rewardSpawnPoints: rewards, layers: BASE_LAYERS };
 }
 

@@ -81,12 +81,10 @@ begin
   return reward || jsonb_build_object('replayed', false);
 end;
 $$;
-
 revoke all on function private.claim_arpg_mvp_run_reward(uuid, uuid, boolean)
   from public, anon, authenticated;
 grant execute on function private.claim_arpg_mvp_run_reward(uuid, uuid, boolean)
   to service_role;
-
 create or replace function public.claim_arpg_mvp_run_reward(
   target_player_id uuid,
   target_run_id uuid,
@@ -103,7 +101,6 @@ as $$
     target_victory
   );
 $$;
-
 revoke all on function public.claim_arpg_mvp_run_reward(uuid, uuid, boolean)
   from public, anon, authenticated;
 grant execute on function public.claim_arpg_mvp_run_reward(uuid, uuid, boolean)

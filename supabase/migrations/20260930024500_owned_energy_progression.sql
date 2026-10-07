@@ -32,10 +32,8 @@ begin
   return new;
 end;
 $$;
-
 revoke all on function private.initialize_player_progress() from public, anon, authenticated;
 grant execute on function private.initialize_player_progress() to service_role;
-
 create or replace function private.choose_starter_card(target_creature_id text)
 returns jsonb
 language plpgsql
@@ -125,10 +123,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.choose_starter_card(text) from public, anon;
 grant execute on function private.choose_starter_card(text) to authenticated, service_role;
-
 -- Repair accounts that are unmistakably fresh and still have the obsolete
 -- 12/12/12/12/12 starter package. Existing progressed accounts are untouched.
 with fresh_accounts as (

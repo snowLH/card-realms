@@ -1,0 +1,8 @@
+.icon {
+  display: inline-block;
+  flex: none;
+  background-image: url("/art/arpg-item-icons-pixel-v1.webp");
+  background-repeat: no-repeat;
+  background-size: 300% 300%;
+  image-rendering: pixelated;
+}

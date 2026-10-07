@@ -32,6 +32,34 @@ export function gridCellToWorld(point: GridPoint, grid: Pick<GridNavigation, "ti
   };
 }
 
+/** True when every grid cell between two world points is walkable. */
+export function hasGridLineOfSight(grid: GridNavigation, start: WorldPoint, end: WorldPoint) {
+  let x = worldToGridCell(start, grid).x;
+  let y = worldToGridCell(start, grid).y;
+  const target = worldToGridCell(end, grid);
+  const dx = Math.abs(target.x - x);
+  const dy = Math.abs(target.y - y);
+  const stepX = x < target.x ? 1 : -1;
+  const stepY = y < target.y ? 1 : -1;
+  let error = dx - dy;
+
+  if (!grid.walkable.has(gridCellKey(x, y)) || !grid.walkable.has(gridCellKey(target.x, target.y))) return false;
+
+  while (x !== target.x || y !== target.y) {
+    const doubledError = error * 2;
+    if (doubledError > -dy) {
+      error -= dy;
+      x += stepX;
+    }
+    if (doubledError < dx) {
+      error += dx;
+      y += stepY;
+    }
+    if ((x !== target.x || y !== target.y) && !grid.walkable.has(gridCellKey(x, y))) return false;
+  }
+  return true;
+}
+
 type HeapEntry = { key: string; x: number; y: number; cost: number; priority: number };
 
 class MinHeap {

@@ -3,6 +3,7 @@ import {
   buildGridNavigationFromBounds,
   findGridPath,
   gridCellKey,
+  hasGridLineOfSight,
   worldToGridCell,
   type GridNavigation,
 } from "./grid-path";
@@ -36,6 +37,21 @@ describe("navegação por grade para clique e toque", () => {
       expect(Math.abs(current.x - previous.x) + Math.abs(current.y - previous.y)).toBe(32);
       expect(grid.walkable.has(gridCellKey(Math.round(current.x / 32), Math.round(current.y / 32)))).toBe(true);
     }
+  });
+
+  it("reconhece linha de visão em corredor desimpedido", () => {
+    const grid = makeGrid(["....."]);
+    expect(hasGridLineOfSight(grid, { x: 0, y: 0 }, { x: 128, y: 0 })).toBe(true);
+  });
+
+  it("não permite mirar através de paredes sólidas", () => {
+    const grid = makeGrid(["..#..", ".....", "....."]);
+    expect(hasGridLineOfSight(grid, { x: 0, y: 0 }, { x: 128, y: 0 })).toBe(false);
+  });
+
+  it("exige que o alvo também esteja numa célula visível", () => {
+    const grid = makeGrid(["....#"]);
+    expect(hasGridLineOfSight(grid, { x: 0, y: 0 }, { x: 128, y: 0 })).toBe(false);
   });
 
   it("acha um ponto caminhável perto do destino clicado em uma parede", () => {

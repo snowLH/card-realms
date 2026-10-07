@@ -1,6 +1,6 @@
 # Runbook — Supabase staging e homologação A/B
-> **Atualização vigente em 4 de outubro de 2026:** o usuário autorizou atualizar este projeto diretamente na branch main, sem branches de staging. O projeto Card Realms acessível na conta cryohive11 é ywawwhnsvpfeppfcuwzg; as 38 migrations já foram aplicadas e conferidas. As instruções de staging e os bloqueios descritos nos registros abaixo são históricos e não descrevem o estado atual. Veja “Execução autorizada na main” ao final.
 
+> **Estado vigente em 7 de outubro de 2026:** o projeto Card Realms autorizado é `ywawwhnsvpfeppfcuwzg` (conta `cryohive11`) e está vinculado pela CLI. O histórico remoto está alinhado até `20261007105822_repair_raid_authority_wrappers`; os testes pgTAP focais de Raid, loadout, bootstrap de perfil e retirada do gacha passaram. As limitações descritas nas seções históricas abaixo não representam o estado atual.
 
 Este documento é o roteiro operacional da homologação. Nenhuma etapa deve ser marcada PASS por inspeção de código; PASS exige execução contra um projeto Supabase isolado e duas contas autenticadas em duas sessões independentes.
 
@@ -191,12 +191,3 @@ O estado atual não corresponde ao runbook histórico que descreve uma branch de
 No ambiente local, `supabase` CLI e Docker não estão disponíveis, então não foi possível iniciar um PostgreSQL descartável para validar as migrations. Nesta rechecagem foram consultados somente o cadastro de projetos, o painel de branches e o histórico de migrations; não houve consultas a tabelas ou dados de jogadores, nem execução de SQL, migrations, pgTAP, advisors, backup ou deploy. O Dashboard informa que não há backup disponível para este projeto.
 
 Em 4 de outubro de 2026, o usuário determinou que a atualização deste projeto seja feita diretamente na branch `main`, sem criar ou usar branches, e autorizou a atualização integral. Essa decisão substitui o fluxo histórico de staging para esta tarefa. O conector Supabase atualmente disponível, porém, ainda não tem acesso ao ref `ywawwhnsvpfeppfcuwzg`: a consulta somente de leitura ao histórico retorna `You do not have permission to perform this action`. O Dashboard oferece uma conexão MCP oficial do Codex, restrita a esse ref; ela precisa ser adicionada e autenticada antes de executar as migrations. Até esta rechecagem, nenhuma das migrations 20–38 foi aplicada e nenhum deploy foi feito.
-
-## Execução autorizada na main — 4 de outubro de 2026
-
-A instrução do usuário substituiu o fluxo histórico de homologação em branch separada: atualizar diretamente o projeto Supabase Card Realms (ywawwhnsvpfeppfcuwzg) na branch main, sem criar branches. A CLI Supabase 2.119.0 foi vinculada a esse ref e o db push --dry-run --skip-vault foi revisado antes da gravação.
-
-- As migrations locais 1–38 constam no histórico remoto. A migration 20261004210000_avatar_two_power_classic_pvp falhou uma vez por erro de sintaxe; o próprio push a reverteu. Depois de corrigir a migration local, o push aplicado concluiu as versões 37 e 38 com sucesso.
-- A consulta de verificação encontrou 2 perfis, 2 linhas de loadout, zero loadouts inválidos, nenhuma sala de Raid, 1 evento, zero recompensas com chaves legadas e zero eventos sem recompensa de moeda. A RLS de runs privadas está ativa; anon não pode lê-las nem executar a RPC autoritativa de PvP.
-- Não havia backup disponível no Dashboard antes da operação. Os testes pgTAP atuais não foram executados no Postgres local ou remoto. O Advisor apresentou 31 avisos (19 RLS initplan, 11 funções SECURITY DEFINER acessíveis a authenticated, 1 proteção de senha vazada desabilitada); quatro avisos se referem às RPCs autenticadas de lobby/ready da Raid. A operação não ocultou esses avisos.
-- O site público atual em card-realms.vercel.app ainda aponta para o projeto antigo lfmbvqixixbhffdpmvhp; o alvo autorizado é ywawwhnsvpfeppfcuwzg. O deploy manual Vercel aguarda o alinhamento de URL/chave pública e da SUPABASE_SECRET_KEY no ambiente Production do projeto card-realms; o deploy automático por Git continua desativado.

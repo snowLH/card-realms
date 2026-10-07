@@ -1,13 +1,14 @@
 "use client";
 
-import { Album, Coins, LayoutTemplate, ScrollText, Trophy } from "lucide-react";
+import { Album, Coins, LayoutTemplate, ScrollText, Star, Trophy } from "lucide-react";
 import { useState } from "react";
 import { BATTLE_BOARDS, type BattleBoardId } from "@/game/battle/presentation";
 import type { PlayerBootstrap, RemotePlayerSnapshot } from "@/game/player";
-import type { AvatarConfig } from "@/game/save/local-progress";
+import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
+import { getLegendAppearance, PLAYABLE_LEGEND_BY_ID } from "@/game/arpg/content/legends";
 import { cn } from "@/lib/utils";
 import { LoginDialog } from "@/components/auth/login-dialog";
-import { CharacterAvatar2D, CharacterCreator2D } from "./character-avatar";
+import { CharacterAvatar2D } from "./character-avatar";
 
 export function ProfileView({
   coins,
@@ -17,8 +18,6 @@ export function ProfileView({
   source,
   snapshot,
   avatar,
-  equipmentIds,
-  onSaveAvatar,
   preferredBattleBoard,
   onSaveBattleBoard,
 }: {
@@ -29,13 +28,17 @@ export function ProfileView({
   source: PlayerBootstrap["source"];
   snapshot: RemotePlayerSnapshot | null;
   avatar: AvatarConfig;
-  equipmentIds: string[];
-  onSaveAvatar: (config: AvatarConfig) => Promise<void> | void;
   preferredBattleBoard: BattleBoardId;
   onSaveBattleBoard: (boardId: BattleBoardId) => Promise<void> | void;
 }) {
   const online = source === "supabase";
   const [savingBoard, setSavingBoard] = useState<BattleBoardId | null>(null);
+  const favoriteLegend = avatar.favoriteLegendId
+    ? PLAYABLE_LEGEND_BY_ID.get(avatar.favoriteLegendId) ?? null
+    : null;
+  const favoriteAvatar = favoriteLegend
+    ? { ...DEFAULT_AVATAR_CONFIG, ...getLegendAppearance(favoriteLegend.id) }
+    : null;
 
   async function chooseBoard(boardId: BattleBoardId) {
     setSavingBoard(boardId);
@@ -52,7 +55,7 @@ export function ProfileView({
         <div>
           <span className="view-eyebrow">Jornada pessoal</span>
           <h1>Seu Cartógrafo</h1>
-          <p>Crie seu personagem 2D e leve a mesma identidade para mapa, vila, refúgio e duelos.</p>
+          <p>Acompanhe seu progresso e mantenha sua lenda favorita em destaque.</p>
         </div>
         <LoginDialog />
       </header>
@@ -60,7 +63,7 @@ export function ProfileView({
       <div className="profile-hero">
         <div className="profile-avatar"><CharacterAvatar2D config={avatar} compact /></div>
         <div>
-          <span className="profile-level">Nível {level}</span>
+          <span className="profile-level">Personagem ativo · nível {level}</span>
           <h2>{snapshot?.profile.displayName ?? "Explorador das Raízes"}</h2>
           <p>{online ? "Personagem e progresso conectados à sua conta." : "Jornada local neste aparelho."}</p>
         </div>
@@ -72,6 +75,29 @@ export function ProfileView({
         <article><Album /><strong>{collectionCount}</strong><span>Seres possuídos</span></article>
         <article><Trophy /><strong>{snapshot?.exploration.filter((entry) => entry.sanctuaryCompleted).length ?? 0}</strong><span>Selos de santuário</span></article>
       </div>
+
+      <section className="profile-hero profile-favorite-legend" aria-labelledby="favorite-legend-title">
+        <div className="profile-avatar">
+          {favoriteAvatar
+            ? <CharacterAvatar2D config={favoriteAvatar} compact ariaLabel={`Visual de ${favoriteLegend?.name}`} />
+            : <Star aria-hidden="true" />}
+        </div>
+        <div>
+          <span className="view-eyebrow">Lenda favorita</span>
+          {favoriteLegend ? (
+            <>
+              <h2 id="favorite-legend-title">{favoriteLegend.name}</h2>
+              <p>{favoriteLegend.epithet} · Origem: {favoriteLegend.folklore}</p>
+              <p>{favoriteLegend.description}</p>
+            </>
+          ) : (
+            <>
+              <h2 id="favorite-legend-title">Nenhuma lenda favorita</h2>
+              <p>Escolha uma lenda e marque a estrela no lobby para vê-la aqui.</p>
+            </>
+          )}
+        </div>
+      </section>
 
       <section className="battle-board-picker" aria-labelledby="battle-board-picker-title">
         <div className="battle-board-picker__heading">
@@ -113,8 +139,6 @@ export function ProfileView({
           ))}
         </div>
       </section>
-
-      <CharacterCreator2D initial={avatar} ownedEquipment={equipmentIds} onSave={onSaveAvatar} />
 
       <div className="profile-note">
         <strong>Persistência transparente</strong>

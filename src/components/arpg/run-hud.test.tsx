@@ -20,16 +20,26 @@ const rooms: ArpgMiniMapRoom[] = [
 function createHud(): ArpgHudState {
   return {
     nowMs: 1000, hp: 100, maxHp: 120, room: 2, roomCount: 9, enemiesRemaining: 0,
-    weaponId: "forest-bow", secondaryWeaponId: "iron-sword", armorId: "leather-armor", relicId: STARTER_ARPG_RELIC_ID,
+    weaponId: "forest-bow", weaponSlots: { A: "forest-bow", B: "iron-sword", active: "A" },
+    armorId: "leather-armor", relicId: STARTER_ARPG_RELIC_ID,
     dungeonMap: { currentRoomId: "shop", rooms }, runShards: 12,
+    runMoveSpeedBonus: 0, runBasicDamageMultiplier: 1,
     chestAvailable: false, pendingLoot: null, pendingRoomChoice: null, runLoot: [],
-    abilityIds: ["ancestral-roots", "boitata-flame"],
+    abilityIds: ["curupira-root-snare", "curupira-ember-arrow"],
     dashReadyAt: 0, abilityReadyAt: {},
     xpEarned: 0, runEnded: false, victory: false,
   };
 }
 
 describe("RunHud minimap", () => {
+  it("shows both weapons and marks the active slot", () => {
+    render(<RunHud state={createHud()} />);
+
+    expect(screen.getByRole("img", { name: /Slot A, arma ativa: Arco da Mata/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Slot B: Espada de Ferro/i })).toBeInTheDocument();
+    expect(screen.getByText("Q trocar")).toBeInTheDocument();
+  });
+
   it("mantém identidade visual por tipo e destaca a sala atual", () => {
     const { container } = render(<RunHud state={createHud()} />);
 
@@ -43,8 +53,7 @@ describe("RunHud minimap", () => {
     const { container } = render(<RunHud state={createHud()} />);
 
     expect(container.querySelectorAll(".arpg-hud__equipment")).toHaveLength(3);
-    expect(screen.getByRole("img", { name: "Arma atual: Arco da Mata; reserva: Espada de Ferro; pressione Q para alternar" })).toHaveAttribute("title", "Atual: Arco da Mata · Reserva: Espada de Ferro · Q alterna");
-    expect(screen.getByRole("img", { name: "Armadura equipada: Armadura de Couro" })).toHaveAttribute("title", "Armadura: Armadura de Couro");
+    expect(screen.getByRole("img", { name: "Slot A, arma ativa: Arco da Mata" })).toHaveAttribute("title", "Slot A: Arco da Mata");
     expect(screen.getByRole("img", { name: /Relíquia equipada:/ })).toBeInTheDocument();
     expect(container.querySelectorAll(".arpg-hud__cards > span")).toHaveLength(2);
   });
@@ -58,11 +67,11 @@ describe("RunHud minimap", () => {
         { id: "next", gridX: 0, gridY: -1, type: "unknown" as const, state: "discovered" as const, connections: ["start"] },
       ],
     };
-    const { container } = render(<DungeonMapOverlay map={visibleMap} onClose={onClose} />);
+    render(<DungeonMapOverlay map={visibleMap} onClose={onClose} />);
 
     expect(screen.getByRole("dialog", { name: "Mapa" })).toHaveAttribute("aria-modal", "true");
-    expect(container.querySelector(".arpg-minimap-room.is-type-unknown title")).toHaveTextContent("Sala desconhecida");
-    expect(screen.getByRole("img", { name: "2 salas descobertas" })).toBeInTheDocument();
+    const map = screen.getByRole("img", { name: "2 salas descobertas" });
+    expect(map.querySelector(".arpg-minimap-room.is-type-unknown title")).toHaveTextContent("Sala desconhecida");
 
     fireEvent.click(screen.getByRole("button", { name: "Fechar mapa" }));
     expect(onClose).toHaveBeenCalledOnce();

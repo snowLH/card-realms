@@ -125,12 +125,10 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.claim_arpg_expedition_result(uuid, uuid, text, boolean, text[])
   from public, anon, authenticated;
 grant execute on function private.claim_arpg_expedition_result(uuid, uuid, text, boolean, text[])
   to service_role;
-
 create or replace function public.claim_arpg_expedition_result(
   target_player_id uuid,
   target_run_id uuid,
@@ -151,7 +149,6 @@ as $$
     target_loot_item_ids
   );
 $$;
-
 revoke all on function public.claim_arpg_expedition_result(uuid, uuid, text, boolean, text[])
   from public, anon, authenticated;
 grant execute on function public.claim_arpg_expedition_result(uuid, uuid, text, boolean, text[])

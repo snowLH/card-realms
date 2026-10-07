@@ -1,6 +1,15 @@
 # Estado verificável do projeto
-> **Estado vigente em 4 de outubro de 2026:** a conta cryohive11 autorizou a atualização direta na branch main. As 38 migrations locais já foram aplicadas e verificadas no projeto Card Realms (ywawwhnsvpfeppfcuwzg). Registros mais antigos abaixo que dizem que o acesso ou as migrations estavam bloqueados foram superados; consulte “Atualização autorizada diretamente na main” no fim deste arquivo. O release candidate está sendo preparado para publicação direta em main; o deploy de produção aguarda o alinhamento do ambiente Vercel.
 
+## Estado vigente — 7 de outubro de 2026
+
+- O projeto autorizado é o Card Realms `ywawwhnsvpfeppfcuwzg` na conta `cryohive11`; a CLI está vinculada a esse ref. O projeto de produção antigo `lfmbvqixixbhffdpmvhp` não foi alterado.
+- O contrato atual usa avatar/Lenda com dois poderes, cooperação em dungeons e inimigos/bosses folclóricos. O legado de equipes de seis criaturas e apoiadores aparece abaixo somente como histórico.
+- As migrations locais e remotas estão alinhadas até `20261007105822_repair_raid_authority_wrappers`. A correção restaura a validação da segunda arma e dos dois poderes sem perder a autoridade avatar/ARPG, contribuição e eventos Realtime.
+- PgTAP remoto passou nos testes focais: Raid avatar/ARPG (43 asserções), loadout (9), bootstrap de novo perfil (11) e retirada do gacha legado (13).
+- `npm run verify:deploy` passou neste snapshot: typecheck, ESLint, 373 testes em 73 arquivos e build de produção Next.js 16.3.6.
+- A publicação Vercel ainda exige o build prebuilt limpo e a conferência final do pacote sem `.env.local`; o Git auto-deploy continua desativado por configuração.
+
+Os registros abaixo são históricos. Quando uma linha antiga disser que o staging ou as migrations estavam bloqueados, ela descreve o snapshot daquela data.
 
 ## Registro histórico/superado — fundação de setembro de 2026
 
@@ -190,7 +199,7 @@ O procedimento reproduzível, os secrets e as sondagens estão em `docs/SUPABASE
 
 ## Incremento P1 — sprite original e smoke completo — 3 de outubro de 2026
 
-- O Cartógrafo agora usa `public/art/cartographer-adventurer-spritesheet-v2.png` na Guilda e na dungeon, com onze linhas de animação registradas em `src/game/arpg/runtime/player-sprites.ts`.
+- O Cartógrafo usou originalmente `artifacts/archive/public-art/cartographer-adventurer-spritesheet-v2.png`; a folha atual do avatar é gerada em SVG pelo runtime em `src/game/arpg/runtime/player-sprites.ts`.
 - O collider de dungeon foi reposicionado para manter o footprint dentro das passagens; depois do ajuste, o percurso CDP completo passou em 844×390.
 - Resultado: grafo seeded com 10 salas, chefe derrotado, loot elegível, extração concluída, retorno à Guilda e nenhum erro de runtime; HP final 126/154.
 - `npm run verify:deploy`: PASS — typecheck, lint, 151/151 testes e build Next.js 16.3.6.
@@ -248,7 +257,7 @@ O procedimento reproduzível, os secrets e as sondagens estão em `docs/SUPABASE
 
 ## Incremento P1 — animação original do Curupira e estados das portas — 3 de outubro de 2026
 
-- `public/art/curupira-boss-spritesheet.png` agora anima o Curupira da Mata em idle, caminhada, ataque e derrota; os demais inimigos mantêm suas artes atuais.
+- A folha original do Curupira foi preservada em `artifacts/archive/public-art/curupira-boss-spritesheet.png`; hoje o boss usa `public/art/monster-curupira-ancestral-spritesheet-v2.webp`.
 - `DungeonWorldRuntime` registra OPEN, CLOSING, CLOSED e OPENING por conexão. O diagnóstico expõe o estado junto do collider; os cues de abrir/fechar já passam pelo áudio procedural da dungeon.
 - `npm run verify:deploy`: PASS — typecheck, lint, 175/175 testes em 31 arquivos e build Next.js 16.3.6.
 - Smoke CDP de visitante, 844×390, build de produção local: grafo de 12 salas, rota de 8 passos até o Curupira, extração e retorno à Guilda; idle/walk/attack/defeat observados; open/closed apareceram no diagnóstico, e opening também foi capturado em uma execução; 7/7 checks passaram e a lista de erros ficou vazia.
@@ -363,7 +372,7 @@ O procedimento reproduzível, os secrets e as sondagens estão em `docs/SUPABASE
 
 ## Incremento P1 — tela de título pixel art — 4 de outubro de 2026
 
-- A abertura agora apresenta uma ilustração original da floresta e do portal em `public/art/title-screen-forest-portal.png`, com JOGAR, ENTRAR, CONFIGURAÇÕES e CRÉDITOS. O botão de entrada reaproveita o fluxo existente de login; quando Supabase não está configurado, o modal informa isso e não simula uma conta.
+- A abertura agora apresenta uma ilustração original da floresta e do portal; a versão PNG inicial está preservada em `artifacts/archive/public-art/title-screen-forest-portal.png`, e a tela ativa usa `public/art/folklard-title-forest-portal-pixel-v3.webp`. Há JOGAR, ENTRAR, CONFIGURAÇÕES e CRÉDITOS. O botão de entrada reaproveita o fluxo existente de login; quando Supabase não está configurado, o modal informa isso e não simula uma conta.
 - Configurações lê e grava `arpg.soundEnabled`, a mesma preferência aplicada pela dungeon. Créditos e configurações usam modais acessíveis; o service worker foi atualizado para cache PWA v9.
 - Smoke CUA no build de produção local, 1280×720: conferiu a composição do título e os quatro botões, alternou o áudio e o restaurou ao estado ligado, abriu créditos e o portal de entrada, e confirmou JOGAR → HUB da Guilda. Não havia Supabase configurado, então a autenticação real não foi tentada.
 - `npm run verify:deploy`: PASS — typecheck, ESLint sem avisos, 215/215 testes em 35 arquivos e build Next.js 16.3.6.
@@ -504,16 +513,3 @@ O procedimento reproduzível, os secrets e as sondagens estão em `docs/SUPABASE
 - O teste integrado final passou: `npm run verify:deploy` — TypeScript, ESLint sem warnings, Vitest 292/292 em 59 arquivos e build local Next.js 16.3.6.
 - As 38 migrations do repositório e os planos pgTAP recentes conferem estaticamente: 016 (10), 017 (38), 018 (26) e 019 (52). Não foi possível executar pgTAP nem validar em banco a conversão/backfill de salas e recompensas antigas, inclusive o arquivamento de lobby sem snapshot válido.
 - O staging autorizado `ywawwhnsvpfeppfcuwzg` continua ausente da conta Supabase conectada no Vivaldi. Não houve consulta de schema, aplicação de migration, gravação remota ou deploy; produção não foi usada como substituto. A release permanece incompleta até a homologação no staging e os aceites reais de dispositivo/acessibilidade.
-
-
-## Atualização autorizada diretamente na main — 4 de outubro de 2026
-
-- A conta principal cryohive11 autorizou a atualização do projeto Card Realms diretamente na branch main, sem criar branches. O projeto Supabase alvo é ywawwhnsvpfeppfcuwzg; a CLI confirmou que é o projeto vinculado.
-- As 38 migrations locais estão aplicadas na branch de banco main, até 20261004221500_avatar_power_raid_authority. O db push --dry-run identificou somente as versões 37–38 pendentes antes da aplicação final; a lista remota agora corresponde a todas as migrations locais.
-- A migration 37 recebeu duas correções de sintaxe antes de ser aplicada: comparação do tipo de ação sem CASE dentro do booleano e contagem de chaves JSON via jsonb_object_keys. A tentativa anterior falhou e foi revertida pela própria migration; a aplicação corrigida das versões 37 e 38 foi concluída.
-- Checagem pós-migration: 2 perfis, 2 loadouts, zero loadouts com quantidade inválida de poderes; 0 salas de Raid, 1 evento, zero eventos com chaves antigas de recompensa e zero sem recompensas de moeda. RLS está ativa nas runs privadas; anon não lê essas runs nem executa a RPC autoritativa de PvP.
-- O Advisor do Supabase retornou 31 avisos: 19 de custo de avaliação de policies RLS, 11 funções SECURITY DEFINER executáveis por authenticated e 1 configuração de proteção contra senhas vazadas. Quatro avisos de Raid correspondem às RPCs autenticadas de criar/entrar/sair/prontidão; as ações de início, combate e recompensa permanecem restritas a service_role. Os avisos foram registrados para revisão; não foram ocultados ou classificados como ausência de risco.
-- npm run verify:deploy passou para o snapshot do jogo: TypeScript, ESLint sem warnings, Vitest 292/292 em 59 arquivos e build local Next.js 16.3.6.
-- O código implementa o avatar próprio com exatamente dois poderes no combate clássico, PvP e Raid legada; o jogador compra e equipa poderes na Guilda. Armas, armaduras e buffs continuam como progressão de dungeon.
-- O gate executado nesta árvore passou: TypeScript, ESLint, Vitest 292/292 em 59 arquivos e build Next.js 16.3.6. O Vitest usa um processo worker no Windows após o pool paralelo ter apresentado dois timeouts de inicialização; os testes afetados passaram isoladamente e no gate completo repetido.
-- O bundle público atual em card-realms.vercel.app ainda aponta para o projeto Supabase antigo lfmbvqixixbhffdpmvhp; o alvo autorizado é ywawwhnsvpfeppfcuwzg. Os valores de Production no Vercel não foram alterados. A publicação do código, validação pgTAP remota e em Postgres descartável, instalação em aparelho real, acessibilidade física e revisão auditiva continuam pendentes. A troca da URL e da chave pública é necessária; transferir a SUPABASE_SECRET_KEY exige autorização específica para o destino Vercel card-realms Production.

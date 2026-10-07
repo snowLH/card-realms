@@ -39,7 +39,6 @@ on conflict (card_id) do update set
   card_rarity = excluded.card_rarity,
   duplicate_fragments = excluded.duplicate_fragments,
   enabled = excluded.enabled;
-
 -- Keep every current card's fragment compensation and odds band aligned with
 -- its rarity. Roc is mythic but intentionally remains in the legendary band.
 update private.arpg_power_gacha_catalog
@@ -55,7 +54,6 @@ set tier = case card_rarity
       when 'legendary' then 45
       when 'mythic' then 60
     end;
-
 -- This is the single allowlist used by persisted loadouts, purchases, and
 -- combat snapshots. The two starter powers stay valid outside the shop pool.
 create or replace function private.active_arpg_power_card_ids()
@@ -76,10 +74,8 @@ as $$
     where catalog.enabled
   ) as active;
 $$;
-
 revoke all on function private.active_arpg_power_card_ids() from public, anon, authenticated;
 grant execute on function private.active_arpg_power_card_ids() to authenticated, service_role;
-
 -- Revalidate existing rows as well as future writes against the live allowlist.
 alter table public.player_arpg_loadouts
   drop constraint if exists player_arpg_loadouts_ability_ids_check;
@@ -91,7 +87,6 @@ alter table public.player_arpg_loadouts
     and ability_ids[1] <> ability_ids[2]
     and ability_ids <@ private.active_arpg_power_card_ids()
   );
-
 -- The five-argument save contract includes both weapons from the preceding
 -- migration and still requires inventory ownership for every non-starter.
 create or replace function private.save_arpg_loadout(
@@ -221,13 +216,11 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.save_arpg_loadout(text, text, text, text, text[])
   from public, anon, authenticated;
 grant usage on schema private to authenticated;
 grant execute on function private.save_arpg_loadout(text, text, text, text, text[])
   to authenticated;
-
 create or replace function public.save_arpg_loadout(
   target_weapon_id text,
   target_secondary_weapon_id text,
@@ -245,12 +238,10 @@ as $$
     target_armor_id, target_relic_id, target_ability_ids
   );
 $$;
-
 revoke all on function public.save_arpg_loadout(text, text, text, text, text[])
   from public, anon;
 grant execute on function public.save_arpg_loadout(text, text, text, text, text[])
   to authenticated;
-
 -- Raid snapshots keep the second weapon and reject powers outside the same
 -- enabled catalogue while retaining explicit inventory possession checks.
 create or replace function private.arpg_raid_loadout_snapshot(target_player_id uuid)
@@ -364,11 +355,9 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.arpg_raid_loadout_snapshot(uuid)
   from public, anon, authenticated;
 grant execute on function private.arpg_raid_loadout_snapshot(uuid) to service_role;
-
 -- Classic PvP snapshots use the same IDs and retain the ownership check.
 create or replace function private.active_avatar_power_snapshot(player_id uuid)
 returns jsonb
@@ -436,10 +425,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.active_avatar_power_snapshot(uuid) from public, anon, authenticated;
 grant execute on function private.active_avatar_power_snapshot(uuid) to service_role;
-
 -- Direct shop prices come from the private rarity table, with the one
 -- explicitly priced mythic Roc exception. No ownership path accepts client cost.
 create or replace function private.purchase_arpg_power_card(target_card_id text)
@@ -543,25 +530,20 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.purchase_arpg_power_card(text) from public, anon;
 grant execute on function private.purchase_arpg_power_card(text) to authenticated;
-
 create or replace function public.purchase_arpg_power_card(target_card_id text)
 returns jsonb
 language sql
 security invoker
 set search_path = ''
 as $$ select private.purchase_arpg_power_card(target_card_id); $$;
-
 revoke all on function public.purchase_arpg_power_card(text) from public, anon;
 grant execute on function public.purchase_arpg_power_card(text) to authenticated;
-
 -- The public shop now owns every purchase path; keep the old Roc RPC and the
 -- retired six-member team RPCs unavailable to authenticated clients.
 revoke all on function private.purchase_roc_horizon_storm() from public, anon, authenticated;
 grant execute on function private.purchase_roc_horizon_storm() to service_role;
-
 revoke all on function public.activate_team(uuid) from public, anon, authenticated;
 grant execute on function public.activate_team(uuid) to service_role;
 revoke all on function private.activate_team(uuid) from public, anon, authenticated;

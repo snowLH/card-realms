@@ -8,7 +8,14 @@ import {
   getArpgExpedition,
 } from "@/game/arpg/content/expeditions";
 import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
-import { ARPG_ARMOR_BY_ID } from "@/game/arpg/content/equipment";
+import {
+  getLegendAppearance,
+  hasExactLegendPowers,
+  PLAYABLE_LEGENDS,
+} from "@/game/arpg/content/legends";
+import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
+import { ARPG_ARMOR_IDS } from "@/game/arpg/content/equipment";
+import { getLocalDungeonCompletionReward } from "@/game/arpg/dungeon/rewards";
 import {
   ARPG_RELIC_BY_ID,
   getRelicXpMultiplier,
@@ -34,6 +41,11 @@ import {
   type ArpgDungeonCombatCommand,
 } from "@/game/arpg/dungeon/combat-authority";
 import { createArpgRunToken, verifyArpgRunToken } from "@/lib/arpg-run-token";
+import {
+  getArpgExpeditionForAtlasRegion,
+  resolveAtlasEncounterTarget,
+  type AtlasEncounterReference,
+} from "@/game/arpg/content/atlas-encounters";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -42,12 +54,45 @@ import { validateArpgLoadoutOwnership } from "@/server/arpg/loadout-authority";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function legendForFrozenRun(loadout: Pick<ArpgLoadout, "abilityIds">) {
+  const legend = PLAYABLE_LEGENDS.find((candidate) => (
+    hasExactLegendPowers(loadout.abilityIds, candidate.id)
+  ));
+  return legend ?? null;
+}
+
+function avatarForFrozenRun(loadout: ArpgLoadout): AvatarConfig | null {
+  const legend = legendForFrozenRun(loadout);
+  return legend ? {
+    ...DEFAULT_AVATAR_CONFIG,
+    ...getLegendAppearance(legend.id),
+    favoriteLegendId: legend.id,
+  } : null;
+}
+
+function sameAtlasEncounter(
+  left: AtlasEncounterReference | null,
+  right: AtlasEncounterReference | null,
+) {
+  return left === null
+    ? right === null
+    : right !== null
+      && left.kind === right.kind
+      && left.regionId === right.regionId
+      && left.id === right.id;
+}
+
 const ExpeditionIdSchema = z.enum(["mata-encantada", "arquipelago-das-mares", "montanhas-runicas"]);
 
 const RequestSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("start"),
     expeditionId: ExpeditionIdSchema.default(DEFAULT_ARPG_EXPEDITION_ID),
+    atlasEncounter: z.object({
+      kind: z.enum(["wild", "npc"]),
+      regionId: z.string().min(1).max(40),
+      id: z.string().min(1).max(80),
+    }).strict().optional(),
   }),
   z.object({
     action: z.literal("checkpoint"),
@@ -62,7 +107,7 @@ const RequestSchema = z.discriminatedUnion("action", [
     roomId: z.string().min(1).max(40),
     command: z.strictObject({
       actionId: z.string().min(1).max(100),
-      kind: z.enum(["sync", "basic_attack", "ability", "dash", "swap_weapon"]),
+      kind: z.enum(["sync", "basic_attack", "ability", "dash"]),
       playerX: z.number().finite().min(0).max(4_096),
       playerY: z.number().finite().min(0).max(4_096),
       aimX: z.number().finite().min(-1).max(1),
@@ -119,6 +164,10 @@ const ActiveRunSchema = z.object({
   expiresAt: z.string(),
 });
 
+const CompletionRunSchema = ActiveRunSchema.extend({
+  status: z.enum(["active", "extracted", "defeated"]),
+});
+
 function secureRandomUnit() {
   return randomInt(0, 0x1000000) / 0x1000000;
 }
@@ -151,11 +200,20 @@ export async function POST(request: Request) {
       }
 
       let initialLoadout: ArpgLoadout = DEFAULT_ARPG_LOADOUT;
+      const atlasTarget = parsed.atlasEncounter
+        ? resolveAtlasEncounterTarget(parsed.atlasEncounter)
+        : null;
+      if (parsed.atlasEncounter && (
+        !atlasTarget
+        || getArpgExpeditionForAtlasRegion(parsed.atlasEncounter.regionId) !== parsed.expeditionId
+      )) {
+        return NextResponse.json({ error: "O alvo do Atlas não pertence a esta expedição." }, { status: 409 });
+      }
       if (playerId) {
         const admin = createAdminClient();
         const { data: loadoutRow, error: loadoutError } = await admin
           .from("player_arpg_loadouts")
-          .select("weapon_id, secondary_weapon_id, armor_id, relic_id, ability_ids")
+          .select("weapon_id, armor_id, relic_id, ability_ids")
           .eq("user_id", playerId)
           .maybeSingle();
         if (loadoutError) {
@@ -165,8 +223,7 @@ export async function POST(request: Request) {
         if (loadoutRow) {
           const savedLoadout = ArpgLoadoutSchema.safeParse({
             weaponId: loadoutRow.weapon_id,
-            secondaryWeaponId: loadoutRow.secondary_weapon_id,
-            armorId: loadoutRow.armor_id,
+            armorId: DEFAULT_ARPG_LOADOUT.armorId,
             relicId: loadoutRow.relic_id,
             abilityIds: loadoutRow.ability_ids,
           });
@@ -187,6 +244,13 @@ export async function POST(request: Request) {
         }
       }
 
+      if (!legendForFrozenRun(initialLoadout)) {
+        return NextResponse.json(
+          { error: "A Lenda da run precisa levar exatamente seus dois poderes de assinatura." },
+          { status: 409 },
+        );
+      }
+
       const lootPlan = createDungeonLootPlan(parsed.expeditionId, secureRandomUnit);
       const lootItemIds = lootPlan.map((item) => item.id);
       const session = createArpgRunToken(
@@ -194,15 +258,18 @@ export async function POST(request: Request) {
         parsed.expeditionId,
         lootItemIds,
         playerId ? initialLoadout : undefined,
+        atlasTarget ? {
+          kind: atlasTarget.kind,
+          regionId: atlasTarget.regionId,
+          id: atlasTarget.id,
+        } satisfies AtlasEncounterReference : null,
       );
       const graph = generateDungeon({ seed: session.payload.dungeonSeed, regionId: parsed.expeditionId });
-      const startingArmor = ARPG_ARMOR_BY_ID.get(initialLoadout.armorId);
       const initialCheckpoint = createInitialArpgRunCheckpoint({
         startRoomId: graph.startRoomId,
         weaponId: initialLoadout.weaponId,
-        secondaryWeaponId: initialLoadout.secondaryWeaponId,
         armorId: initialLoadout.armorId,
-        maxHp: 120 + (startingArmor?.maxHpBonus ?? 0),
+        maxHp: 120,
       });
 
       if (playerId) {
@@ -236,17 +303,34 @@ export async function POST(request: Request) {
         }
 
         const storedSession = verifyArpgRunToken(activeRun.data.token);
+        const requestedTarget = atlasTarget
+          ? { kind: atlasTarget.kind, regionId: atlasTarget.regionId, id: atlasTarget.id }
+          : null;
+        if (activeRun.data.resumed && !sameAtlasEncounter(storedSession.atlasEncounter, requestedTarget)) {
+          const savedTarget = storedSession.atlasEncounter
+            ? resolveAtlasEncounterTarget(storedSession.atlasEncounter)
+            : null;
+          return NextResponse.json({
+            error: savedTarget
+              ? `Retome a run ativa para ${savedTarget.name} antes de escolher outro encontro.`
+              : "Retome ou conclua sua run ativa antes de iniciar este encontro do Atlas.",
+          }, { status: 409 });
+        }
         const checkpoint = ArpgRunCheckpointSchema.safeParse(activeRun.data.checkpoint);
         const activeLoadout = storedSession.initialLoadout
           ?? (checkpoint.success ? {
             ...initialLoadout,
             weaponId: checkpoint.data.weaponId,
-            secondaryWeaponId: checkpoint.data.secondaryWeaponId,
             armorId: checkpoint.data.armorId,
           } : null);
+        if (!activeLoadout || !legendForFrozenRun(activeLoadout)) {
+          return NextResponse.json(
+            { error: "A run salva não contém exatamente os dois poderes de uma Lenda jogável." },
+            { status: 409 },
+          );
+        }
         const matchesCurrentLoadout = activeLoadout
           && activeLoadout.weaponId === initialLoadout.weaponId
-          && activeLoadout.secondaryWeaponId === initialLoadout.secondaryWeaponId
           && activeLoadout.armorId === initialLoadout.armorId
           && activeLoadout.relicId === initialLoadout.relicId
           && activeLoadout.abilityIds[0] === initialLoadout.abilityIds[0]
@@ -281,6 +365,7 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: "O checkpoint salvo não passou pela validação do mapa." }, { status: 409 });
         }
 
+        const runAvatar = avatarForFrozenRun(activeLoadout);
         return NextResponse.json({
           token: activeRun.data.token,
           runId: activeRun.data.runId,
@@ -290,6 +375,9 @@ export async function POST(request: Request) {
           runSeed: activeRun.data.dungeonSeed,
           checkpoint: checkpoint.data,
           loadout: activeLoadout,
+          avatarConfig: runAvatar,
+          legendId: runAvatar?.legendId ?? null,
+          atlasEncounter: storedSession.atlasEncounter,
           revision: activeRun.data.revision,
           resumed: activeRun.data.resumed,
         });
@@ -305,6 +393,7 @@ export async function POST(request: Request) {
         checkpoint: initialCheckpoint,
         revision: 0,
         resumed: false,
+        atlasEncounter: verifyArpgRunToken(session.token).atlasEncounter,
       });
     }
 
@@ -373,7 +462,6 @@ export async function POST(request: Request) {
       const loadout: ArpgLoadout = {
         ...session.initialLoadout,
         weaponId: previous.weaponId,
-        secondaryWeaponId: previous.secondaryWeaponId,
         armorId: previous.armorId,
       };
       const nowMs = Date.now();
@@ -392,6 +480,10 @@ export async function POST(request: Request) {
       let combatState = existingCombat?.roomId === parsed.roomId
         ? {
           ...existingCombat,
+          // The versioned run checkpoint is the authority for the active
+          // weapon slot. Rebase the encounter weapon after a between-action
+          // slot switch was saved, while preserving cooldowns and enemy state.
+          weaponId: previous.weaponId,
           // Breakable props grant checkpoint-owned shards during combat. Fold those
           // rewards into the encounter baseline before its next authoritative step.
           baseRunShards: previous.runShards - existingCombat.runShards,
@@ -427,8 +519,6 @@ export async function POST(request: Request) {
       const nextCheckpoint = {
         ...previous,
         playerHp: combatState.playerHp,
-        weaponId: combatState.weaponId,
-        secondaryWeaponId: combatState.secondaryWeaponId,
         xpEarned: combatState.baseXpEarned + combatState.xpEarned,
         runShards: combatState.baseRunShards + combatState.runShards,
         serverCombatState: combatState,
@@ -597,52 +687,65 @@ export async function POST(request: Request) {
     if (!session.playerId || !playerId) {
       return NextResponse.json({
         persisted: false,
-        reward: { coins: 0, xp: 0, victory: parsed.victory, items: [], replayed: false },
+        reward: {
+          ...getLocalDungeonCompletionReward(session.regionId, parsed.victory),
+          victory: parsed.victory,
+          items: [],
+          replayed: false,
+        },
       });
     }
 
     const admin = createAdminClient();
-    const { data: activeRunData, error: activeRunError } = await admin.rpc("get_active_arpg_run", {
+    const { data: completionRunData, error: completionRunError } = await admin.rpc("get_arpg_run_for_completion", {
       target_player_id: playerId,
+      target_run_id: session.runId,
     });
-    const activeRun = ActiveRunSchema.safeParse(activeRunData);
-    const activeCheckpoint = activeRun.success
-      ? ArpgRunCheckpointSchema.safeParse(activeRun.data.checkpoint)
-      : null;
-    const activeGraph = activeRun.success
-      ? generateDungeon({ seed: activeRun.data.dungeonSeed, regionId: activeRun.data.expeditionId })
-      : null;
+    const completionRun = CompletionRunSchema.safeParse(completionRunData);
     if (
-      activeRunError
-      || !activeRun.success
-      || activeRun.data.runId !== session.runId
-      || activeRun.data.expeditionId !== session.regionId
-      || activeRun.data.dungeonSeed !== session.dungeonSeed
-      || !activeCheckpoint?.success
-      || !activeGraph
-      || !isValidArpgRunCheckpoint(activeGraph, activeCheckpoint.data, session.lootItemIds)
+      completionRunError
+      || !completionRun.success
+      || completionRun.data.runId !== session.runId
+      || completionRun.data.expeditionId !== session.regionId
+      || completionRun.data.dungeonSeed !== session.dungeonSeed
     ) {
       return NextResponse.json({ error: "O resultado da run não corresponde ao checkpoint salvo." }, { status: 409 });
     }
-    const storedCombat = activeCheckpoint.data.serverCombatState;
-    if (
-      (parsed.victory && (
-        !activeCheckpoint.data.exitPortalAvailable
-        || activeCheckpoint.data.currentRoomId !== activeGraph.bossRoomId
-        || !activeCheckpoint.data.clearedRoomIds.includes(activeGraph.bossRoomId)
-        || storedCombat?.roomId !== activeGraph.bossRoomId
-        || storedCombat.status !== "victory"
-        || activeCheckpoint.data.playerHp <= 0
-      ))
-      || (!parsed.victory && (
-        activeCheckpoint.data.playerHp > 0
-        || storedCombat?.status !== "defeat"
-        || storedCombat.playerHp > 0
-      ))
-    ) {
-      return NextResponse.json({ error: "O resultado ainda não foi comprovado pelo simulador de combate." }, { status: 409 });
+
+    if (completionRun.data.status === "active") {
+      const activeCheckpoint = ArpgRunCheckpointSchema.safeParse(completionRun.data.checkpoint);
+      const activeGraph = generateDungeon({
+        seed: completionRun.data.dungeonSeed,
+        regionId: completionRun.data.expeditionId,
+      });
+      if (
+        !activeCheckpoint.success
+        || !isValidArpgRunCheckpoint(activeGraph, activeCheckpoint.data, session.lootItemIds)
+      ) {
+        return NextResponse.json({ error: "O resultado da run não corresponde ao checkpoint salvo." }, { status: 409 });
+      }
+      const storedCombat = activeCheckpoint.data.serverCombatState;
+      if (
+        (parsed.victory && (
+          !activeCheckpoint.data.exitPortalAvailable
+          || activeCheckpoint.data.currentRoomId !== activeGraph.bossRoomId
+          || !activeCheckpoint.data.clearedRoomIds.includes(activeGraph.bossRoomId)
+          || storedCombat?.roomId !== activeGraph.bossRoomId
+          || storedCombat.status !== "victory"
+          || activeCheckpoint.data.playerHp <= 0
+        ))
+        || (!parsed.victory && (
+          activeCheckpoint.data.playerHp > 0
+          || storedCombat?.status !== "defeat"
+          || storedCombat.playerHp > 0
+        ))
+      ) {
+        return NextResponse.json({ error: "O resultado ainda não foi comprovado pelo simulador de combate." }, { status: 409 });
+      }
     }
 
+    // The RPC validates the signed loot and requested outcome on retries,
+    // returning the saved result without awarding or finalizing the run again.
     const { data, error } = await admin.rpc("finish_arpg_run", {
       target_player_id: playerId,
       target_run_id: session.runId,
@@ -656,7 +759,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "A run terminou, mas o resultado não pôde ser registrado." }, { status: rpcStatus(error.code) });
     }
 
-    return NextResponse.json({ persisted: true, reward: RewardSchema.parse(data) });
+    const reward = RewardSchema.parse(data);
+    const activeItems = (items: string[] | undefined) => items?.filter((itemId) => !ARPG_ARMOR_IDS.has(itemId));
+    return NextResponse.json({
+      persisted: true,
+      reward: {
+        ...reward,
+        items: activeItems(reward.items),
+        newItems: activeItems(reward.newItems),
+        runLootItems: activeItems(reward.runLootItems),
+      },
+    });
   } catch (error) {
     const message = error instanceof z.ZodError
       ? "A solicitação da run é inválida."

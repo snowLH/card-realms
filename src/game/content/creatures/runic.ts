@@ -34,7 +34,7 @@ export const RUNIC_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Não existe uma versão única: nomes, relações e significados pertencem a povos específicos e não devem ser fundidos em uma narrativa genérica.",
       folklore: { tradition: "Tradições de diferentes povos indígenas da América do Norte", origin: "América do Norte", sourceNote: "Esta entrada reconhece a diversidade e não substitui as narrativas próprias de cada povo.", adaptation: "Representa apenas o motivo amplo de ave e tempestade, sem copiar símbolos cerimoniais específicos." },
       regionId: "runic", element: "storm", traits: ["ave", "trovão", "celeste"], rarity: "mythic", role: "striker",
-      hp: 190, defense: 70, speed: 90, moves: ["Bater do Trovão", "Olhar de Relâmpago", "Tempestade Celeste"], obtainableBy: "Pico do Trovão", spriteIndex: 10, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 190, defense: 70, speed: 90, moves: ["Bater do Trovão", "Olhar de Relâmpago", "Tempestade Celeste"], obtainableBy: "Pico do Trovão", spriteIndex: 10, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "alicanto", name: "Alicanto", title: "Ave dos Veios Minerais",
@@ -42,7 +42,7 @@ export const RUNIC_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Mineiros seguem sua luz para encontrar riqueza, mas a ganância ou uma perseguição descuidada pode conduzir a precipícios.",
       folklore: { tradition: "Folclore mineiro chileno", origin: "Chile", sourceNote: "O brilho e a dieta mineral distinguem versões de ouro e de prata.", adaptation: "Mantém a ave luminosa e sua ligação ambígua com tesouros subterrâneos." },
       regionId: "runic", element: "spirit", traits: ["ave", "minério", "luminoso"], rarity: "rare", role: "support",
-      hp: 110, defense: 46, speed: 92, moves: ["Pena Metálica", "Rastro de Prata", "Veio do Alicanto"], obtainableBy: "Mina do Carbunclo", spriteIndex: 11, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 110, defense: 46, speed: 92, moves: ["Pena Metálica", "Rastro de Prata", "Veio do Alicanto"], obtainableBy: "Mina do Carbunclo", spriteIndex: 11, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "fenghuang", name: "Fenghuang", title: "Ave da Harmonia Imperial",
@@ -50,7 +50,7 @@ export const RUNIC_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Sua iconografia reúne traços simbólicos de diferentes aves e se desenvolveu por muitos períodos da história chinesa.",
       folklore: { tradition: "Mitologia e iconografia chinesa", origin: "China", sourceNote: "Não é simplesmente uma fênix ocidental; sua história e seus significados são próprios.", adaptation: "Preserva a ave composta, a dignidade e a associação à harmonia." },
       regionId: "runic", element: "fire", traits: ["ave", "auspicioso", "harmonia"], rarity: "legendary", role: "support",
-      hp: 168, defense: 66, speed: 82, moves: ["Pluma das Virtudes", "Dança dos Ventos", "Harmonia do Fenghuang"], obtainableBy: "Santuário do Céu", spriteIndex: 12, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 168, defense: 66, speed: 82, moves: ["Pluma das Virtudes", "Dança dos Ventos", "Harmonia do Fenghuang"], obtainableBy: "Santuário do Céu", spriteIndex: 12, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "yeti", name: "Yeti", title: "Habitante das Alturas Nevadas",
@@ -58,7 +58,7 @@ export const RUNIC_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Relatos locais, traduções e explorações estrangeiras produziram imagens diferentes, nem sempre equivalentes ao popular 'abominável homem das neves'.",
       folklore: { tradition: "Narrativas himalaias", origin: "Região do Himalaia", sourceNote: "Termos e interpretações variam entre comunidades e línguas locais.", adaptation: "Usa uma forma peluda de montanha e evita apresentar especulação moderna como tradição única." },
       regionId: "runic", element: "nature", traits: ["montanha", "peludo", "neve"], rarity: "epic", role: "guardian",
-      hp: 210, defense: 90, speed: 30, moves: ["Punho da Geleira", "Passo na Neve", "Eco do Himalaia"], obtainableBy: "Passagem Glacial", spriteIndex: 13, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 210, defense: 90, speed: 30, moves: ["Punho da Geleira", "Passo na Neve", "Eco do Himalaia"], obtainableBy: "Passagem Glacial", spriteIndex: 13, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "ratatoskr", name: "Ratatoskr", title: "Mensageiro da Árvore do Mundo",
@@ -66,6 +66,6 @@ export const RUNIC_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Na Edda em Prosa, suas mensagens alimentam a disputa entre os seres que habitam as extremidades da árvore cósmica.",
       folklore: { tradition: "Mitologia nórdica registrada nas Eddas", origin: "Escandinávia medieval", sourceNote: "A fonte preservada é breve, deixando muitos detalhes visuais em aberto.", adaptation: "Mantém o esquilo mensageiro e a corrida vertical pela árvore do mundo." },
       regionId: "runic", element: "nature", traits: ["esquilo", "mensageiro", "ágil"], rarity: "uncommon", role: "skirmisher",
-      hp: 92, defense: 32, speed: 108, moves: ["Recado Afiado", "Corrida no Tronco", "Rumor de Yggdrasil"], obtainableBy: "Ponte Rúnica", spriteIndex: 14, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 92, defense: 32, speed: 108, moves: ["Recado Afiado", "Corrida no Tronco", "Rumor de Yggdrasil"], obtainableBy: "Ponte Rúnica", spriteIndex: 14, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
 ];

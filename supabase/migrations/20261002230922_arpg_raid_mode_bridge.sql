@@ -33,12 +33,10 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.arpg_raid_loadout_snapshot(uuid)
   from public, anon, authenticated;
 grant execute on function private.arpg_raid_loadout_snapshot(uuid)
   to service_role;
-
 create or replace function public.create_raid_room(target_event_id uuid)
 returns jsonb
 language plpgsql
@@ -89,10 +87,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function public.create_raid_room(uuid) from public, anon;
 grant execute on function public.create_raid_room(uuid) to authenticated, service_role;
-
 create or replace function public.join_raid_room(target_invite_code text)
 returns jsonb
 language plpgsql
@@ -170,10 +166,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function public.join_raid_room(text) from public, anon;
 grant execute on function public.join_raid_room(text) to authenticated, service_role;
-
 create or replace function public.start_raid_room(
   target_room_id uuid,
   submitted_state jsonb
@@ -248,11 +242,9 @@ begin
   );
 end;
 $$;
-
 revoke all on function public.start_raid_room(uuid, jsonb)
   from public, anon, authenticated;
 grant execute on function public.start_raid_room(uuid, jsonb) to service_role;
-
 create or replace function public.commit_raid_action(
   target_room_id uuid,
   acting_user_id uuid,
@@ -388,14 +380,12 @@ begin
   return committed_result;
 end;
 $$;
-
 revoke all on function public.commit_raid_action(
   uuid, uuid, integer, uuid, text, jsonb, jsonb, jsonb
 ) from public, anon, authenticated;
 grant execute on function public.commit_raid_action(
   uuid, uuid, integer, uuid, text, jsonb, jsonb, jsonb
 ) to service_role;
-
 update public.raid_events
 set boss_config = coalesce(boss_config, '{}'::jsonb) || jsonb_build_object(
   'gameplayMode', 'arpg',

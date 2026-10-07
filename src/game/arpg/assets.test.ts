@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -8,12 +8,61 @@ import {
   registerArpgSpriteSheetAnimations,
 } from "./assets";
 
+function listFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const filePath = resolve(directory, entry.name);
+    return entry.isDirectory() ? listFiles(filePath) : [filePath];
+  });
+}
+
 describe("ARPG runtime asset manifest", () => {
   it("points every loaded static asset at a checked-in public file", () => {
     expect(ARPG_ASSET_PATHS.length).toBeGreaterThan(0);
     for (const assetPath of ARPG_ASSET_PATHS) {
       expect(assetPath).toMatch(/^\/art\//);
       expect(existsSync(resolve(process.cwd(), "public", assetPath.slice(1)))).toBe(true);
+    }
+  });
+
+  it("resolves all literal art URLs in source and keeps original PNGs out of public", () => {
+    const sourceRoot = resolve(process.cwd(), "src");
+    const publicArt = resolve(process.cwd(), "public", "art");
+    const sourceFiles = listFiles(sourceRoot).filter((file) => /\.(?:css|js|json|ts|tsx)$/i.test(file));
+    const references = sourceFiles.flatMap((file) => {
+      const text = readFileSync(file, "utf8");
+      return [...text.matchAll(/[\"'`]\/(art\/[^\"'`\s)]+)[\"'`]/g)]
+        .map((match) => ({ file, assetPath: `/${match[1]}` }));
+    });
+
+    for (const reference of references) {
+      expect(existsSync(resolve(process.cwd(), "public", reference.assetPath.slice(1))), reference.file).toBe(true);
+    }
+    expect(readdirSync(publicArt).some((file) => file.toLowerCase().endsWith(".png"))).toBe(false);
+  });
+
+  it("keeps every service worker precache entry available in public", () => {
+    const serviceWorker = readFileSync(resolve(process.cwd(), "public", "sw.js"), "utf8");
+    const coreAssets = serviceWorker.match(/const CORE_ASSETS = \[([\s\S]*?)\];/)?.[1];
+    expect(coreAssets).toBeDefined();
+
+    const assetPaths = [...coreAssets!.matchAll(/\"([^\"]+)\"/g)].map((match) => match[1]);
+    expect(assetPaths.length).toBeGreaterThan(0);
+    for (const assetPath of assetPaths) {
+      const publicFile = resolve(process.cwd(), "public", assetPath.slice(1));
+      const appMetadataFile = resolve(process.cwd(), "src", "app", assetPath.slice(1));
+      expect(existsSync(publicFile) || existsSync(appMetadataFile), assetPath).toBe(true);
+    }
+  });
+
+  it("keeps an archived PNG source for every deployed WebP", () => {
+    const publicArt = resolve(process.cwd(), "public", "art");
+    const archivedArt = resolve(process.cwd(), "artifacts", "archive", "public-art");
+    const webpFiles = readdirSync(publicArt).filter((file) => file.endsWith(".webp"));
+    expect(webpFiles.length).toBeGreaterThan(0);
+
+    for (const file of webpFiles) {
+      const sourcePath = resolve(archivedArt, file.replace(/\.webp$/i, ".png"));
+      expect(existsSync(sourcePath)).toBe(true);
     }
   });
 

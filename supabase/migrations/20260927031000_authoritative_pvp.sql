@@ -16,33 +16,25 @@ create table public.pvp_challenges (
   check (requester_id <> addressee_id),
   check (expires_at > created_at)
 );
-
 create unique index one_pending_challenge_per_pair
 on public.pvp_challenges (
   least(requester_id, addressee_id),
   greatest(requester_id, addressee_id)
 ) where status = 'pending';
-
 create index pvp_challenges_requester_idx
 on public.pvp_challenges (requester_id, created_at desc);
-
 create index pvp_challenges_addressee_idx
 on public.pvp_challenges (addressee_id, created_at desc);
-
 create trigger pvp_challenges_set_updated_at
 before update on public.pvp_challenges
 for each row execute function public.set_updated_at();
-
 alter table public.pvp_challenges enable row level security;
-
 create policy "challenge participants can read" on public.pvp_challenges
 for select to authenticated
 using ((select auth.uid()) in (requester_id, addressee_id));
-
 revoke all on public.pvp_challenges from public, anon, authenticated;
 grant select on public.pvp_challenges to authenticated;
 grant all privileges on public.pvp_challenges to service_role;
-
 create or replace function private.active_team_snapshot(player_id uuid)
 returns jsonb
 language plpgsql
@@ -74,10 +66,8 @@ begin
   return snapshot;
 end;
 $$;
-
 revoke all on function private.active_team_snapshot(uuid) from public, anon, authenticated;
 grant execute on function private.active_team_snapshot(uuid) to service_role;
-
 create or replace function private.create_pvp_challenge(target_addressee_id uuid)
 returns jsonb
 language plpgsql
@@ -127,10 +117,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.create_pvp_challenge(uuid) from public, anon;
 grant execute on function private.create_pvp_challenge(uuid) to authenticated, service_role;
-
 create or replace function public.create_pvp_challenge(target_addressee_id uuid)
 returns jsonb
 language sql
@@ -139,10 +127,8 @@ set search_path = ''
 as $$
   select private.create_pvp_challenge(target_addressee_id);
 $$;
-
 revoke all on function public.create_pvp_challenge(uuid) from public, anon;
 grant execute on function public.create_pvp_challenge(uuid) to authenticated, service_role;
-
 create or replace function private.close_pvp_challenge(
   target_challenge_id uuid,
   target_status text
@@ -185,10 +171,8 @@ begin
   return jsonb_build_object('id', target_challenge_id, 'status', target_status);
 end;
 $$;
-
 revoke all on function private.close_pvp_challenge(uuid, text) from public, anon;
 grant execute on function private.close_pvp_challenge(uuid, text) to authenticated, service_role;
-
 create or replace function public.decline_pvp_challenge(target_challenge_id uuid)
 returns jsonb
 language sql
@@ -197,7 +181,6 @@ set search_path = ''
 as $$
   select private.close_pvp_challenge(target_challenge_id, 'declined');
 $$;
-
 create or replace function public.cancel_pvp_challenge(target_challenge_id uuid)
 returns jsonb
 language sql
@@ -206,12 +189,10 @@ set search_path = ''
 as $$
   select private.close_pvp_challenge(target_challenge_id, 'cancelled');
 $$;
-
 revoke all on function public.decline_pvp_challenge(uuid),
   public.cancel_pvp_challenge(uuid) from public, anon;
 grant execute on function public.decline_pvp_challenge(uuid),
   public.cancel_pvp_challenge(uuid) to authenticated, service_role;
-
 create or replace function public.start_pvp_challenge(
   target_challenge_id uuid,
   acting_user_id uuid,
@@ -325,12 +306,10 @@ begin
   );
 end;
 $$;
-
 revoke all on function public.start_pvp_challenge(uuid, uuid, uuid, jsonb)
 from public, anon, authenticated;
 grant execute on function public.start_pvp_challenge(uuid, uuid, uuid, jsonb)
 to service_role;
-
 create or replace function public.commit_pvp_action(
   target_battle_id uuid,
   acting_user_id uuid,
@@ -502,14 +481,12 @@ begin
   return committed_result;
 end;
 $$;
-
 revoke all on function public.commit_pvp_action(
   uuid, uuid, integer, uuid, text, jsonb, jsonb, jsonb
 ) from public, anon, authenticated;
 grant execute on function public.commit_pvp_action(
   uuid, uuid, integer, uuid, text, jsonb, jsonb, jsonb
 ) to service_role;
-
 -- Broadcast is private and contains only rows already protected by participant
 -- authorization. Clients never publish authoritative actions over Realtime.
 create policy "players receive own pvp broadcasts"
@@ -521,7 +498,6 @@ using (
     and private.is_battle_participant(split_part(topic, ':', 3)::uuid)
   )
 );
-
 create or replace function private.broadcast_pvp_challenge()
 returns trigger
 language plpgsql
@@ -540,7 +516,6 @@ begin
   return new;
 end;
 $$;
-
 create or replace function private.broadcast_pvp_event()
 returns trigger
 language plpgsql
@@ -555,16 +530,13 @@ begin
   return new;
 end;
 $$;
-
 revoke all on function private.broadcast_pvp_challenge(),
   private.broadcast_pvp_event() from public, anon, authenticated;
 grant execute on function private.broadcast_pvp_challenge(),
   private.broadcast_pvp_event() to service_role;
-
 create trigger broadcast_pvp_challenge_change
 after insert or update on public.pvp_challenges
 for each row execute function private.broadcast_pvp_challenge();
-
 create trigger broadcast_pvp_battle_event
 after insert on public.battle_events
 for each row execute function private.broadcast_pvp_event();

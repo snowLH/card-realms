@@ -1,13 +1,15 @@
 import type { Element } from "@/game/types";
-import type { AvatarConfig } from "@/game/save/local-progress";
 import type { ArpgLoadout } from "../domain/types";
 
 export const ARPG_RAID_MIN_PLAYERS = 2 as const;
-export const ARPG_RAID_MAX_PLAYERS = 5 as const;
+/** Four Legends keep a shared room readable on desktop and touch screens. */
+export const ARPG_RAID_MAX_PLAYERS = 4 as const;
 export const ARPG_RAID_STATE_VERSION = 2 as const;
+export const ARPG_RAID_PLAYER_MARGIN = 45 as const;
 
 export type ArpgRaidStatus = "active" | "victory" | "defeat";
 export type ArpgRaidPhase = 1 | 2 | 3;
+export type ArpgRaidDungeonRegionId = "mata-encantada" | "arquipelago-das-mares" | "montanhas-runicas";
 
 export type ArpgRaidInputVector = {
   moveX: number;
@@ -27,12 +29,13 @@ export type ArpgRaidPlayerState = {
   id: string;
   name: string;
   seat: number;
-  avatarConfig: AvatarConfig;
   x: number;
   y: number;
   hp: number;
   maxHp: number;
   alive: boolean;
+  /** Server-clock deadline for a teammate to revive this player; zero means eliminated or active. */
+  downedUntilMs: number;
   loadout: ArpgLoadout;
   input: ArpgRaidInputVector;
   nextAttackAtMs: number;
@@ -59,6 +62,49 @@ export type ArpgRaidBossState = {
   slowedUntilMs: number;
 };
 
+export type ArpgRaidDungeonEnemyState = {
+  id: string;
+  definitionId: string;
+  name: string;
+  waveIndex: number;
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  alive: boolean;
+  contactDamage: number;
+  moveSpeed: number;
+  slowedUntilMs: number;
+  nextAttackAtMs: number;
+};
+
+export type ArpgRaidDungeonRoomState = {
+  id: string;
+  type: "start" | "combat" | "treasure" | "event" | "elite" | "rest" | "shop" | "boss";
+  templateId: string;
+  label: string;
+  /** Playable room area before the east exit corridor. */
+  roomWidth: number;
+  /** Walkable east corridor which connects this room to the next transition. */
+  corridorWidth: number;
+  worldWidth: number;
+  worldHeight: number;
+  waves: string[][];
+  waveIndex: number;
+  state: "combat" | "awaiting_exit" | "cleared";
+  waveCompleteAtMs: number | null;
+  nextRoomAtMs: number | null;
+  enemies: ArpgRaidDungeonEnemyState[];
+};
+
+/** Shared sequence generated once for the whole party and persisted in raid_rooms.state. */
+export type ArpgRaidDungeonState = {
+  regionId: ArpgRaidDungeonRegionId;
+  seed: string;
+  roomIndex: number;
+  rooms: ArpgRaidDungeonRoomState[];
+};
+
 export type ArpgRaidEventKind =
   | "raid_started"
   | "player_moved"
@@ -68,6 +114,13 @@ export type ArpgRaidEventKind =
   | "player_healed"
   | "player_damaged"
   | "player_defeated"
+  | "player_revived"
+  | "player_eliminated"
+  | "dungeon_room_entered"
+  | "dungeon_wave_cleared"
+  | "dungeon_room_cleared"
+  | "dungeon_enemy_attack"
+  | "dungeon_enemy_defeated"
   | "boss_attack"
   | "boss_phase"
   | "raid_victory"
@@ -95,6 +148,10 @@ export type ArpgRaidState = {
   serverTimeMs: number;
   maxDurationMs: number;
   players: ArpgRaidPlayerState[];
+  /** Shared by the whole party for one encounter. */
+  reviveCharges: number;
+  /** Absent on older boss-only raid rooms; new ARPG runs carry a shared room sequence. */
+  dungeon?: ArpgRaidDungeonState;
   boss: ArpgRaidBossState;
   processedActionIds: string[];
   eventSequence: number;
@@ -105,7 +162,6 @@ export type ArpgRaidPlayerSetup = {
   id: string;
   name: string;
   seat: number;
-  avatarConfig: AvatarConfig;
   loadout: ArpgLoadout;
 };
 
@@ -120,7 +176,8 @@ export type ArpgRaidAction =
   | { kind: "input"; actionId: string; moveX: number; moveY: number; aimX: number; aimY: number }
   | { kind: "attack"; actionId: string }
   | { kind: "dash"; actionId: string }
-  | { kind: "ability"; actionId: string; slot: 0 | 1 };
+  | { kind: "ability"; actionId: string; slot: 0 | 1 }
+  | { kind: "revive"; actionId: string; targetPlayerId: string };
 
 export type ArpgRaidActionResult = {
   state: ArpgRaidState;

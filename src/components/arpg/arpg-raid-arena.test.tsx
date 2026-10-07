@@ -4,9 +4,10 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
+import { attachArpgSharedDungeon } from "@/game/arpg/coop-dungeon/shared-run";
 import { ARPG_ROC_RAID_BOSS } from "@/game/arpg/raid/content";
+import { ARPG_RAID_PLAYER_MARGIN } from "@/game/arpg/raid/types";
 import { createArpgRaidState } from "@/game/arpg/raid/engine";
-import { DEFAULT_AVATAR_CONFIG } from "@/game/save/local-progress";
 import { ArpgRaidArena } from "./arpg-raid-arena";
 
 const ROOM_ID = "11111111-1111-4111-8111-111111111111";
@@ -18,20 +19,8 @@ function createState() {
     ROOM_ID,
     EVENT_ID,
     [
-      {
-        id: PLAYER_ID,
-        name: "A",
-        seat: 1,
-        avatarConfig: { ...DEFAULT_AVATAR_CONFIG, skin: "amber", hair: "mohawk" },
-        loadout: structuredClone(DEFAULT_ARPG_LOADOUT),
-      },
-      {
-        id: "player-b",
-        name: "B",
-        seat: 2,
-        avatarConfig: { ...DEFAULT_AVATAR_CONFIG, skin: "umber", hair: "waves" },
-        loadout: structuredClone(DEFAULT_ARPG_LOADOUT),
-      },
+      { id: PLAYER_ID, name: "A", seat: 1, loadout: structuredClone(DEFAULT_ARPG_LOADOUT) },
+      { id: "player-b", name: "B", seat: 2, loadout: structuredClone(DEFAULT_ARPG_LOADOUT) },
     ],
     ARPG_ROC_RAID_BOSS,
     1_000_000,
@@ -67,16 +56,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("ArpgRaidArena", () => {
-  it("renderiza o avatar personalizado de cada participante no campo", async () => {
-    const { container } = render(<ArpgRaidArena roomId={ROOM_ID} playerId={PLAYER_ID} onClose={() => undefined} />);
-
-    await waitFor(() => expect(screen.getByText("Roc — O Céu Desaparece")).toBeInTheDocument());
-    expect(container.querySelectorAll(".arpg-raid-player__avatar .character-avatar-2d")).toHaveLength(2);
-    expect(container.querySelector(".arpg-raid-player__avatar .character-avatar-2d--skin-amber.character-avatar-2d--hair-mohawk")).not.toBeNull();
-    expect(container.querySelector(".arpg-raid-player__avatar .character-avatar-2d--skin-umber.character-avatar-2d--hair-waves")).not.toBeNull();
-    expect(container.querySelector(".arpg-raid-player__token")).toBeNull();
-  });
-
   it("renderiza dois ataques e controles equivalentes para teclado e gamepad", async () => {
     render(<ArpgRaidArena roomId={ROOM_ID} playerId={PLAYER_ID} onClose={() => undefined} />);
 
@@ -87,8 +66,8 @@ describe("ArpgRaidArena", () => {
     expect(screen.getByText(/PRONTA · ↓/)).toBeInTheDocument();
     expect(screen.queryByText(/PRONTA · →|PRONTA · ←/)).not.toBeInTheDocument();
     expect(screen.queryByText(/SUPORTE|TROCAR/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Raízes Ancestrais/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Chama do Boitatá/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Raízes do Curupira/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Flecha de Brasa/ })).toBeInTheDocument();
   });
 
   it("não deixa input lento bloquear ataques discretos", async () => {
@@ -108,6 +87,24 @@ describe("ArpgRaidArena", () => {
     fireEvent.click(screen.getByRole("button", { name: /ATACAR/i }));
     await waitFor(() => expect(actions).toContain("attack"), { timeout: 400 });
     expect(actions).toContain("input");
+  });
+
+  it("mostra o corredor aberto e quantos aliados já chegaram à saída", async () => {
+    const sharedState = attachArpgSharedDungeon(createState());
+    const room = sharedState.dungeon!.rooms[sharedState.dungeon!.roomIndex];
+    room.state = "awaiting_exit";
+    sharedState.players[0].x = room.roomWidth + room.corridorWidth - ARPG_RAID_PLAYER_MARGIN;
+    const sharedPayload = { ...payload(), state: sharedState };
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => sharedPayload,
+    })));
+
+    render(<ArpgRaidArena roomId={ROOM_ID} playerId={PLAYER_ID} onClose={() => undefined} />);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("PASSAGEM ABERTA");
+    expect(screen.getByRole("status")).toHaveTextContent("1/2 na saída");
+    expect(document.querySelector(".arpg-raid-dungeon-corridor.is-open")).toBeInTheDocument();
   });
 
   it("ignora polling antigo depois de uma versão mais nova", async () => {

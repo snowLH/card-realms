@@ -1,5 +1,5 @@
 import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
-import { ARPG_ASSET_MANIFEST, getArpgSpriteSheetFrameConfig } from "../assets";
+import { ARPG_ASSET_MANIFEST, getArpgSpriteSheetFrameConfig, registerArpgSpriteSheetAnimations } from "../assets";
 import type { ArpgDungeonRuntimeConfig, DungeonLoot } from "../content/dungeons";
 import {
   ARPG_ARMOR_BY_ID,
@@ -10,7 +10,6 @@ import {
   getArmorDashCooldownMs,
   getArmorMovingDefenseBonus,
   getArmorRetaliationDamage,
-  getDefaultSecondaryArpgWeaponId,
   getWeaponAttackIntervalMs,
   getWeaponAttackProc,
 } from "../content/equipment";
@@ -36,6 +35,7 @@ import type {
 } from "../domain/types";
 import type { ArpgDungeonCombatCommand, ArpgDungeonCombatState } from "../dungeon/combat-authority";
 import type { DungeonManager } from "../dungeon/manager";
+import { DUNGEON_CORRIDOR_WIDTH } from "../dungeon/layout";
 import { buildDungeonNavigation } from "../dungeon/navigation";
 import {
   applyBreakableObjectDamage,
@@ -54,14 +54,26 @@ import {
 } from "../dungeon/special-rooms";
 import type { DungeonRoom } from "../dungeon/types";
 import { snapshotArpgRunCheckpoint, type ArpgRunCheckpoint } from "../dungeon/run-checkpoint";
-import { DungeonWorldRuntime } from "./dungeon-world";
+import {
+  DUNGEON_BIOME_PROPS_ASSET_PATH,
+  DUNGEON_BIOME_PROPS_FRAME_SIZE,
+  DUNGEON_BIOME_PROPS_TEXTURE_KEY,
+  DungeonWorldRuntime,
+} from "./dungeon-world";
 import { ArpgAudio, type ArpgSoundCue } from "./arpg-audio";
 import { acceptServerConfirmedCombatResponse } from "./visual-events";
 import { getEnemyMovementIntent, type EnemyCombatRole } from "./enemy-behavior";
 import { getCurupiraBossPattern, getCurupiraBossPhase } from "./boss-patterns";
 import { readBrowserGamepad, type GamepadFrame } from "./gamepad";
 import { pickGroupMember } from "./group-member";
-import { findGridPath, type GridNavigation, type WorldPoint } from "../navigation/grid-path";
+import {
+  findGridPath,
+  gridCellKey,
+  hasGridLineOfSight,
+  worldToGridCell,
+  type GridNavigation,
+  type WorldPoint,
+} from "../navigation/grid-path";
 import type { Rarity } from "../../domain/creatures";
 import {
   CHEST_LOOT_RARITY_PRESENTATION,
@@ -72,21 +84,32 @@ import {
 import {
   CARTOGRAPHER_PLAYER_FRAME_SIZE,
   CARTOGRAPHER_PLAYER_SCALE,
-  CARTOGRAPHER_PLAYER_TEXTURE,
-  createCartographerAvatarSpritesheet,
-  playCartographerPlayerAnimation,
-  registerCartographerPlayerAnimations,
-  type CartographerPlayerAction,
 } from "./player-sprites";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
 import {
   getArpgEnemyAnimationProfile,
   isArpgEnemyAnimationProfile,
   playArpgEnemyAnimation,
-  registerArpgEnemyAnimations,
   type ArpgEnemyAnimation,
   type ArpgEnemyAnimationProfile,
 } from "./enemy-sprites";
+import { getPixelArtTextureKey } from "./pixel-art-sheet";
+import { GENERATED_SPRITE_FRAME_SIZE, queueGeneratedLegendSpriteSheet } from "./legend-sprite-sheets";
+import {
+  createNativePixelActorSheet,
+  NATIVE_PIXEL_ACTOR_ANIMATION_MAP,
+  NATIVE_PIXEL_ACTOR_FRAME_COLUMNS,
+  type NativePixelActorAnimation,
+  type NativePixelActorId,
+} from "./native-pixel-actors";
+import { getFloatingWeaponPose, getFloatingWeaponReach } from "./floating-weapon";
+import {
+  createWeaponSlots,
+  pickUpWeapon,
+  switchWeaponSlot,
+  type WeaponSlot,
+  type WeaponSlots,
+} from "./weapon-slots";
 import {
   alignTreasureChestToGround,
   getTreasureChestFrameBounds,
@@ -108,9 +131,9 @@ type KeyMap = {
   right: Key;
   dash: Key;
   interact: Key;
-  swapWeapon: Key;
   one: Key;
   two: Key;
+  switchWeapon: Key;
 };
 type ClickPointer = Pick<import("phaser").Input.Pointer, "button" | "wasTouch" | "worldX" | "worldY">;
 type ChestPresentationPhase = "rise" | "pause" | "fall" | "contact" | "waiting-choice" | "cache";
@@ -149,6 +172,37 @@ const PLAYER_BASE_SPEED = 220;
 const DASH_SPEED = 610;
 const DASH_MS = 170;
 const DASH_COOLDOWN_MS = 820;
+const DUNGEON_CAMERA_FOLLOW_LERP = 0.16;
+const NATIVE_LEGEND_FRAME_SIZE = 32;
+const NATIVE_LEGEND_PLAYER_SCALE = CARTOGRAPHER_PLAYER_FRAME_SIZE
+  * CARTOGRAPHER_PLAYER_SCALE
+  / NATIVE_LEGEND_FRAME_SIZE;
+const PLAYER_BODY_WIDTH = 22;
+const PLAYER_BODY_HEIGHT = 28;
+const NATIVE_FALLBACK_ACTORS: Readonly<Record<string, Readonly<Partial<Record<string, NativePixelActorId>>>>> = {
+  "mata-encantada": { miniBoss: "mapinguari" },
+};
+const NATIVE_ENEMY_ACTORS_BY_PROFILE: Partial<Record<ArpgEnemyAnimationProfile, NativePixelActorId>> = {
+  "sprout-enemy": "sprout",
+};
+const NATIVE_FALLBACK_ANIMATIONS = {
+  idle: { row: 0, frameRate: 5, repeat: -1 },
+  walk: { row: 1, frameRate: 9, repeat: -1 },
+  attack: { row: 2, frameRate: 12, repeat: 0 },
+  shoot: { row: 3, frameRate: 12, repeat: 0 },
+  damage: { row: 4, frameRate: 10, repeat: 0 },
+  defeat: { row: 5, frameRate: 7, repeat: 0 },
+} as const;
+const NATIVE_ACTOR_ANIMATIONS = {
+  ...NATIVE_FALLBACK_ANIMATIONS,
+};
+
+function getNativeDungeonFallbackActors(dungeonId: string) {
+  return new Set(
+    Object.values(NATIVE_FALLBACK_ACTORS[dungeonId] ?? {})
+      .filter((actorId): actorId is NativePixelActorId => Boolean(actorId)),
+  );
+}
 const ABILITY_COLORS = {
   fire: 0xff6b33,
   water: 0x73d8ff,
@@ -172,10 +226,34 @@ export function createArpgDungeonScene(
   const selectedCards = loadout.abilityIds.map((id) =>
     ARPG_ABILITY_CARD_BY_ID.get(id) ?? MATA_CARDS[0]
   ) as [typeof MATA_CARDS[number], typeof MATA_CARDS[number]];
+  const playerActorId: NativePixelActorId = avatarConfig.legendId;
+  const playerTextureKey = `folklard-playable-legend-${playerActorId}`;
+  const playerAnimationKeyPrefix = `folklard-playable-legend-${playerActorId}`;
+
+  const setNativePlayerRestPose = (sprite: ArcadeSprite) => {
+    sprite.anims.stop();
+    sprite.setFrame(NATIVE_PIXEL_ACTOR_ANIMATION_MAP[playerActorId].idle * NATIVE_PIXEL_ACTOR_FRAME_COLUMNS);
+  };
+
+  const playNativePlayerAnimation = (
+    sprite: ArcadeSprite,
+    animation: NativePixelActorAnimation,
+    restart = false,
+  ) => {
+    if (animation === "idle") {
+      setNativePlayerRestPose(sprite);
+      return;
+    }
+    const key = `${playerAnimationKeyPrefix}-${animation}`;
+    if (restart || sprite.anims.currentAnim?.key !== key) sprite.play(key);
+  };
 
   return class ArpgDungeonScene extends Phaser.Scene {
     private player!: ArcadeSprite;
+    private floatingWeapon: import("phaser").GameObjects.Graphics | null = null;
+    private targetMarker: import("phaser").GameObjects.Graphics | null = null;
     private enemies!: import("phaser").Physics.Arcade.Group;
+    private readonly entityGroundShadows = new Map<ArcadeSprite, import("phaser").GameObjects.Image>();
     private projectiles!: import("phaser").Physics.Arcade.Group;
     private enemyProjectiles!: import("phaser").Physics.Arcade.Group;
     private benchmarkParticleEmitter: import("phaser").GameObjects.Particles.ParticleEmitter | null = null;
@@ -190,14 +268,17 @@ export function createArpgDungeonScene(
       interactPressed: false,
       abilityPressed: [false, false],
     };
-    private hp = Math.max(0, Math.min(checkpoint?.maxHp ?? PLAYER_BASE_HP + startingArmor.maxHpBonus, checkpoint?.playerHp ?? PLAYER_BASE_HP + startingArmor.maxHpBonus));
-    private maxHp = checkpoint?.maxHp ?? PLAYER_BASE_HP + startingArmor.maxHpBonus;
+    private hp = Math.max(0, Math.min(PLAYER_BASE_HP, checkpoint?.playerHp ?? PLAYER_BASE_HP));
+    private maxHp = PLAYER_BASE_HP;
     private roomIndex = 0;
     private roomWaves = dungeon.createRoomPlan();
     private dungeonWorld: DungeonWorldRuntime | null = null;
     private navigation: GridNavigation | null = null;
     private clickPath: WorldPoint[] = [];
     private clickPathIndex = 0;
+    // Click-to-move is kept behind an explicit accessibility flag so attacks
+    // and camera-facing pointer input never move the Legend by accident.
+    private clickToMoveEnabled = false;
     private suppressDesktopAttackUntil = 0;
     private audio: ArpgAudio | null = null;
     private proceduralRoomId: string | null = dungeonManager?.getCurrentRoom().id ?? null;
@@ -222,10 +303,11 @@ export function createArpgDungeonScene(
     private exitPortal: import("phaser").GameObjects.Container | null = null;
     private exitPortalAvailable = checkpoint?.exitPortalAvailable ?? false;
     private xpEarned = checkpoint?.xpEarned ?? 0;
-    private currentWeaponId = checkpoint?.weaponId ?? loadout.weaponId;
-    private secondaryWeaponId = checkpoint?.secondaryWeaponId
-      ?? loadout.secondaryWeaponId
-      ?? getDefaultSecondaryArpgWeaponId(this.currentWeaponId);
+    private weaponSlots: WeaponSlots = createWeaponSlots(
+      checkpoint?.weaponAId ?? checkpoint?.weaponId ?? loadout.weaponId,
+      checkpoint?.weaponBId ?? null,
+      checkpoint?.activeWeaponSlot ?? "A",
+    );
     private currentArmorId = checkpoint?.armorId ?? startingArmor.id;
     private runLoot: ArpgRunLootEntry[] = checkpoint?.runLoot.map((item) => ({ ...item })) ?? [];
     private runShards = checkpoint?.runShards ?? 0;
@@ -240,6 +322,17 @@ export function createArpgDungeonScene(
     private chestPhysicsPausedByPresentation = false;
     private chestPrompt: import("phaser").GameObjects.Text | null = null;
     private dungeonDebugText: import("phaser").GameObjects.Text | null = null;
+    private visualReferenceText: import("phaser").GameObjects.Text | null = null;
+    private visualReferenceEnabled = false;
+    private lastVisualReferenceAt = 0;
+    private prefersReducedMotion = false;
+    private reducedMotionQuery: MediaQueryList | null = null;
+    private exitPortalMotionTweens: import("phaser").Tweens.Tween[] = [];
+    private exitPortalMotionVisuals: {
+      outer: import("phaser").GameObjects.Ellipse;
+      inner: import("phaser").GameObjects.Ellipse;
+      core: import("phaser").GameObjects.Ellipse;
+    } | null = null;
     private playerLifecycleEvents: Array<{ event: string; sceneTime: number; stack?: string }> = [];
     private activeCurupiraRootBarriers = 0;
     private chestAvailable = false;
@@ -266,15 +359,41 @@ export function createArpgDungeonScene(
     }
 
     preload() {
+      this.load.spritesheet(
+        DUNGEON_BIOME_PROPS_TEXTURE_KEY,
+        DUNGEON_BIOME_PROPS_ASSET_PATH,
+        {
+          frameWidth: DUNGEON_BIOME_PROPS_FRAME_SIZE,
+          frameHeight: DUNGEON_BIOME_PROPS_FRAME_SIZE,
+        },
+      );
+      queueGeneratedLegendSpriteSheet(this, playerActorId, playerTextureKey);
+      const enemyProfiles = new Set(
+        Object.values(dungeon.enemyAnimations ?? {}).filter(isArpgEnemyAnimationProfile),
+      );
+      for (const profile of enemyProfiles) {
+        const definition = getArpgEnemyAnimationProfile(profile);
+        const textureKey = getPixelArtTextureKey(definition.textureKey);
+        const actorId = NATIVE_ENEMY_ACTORS_BY_PROFILE[profile];
+        if (actorId) {
+          queueGeneratedLegendSpriteSheet(this, actorId, textureKey);
+        } else {
+          this.load.spritesheet(textureKey, definition.path, getArpgSpriteSheetFrameConfig(definition));
+        }
+      }
+      for (const actorId of getNativeDungeonFallbackActors(dungeon.id)) {
+        queueGeneratedLegendSpriteSheet(
+          this,
+          actorId,
+          getPixelArtTextureKey(`folklard-native-${actorId}`),
+        );
+      }
       this.load.image(ARPG_ASSET_MANIFEST.runtimeTextureKeys.dungeonBackground, dungeon.background);
       this.load.spritesheet(
         TREASURE_CHEST_TEXTURE,
         TREASURE_CHEST_ASSET_PATH,
         getArpgSpriteSheetFrameConfig(ARPG_ASSET_MANIFEST.props.treasureChest),
       );
-      this.load.spritesheet(CARTOGRAPHER_PLAYER_TEXTURE, createCartographerAvatarSpritesheet(avatarConfig), {
-        ...getArpgSpriteSheetFrameConfig(ARPG_ASSET_MANIFEST.player),
-      });
       this.load.spritesheet(
         ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreatures.textureKey,
         ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreatures.path,
@@ -285,13 +404,12 @@ export function createArpgDungeonScene(
         ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreaturesSecond.path,
         getArpgSpriteSheetFrameConfig(ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreaturesSecond),
       );
-      for (const profile of new Set(Object.values(dungeon.enemyAnimations ?? {}).filter(isArpgEnemyAnimationProfile))) {
-        const definition = getArpgEnemyAnimationProfile(profile);
-        this.load.spritesheet(definition.textureKey, definition.path, getArpgSpriteSheetFrameConfig(definition));
-      }
     }
     create() {
+      this.clickToMoveEnabled = typeof window !== "undefined"
+        && new URLSearchParams(window.location.search).get("clickToMove") === "1";
       this.cameras.main.setBackgroundColor("#102018");
+      this.setupReducedMotionPreference();
       const audio = new ArpgAudio(dungeonManager?.getGraph().regionId ?? dungeon.id);
       this.audio = audio;
       audio.setEnabled(bridge.getSoundEnabled());
@@ -310,11 +428,67 @@ export function createArpgDungeonScene(
       this.events.once("shutdown", () => this.clearServerHazardVisuals());
       this.events.once("destroy", () => this.clearServerHazardVisuals());
       this.createRuntimeTextures();
-      registerCartographerPlayerAnimations(this);
+      if (!this.textures.exists(playerTextureKey)) {
+        createNativePixelActorSheet(
+          this,
+          playerActorId,
+          playerTextureKey,
+          NATIVE_LEGEND_FRAME_SIZE,
+          NATIVE_LEGEND_FRAME_SIZE,
+        );
+      }
+      const playerTextureFrameSize = this.textures.get(playerTextureKey).getSourceImage().width === GENERATED_SPRITE_FRAME_SIZE * 4
+        ? GENERATED_SPRITE_FRAME_SIZE
+        : NATIVE_LEGEND_FRAME_SIZE;
+      const playerAnimationRows = NATIVE_PIXEL_ACTOR_ANIMATION_MAP[playerActorId];
+      registerArpgSpriteSheetAnimations(this, {
+        textureKey: playerTextureKey,
+        columns: NATIVE_PIXEL_ACTOR_FRAME_COLUMNS,
+        keyPrefix: playerAnimationKeyPrefix,
+        animations: {
+          walk: { row: playerAnimationRows.walk, frameRate: 9, repeat: -1 },
+          attack: { row: playerAnimationRows.attack, frameRate: 12, repeat: 0 },
+          shoot: { row: playerAnimationRows.shoot, frameRate: 12, repeat: 0 },
+          damage: { row: playerAnimationRows.damage, frameRate: 10, repeat: 0 },
+          defeat: { row: playerAnimationRows.defeat, frameRate: 7, repeat: 0 },
+        },
+      });
       registerTreasureChestAnimation(this);
       for (const profile of new Set(Object.values(dungeon.enemyAnimations ?? {}).filter(isArpgEnemyAnimationProfile))) {
-        const { textureKey } = getArpgEnemyAnimationProfile(profile);
-        if (this.textures.exists(textureKey)) registerArpgEnemyAnimations(this, profile);
+        const definition = getArpgEnemyAnimationProfile(profile);
+        const textureKey = getPixelArtTextureKey(definition.textureKey);
+        if (!this.textures.exists(textureKey)) {
+          const actorId = NATIVE_ENEMY_ACTORS_BY_PROFILE[profile];
+          if (actorId) {
+            createNativePixelActorSheet(
+              this,
+              actorId,
+              textureKey,
+              definition.frameWidth,
+              definition.frameHeight,
+            );
+          }
+        }
+        if (!this.textures.exists(textureKey)) continue;
+        registerArpgSpriteSheetAnimations(this, {
+          textureKey,
+          animations: NATIVE_ACTOR_ANIMATIONS,
+          columns: 4,
+          keyPrefix: definition.animationKeyPrefix!,
+        });
+      }
+      const nativeFallbackActors = getNativeDungeonFallbackActors(dungeon.id);
+      for (const actorId of nativeFallbackActors) {
+        const textureKey = getPixelArtTextureKey(`folklard-native-${actorId}`);
+        if (!this.textures.exists(textureKey)) {
+          createNativePixelActorSheet(this, actorId, textureKey, 250, 250);
+        }
+        registerArpgSpriteSheetAnimations(this, {
+          textureKey,
+          animations: NATIVE_FALLBACK_ANIMATIONS,
+          columns: 4,
+          keyPrefix: `folklard-fallback-${actorId}`,
+        });
       }
 
       let playerStart = { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
@@ -340,19 +514,29 @@ export function createArpgDungeonScene(
         this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         const background = this.add.image(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, "dungeon-arena");
         background.setDisplaySize(WORLD_WIDTH, WORLD_HEIGHT);
-        background.setAlpha(0.78);
+        background.setAlpha(1);
         this.drawRoomFrame();
       }
 
-      this.player = this.physics.add.sprite(playerStart.x, playerStart.y, CARTOGRAPHER_PLAYER_TEXTURE, 0);
-      this.player.setScale(CARTOGRAPHER_PLAYER_SCALE);
+      this.player = this.physics.add.sprite(playerStart.x, playerStart.y, playerTextureKey, 0);
+      const playerScale = playerTextureFrameSize === GENERATED_SPRITE_FRAME_SIZE
+        ? (CARTOGRAPHER_PLAYER_FRAME_SIZE * CARTOGRAPHER_PLAYER_SCALE) / GENERATED_SPRITE_FRAME_SIZE
+        : NATIVE_LEGEND_PLAYER_SCALE;
+      this.player.setScale(playerScale);
       this.player.setDepth(10);
       this.player.setCollideWorldBounds(true);
-      const playerBodyWidth = 22 / CARTOGRAPHER_PLAYER_SCALE;
-      const playerBodyHeight = 28 / CARTOGRAPHER_PLAYER_SCALE;
+      const playerBodyWidth = PLAYER_BODY_WIDTH / playerScale;
+      const playerBodyHeight = PLAYER_BODY_HEIGHT / playerScale;
       this.player.setSize(playerBodyWidth, playerBodyHeight)
-        .setOffset((CARTOGRAPHER_PLAYER_FRAME_SIZE - playerBodyWidth) / 2, 65);
-      playCartographerPlayerAnimation(this.player, "idle");
+        .setOffset((playerTextureFrameSize - playerBodyWidth) / 2, playerTextureFrameSize - playerBodyHeight - 6);
+      this.ensureEntityGroundShadow(this.player, 30);
+      this.events.once("shutdown", () => this.clearEntityGroundShadows());
+      this.events.once("destroy", () => this.clearEntityGroundShadows());
+      setNativePlayerRestPose(this.player);
+      this.floatingWeapon = this.add.graphics().setDepth(11);
+      this.targetMarker = this.add.graphics().setDepth(18);
+      this.events.once("shutdown", () => this.clearFloatingWeapon());
+      this.events.once("destroy", () => this.clearFloatingWeapon());
       this.dungeonWorld?.attachPlayer(this.player);
 
       this.enemies = this.physics.add.group();
@@ -399,18 +583,25 @@ export function createArpgDungeonScene(
       this.keys = this.input.keyboard!.addKeys({
         up: "W", down: "S", left: "A", right: "D",
         dash: "SPACE", interact: "E",
-        swapWeapon: "Q",
-        one: "ONE", two: "TWO",
+        one: "ONE", two: "TWO", switchWeapon: "Q",
       }) as KeyMap;
 
       this.game.canvas.oncontextmenu = (event) => event.preventDefault();
       this.input.mouse?.disableContextMenu();
-      this.input.on("pointerdown", this.setClickDestination, this);
-      this.events.once("shutdown", () => this.input.off("pointerdown", this.setClickDestination, this));
-      this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+      if (this.clickToMoveEnabled) {
+        this.input.on("pointerdown", this.setClickDestination, this);
+        this.events.once("shutdown", () => this.input.off("pointerdown", this.setClickDestination, this));
+      }
+      this.cameras.main.startFollow(
+        this.player,
+        true,
+        DUNGEON_CAMERA_FOLLOW_LERP,
+        DUNGEON_CAMERA_FOLLOW_LERP,
+      );
       if (dungeonManager && this.dungeonWorld) {
         this.dungeonWorld.focusCamera(dungeonManager.getCurrentRoom().id);
         this.createDungeonDebugOverlay();
+        this.createVisualReferenceOverlay();
         if (checkpoint) {
           const room = dungeonManager.getCurrentRoom();
           if (checkpoint.exitPortalAvailable) this.createExitPortal(room);
@@ -418,13 +609,13 @@ export function createArpgDungeonScene(
           else if (room.id !== dungeonManager.getGraph().startRoomId && room.state !== "cleared") {
             this.activateProceduralRoom(room, this.time.now);
           }
-          bridge.emitMessage(`Run retomada em ${this.proceduralRoomLabel(room)}. Clique ou toque no chão para andar; WASD e joystick continuam disponíveis.`);
+          bridge.emitMessage(`Run retomada em ${this.proceduralRoomLabel(room)}. WASD, joystick ou direcional movem sua Lenda; atravesse as portas para avançar.`);
         } else {
-          bridge.emitMessage(`Expedição gerada: ${dungeon.name}. Clique ou toque no chão para andar; atravesse uma porta para explorar a run.`);
+          bridge.emitMessage(`Expedição gerada: ${dungeon.name}. WASD, joystick ou direcional movem sua Lenda; atravesse uma porta para explorar a run.`);
         }
       } else {
         this.spawnCurrentRoom();
-        bridge.emitMessage(`${dungeon.messages.intro} Clique ou toque no chão para andar; WASD também funciona.`);
+        bridge.emitMessage(`${dungeon.messages.intro} WASD, joystick ou direcional movem sua Lenda.`);
       }
       this.emitHud(0);
       this.emitRunCheckpoint();
@@ -432,17 +623,33 @@ export function createArpgDungeonScene(
     update(time: number) {
       if (this.runEnded) return;
 
+      if (this.visualReferenceEnabled && time - this.lastVisualReferenceAt >= 250) {
+        this.updateVisualReferenceOverlay();
+        this.lastVisualReferenceAt = time;
+      }
+
       const gamepadRead = readBrowserGamepad(this.gamepadPressedButtons);
       this.gamepad = gamepadRead.frame;
       this.gamepadPressedButtons = gamepadRead.pressedButtons;
 
       const lootDecision = bridge.consumeLootDecision();
       if (this.pendingLoot && lootDecision) this.resolvePendingLoot(lootDecision, time);
+      const weaponSwitchRequested = bridge.consumeWeaponSwitch()
+        || Phaser.Input.Keyboard.JustDown(this.keys.switchWeapon);
+      if (
+        weaponSwitchRequested
+        && !this.pendingLoot
+        && !this.pendingRoomChoice
+        && !this.chestOpening
+      ) {
+        this.switchActiveWeapon(time);
+      }
       const roomChoice = bridge.consumeRoomChoice();
       if (this.pendingRoomChoice && roomChoice) this.resolvePendingRoomChoice(roomChoice, time);
       if (this.pendingLoot || this.pendingRoomChoice || this.chestOpening) {
         this.player.setVelocity(0, 0);
         this.updateTreasureChestPrompt();
+        this.updateEntityGroundShadows();
         if (time - this.lastHudAt >= 100) {
           this.emitHud(time);
           this.lastHudAt = time;
@@ -457,8 +664,10 @@ export function createArpgDungeonScene(
       this.activatePendingEnemySpawns(time);
       this.handleCombatInput(time);
       this.updateEnemies(time);
+      this.updateFloatingWeapon();
       this.checkRoomProgress(time);
       this.updateTreasureChestPrompt();
+      this.updateEntityGroundShadows();
 
       if (time - this.lastHudAt >= 100) {
         this.emitHud(time);
@@ -487,6 +696,16 @@ export function createArpgDungeonScene(
       graphics.fillStyle(0xffffff, 1);
       graphics.fillRect(3, 3, 7, 7);
       graphics.generateTexture("arpg-projectile", 13, 13);
+
+      graphics.clear();
+      graphics.fillStyle(0xffffff, 1);
+      for (let y = 0; y < 64; y += 4) {
+        for (let x = 0; x < 64; x += 4) {
+          const distance = Math.hypot(x + 2 - 32, y + 2 - 32);
+          if (distance >= 25 && distance <= 31) graphics.fillRect(x, y, 4, 4);
+        }
+      }
+      graphics.generateTexture("arpg-pixel-pulse", 64, 64);
 
       graphics.clear();
       graphics.fillStyle(0x64402a, 1);
@@ -647,7 +866,62 @@ export function createArpgDungeonScene(
         graphics.fillRect(14, 10, 4, 13);
         graphics.fillRect(13, 24, 6, 3);
       });
+
+      graphics.clear();
+      graphics.fillStyle(0x08120d, 1);
+      graphics.fillRect(8, 0, 16, 2);
+      graphics.fillRect(4, 2, 24, 3);
+      graphics.fillRect(1, 5, 30, 3);
+      graphics.fillRect(4, 8, 24, 2);
+      graphics.fillRect(9, 10, 14, 1);
+      graphics.generateTexture("arpg-ground-shadow", 32, 12);
       graphics.destroy();
+    }
+
+    private ensureEntityGroundShadow(entity: ArcadeSprite, width: number) {
+      let shadow = this.entityGroundShadows.get(entity);
+      if (!shadow || !shadow.active) {
+        shadow = this.add.image(entity.x, entity.y, "arpg-ground-shadow")
+          .setOrigin(0.5)
+          .setAlpha(0.48)
+          .setVisible(false);
+        this.entityGroundShadows.set(entity, shadow);
+      }
+
+      const snappedWidth = Math.max(24, Math.round(width / 2) * 2);
+      const snappedHeight = Phaser.Math.Clamp(Math.round(snappedWidth * 0.38), 10, 20);
+      shadow
+        .setScale(snappedWidth / 32, snappedHeight / 12)
+        .setDepth(Math.max(0, entity.depth - 0.02));
+      return shadow;
+    }
+
+    private updateEntityGroundShadows() {
+      for (const [entity, shadow] of this.entityGroundShadows) {
+        if (!entity.scene || !shadow.active) {
+          shadow.destroy();
+          this.entityGroundShadows.delete(entity);
+          continue;
+        }
+
+        const isPlayer = entity === this.player;
+        const shouldShow = entity.active
+          && entity.visible
+          && (isPlayer || (entity.getData("spawnReady") && !entity.getData("defeatPending")));
+        if (!shouldShow) {
+          if (shadow.visible) shadow.setVisible(false);
+          continue;
+        }
+
+        const feetY = entity.body?.bottom ?? entity.y + Math.max(8, entity.displayHeight * 0.22);
+        shadow.setPosition(Math.round(entity.x), Math.round(feetY));
+        if (!shadow.visible) shadow.setVisible(true);
+      }
+    }
+
+    private clearEntityGroundShadows() {
+      for (const shadow of this.entityGroundShadows.values()) shadow.destroy();
+      this.entityGroundShadows.clear();
     }
 
     private drawRoomFrame() {
@@ -695,6 +969,7 @@ export function createArpgDungeonScene(
         const source = move.lengthSq() > 0 ? move : this.resolveAimVector();
         const dashArmor = ARPG_ARMOR_BY_ID.get(this.currentArmorId) ?? ARPG_ARMORS[0];
         this.dashVector.copy(source).normalize();
+        this.facePlayer(this.dashVector);
         if (bridge.isServerAuthoritativeCombat() && this.proceduralController && this.proceduralRoomId) {
           if (!this.serverActionPending) {
             this.submitServerCombatCommand(this.proceduralRoomId, "dash", time, undefined, {
@@ -705,7 +980,7 @@ export function createArpgDungeonScene(
         } else {
           this.dashingUntil = time + DASH_MS;
           this.nextDashAt = time + getArmorDashCooldownMs(dashArmor, DASH_COOLDOWN_MS);
-          this.playPlayerAction("dodge", time, DASH_MS);
+          this.playPlayerAction("walk", time, DASH_MS);
           this.flashPlayer(0xcaf4d2, 150);
         }
       }
@@ -717,14 +992,13 @@ export function createArpgDungeonScene(
 
       const armor = ARPG_ARMOR_BY_ID.get(this.currentArmorId) ?? ARPG_ARMORS[0];
       const speed = PLAYER_BASE_SPEED + armor.moveSpeedBonus + this.runMoveSpeedBonus;
+      this.facePlayer(move);
       this.player.setVelocity(move.x * speed, move.y * speed);
       if (time < this.playerActionUntil) return;
       if (move.lengthSq() < 0.001) {
-        playCartographerPlayerAnimation(this.player, "idle");
-      } else if (Math.abs(move.x) > Math.abs(move.y)) {
-        playCartographerPlayerAnimation(this.player, move.x < 0 ? "walk-left" : "walk-right");
+        setNativePlayerRestPose(this.player);
       } else {
-        playCartographerPlayerAnimation(this.player, move.y < 0 ? "walk-up" : "walk-down");
+        playNativePlayerAnimation(this.player, "walk");
       }
     }
 
@@ -740,6 +1014,10 @@ export function createArpgDungeonScene(
       const pointer = this.input.activePointer;
       this.aimVector.set(pointer.worldX - this.player.x, pointer.worldY - this.player.y);
       return this.aimVector.lengthSq() > 0.001 ? this.aimVector.normalize() : this.aimVector.set(1, 0);
+    }
+
+    private facePlayer(direction: { x: number }) {
+      if (Math.abs(direction.x) > 0.01) this.player.setFlipX(direction.x < 0);
     }
 
     private setClickDestination(pointer: ClickPointer) {
@@ -767,6 +1045,26 @@ export function createArpgDungeonScene(
       this.clickPathIndex = 0;
     }
 
+    private get currentWeaponId() {
+      return this.weaponSlots[this.weaponSlots.active] ?? this.weaponSlots.A;
+    }
+
+    private switchActiveWeapon(time: number) {
+      if (this.weaponSlots.B === null) {
+        bridge.emitMessage("Encontre outra arma na dungeon para preencher o slot B.");
+        return;
+      }
+      const previousSlot = this.weaponSlots.active;
+      const next = switchWeaponSlot(this.weaponSlots);
+      if (next.active === previousSlot) return;
+      this.weaponSlots = next;
+      this.basicAttackCounter = 0;
+      const weapon = ARPG_WEAPON_BY_ID.get(this.currentWeaponId);
+      bridge.emitMessage(`Arma ${this.weaponSlots.active}: ${weapon?.name ?? this.currentWeaponId}.`);
+      this.emitRunCheckpoint();
+      this.emitHud(time);
+    }
+
     private handleCombatInput(time: number) {
       const input = bridge.getInput();
       const pointer = this.input.activePointer;
@@ -788,10 +1086,6 @@ export function createArpgDungeonScene(
         else this.tryInteractSpecialRoom(time);
       }
 
-      if (Phaser.Input.Keyboard.JustDown(this.keys.swapWeapon) || bridge.consumeWeaponSwap()) {
-        this.swapWeapons(time);
-      }
-
       const abilityKeys = [this.keys.one, this.keys.two] as const;
       if (pointer.rightButtonDown()) this.castAbility(1, time);
       abilityKeys.forEach((key, index) => {
@@ -808,8 +1102,13 @@ export function createArpgDungeonScene(
 
     private performBasicAttack(time: number) {
       const weapon = ARPG_WEAPON_BY_ID.get(this.currentWeaponId) ?? ARPG_WEAPONS[0];
+      const aim = this.resolveCombatAim();
+      this.facePlayer(aim);
       if (bridge.isServerAuthoritativeCombat() && this.proceduralController && this.proceduralRoomId) {
-        if (!this.serverActionPending) this.submitServerCombatCommand(this.proceduralRoomId, "basic_attack", time);
+        if (!this.serverActionPending) {
+          this.playPlayerAction("attack", time, 360);
+          this.submitServerCombatCommand(this.proceduralRoomId, "basic_attack", time);
+        }
         return;
       }
       this.playSound("attack");
@@ -819,8 +1118,7 @@ export function createArpgDungeonScene(
       const proc = getWeaponAttackProc(weapon, this.basicAttackCounter);
       const basicDamage = Math.max(1, Math.round(weapon.damage * this.runBasicDamageMultiplier));
       this.nextAttackAt = time + getWeaponAttackIntervalMs(weapon, moving);
-      this.playPlayerAction("attack", time, 300);
-      const aim = this.resolveCombatAim();
+      this.playPlayerAction("attack", time, 360);
       if (weapon.kind === "sword") {
         const x = this.player.x + aim.x * 42;
         const y = this.player.y + aim.y * 42;
@@ -860,20 +1158,6 @@ export function createArpgDungeonScene(
         bridge.emitMessage(`${weapon.name}: Eco Restaurador recupera vida.`);
       }
     }
-
-    private swapWeapons(time: number) {
-      if (this.currentWeaponId === this.secondaryWeaponId) return;
-      if (bridge.isServerAuthoritativeCombat() && this.proceduralController && this.proceduralRoomId) {
-        if (!this.serverActionPending) this.submitServerCombatCommand(this.proceduralRoomId, "swap_weapon", time);
-        return;
-      }
-
-      [this.currentWeaponId, this.secondaryWeaponId] = [this.secondaryWeaponId, this.currentWeaponId];
-      const weapon = ARPG_WEAPON_BY_ID.get(this.currentWeaponId) ?? ARPG_WEAPONS[0];
-      bridge.emitMessage(`${weapon.name} em uso. Pressione Q para alternar.`);
-      this.emitRunCheckpoint();
-      this.emitHud(time);
-    }
     private resolveCombatAim() {
       const gamepadMagnitude = Math.abs(this.gamepad.aimX) + Math.abs(this.gamepad.aimY);
       if (gamepadMagnitude > 0.1) {
@@ -887,7 +1171,7 @@ export function createArpgDungeonScene(
       }
 
       if (touch.attack || this.gamepad.attack) {
-        const nearest = this.findNearestEnemy();
+        const nearest = this.findNearestEnemy(460);
         if (nearest) {
           return this.aimVector.set(nearest.x - this.player.x, nearest.y - this.player.y).normalize();
         }
@@ -898,15 +1182,27 @@ export function createArpgDungeonScene(
       return this.aimVector.lengthSq() > 0.001 ? this.aimVector.normalize() : this.aimVector.set(1, 0);
     }
 
-    private findNearestEnemy(): ArcadeSprite | null {
+    private findNearestEnemy(maxDistance = Number.POSITIVE_INFINITY): ArcadeSprite | null {
       let nearest: ArcadeSprite | null = null;
-      let nearestDistanceSq = Number.POSITIVE_INFINITY;
+      let nearestDistanceSq = maxDistance * maxDistance;
+      const playerCell = this.navigation ? worldToGridCell(this.player, this.navigation) : null;
+      const playerCellKey = playerCell ? gridCellKey(playerCell.x, playerCell.y) : null;
+      const playerRoomId = playerCellKey
+        ? this.navigation?.roomIdByCell?.get(playerCellKey) ?? dungeonManager?.getCurrentRoom().id
+        : undefined;
       this.enemies.getChildren().forEach((child) => {
         const enemy = child as ArcadeSprite;
         if (!enemy.active || !enemy.getData("spawnReady")) return;
         const dx = enemy.x - this.player.x;
         const dy = enemy.y - this.player.y;
         const distanceSq = dx * dx + dy * dy;
+        if (this.navigation) {
+          const enemyCell = worldToGridCell(enemy, this.navigation);
+          const enemyCellKey = gridCellKey(enemyCell.x, enemyCell.y);
+          const enemyRoomId = this.navigation.roomIdByCell?.get(enemyCellKey);
+          if (playerRoomId && enemyRoomId && enemyRoomId !== playerRoomId) return;
+          if (!hasGridLineOfSight(this.navigation, this.player, enemy)) return;
+        }
         if (distanceSq < nearestDistanceSq) {
           nearest = enemy;
           nearestDistanceSq = distanceSq;
@@ -915,12 +1211,122 @@ export function createArpgDungeonScene(
       return nearest;
     }
 
+    private updateFloatingWeapon() {
+      if (!this.floatingWeapon || !this.player?.active) return;
+      const weapon = ARPG_WEAPON_BY_ID.get(this.currentWeaponId) ?? ARPG_WEAPONS[0];
+      const enemy = this.findNearestEnemy(560);
+      this.drawTargetMarker(enemy);
+      const pose = getFloatingWeaponPose({
+        player: this.player,
+        target: enemy,
+        fallbackDirection: this.aimVector,
+        distance: getFloatingWeaponReach(weapon.kind),
+      });
+      this.drawFloatingWeapon(pose, weapon.kind, weapon.element);
+    }
+
+    private drawTargetMarker(target: ArcadeSprite | null) {
+      const marker = this.targetMarker;
+      if (!marker) return;
+      marker.clear();
+      if (!target) return;
+      const arm = 5;
+      const radius = 14;
+      const left = target.x - radius;
+      const right = target.x + radius;
+      const top = target.y - radius;
+      const bottom = target.y + radius;
+      marker.lineStyle(2, 0xf4dc8e, 0.92);
+      marker.lineBetween(left, top + arm, left, top);
+      marker.lineBetween(left, top, left + arm, top);
+      marker.lineBetween(right - arm, top, right, top);
+      marker.lineBetween(right, top, right, top + arm);
+      marker.lineBetween(left, bottom - arm, left, bottom);
+      marker.lineBetween(left, bottom, left + arm, bottom);
+      marker.lineBetween(right - arm, bottom, right, bottom);
+      marker.lineBetween(right, bottom - arm, right, bottom);
+      marker.fillStyle(0xfff0bf, 0.9).fillCircle(target.x, target.y, 1.5);
+    }
+
+    private drawFloatingWeapon(
+      pose: ReturnType<typeof getFloatingWeaponPose>,
+      kind: typeof ARPG_WEAPONS[number]["kind"],
+      element: typeof ARPG_WEAPONS[number]["element"],
+    ) {
+      const graphic = this.floatingWeapon;
+      if (!graphic) return;
+      const direction = pose.direction;
+      const perpendicular = { x: -direction.y, y: direction.x };
+      const ink = 0x17151c;
+      const color = element === "fire" ? 0xff7545
+        : element === "water" ? 0x72d8ff
+          : element === "nature" ? 0x97ca62
+            : element === "storm" ? 0xe1d56f
+              : 0xd8adff;
+      const block = (x: number, y: number, size: number, fill: number) => {
+        graphic.fillStyle(fill, 1).fillRect(Math.round(x - size / 2), Math.round(y - size / 2), size, size);
+      };
+      const along = (distance: number, sideways = 0) => ({
+        x: pose.x + direction.x * distance + perpendicular.x * sideways,
+        y: pose.y + direction.y * distance + perpendicular.y * sideways,
+      });
+
+      graphic.clear();
+      if (kind === "bow") {
+        for (const sideways of [-8, -4, 0, 4, 8]) {
+          const curve = 7 - Math.abs(sideways) * 0.7;
+          const point = along(0, sideways);
+          block(point.x - direction.x * curve, point.y - direction.y * curve, 5, ink);
+          block(point.x - direction.x * (curve - 2), point.y - direction.y * (curve - 2), 3, color);
+        }
+        const stringStart = along(-5, -9);
+        const stringEnd = along(-5, 9);
+        graphic.lineStyle(2, 0xf8efd0, 0.95).lineBetween(stringStart.x, stringStart.y, stringEnd.x, stringEnd.y);
+        const arrowTail = along(-11);
+        const arrowTip = along(14);
+        graphic.lineStyle(3, ink, 1).lineBetween(arrowTail.x, arrowTail.y, arrowTip.x, arrowTip.y);
+        block(arrowTip.x, arrowTip.y, 6, color);
+        return;
+      }
+
+      const handleEnd = along(kind === "staff" ? -14 : -10);
+      const tip = along(kind === "staff" ? 15 : 18);
+      graphic.lineStyle(kind === "staff" ? 7 : 6, ink, 1).lineBetween(handleEnd.x, handleEnd.y, tip.x, tip.y);
+      graphic.lineStyle(kind === "staff" ? 3 : 3, kind === "staff" ? 0x8a603d : color, 1)
+        .lineBetween(handleEnd.x, handleEnd.y, tip.x, tip.y);
+      if (kind === "staff") {
+        block(tip.x, tip.y, 10, ink);
+        block(tip.x, tip.y, 6, color);
+      } else {
+        const guardLeft = along(-5, -8);
+        const guardRight = along(-5, 8);
+        graphic.lineStyle(4, ink, 1).lineBetween(guardLeft.x, guardLeft.y, guardRight.x, guardRight.y);
+        graphic.lineStyle(2, 0xe9c569, 1).lineBetween(guardLeft.x, guardLeft.y, guardRight.x, guardRight.y);
+        block(tip.x, tip.y, 7, 0xf5e7bb);
+      }
+    }
+
+    private clearFloatingWeapon() {
+      this.floatingWeapon?.destroy();
+      this.floatingWeapon = null;
+      this.targetMarker?.destroy();
+      this.targetMarker = null;
+    }
+
     private castAbility(slot: 0 | 1, time: number) {
       const card = selectedCards[slot];
       if (!card) return;
       if (time < this.abilityReadyAt[card.id]) return;
+      const aim = this.resolveCombatAim();
+      this.facePlayer(aim);
+      const abilityAnimation = card.behavior === "projectile" || card.behavior === "piercing-projectile"
+        ? "shoot"
+        : "attack";
       if (bridge.isServerAuthoritativeCombat() && this.proceduralController && this.proceduralRoomId) {
-        if (!this.serverActionPending) this.submitServerCombatCommand(this.proceduralRoomId, "ability", time, slot);
+        if (!this.serverActionPending) {
+          this.playPlayerAction(abilityAnimation, time, 400);
+          this.submitServerCombatCommand(this.proceduralRoomId, "ability", time, slot);
+        }
         return;
       }
       this.playSound("ability");
@@ -929,15 +1335,15 @@ export function createArpgDungeonScene(
         selectedRelic,
         getArmorAbilityCooldownMs(armor, card.cooldownMs),
       );
-      this.playPlayerAction("attack", time, 300);
-      const aim = this.resolveCombatAim();
+      this.playPlayerAction(abilityAnimation, time, 400);
       const color = ABILITY_COLORS[card.element];
 
       if (card.behavior === "projectile" || card.behavior === "piercing-projectile") {
+        const projectileSpeed = card.projectileSpeed ?? 700;
         this.fireProjectile(
           aim,
           card.damage,
-          card.projectileSpeed ?? 700,
+          projectileSpeed,
           color,
           1050,
           card.behavior === "piercing-projectile",
@@ -953,22 +1359,388 @@ export function createArpgDungeonScene(
           roots,
           roots ? time + (card.durationMs ?? 1400) : 0,
         );
-        this.spawnPulse(this.player.x, this.player.y, radius, color);
       } else if (card.behavior === "targeted-control") {
         const radius = card.radius ?? 150;
         const x = this.player.x + aim.x * 150;
         const y = this.player.y + aim.y * 150;
         this.damageEnemiesInRadius(x, y, radius, card.damage, true, time + (card.durationMs ?? 1600));
-        this.spawnPulse(x, y, radius, color);
       } else if (card.behavior === "renewal") {
         this.hp = Math.min(this.maxHp, this.hp + (card.restoreHp ?? 40));
-        this.spawnPulse(this.player.x, this.player.y, card.radius ?? 105, color);
         this.flashPlayer(color, 220);
       }
+
+      this.spawnAbilitySignature(card, aim, this.player.x, this.player.y);
 
       bridge.emitMessage(`${card.name} ativada.`);
       this.emitHud(time);
     }
+
+    private spawnAbilitySignature(
+      card: typeof selectedCards[number],
+      direction: import("phaser").Math.Vector2,
+      originX: number,
+      originY: number,
+    ) {
+      if (card.behavior === "projectile" || card.behavior === "piercing-projectile") {
+        this.spawnAbilityProjectileSignature(card, direction, originX, originY, card.projectileSpeed ?? 700, 1050);
+      } else if (card.behavior === "targeted-control") {
+        const x = originX + direction.x * 150;
+        const y = originY + direction.y * 150;
+        this.spawnPulse(x, y, card.radius ?? 150, ABILITY_COLORS[card.element]);
+        this.spawnAbilityImpactSignature(card, x, y, card.radius ?? 150);
+      } else if (card.behavior === "self-area") {
+        const radius = card.radius ?? 140;
+        this.spawnPulse(originX, originY, radius, ABILITY_COLORS[card.element]);
+        this.spawnAbilityAreaSignature(card, originX, originY, radius);
+      } else if (card.behavior === "renewal") {
+        const radius = card.radius ?? 105;
+        this.spawnPulse(originX, originY, radius, ABILITY_COLORS[card.element]);
+        this.spawnAbilityAreaSignature(card, originX, originY, radius);
+      }
+    }
+
+    private spawnAbilityProjectileSignature(
+      card: (typeof selectedCards)[number],
+      direction: import("phaser").Math.Vector2,
+      originX: number,
+      originY: number,
+      speed: number,
+      lifeMs: number,
+    ) {
+      const ribbon = this.add.graphics();
+      const color = ABILITY_COLORS[card.element];
+      const container = this.add.container(originX, originY, [ribbon])
+        .setDepth(13)
+        .setRotation(Math.atan2(direction.y, direction.x));
+
+      const effectId = card.visualEffectId ?? card.id;
+      if (effectId === "boitata-flame") {
+        // A narrow, banded body, forked tail, and diamond head make this read as a
+        // small fire-serpent instead of another round projectile.
+        ribbon.lineStyle(9, 0x8d3023, 0.95).beginPath()
+          .moveTo(-34, 5).lineTo(-27, -2).lineTo(-20, 4).lineTo(-13, -4)
+          .lineTo(-6, 1).lineTo(1, -5).lineTo(8, 0).strokePath();
+        ribbon.lineStyle(5, 0xff7135, 1).beginPath()
+          .moveTo(-34, 5).lineTo(-27, -2).lineTo(-20, 4).lineTo(-13, -4)
+          .lineTo(-6, 1).lineTo(1, -5).lineTo(8, 0).strokePath();
+        ribbon.lineStyle(2, 0xffe48a, 0.98).beginPath()
+          .moveTo(-27, -2).lineTo(-20, 4).lineTo(-13, -4).lineTo(-6, 1).lineTo(1, -5).strokePath();
+        ribbon.fillStyle(0xffa23f, 1).fillPoints([
+          { x: 4, y: -7 }, { x: 15, y: 0 }, { x: 4, y: 7 }, { x: -1, y: 0 },
+        ], true);
+        ribbon.fillStyle(0xffef9c, 1).fillTriangle(4, -3, 13, 0, 4, 3);
+        ribbon.fillStyle(0x37251d, 1).fillRect(6, -3, 2, 2);
+        ribbon.lineStyle(2, 0xffb34f, 1).beginPath()
+          .moveTo(11, -3).lineTo(18, -7).moveTo(11, 3).lineTo(18, 7).strokePath();
+        ribbon.fillStyle(0xffd36c, 0.95).fillTriangle(-35, 4, -42, 0, -34, 0);
+      } else {
+        // Purchased shots keep their element, but use different silhouettes too.
+        if (card.element === "nature") {
+          ribbon.fillStyle(color, 0.96).fillPoints([
+            { x: 14, y: 0 }, { x: 3, y: -7 }, { x: -12, y: 0 }, { x: 3, y: 7 },
+          ], true);
+          ribbon.lineStyle(2, 0xe2f0a1, 0.95).beginPath().moveTo(-9, 0).lineTo(10, 0).strokePath();
+          ribbon.lineStyle(2, 0x477249, 0.95).beginPath().moveTo(-4, 0).lineTo(-9, -5).moveTo(1, 0).lineTo(-2, 5).strokePath();
+        } else if (card.element === "water") {
+          ribbon.lineStyle(7, 0x277d9a, 0.9).beginPath().moveTo(-15, 5).lineTo(-8, -4).lineTo(-1, 4).lineTo(6, -4).lineTo(14, 2).strokePath();
+          ribbon.lineStyle(3, 0xb7efff, 1).beginPath().moveTo(-15, 2).lineTo(-8, -7).lineTo(-1, 1).lineTo(6, -7).lineTo(14, -1).strokePath();
+        } else if (card.element === "storm") {
+          ribbon.fillStyle(color, 0.96).fillPoints([
+            { x: 15, y: 0 }, { x: 1, y: -4 }, { x: 5, y: -10 }, { x: -13, y: 1 },
+            { x: -1, y: 3 }, { x: -5, y: 9 },
+          ], true);
+          ribbon.lineStyle(2, 0xf1fbff, 0.95).beginPath().moveTo(-7, 1).lineTo(3, -1).lineTo(-1, 5).strokePath();
+        } else {
+          ribbon.fillStyle(color, 0.92).fillPoints([
+            { x: 13, y: 0 }, { x: 0, y: -9 }, { x: -13, y: 0 }, { x: 0, y: 9 },
+          ], true);
+          ribbon.fillStyle(0xf0e3ff, 0.9).fillPoints([
+            { x: 5, y: 0 }, { x: 0, y: -4 }, { x: -5, y: 0 }, { x: 0, y: 4 },
+          ], true);
+        }
+      }
+
+      this.tweens.add({
+        targets: container,
+        x: originX + direction.x * speed * lifeMs / 1000,
+        y: originY + direction.y * speed * lifeMs / 1000,
+        alpha: { from: 0.35, to: 1 },
+        duration: lifeMs,
+        ease: "Linear",
+        onComplete: () => container.destroy(),
+      });
+    }
+
+    private spawnAbilityImpactSignature(card: (typeof selectedCards)[number], x: number, y: number, radius: number) {
+      const art = this.add.graphics().setPosition(x, y).setDepth(12);
+      const color = ABILITY_COLORS[card.element];
+      const effectId = card.visualEffectId ?? card.id;
+
+      if (effectId === "ancestral-roots") {
+        // Eight crooked roots burst from the chosen point, with bark shadow,
+        // warm wood, and pale living cambium to preserve the pixel-cluster read.
+        for (let index = 0; index < 8; index += 1) {
+          const angle = index * Math.PI / 4 + Math.PI / 8;
+          const length = Math.min(96, radius * 0.62) * (index % 2 === 0 ? 1 : 0.76);
+          const side = index % 2 === 0 ? 1 : -1;
+          const ux = Math.cos(angle);
+          const uy = Math.sin(angle);
+          const px = -uy * side;
+          const py = ux * side;
+          const points = [
+            { x: 0, y: 0 },
+            { x: ux * length * 0.34 + px * 7, y: uy * length * 0.34 + py * 7 },
+            { x: ux * length * 0.7 - px * 6, y: uy * length * 0.7 - py * 6 },
+            { x: ux * length + px * 3, y: uy * length + py * 3 },
+          ];
+          art.lineStyle(13, 0x3b3025, 0.98).beginPath().moveTo(points[0].x, points[0].y)
+            .lineTo(points[1].x, points[1].y).lineTo(points[2].x, points[2].y).lineTo(points[3].x, points[3].y).strokePath();
+          art.lineStyle(8, 0x77543a, 1).beginPath().moveTo(points[0].x, points[0].y)
+            .lineTo(points[1].x, points[1].y).lineTo(points[2].x, points[2].y).lineTo(points[3].x, points[3].y).strokePath();
+          art.lineStyle(2, 0xb0c66b, 0.95).beginPath().moveTo(points[1].x, points[1].y)
+            .lineTo(points[2].x, points[2].y).strokePath();
+          const forkX = points[1].x + px * 13;
+          const forkY = points[1].y + py * 13;
+          art.lineStyle(5, 0x684b35, 0.96).beginPath().moveTo(points[1].x, points[1].y)
+            .lineTo(forkX, forkY).lineTo(forkX + ux * 9, forkY + uy * 9).strokePath();
+        }
+        art.fillStyle(0x49372a, 0.92).fillPoints([
+          { x: 0, y: -15 }, { x: 15, y: 0 }, { x: 0, y: 15 }, { x: -15, y: 0 },
+        ], true);
+        art.fillStyle(0xb6c96a, 0.96).fillPoints([
+          { x: 0, y: -8 }, { x: 8, y: 0 }, { x: 0, y: 8 }, { x: -8, y: 0 },
+        ], true);
+      } else if (effectId === "kraken-grasp") {
+        for (let arm = 0; arm < 6; arm += 1) {
+          const angle = arm * Math.PI / 3;
+          const ux = Math.cos(angle);
+          const uy = Math.sin(angle);
+          const px = -uy;
+          const py = ux;
+          const length = Math.min(76, radius * 0.55);
+          art.lineStyle(10, 0x174b56, 0.94).beginPath()
+            .moveTo(0, 0).lineTo(ux * 18 + px * 8, uy * 18 + py * 8)
+            .lineTo(ux * 39 - px * 9, uy * 39 - py * 9)
+            .lineTo(ux * length + px * 12, uy * length + py * 12).strokePath();
+          art.lineStyle(4, 0x65c2b6, 0.96).beginPath()
+            .moveTo(0, 0).lineTo(ux * 18 + px * 8, uy * 18 + py * 8)
+            .lineTo(ux * 39 - px * 9, uy * 39 - py * 9)
+            .lineTo(ux * length + px * 12, uy * length + py * 12).strokePath();
+          art.fillStyle(0xd7e7a2, 0.9).fillCircle(ux * 28 + px * 4, uy * 28 + py * 4, 2);
+        }
+      } else if (effectId === "medusa-gaze") {
+        for (let index = 0; index < 8; index += 1) {
+          const angle = index * Math.PI / 4;
+          const ux = Math.cos(angle);
+          const uy = Math.sin(angle);
+          const px = -uy;
+          const py = ux;
+          const cx = ux * 42;
+          const cy = uy * 42;
+          art.fillStyle(0x59666a, 0.9).fillPoints([
+            { x: cx - ux * 8 + px * 8, y: cy - uy * 8 + py * 8 },
+            { x: cx + ux * 15, y: cy + uy * 15 },
+            { x: cx - ux * 8 - px * 8, y: cy - uy * 8 - py * 8 },
+          ], true);
+          art.lineStyle(2, 0xd3cfaa, 0.86).beginPath()
+            .moveTo(cx - ux * 7, cy - uy * 7).lineTo(cx + ux * 11, cy + uy * 11).strokePath();
+        }
+      } else if (card.element === "water") {
+        for (let ring = 0; ring < 3; ring += 1) {
+          const r = 22 + ring * 17;
+          art.lineStyle(3 - ring * 0.4, ring === 0 ? 0xc1f2ed : color, 0.9 - ring * 0.12)
+            .strokeCircle(0, 0, r);
+          art.fillStyle(0xc9f8e8, 0.88).fillPoints([
+            { x: r, y: -4 }, { x: r + 7, y: 0 }, { x: r, y: 4 }, { x: r - 3, y: 0 },
+          ], true);
+        }
+      } else if (card.element === "storm") {
+        for (let ray = 0; ray < 4; ray += 1) {
+          const angle = ray * Math.PI / 2 + Math.PI / 4;
+          const ux = Math.cos(angle);
+          const uy = Math.sin(angle);
+          const px = -uy;
+          const py = ux;
+          const tipX = ux * 64;
+          const tipY = uy * 64;
+          art.lineStyle(7, 0x526e8a, 0.9).beginPath()
+            .moveTo(-ux * 12, -uy * 12).lineTo(ux * 17 + px * 8, uy * 17 + py * 8)
+            .lineTo(tipX, tipY).strokePath();
+          art.lineStyle(3, 0xd7f5ff, 0.98).beginPath()
+            .moveTo(-ux * 12, -uy * 12).lineTo(ux * 17 + px * 8, uy * 17 + py * 8)
+            .lineTo(tipX, tipY).strokePath();
+        }
+      } else if (card.element === "spirit") {
+        for (let rune = 0; rune < 6; rune += 1) {
+          const angle = rune * Math.PI / 3;
+          const cx = Math.cos(angle) * 45;
+          const cy = Math.sin(angle) * 45;
+          art.lineStyle(2, 0xe8daff, 0.96).strokePoints([
+            { x: cx, y: cy - 7 }, { x: cx + 6, y: cy }, { x: cx, y: cy + 7 }, { x: cx - 6, y: cy }, { x: cx, y: cy - 7 },
+          ]);
+          art.fillStyle(color, 0.9).fillRect(cx - 2, cy - 2, 4, 4);
+        }
+      } else {
+        for (let ray = 0; ray < 8; ray += 1) {
+          const angle = ray * Math.PI / 4;
+          const ux = Math.cos(angle);
+          const uy = Math.sin(angle);
+          art.fillTriangle(ux * 18, uy * 18, ux * 56 - uy * 7, uy * 56 + ux * 7, ux * 56 + uy * 7, uy * 56 - ux * 7);
+        }
+      }
+
+      art.setScale(0.42).setAlpha(0);
+      this.tweens.add({
+        targets: art,
+        scale: { from: 0.42, to: 1 },
+        alpha: { from: 0, to: 0.94 },
+        duration: 145,
+        ease: "Back.easeOut",
+        onComplete: () => this.tweens.add({
+          targets: art,
+          alpha: 0,
+          scale: 1.1,
+          duration: 350,
+          delay: 100,
+          ease: "Quad.easeIn",
+          onComplete: () => art.destroy(),
+        }),
+      });
+    }
+
+    private spawnAbilityAreaSignature(card: (typeof selectedCards)[number], x: number, y: number, radius: number) {
+      const art = this.add.graphics().setPosition(x, y).setDepth(12);
+      const color = ABILITY_COLORS[card.element];
+      const span = Math.min(82, radius * 0.55);
+      const effectId = card.visualEffectId ?? card.id;
+
+      if (effectId === "saci-whirlwind") {
+        for (let turn = 0; turn < 3; turn += 1) {
+          const offset = turn * 9;
+          art.lineStyle(4 - turn * 0.6, turn === 1 ? 0xe2d5a2 : color, 0.9);
+          art.beginPath().moveTo(-span * 0.62 + offset, -span * 0.2)
+            .lineTo(-span * 0.3, -span * 0.52 + offset)
+            .lineTo(span * 0.15, -span * 0.44)
+            .lineTo(span * 0.5, -span * 0.08 + offset)
+            .lineTo(span * 0.22, span * 0.28)
+            .lineTo(-span * 0.28 + offset, span * 0.33)
+            .lineTo(-span * 0.08, -span * 0.02).strokePath();
+        }
+      } else if (effectId === "kappa-splash") {
+        for (let drop = 0; drop < 10; drop += 1) {
+          const angle = drop * Math.PI / 5;
+          const distance = span * (0.45 + (drop % 2) * 0.22);
+          const dx = Math.cos(angle) * distance;
+          const dy = Math.sin(angle) * distance;
+          art.fillStyle(drop % 2 ? 0x9de6e9 : 0xe0f8cc, 0.95)
+            .fillTriangle(dx, dy - 8, dx + 5, dy + 4, dx - 5, dy + 4);
+        }
+        art.lineStyle(3, color, 0.92).strokeCircle(0, 0, span * 0.3);
+      } else if (effectId === "iara-song" || card.element === "water") {
+        for (let wave = 0; wave < 4; wave += 1) {
+          const yy = (wave - 1.5) * 14;
+          art.lineStyle(wave === 0 ? 4 : 2, wave % 2 === 0 ? 0xc8f5ef : color, 0.92 - wave * 0.08)
+            .beginPath().moveTo(-span, yy)
+            .lineTo(-span * 0.62, yy - 7).lineTo(-span * 0.24, yy + 5)
+            .lineTo(span * 0.15, yy - 6).lineTo(span * 0.58, yy + 6).lineTo(span, yy)
+            .strokePath();
+        }
+        for (let drop = 0; drop < 6; drop += 1) {
+          const angle = drop * Math.PI / 3;
+          const dx = Math.cos(angle) * span * 0.75;
+          const dy = Math.sin(angle) * span * 0.62;
+          art.fillTriangle(dx, dy - 5, dx + 4, dy + 2, dx - 4, dy + 2);
+        }
+      } else if (effectId === "tengu-gust" || card.element === "storm") {
+        for (let ray = 0; ray < 5; ray += 1) {
+          const yy = (ray - 2) * 11;
+          art.lineStyle(ray === 2 ? 5 : 3, ray % 2 ? 0xe0f7ff : color, 0.94);
+          art.beginPath().moveTo(-span * 0.78, yy + 12).lineTo(-span * 0.32, yy + 5)
+            .lineTo(span * 0.1, yy - 4).lineTo(span * 0.72, yy - 14).strokePath();
+        }
+      } else if (effectId === "banshee-wail") {
+        for (let ring = 0; ring < 3; ring += 1) {
+          art.lineStyle(3 - ring * 0.6, ring === 1 ? 0xf5eaff : color, 0.88)
+            .strokeCircle(0, 0, 22 + ring * 18);
+        }
+        for (let rune = 0; rune < 4; rune += 1) {
+          const angle = rune * Math.PI / 2 + Math.PI / 4;
+          const cx = Math.cos(angle) * 53;
+          const cy = Math.sin(angle) * 53;
+          art.fillStyle(0xf5eaff, 0.94).fillPoints([
+            { x: cx, y: cy - 6 }, { x: cx + 5, y: cy }, { x: cx, y: cy + 6 }, { x: cx - 5, y: cy },
+          ], true);
+        }
+      } else if (card.behavior === "renewal") {
+        art.lineStyle(3, 0xf3ddaa, 0.96).strokeCircle(0, 0, 34);
+        for (let wing = 0; wing < 6; wing += 1) {
+          const angle = wing * Math.PI / 3;
+          const ux = Math.cos(angle);
+          const uy = Math.sin(angle);
+          art.fillPoints([
+            { x: ux * 29, y: uy * 29 },
+            { x: ux * 61 - uy * 8, y: uy * 61 + ux * 8 },
+            { x: ux * 43, y: uy * 43 },
+            { x: ux * 61 + uy * 8, y: uy * 61 - ux * 8 },
+          ], true);
+        }
+      } else if (card.element === "nature") {
+        for (let leaf = 0; leaf < 6; leaf += 1) {
+          const angle = leaf * Math.PI / 3;
+          const ux = Math.cos(angle);
+          const uy = Math.sin(angle);
+          const cx = ux * span * 0.62;
+          const cy = uy * span * 0.62;
+          art.fillStyle(color, 0.94).fillPoints([
+            { x: cx - uy * 8, y: cy + ux * 8 },
+            { x: cx + ux * 11, y: cy + uy * 11 },
+            { x: cx + uy * 8, y: cy - ux * 8 },
+            { x: cx - ux * 11, y: cy - uy * 11 },
+          ], true);
+          art.lineStyle(2, 0xd8e69d, 0.92).beginPath().moveTo(0, 0).lineTo(cx, cy).strokePath();
+        }
+      } else if (card.element === "spirit") {
+        for (let rune = 0; rune < 6; rune += 1) {
+          const angle = rune * Math.PI / 3;
+          const cx = Math.cos(angle) * span * 0.64;
+          const cy = Math.sin(angle) * span * 0.64;
+          art.lineStyle(2, 0xf4e8ff, 0.95).strokePoints([
+            { x: cx, y: cy - 7 }, { x: cx + 6, y: cy }, { x: cx, y: cy + 7 }, { x: cx - 6, y: cy }, { x: cx, y: cy - 7 },
+          ]);
+        }
+      } else {
+        for (let flame = 0; flame < 8; flame += 1) {
+          const angle = flame * Math.PI / 4;
+          const ux = Math.cos(angle);
+          const uy = Math.sin(angle);
+          const cx = ux * span * 0.58;
+          const cy = uy * span * 0.58;
+          art.fillStyle(flame % 2 ? 0xff8a3b : 0xffd16b, 0.95).fillTriangle(
+            cx - uy * 5 - ux * 8, cy + ux * 5 - uy * 8,
+            cx + ux * 11, cy + uy * 11,
+            cx + uy * 5 - ux * 8, cy - ux * 5 - uy * 8,
+          );
+        }
+      }
+
+      art.setScale(0.68).setAlpha(0);
+      this.tweens.add({
+        targets: art,
+        scale: { from: 0.68, to: 1.08 },
+        alpha: { from: 0, to: 0.9 },
+        rotation: effectId === "saci-whirlwind" ? Math.PI * 2 : Math.PI / 24,
+        duration: 440,
+        ease: "Quad.easeOut",
+        onComplete: () => this.tweens.add({
+          targets: art,
+          alpha: 0,
+          duration: 250,
+          ease: "Quad.easeIn",
+          onComplete: () => art.destroy(),
+        }),
+      });
+    }
+
     private fireProjectile(
       direction: import("phaser").Math.Vector2,
       damage: number,
@@ -1079,7 +1851,15 @@ export function createArpgDungeonScene(
       enemy.setAlpha(0.45);
       this.time.delayedCall(80, () => enemy.active && enemy.setAlpha(1));
 
-      if (nextHp > 0) return;
+      if (nextHp > 0) {
+        if (this.playEnemyProfileAction(enemy, "damage", this.time.now, 360)) return;
+        const actorId = enemy.getData("nativeFallbackActorId") as NativePixelActorId | null;
+        if (actorId) {
+          enemy.setData("actionAnimationUntil", this.time.now + 400);
+          this.playNativeFallbackAnimation(enemy, actorId, "damage", true);
+        }
+        return;
+      }
       const baseXp = Number(enemy.getData("rewardXp")) || 0;
       this.xpEarned += Math.round(baseXp * getRelicXpMultiplier(selectedRelic));
       this.runShards += getRunShardReward(baseXp);
@@ -1101,6 +1881,23 @@ export function createArpgDungeonScene(
         });
         return;
       }
+      const nativeFallbackActorId = enemy.getData("nativeFallbackActorId") as NativePixelActorId | null;
+      if (nativeFallbackActorId) {
+        if (enemy.getData("defeatPending")) return;
+        enemy.setData("defeatPending", true);
+        enemy.setData("spawnReady", false);
+        enemy.setVelocity(0, 0);
+        if (enemy.body) enemy.body.enable = false;
+        this.playNativeFallbackAnimation(enemy, nativeFallbackActorId, "defeat", true);
+        this.time.delayedCall(700, () => {
+          if (!enemy.scene) return;
+          enemy.disableBody(true, true);
+          if (dungeonManager && this.proceduralController) {
+            this.proceduralController.enemyDefeated();
+          }
+        });
+        return;
+      }
       enemy.disableBody(true, true);
       if (dungeonManager && this.proceduralController) {
         this.proceduralController.enemyDefeated();
@@ -1108,11 +1905,13 @@ export function createArpgDungeonScene(
     }
 
     private spawnPulse(x: number, y: number, radius: number, color: number) {
-      const ring = this.add.circle(x, y, Math.max(12, radius * 0.15));
-      ring.setStrokeStyle(4, color, 0.9).setDepth(12);
+      const ring = this.add.image(Math.round(x), Math.round(y), "arpg-pixel-pulse")
+        .setDisplaySize(Math.max(24, radius * 0.3), Math.max(24, radius * 0.3))
+        .setTint(color).setAlpha(0.9).setDepth(12);
       this.tweens.add({
         targets: ring,
-        radius,
+        scaleX: radius * 2 / 64,
+        scaleY: radius * 2 / 64,
         alpha: 0,
         duration: 360,
         ease: "Quad.easeOut",
@@ -1441,7 +2240,7 @@ export function createArpgDungeonScene(
         return;
       }
 
-      this.playPlayerAction("interact", time, 520);
+      this.playPlayerAction("idle", time, 520);
       this.pendingRoomChoice = anchor.encounter;
       this.dungeonWorld.setDoorsLocked(room.id, true);
       bridge.emitMessage(`Você se aproxima de ${anchor.encounter.title.toLocaleLowerCase("pt-BR")} e avalia suas opções.`);
@@ -1515,20 +2314,31 @@ export function createArpgDungeonScene(
         worldOrigin: { x: layout.left, y: layout.top },
         applyState: (result) => {
           const previous = this.serverCombatState;
+          const confirmedAt = this.time.now;
           this.applyServerCombatState(result.state, kind, time);
           if (kind === "basic_attack" && result.state.attackCount > (previous?.attackCount ?? 0)) {
             this.playSound("attack");
-            this.playPlayerAction("attack", time, 300);
+            this.playPlayerAction("attack", confirmedAt, 360);
           }
           if (kind === "ability" && command.abilitySlot !== undefined) {
             const powerId = selectedCards[command.abilitySlot].id;
             if ((result.state.nextAbilityAtMs[powerId] ?? 0) > (previous?.nextAbilityAtMs[powerId] ?? 0)) {
               this.playSound("ability");
-              this.playPlayerAction("attack", time, 300);
+              const ability = selectedCards[command.abilitySlot];
+              const abilityAnimation = ability.behavior === "projectile" || ability.behavior === "piercing-projectile"
+                ? "shoot"
+                : "attack";
+              this.playPlayerAction(abilityAnimation, confirmedAt, 400);
+              this.spawnAbilitySignature(
+                selectedCards[command.abilitySlot],
+                new Phaser.Math.Vector2(command.aimX, command.aimY).normalize(),
+                layout.left + command.playerX,
+                layout.top + command.playerY,
+              );
             }
           }
           if (kind === "dash" && result.state.nextDashAtMs > (previous?.nextDashAtMs ?? 0)) {
-            this.playPlayerAction("dodge", time, DASH_MS);
+            this.playPlayerAction("walk", confirmedAt, DASH_MS);
             this.flashPlayer(0xcaf4d2, 150);
           }
         },
@@ -1555,8 +2365,6 @@ export function createArpgDungeonScene(
         : 0;
       const pendingBreakableShards = Math.max(0, this.runShards - previousServerTotal - serverBaseIncrease);
       this.serverCombatState = state;
-      this.currentWeaponId = state.weaponId;
-      this.secondaryWeaponId = state.secondaryWeaponId;
       this.hp = state.playerHp;
       this.basicAttackCounter = state.attackCount;
       this.nextAttackAt = time + Math.max(0, state.nextAttackAtMs - state.serverTimeMs);
@@ -1578,13 +2386,9 @@ export function createArpgDungeonScene(
       }
       if (previousHp > state.playerHp) {
         this.playSound("player-hit");
-        this.playPlayerAction("hit", time, 250);
+        this.playPlayerAction("damage", this.time.now, 420);
         this.flashPlayer(0xff7a72, 160);
-        this.cameras.main.shake(90, 0.0025);
-      }
-      if (commandKind === "swap_weapon" && previousServerState?.weaponId !== state.weaponId) {
-        const weapon = ARPG_WEAPON_BY_ID.get(state.weaponId) ?? ARPG_WEAPONS[0];
-        bridge.emitMessage(`${weapon.name} em uso. Pressione Q para alternar.`);
+        this.shakeCameraForDamage();
       }
 
       for (const serverEnemy of state.enemies) {
@@ -1611,7 +2415,7 @@ export function createArpgDungeonScene(
           && enemy.active
         ) {
           this.playSound("boss");
-          this.playEnemyAction(enemy, "attack", time, 760);
+          this.playEnemyAction(enemy, "attack", this.time.now, 760);
           if (serverEnemy.bossPattern?.startsWith("decoy")) this.summonCurupiraDecoys(enemy);
         }
         if (!serverEnemy.alive) {
@@ -1621,7 +2425,7 @@ export function createArpgDungeonScene(
         }
       }
       this.emitHud(time);
-      if (state.status === "defeat") this.finishRun(false, time);
+      if (state.status === "defeat") this.finishRun(false, this.time.now);
     }
 
     private syncServerProjectileVisuals(
@@ -1744,6 +2548,16 @@ export function createArpgDungeonScene(
         });
         return;
       }
+      const nativeFallbackActorId = enemy.getData("nativeFallbackActorId") as NativePixelActorId | null;
+      if (nativeFallbackActorId) {
+        this.playNativeFallbackAnimation(enemy, nativeFallbackActorId, "defeat", true);
+        this.time.delayedCall(700, () => {
+          if (!enemy.scene) return;
+          enemy.disableBody(true, true);
+          this.proceduralController?.enemyDefeated();
+        });
+        return;
+      }
       enemy.disableBody(true, true);
       this.proceduralController?.enemyDefeated();
     }
@@ -1803,6 +2617,7 @@ export function createArpgDungeonScene(
       const folkloreFrame = dungeon.enemyFrames[enemyId];
       const folkloreAtlas = dungeon.enemyAtlas?.[enemyId] ?? "folklore-atlas";
       const animation = dungeon.enemyAnimations?.[enemyId];
+      const nativeFallbackActorId = NATIVE_FALLBACK_ACTORS[dungeon.id]?.[enemyId];
       enemy.setActive(true).setVisible(true).setDepth(9).setAlpha(1);
       enemy.anims.stop();
       enemy.body!.enable = true;
@@ -1810,7 +2625,7 @@ export function createArpgDungeonScene(
         const { scale } = getArpgEnemyAnimationProfile(animation);
         const sourceRadius = definition.radius / scale;
         const { textureKey, frameWidth } = getArpgEnemyAnimationProfile(animation);
-        enemy.setTexture(textureKey, 0).setScale(scale).clearTint();
+        enemy.setTexture(getPixelArtTextureKey(textureKey), 0).setScale(scale).clearTint();
         enemy.setCircle(
           sourceRadius,
           frameWidth / 2 - sourceRadius,
@@ -1819,8 +2634,12 @@ export function createArpgDungeonScene(
       } else if (typeof folkloreFrame === "number") {
         const scale = enemyId === "boss" ? 0.48 : enemyId === "miniBoss" ? 0.42 : 0.34;
         const sourceRadius = definition.radius / scale;
-        enemy.setTexture(folkloreAtlas, folkloreFrame).setScale(scale).clearTint();
-        enemy.setCircle(sourceRadius, 125 - sourceRadius, 125 - sourceRadius);
+        const textureKey = nativeFallbackActorId
+          ? getPixelArtTextureKey(`folklard-native-${nativeFallbackActorId}`)
+          : folkloreAtlas;
+        enemy.setTexture(textureKey, nativeFallbackActorId ? 0 : folkloreFrame).setScale(scale).clearTint();
+        const frameSize = this.textures.get(textureKey).getSourceImage().width / 4;
+        enemy.setCircle(sourceRadius, frameSize / 2 - sourceRadius, frameSize / 2 - sourceRadius);
       } else {
         const displaySize = Math.max(34, definition.radius * 2.1);
         enemy.setTexture("arpg-enemy").setScale(1).setDisplaySize(displaySize, displaySize).setTint(definition.tint);
@@ -1845,12 +2664,16 @@ export function createArpgDungeonScene(
       enemy.setData("rootedUntil", 0);
       enemy.setData("spawnReady", true);
       enemy.setData("animationProfile", animation ?? null);
+      enemy.setData("nativeFallbackActorId", nativeFallbackActorId ?? null);
       enemy.setData("actionAnimationUntil", 0);
       enemy.setData("movementReadyAt", this.time.now + 420);
       enemy.setData("defeatPending", false);
       if (isArpgEnemyAnimationProfile(animation)) {
         this.playTrackedEnemyAnimation(enemy, animation, "idle", true);
+      } else if (nativeFallbackActorId) {
+        this.playNativeFallbackAnimation(enemy, nativeFallbackActorId, "idle", true);
       }
+      this.ensureEntityGroundShadow(enemy, Phaser.Math.Clamp(definition.radius * 1.55, 24, 58));
       return enemy;
     }
 
@@ -1926,6 +2749,7 @@ export function createArpgDungeonScene(
         const folkloreFrame = dungeon.enemyFrames[enemyId];
         const folkloreAtlas = dungeon.enemyAtlas?.[enemyId] ?? "folklore-atlas";
         const animation = dungeon.enemyAnimations?.[enemyId];
+        const nativeFallbackActorId = NATIVE_FALLBACK_ACTORS[dungeon.id]?.[enemyId];
         enemy.setActive(true).setVisible(true).setDepth(9).setAlpha(1);
         enemy.anims.stop();
         enemy.body!.enable = true;
@@ -1933,13 +2757,17 @@ export function createArpgDungeonScene(
           const { scale } = getArpgEnemyAnimationProfile(animation);
           const sourceRadius = definition.radius / scale;
           const { textureKey, frameWidth } = getArpgEnemyAnimationProfile(animation);
-          enemy.setTexture(textureKey, 0).setScale(scale).clearTint();
+          enemy.setTexture(getPixelArtTextureKey(textureKey), 0).setScale(scale).clearTint();
           enemy.setCircle(sourceRadius, frameWidth / 2 - sourceRadius, frameWidth / 2 - sourceRadius);
         } else if (typeof folkloreFrame === "number") {
           const scale = enemyId === "boss" ? 0.48 : enemyId === "miniBoss" ? 0.42 : 0.34;
           const sourceRadius = definition.radius / scale;
-          enemy.setTexture(folkloreAtlas, folkloreFrame).setScale(scale).clearTint();
-          enemy.setCircle(sourceRadius, 125 - sourceRadius, 125 - sourceRadius);
+          const textureKey = nativeFallbackActorId
+            ? getPixelArtTextureKey(`folklard-native-${nativeFallbackActorId}`)
+            : folkloreAtlas;
+          enemy.setTexture(textureKey, nativeFallbackActorId ? 0 : folkloreFrame).setScale(scale).clearTint();
+          const frameSize = this.textures.get(textureKey).getSourceImage().width / 4;
+          enemy.setCircle(sourceRadius, frameSize / 2 - sourceRadius, frameSize / 2 - sourceRadius);
         } else {
           const displaySize = Math.max(34, definition.radius * 2.1);
           enemy.setTexture("arpg-enemy").setScale(1).setDisplaySize(displaySize, displaySize).setTint(definition.tint);
@@ -1961,11 +2789,14 @@ export function createArpgDungeonScene(
         enemy.setData("phase", 1);
         enemy.setData("rootedUntil", 0);
         enemy.setData("animationProfile", animation ?? null);
+        enemy.setData("nativeFallbackActorId", nativeFallbackActorId ?? null);
         enemy.setData("actionAnimationUntil", 0);
         enemy.setData("movementReadyAt", this.time.now + 420);
         enemy.setData("defeatPending", false);
         if (isArpgEnemyAnimationProfile(animation)) {
           this.playTrackedEnemyAnimation(enemy, animation, "idle", true);
+        } else if (nativeFallbackActorId) {
+          this.playNativeFallbackAnimation(enemy, nativeFallbackActorId, "idle", true);
         }
       });
 
@@ -2055,12 +2886,26 @@ export function createArpgDungeonScene(
 
     private updateEnemyAnimation(enemy: ArcadeSprite, time: number) {
       const profile = enemy.getData("animationProfile");
-      if (!isArpgEnemyAnimationProfile(profile)) return;
       enemy.setFlipX(this.player.x < enemy.x);
       if (time < (Number(enemy.getData("actionAnimationUntil")) || 0)) return;
       const velocity = enemy.body?.velocity;
       const animation = velocity && velocity.lengthSq() > 64 ? "walk" : "idle";
+      if (!isArpgEnemyAnimationProfile(profile)) {
+        const nativeFallbackActorId = enemy.getData("nativeFallbackActorId") as NativePixelActorId | null;
+        if (nativeFallbackActorId) this.playNativeFallbackAnimation(enemy, nativeFallbackActorId, animation);
+        return;
+      }
       this.playTrackedEnemyAnimation(enemy, profile, animation);
+    }
+
+    private playNativeFallbackAnimation(
+      enemy: ArcadeSprite,
+      actorId: NativePixelActorId,
+      animation: keyof typeof NATIVE_FALLBACK_ANIMATIONS,
+      restart = false,
+    ) {
+      const key = `folklard-fallback-${actorId}-${animation}`;
+      if (restart || enemy.anims.currentAnim?.key !== key) enemy.play(key);
     }
 
     private playTrackedEnemyAnimation(
@@ -2082,9 +2927,27 @@ export function createArpgDungeonScene(
 
     private playEnemyAction(enemy: ArcadeSprite, animation: ArpgEnemyAnimation, time: number, durationMs: number) {
       const profile = enemy.getData("animationProfile");
-      if (!isArpgEnemyAnimationProfile(profile)) return;
       enemy.setData("actionAnimationUntil", time + durationMs);
+      if (!isArpgEnemyAnimationProfile(profile)) {
+        const nativeFallbackActorId = enemy.getData("nativeFallbackActorId") as NativePixelActorId | null;
+        if (nativeFallbackActorId) this.playNativeFallbackAnimation(enemy, nativeFallbackActorId, animation, true);
+        return;
+      }
       this.playTrackedEnemyAnimation(enemy, profile, animation, true);
+    }
+
+    private playEnemyProfileAction(
+      enemy: ArcadeSprite,
+      animation: ArpgEnemyAnimation,
+      time: number,
+      durationMs: number,
+    ) {
+      const profile = enemy.getData("animationProfile");
+      if (!isArpgEnemyAnimationProfile(profile)) return false;
+      const definition = getArpgEnemyAnimationProfile(profile);
+      if (!Object.hasOwn(definition.animations, animation)) return false;
+      this.playEnemyAction(enemy, animation, time, durationMs);
+      return true;
     }
 
     private updateEnemySpecial(enemy: ArcadeSprite, definitionId: string, time: number) {
@@ -2121,6 +2984,7 @@ export function createArpgDungeonScene(
           if (distance <= 580 && distance >= 100) {
             this.spawnPulse(enemy.x, enemy.y, 24, tint);
             this.fireEnemyProjectile(enemy, aim, 7, 285, tint, 2100);
+            this.playEnemyProfileAction(enemy, "shoot", time, 360);
           }
           enemy.setData("nextSpecialAt", time + (distance > 580 ? 380 : 1750));
         } else if (role === "caster") {
@@ -2134,6 +2998,7 @@ export function createArpgDungeonScene(
             for (const spread of [-0.2, 0, 0.2]) {
               this.fireEnemyProjectile(enemy, aim.clone().rotate(spread), 6, 315, tint, 1900);
             }
+            this.playEnemyProfileAction(enemy, "shoot", time, 420);
           }
           enemy.setData("nextSpecialAt", time + (distance > 590 ? 380 : 2350));
         }
@@ -2423,9 +3288,9 @@ export function createArpgDungeonScene(
       const damage = Math.max(1, rawDamage - armor.defenseBonus - armorReduction);
       this.hp = Math.max(0, this.hp - damage);
       this.nextPlayerDamageAt = time + 260;
-      this.playPlayerAction("hit", time, 250);
+      this.playPlayerAction("damage", time, 420);
       this.flashPlayer(0xff7a72, 160);
-      this.cameras.main.shake(90, 0.0025);
+      this.shakeCameraForDamage();
       const retaliationDamage = getArmorRetaliationDamage(armor);
       if (retaliationDamage > 0) {
         this.damageEnemiesInRadius(this.player.x, this.player.y, 96, retaliationDamage, false);
@@ -2510,7 +3375,7 @@ export function createArpgDungeonScene(
         bridge.emitMessage("Chegue mais perto do baú para interagir.");
         return;
       }
-      this.playPlayerAction("interact", time, 520);
+      this.playPlayerAction("idle", time, 520);
       this.playSound("chest");
       this.clearClickPath();
       bridge.clearGameplayInput();
@@ -2543,6 +3408,14 @@ export function createArpgDungeonScene(
         return;
       }
       if (loot) this.chestLoot = loot;
+
+      if (loot?.kind === "armor") {
+        // Old signed runs may still assign a retired armor reward. Skip its
+        // drop presentation and drain the legacy choice without equipping it.
+        this.pendingLoot = loot;
+        this.resolvePendingLoot("keep", time);
+        return;
+      }
 
       const roomId = this.chestRoomId;
       const landingPoint = this.navigation && roomId
@@ -2791,7 +3664,7 @@ export function createArpgDungeonScene(
       else this.chestPhysicsPausedByPresentation = false;
     }
 
-    private resolvePendingLoot(decision: "equip" | "keep", time: number) {
+    private resolvePendingLoot(decision: "equip" | "keep" | "replace-a" | "replace-b", time: number) {
       const loot = this.pendingLoot;
       if (!loot) return;
       this.pendingLoot = null;
@@ -2802,8 +3675,16 @@ export function createArpgDungeonScene(
       this.chest?.destroy();
       this.chest = null;
       this.playSound("loot");
-      this.runLoot.push({ id: loot.id, kind: loot.kind, quantity: 1, label: loot.label });
-      if (decision === "equip") this.applyRoomLoot(loot);
+      const legacyArmor = loot.kind === "armor";
+      if (!legacyArmor) this.runLoot.push({ id: loot.id, kind: loot.kind, quantity: 1, label: loot.label });
+      if (decision !== "keep" && !legacyArmor) {
+        const replaceSlot = decision === "replace-a"
+          ? "A"
+          : decision === "replace-b" || this.weaponSlots.B !== null
+            ? "B"
+            : undefined;
+        this.applyRoomLoot(loot, replaceSlot);
+      }
 
       if (this.chestRoomId && dungeonManager && this.dungeonWorld) {
         const roomId = this.chestRoomId;
@@ -2817,7 +3698,11 @@ export function createArpgDungeonScene(
         this.chestLootIndex = null;
         this.chestCacheReward = null;
         const relicNote = relicHeal > 0 ? ` ${selectedRelic.name} recuperou +${relicHeal} HP.` : "";
-        const choiceNote = decision === "equip" ? `${loot.label} equipado.` : `${loot.label} guardado; equipamento atual mantido.`;
+        const choiceNote = legacyArmor
+          ? "Conteúdo antigo descartado; sua Lenda segue sem equipamento defensivo."
+          : decision === "keep"
+            ? `${loot.label} guardado; suas armas foram mantidas.`
+            : `${loot.label} equipado no slot ${decision === "replace-a" ? "A" : decision === "replace-b" ? "B" : this.weaponSlots.active}.`;
         if (room?.type === "boss") {
           this.createExitPortal(room);
           bridge.emitMessage(`${choiceNote} O Curupira deixou uma recompensa. Entre no portal e pressione E para voltar à Guilda.`);
@@ -2841,9 +3726,97 @@ export function createArpgDungeonScene(
       this.time.delayedCall(900, () => this.spawnCurrentRoom());
     }
 
+    private setupReducedMotionPreference() {
+      if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+        this.prefersReducedMotion = false;
+        this.reducedMotionQuery = null;
+        return;
+      }
+
+      const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+      this.reducedMotionQuery = query;
+      this.prefersReducedMotion = query.matches;
+
+      const onChange = () => {
+        if (this.reducedMotionQuery !== query) return;
+        this.prefersReducedMotion = query.matches;
+        this.syncExitPortalMotion();
+      };
+      const supportsEventListeners = typeof query.addEventListener === "function";
+      if (supportsEventListeners) query.addEventListener("change", onChange);
+      else query.addListener(onChange);
+
+      let disposed = false;
+      const dispose = () => {
+        if (disposed) return;
+        disposed = true;
+        this.events.off("shutdown", dispose);
+        this.events.off("destroy", dispose);
+        if (supportsEventListeners) query.removeEventListener("change", onChange);
+        else query.removeListener(onChange);
+        if (this.reducedMotionQuery === query) {
+          this.reducedMotionQuery = null;
+          this.prefersReducedMotion = false;
+          this.clearExitPortalMotion();
+        }
+      };
+      this.events.once("shutdown", dispose);
+      this.events.once("destroy", dispose);
+    }
+
+    private stopExitPortalMotionTweens() {
+      this.exitPortalMotionTweens.forEach((tween) => {
+        tween.stop();
+        this.tweens.remove(tween);
+      });
+      this.exitPortalMotionTweens = [];
+    }
+
+    private clearExitPortalMotion() {
+      this.stopExitPortalMotionTweens();
+      this.exitPortalMotionVisuals = null;
+    }
+
+    private syncExitPortalMotion() {
+      const visuals = this.exitPortalMotionVisuals;
+      if (!visuals || !this.exitPortal) return;
+
+      this.stopExitPortalMotionTweens();
+      visuals.outer.setAngle(0);
+      visuals.inner.setScale(1).setAlpha(0.44);
+      visuals.core.setScale(1).setAlpha(0.72);
+      if (this.prefersReducedMotion) return;
+
+      this.exitPortalMotionTweens.push(
+        this.tweens.add({ targets: visuals.outer, angle: 360, duration: 4200, repeat: -1 }),
+        this.tweens.add({
+          targets: visuals.inner,
+          scaleX: { from: 0.92, to: 1.1 },
+          alpha: { from: 0.45, to: 0.92 },
+          duration: 740,
+          yoyo: true,
+          repeat: -1,
+        }),
+        this.tweens.add({
+          targets: visuals.core,
+          scaleX: { from: 0.74, to: 1.08 },
+          alpha: { from: 0.52, to: 0.96 },
+          duration: 560,
+          yoyo: true,
+          repeat: -1,
+        }),
+      );
+    }
+
+    private shakeCameraForDamage() {
+      if (this.prefersReducedMotion) return;
+      this.cameras.main.shake(90, 0.0025);
+    }
+
     private createExitPortal(room: DungeonRoom) {
       if (!this.dungeonWorld) return;
       this.playSound("portal");
+      this.clearExitPortalMotion();
       this.exitPortal?.destroy(true);
       const center = this.dungeonWorld.getRoomCenter(room.id);
       const x = center.x;
@@ -2851,10 +3824,9 @@ export function createArpgDungeonScene(
       const outer = this.add.ellipse(0, 0, 88, 116, 0x30213c, 0.78).setStrokeStyle(6, dungeon.colors.phase, 0.95);
       const inner = this.add.ellipse(0, 0, 54, 82, dungeon.colors.phaseTwo, 0.44).setStrokeStyle(3, 0xf2db9d, 0.9);
       const core = this.add.ellipse(0, 0, 24, 58, dungeon.colors.phaseThree, 0.72);
+      this.exitPortalMotionVisuals = { outer, inner, core };
       this.exitPortal = this.add.container(x, y, [outer, inner, core]).setDepth(8);
-      this.tweens.add({ targets: outer, angle: 360, duration: 4200, repeat: -1 });
-      this.tweens.add({ targets: inner, scaleX: { from: 0.92, to: 1.1 }, alpha: { from: 0.45, to: 0.92 }, duration: 740, yoyo: true, repeat: -1 });
-      this.tweens.add({ targets: core, scaleX: { from: 0.74, to: 1.08 }, alpha: { from: 0.52, to: 0.96 }, duration: 560, yoyo: true, repeat: -1 });
+      this.syncExitPortalMotion();
       this.exitPortalAvailable = true;
       bridge.emitMessage("Loot recolhido. Aproxime-se do portal e pressione E para voltar à Guilda.");
       this.emitRunCheckpoint();
@@ -2868,27 +3840,20 @@ export function createArpgDungeonScene(
         bridge.emitMessage("Aproxime-se do portal de saída.");
         return;
       }
-      this.playPlayerAction("interact", time, 280);
+      this.playPlayerAction("idle", time, 280);
       this.finishRun(true, time);
     }
 
-    private applyRoomLoot(loot: DungeonLoot) {
+    private applyRoomLoot(loot: DungeonLoot, replaceSlot?: WeaponSlot) {
       if (loot.kind === "weapon") {
-        if (loot.id === this.secondaryWeaponId) {
-          [this.currentWeaponId, this.secondaryWeaponId] = [this.secondaryWeaponId, this.currentWeaponId];
-        } else if (loot.id !== this.currentWeaponId) {
-          this.secondaryWeaponId = this.currentWeaponId;
-          this.currentWeaponId = loot.id;
-        }
+        const result = pickUpWeapon(this.weaponSlots, loot.id, replaceSlot);
+        if (result.status !== "equipped") return;
+        this.weaponSlots = result.state;
+        this.basicAttackCounter = 0;
         return;
       }
 
-      const previousArmor = ARPG_ARMOR_BY_ID.get(this.currentArmorId) ?? ARPG_ARMORS[0];
-      const nextArmor = ARPG_ARMOR_BY_ID.get(loot.id) ?? previousArmor;
-      const hpDelta = nextArmor.maxHpBonus - previousArmor.maxHpBonus;
-      this.currentArmorId = nextArmor.id;
-      this.maxHp = Math.max(PLAYER_BASE_HP, this.maxHp + hpDelta);
-      this.hp = Math.min(this.maxHp, Math.max(1, this.hp + Math.max(0, hpDelta)));
+      // Retired armor rewards from old signed plans are never equipped.
     }
 
     private finishRun(victory: boolean, time: number) {
@@ -2903,9 +3868,10 @@ export function createArpgDungeonScene(
       this.chest = null;
       this.audio?.setMusicMode("exploration");
       this.playSound(victory ? "victory" : "defeat");
-      this.playPlayerAction(victory ? "victory" : "ko", time, 1200);
+      this.playPlayerAction(victory ? "idle" : "defeat", time, 1200);
       this.pendingEnemySpawns.clear();
       this.exitPortalAvailable = false;
+      this.clearExitPortalMotion();
       this.exitPortal?.destroy(true);
       this.exitPortal = null;
       this.clearEnemyProjectiles();
@@ -2931,7 +3897,9 @@ export function createArpgDungeonScene(
         playerHp: Math.max(0, Math.round(this.hp)),
         maxHp: Math.max(1, Math.round(this.maxHp)),
         weaponId: this.currentWeaponId,
-        secondaryWeaponId: this.secondaryWeaponId,
+        weaponAId: this.weaponSlots.A,
+        weaponBId: this.weaponSlots.B,
+        activeWeaponSlot: this.weaponSlots.active,
         armorId: this.currentArmorId,
         xpEarned: Math.max(0, Math.round(this.xpEarned)),
         runShards: Math.max(0, Math.round(this.runShards)),
@@ -2947,9 +3915,13 @@ export function createArpgDungeonScene(
       this.audio?.play(cue);
     }
 
-    private playPlayerAction(animation: CartographerPlayerAction, time: number, duration: number) {
+    private playPlayerAction(animation: NativePixelActorAnimation, time: number, duration: number) {
       this.playerActionUntil = Math.max(this.playerActionUntil, time + duration);
-      playCartographerPlayerAnimation(this.player, animation, true);
+      const animationKey = `${playerAnimationKeyPrefix}-${animation}`;
+      const sameActionStillPlaying = animation !== "idle"
+        && this.player.anims.isPlaying
+        && this.player.anims.currentAnim?.key === animationKey;
+      if (!sameActionStillPlaying) playNativePlayerAnimation(this.player, animation, true);
     }
 
     private flashPlayer(color: number, duration: number) {
@@ -2992,18 +3964,20 @@ export function createArpgDungeonScene(
         roomCount: proceduralRoomCount ?? this.roomWaves.length,
         enemiesRemaining: this.enemies?.countActive(true) ?? 0,
         weaponId: this.currentWeaponId,
-        secondaryWeaponId: this.secondaryWeaponId,
+        weaponSlots: this.weaponSlots,
         armorId: this.currentArmorId,
         relicId: selectedRelic.id,
         dungeonMap: this.buildDungeonMap(),
         runShards: this.runShards,
+        runMoveSpeedBonus: this.runMoveSpeedBonus,
+        runBasicDamageMultiplier: this.runBasicDamageMultiplier,
         chestAvailable: this.chestAvailable && !this.chestOpening && !this.pendingLoot,
         exitPortalAvailable: this.exitPortalAvailable,
         pendingLoot: this.pendingLoot
           ? { id: this.pendingLoot.id, kind: this.pendingLoot.kind, quantity: 1, label: this.pendingLoot.label }
           : null,
         pendingRoomChoice: this.pendingRoomChoice,
-        runLoot: [...this.runLoot],
+        runLoot: this.runLoot.filter((item) => item.kind !== "armor"),
         abilityIds: loadout.abilityIds,
         dashReadyAt: Math.max(time, this.nextDashAt),
         abilityReadyAt: { ...this.abilityReadyAt },
@@ -3173,6 +4147,77 @@ export function createArpgDungeonScene(
           height: bounds.height,
         } : null,
       };
+    }
+
+    /**
+     * Development-only visual ruler for the reference-locked action view. It
+     * deliberately contains measurements instead of any third-party image so
+     * designers can compare captured Folklard frames beside the supplied
+     * reference without shipping it in the game.
+     */
+    private createVisualReferenceOverlay() {
+      if (!dungeonManager || typeof window === "undefined") return;
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get("visualReference") !== "1") return;
+      this.visualReferenceEnabled = true;
+      this.visualReferenceText = this.add.text(12, 12, "", {
+        color: "#fff0bd",
+        backgroundColor: "#172019e8",
+        fontFamily: "monospace",
+        fontSize: "11px",
+        padding: { x: 7, y: 5 },
+      }).setScrollFactor(0).setDepth(1_100);
+      this.updateVisualReferenceOverlay();
+
+      const referenceWindow = window as Window & {
+        __folklardVisualReferenceMode?: () => {
+          roomId: string | null;
+          roomPixels: { width: number; height: number } | null;
+          cameraPixels: { width: number; height: number };
+          playerPixels: { width: number; height: number };
+          playerToRoomHeight: number | null;
+          cameraToRoomWidth: number | null;
+          corridorWidth: number;
+        };
+      };
+      const readReference = () => this.readVisualReferenceMetrics();
+      referenceWindow.__folklardVisualReferenceMode = readReference;
+      this.events.once("destroy", () => {
+        if (referenceWindow.__folklardVisualReferenceMode === readReference) {
+          delete referenceWindow.__folklardVisualReferenceMode;
+        }
+      });
+    }
+
+    private readVisualReferenceMetrics() {
+      const room = this.dungeonWorld && this.proceduralRoomId
+        ? this.dungeonWorld.layout.rooms[this.proceduralRoomId] ?? null
+        : null;
+      const cameraWidth = Math.round(this.cameras.main.width);
+      const cameraHeight = Math.round(this.cameras.main.height);
+      const playerWidth = Math.round(this.player.displayWidth);
+      const playerHeight = Math.round(this.player.displayHeight);
+      return {
+        roomId: room?.roomId ?? null,
+        roomPixels: room ? { width: Math.round(room.width), height: Math.round(room.height) } : null,
+        cameraPixels: { width: cameraWidth, height: cameraHeight },
+        playerPixels: { width: playerWidth, height: playerHeight },
+        playerToRoomHeight: room ? Number((playerHeight / room.height).toFixed(3)) : null,
+        cameraToRoomWidth: room ? Number((cameraWidth / room.width).toFixed(3)) : null,
+        corridorWidth: DUNGEON_CORRIDOR_WIDTH,
+      };
+    }
+
+    private updateVisualReferenceOverlay() {
+      if (!this.visualReferenceText) return;
+      const metrics = this.readVisualReferenceMetrics();
+      this.visualReferenceText.setText([
+        "VISUAL REFERENCE MODE · Folklard",
+        `sala ${metrics.roomId ?? "—"} · ${metrics.roomPixels ? `${metrics.roomPixels.width}×${metrics.roomPixels.height}` : "—"}`,
+        `câmera ${metrics.cameraPixels.width}×${metrics.cameraPixels.height} · personagem ${metrics.playerPixels.width}×${metrics.playerPixels.height}`,
+        `personagem/sala ${metrics.playerToRoomHeight ?? "—"} · câmera/sala ${metrics.cameraToRoomWidth ?? "—"}`,
+        `corredor ${metrics.corridorWidth}px · referência: sala compacta, HUD mínima`,
+      ]);
     }
 
     private createDungeonDebugOverlay() {

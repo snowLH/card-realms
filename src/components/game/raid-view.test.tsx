@@ -52,7 +52,7 @@ describe("RaidView reconnect", () => {
             },
             event: {
               id: EVENT_ID, title: "Roc — O Céu Desaparece", boss_creature_id: "roc",
-              min_players: 2, max_players: 5, recommended_level: 1,
+              min_players: 2, max_players: 4, recommended_level: 1,
               boss_config: { gameplayMode: "arpg" },
             },
             gameplayMode: "arpg",
@@ -77,7 +77,7 @@ describe("RaidView reconnect", () => {
     await waitFor(() => expect(onOpenRaid).toHaveBeenCalledWith(ROOM_ID, "arpg"));
   });
 
-  it("descreve o Arsenal ARPG da Raid como dois ataques próprios", async () => {
+  it("descreve a Raid com uma Lenda e seus dois ataques próprios", async () => {
     vi.stubGlobal("fetch", vi.fn(async (request: RequestInfo | URL) => {
       if (String(request) !== "/api/raids") throw new Error(`fetch inesperado: ${String(request)}`);
       return {
@@ -92,7 +92,7 @@ describe("RaidView reconnect", () => {
             endsAt: "2026-10-04T20:00:00.000Z",
             presentationTimezone: "UTC",
             minPlayers: 2,
-            maxPlayers: 5,
+            maxPlayers: 4,
             recommendedLevel: 1,
             bossConfig: { gameplayMode: "arpg" },
             rewards: {},
@@ -106,8 +106,8 @@ describe("RaidView reconnect", () => {
     }));
 
     render(<RaidView bootstrap={bootstrap} onOpenRaid={vi.fn()} />);
-    expect(await screen.findByText("Leve seu Arsenal ARPG")).toBeInTheDocument();
-    expect(screen.getByText("Arma, armadura, relíquia e 2 ataques próprios entram congelados na sala.")).toBeInTheDocument();
-    expect(screen.queryByText(/suportes|4 cartas-habilidade/i)).not.toBeInTheDocument();
+    expect(await screen.findByText("Leve sua Lenda ativa")).toBeInTheDocument();
+    expect(screen.getByText("Ela entra com dois ataques próprios; armas e relíquias são conquistadas nas masmorras.")).toBeInTheDocument();
+    expect(screen.queryByText(/armadura|suportes|4 cartas-habilidade/i)).not.toBeInTheDocument();
   });
 });

@@ -3,7 +3,6 @@
 
 alter table public.player_arpg_loadouts
   add column if not exists legacy_ability_ids text[];
-
 -- Existing supporter pairs stay byte-for-byte intact. New rows use no active
 -- supporters, and the relaxed legacy shape only permits an empty or old pair.
 alter table public.player_arpg_loadouts
@@ -13,11 +12,9 @@ alter table public.player_arpg_loadouts
 alter table public.player_arpg_loadouts
   add constraint player_arpg_loadouts_support_ids_legacy_shape
   check (cardinality(support_ids) in (0, 2));
-
 update public.player_arpg_loadouts
 set legacy_ability_ids = ability_ids
 where legacy_ability_ids is null;
-
 -- Previously equipped cards are already-earned progress. Move all four legacy
 -- slots into permanent inventory before projecting the live loadout to two.
 insert into public.inventory_items (user_id, item_key, quantity, metadata)
@@ -38,20 +35,15 @@ on conflict (user_id, item_key) do update
 set quantity = greatest(public.inventory_items.quantity, excluded.quantity),
     metadata = public.inventory_items.metadata || excluded.metadata,
     updated_at = now();
-
 alter table public.player_arpg_loadouts
   drop constraint if exists player_arpg_loadouts_ability_ids_check;
-
 alter table public.player_arpg_loadouts
   alter column ability_ids set default array['ancestral-roots', 'boitata-flame']::text[];
-
 update public.player_arpg_loadouts
 set ability_ids = legacy_ability_ids[1:2];
-
 alter table public.player_arpg_loadouts
   add constraint player_arpg_loadouts_ability_ids_check
   check (cardinality(ability_ids) = 2 and ability_ids[1] <> ability_ids[2]);
-
 -- New Raid snapshots use the same two-attack contract as the lobby and dungeon
 -- runtime. The database column remains available to old rows as archival data.
 create or replace function private.arpg_raid_loadout_snapshot(target_player_id uuid)
@@ -84,12 +76,10 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.arpg_raid_loadout_snapshot(uuid)
   from public, anon, authenticated;
 grant execute on function private.arpg_raid_loadout_snapshot(uuid)
   to service_role;
-
 -- Seed the only free power cards for current and future profiles. The upsert is
 -- deliberately idempotent and does not grant the former Saci/Iara starters.
 insert into public.inventory_items (user_id, item_key, quantity, metadata)
@@ -104,7 +94,6 @@ on conflict (user_id, item_key) do update
 set quantity = greatest(public.inventory_items.quantity, excluded.quantity),
     metadata = public.inventory_items.metadata || excluded.metadata,
     updated_at = now();
-
 create or replace function private.seed_arpg_power_starters()
 returns trigger
 language plpgsql
@@ -123,20 +112,17 @@ begin
   return new;
 end;
 $$;
-
 revoke all on function private.seed_arpg_power_starters() from public, anon, authenticated;
 drop trigger if exists seed_arpg_power_starters_after_profile on public.profiles;
 create trigger seed_arpg_power_starters_after_profile
 after insert on public.profiles
 for each row execute function private.seed_arpg_power_starters();
-
 -- The old supporter column remains untouched on conflict and is never exposed
 -- in new loadout contracts. This function derives the owner from auth.uid().
 drop function if exists public.save_arpg_loadout(uuid, text, text, text, text[], text[]);
 drop function if exists private.save_arpg_loadout(uuid, text, text, text, text[], text[]);
 drop function if exists public.save_arpg_loadout(uuid, text, text, text[], text[]);
 drop function if exists private.save_arpg_loadout(uuid, text, text, text[], text[]);
-
 create or replace function private.save_arpg_loadout(
   target_weapon_id text,
   target_armor_id text,
@@ -246,11 +232,9 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.save_arpg_loadout(text, text, text, text[]) from public, anon;
 grant usage on schema private to authenticated;
 grant execute on function private.save_arpg_loadout(text, text, text, text[]) to authenticated;
-
 create or replace function public.save_arpg_loadout(
   target_weapon_id text,
   target_armor_id text,
@@ -266,10 +250,8 @@ as $$
     target_weapon_id, target_armor_id, target_relic_id, target_ability_ids
   );
 $$;
-
 revoke all on function public.save_arpg_loadout(text, text, text, text[]) from public, anon;
 grant execute on function public.save_arpg_loadout(text, text, text, text[]) to authenticated;
-
 -- Server-priced power cards. Prices and eligibility are independently fixed in
 -- the database so direct RPC requests cannot change the catalogue price.
 create or replace function private.purchase_arpg_power_card(target_card_id text)
@@ -371,20 +353,16 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.purchase_arpg_power_card(text) from public, anon;
 grant execute on function private.purchase_arpg_power_card(text) to authenticated;
-
 create or replace function public.purchase_arpg_power_card(target_card_id text)
 returns jsonb
 language sql
 security invoker
 set search_path = ''
 as $$ select private.purchase_arpg_power_card(target_card_id); $$;
-
 revoke all on function public.purchase_arpg_power_card(text) from public, anon;
 grant execute on function public.purchase_arpg_power_card(text) to authenticated;
-
 -- Equipment is dungeon loot; the legacy merchant RPC remains available only
 -- for Refuge cosmetics. Existing purchased gear stays in inventory untouched.
 create or replace function private.purchase_arpg_merchant_item(target_item_key text)
@@ -449,7 +427,6 @@ begin
   return jsonb_build_object('coins', current_coins, 'itemKey', target_item_key, 'quantity', 1);
 end;
 $$;
-
 -- Stop new dungeon clears from granting folklore power cards or supporters.
 -- Existing reward ledger rows and existing inventory are deliberately retained.
 create or replace function private.claim_arpg_expedition_reward(
@@ -540,25 +517,20 @@ begin
   return reward || jsonb_build_object('replayed', false, 'newItems', '[]'::jsonb);
 end;
 $$;
-
 revoke all on function private.purchase_arpg_merchant_item(text) from public, anon;
 grant execute on function private.purchase_arpg_merchant_item(text) to authenticated, service_role;
-
 create or replace function public.purchase_arpg_merchant_item(target_item_key text)
 returns jsonb
 language sql
 security invoker
 set search_path = ''
 as $$ select private.purchase_arpg_merchant_item(target_item_key); $$;
-
 revoke all on function public.purchase_arpg_merchant_item(text) from public, anon;
 grant execute on function public.purchase_arpg_merchant_item(text) to authenticated, service_role;
-
 revoke all on function private.claim_arpg_expedition_reward(uuid, uuid, text, boolean)
   from public, anon, authenticated;
 grant execute on function private.claim_arpg_expedition_reward(uuid, uuid, text, boolean)
   to service_role;
-
 -- Legendary boss cards now come from the lobby shop. Keep the old RPC shape for
 -- deployed server callers, but make it a no-op; historical grants remain intact.
 create or replace function private.claim_arpg_boss_card_reward(

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
 import { ARPG_DUNGEON_CONFIGS, isDungeonLootPlanValid, resolveDungeonLootPlan } from "../content/dungeons";
 import type { ArpgExpeditionId } from "../content/expeditions";
-import { ARPG_ARMOR_BY_ID, ARPG_WEAPON_BY_ID, getDefaultSecondaryArpgWeaponId } from "../content/equipment";
+import { ARPG_ARMOR_BY_ID, ARPG_WEAPON_BY_ID, normalizeArmorlessHealth } from "../content/equipment";
 import type { ArpgRunLootEntry } from "../domain/types";
 import { createRunLootAssignments, rollCombatRoomCache } from "./rewards";
 import {
@@ -183,7 +183,6 @@ function isValidSpecialRoomOutcome(
       && next.runMoveSpeedBonus === Math.max(previous.runMoveSpeedBonus, resolution.moveSpeedBonus)
       && next.runBasicDamageMultiplier === Math.max(previous.runBasicDamageMultiplier, resolution.basicDamageMultiplier)
       && next.weaponId === previous.weaponId
-      && next.secondaryWeaponId === previous.secondaryWeaponId
       && next.armorId === previous.armorId
       && next.xpEarned === previous.xpEarned
       && sameLoot
@@ -244,7 +243,9 @@ const RunCheckpointFieldsSchema = z.object({
   playerHp: z.number().int().min(0).max(500),
   maxHp: z.number().int().min(1).max(500),
   weaponId: z.string().min(1).max(80),
-  secondaryWeaponId: z.string().min(1).max(80).optional(),
+  weaponAId: z.string().min(1).max(80).optional(),
+  weaponBId: z.string().min(1).max(80).nullable().optional(),
+  activeWeaponSlot: z.enum(["A", "B"]).optional(),
   armorId: z.string().min(1).max(80),
   xpEarned: z.number().int().min(0).max(100_000),
   runShards: z.number().int().min(0).max(10_000),
@@ -262,32 +263,51 @@ function refineCheckpointHp(checkpoint: { playerHp: number; maxHp: number }, con
   }
 }
 
-function refineCheckpointWeapons(checkpoint: { weaponId: string; secondaryWeaponId?: string }, context: z.RefinementCtx) {
-  if (checkpoint.secondaryWeaponId === checkpoint.weaponId) {
-    context.addIssue({ code: "custom", message: "A run exige duas armas diferentes.", path: ["secondaryWeaponId"] });
+function refineCheckpointWeaponSlots(
+  checkpoint: { weaponId: string; weaponAId?: string; weaponBId?: string | null; activeWeaponSlot?: "A" | "B" },
+  context: z.RefinementCtx,
+) {
+  if (checkpoint.weaponAId === undefined && checkpoint.weaponBId === undefined && checkpoint.activeWeaponSlot === undefined) return;
+  const activeSlot = checkpoint.activeWeaponSlot ?? "A";
+  const activeWeaponId = activeSlot === "A" ? checkpoint.weaponAId : checkpoint.weaponBId;
+  if (!activeWeaponId || activeWeaponId !== checkpoint.weaponId) {
+    context.addIssue({ code: "custom", message: "A arma ativa não corresponde ao slot selecionado.", path: ["weaponId"] });
   }
 }
 
-function addLegacySecondaryWeapon(checkpoint: z.infer<typeof RunCheckpointFieldsSchema>) {
-  return {
-    ...checkpoint,
-    secondaryWeaponId: checkpoint.secondaryWeaponId ?? getDefaultSecondaryArpgWeaponId(checkpoint.weaponId),
-  };
-}
-
 export const ArpgRunCheckpointSchema = RunCheckpointFieldsSchema.strict()
-  .superRefine((checkpoint, context) => {
-    refineCheckpointHp(checkpoint, context);
-    refineCheckpointWeapons(checkpoint, context);
-  })
-  .transform(addLegacySecondaryWeapon);
+  .superRefine(refineCheckpointHp)
+  .superRefine(refineCheckpointWeaponSlots)
+  .transform((checkpoint) => {
+    const weaponAId = checkpoint.weaponAId ?? checkpoint.weaponId;
+    const weaponBId = checkpoint.weaponBId ?? null;
+    const activeWeaponSlot = checkpoint.activeWeaponSlot ?? "A";
+    const activeWeaponId = activeWeaponSlot === "A" ? weaponAId : weaponBId;
+    return normalizeArmorlessHealth({
+      ...checkpoint,
+      weaponId: activeWeaponId ?? checkpoint.weaponId,
+      weaponAId,
+      weaponBId,
+      activeWeaponSlot,
+    });
+  });
 export const ArpgClientRunCheckpointSchema = RunCheckpointFieldsSchema.omit({ serverCombatState: true })
   .strict()
-  .superRefine((checkpoint, context) => {
-    refineCheckpointHp(checkpoint, context);
-    refineCheckpointWeapons(checkpoint, context);
-  })
-  .transform(addLegacySecondaryWeapon);
+  .superRefine(refineCheckpointHp)
+  .superRefine(refineCheckpointWeaponSlots)
+  .transform((checkpoint) => {
+    const weaponAId = checkpoint.weaponAId ?? checkpoint.weaponId;
+    const weaponBId = checkpoint.weaponBId ?? null;
+    const activeWeaponSlot = checkpoint.activeWeaponSlot ?? "A";
+    const activeWeaponId = activeWeaponSlot === "A" ? weaponAId : weaponBId;
+    return normalizeArmorlessHealth({
+      ...checkpoint,
+      weaponId: activeWeaponId ?? checkpoint.weaponId,
+      weaponAId,
+      weaponBId,
+      activeWeaponSlot,
+    });
+  });
 
 export type ArpgRunCheckpoint = z.infer<typeof ArpgRunCheckpointSchema>;
 
@@ -320,9 +340,10 @@ export function isValidArpgRunCheckpoint(
     || brokenBreakableIds.size !== checkpoint.brokenBreakableIds.length
     || !roomIds.has(checkpoint.currentRoomId)
     || [...clearedIds].some((id) => !roomIds.has(id))
-    || !ARPG_WEAPON_BY_ID.has(checkpoint.weaponId)
-    || !ARPG_WEAPON_BY_ID.has(checkpoint.secondaryWeaponId)
-    || checkpoint.weaponId === checkpoint.secondaryWeaponId
+    || !ARPG_WEAPON_BY_ID.has(checkpoint.weaponAId)
+    || (checkpoint.weaponBId !== null && !ARPG_WEAPON_BY_ID.has(checkpoint.weaponBId))
+    || (checkpoint.activeWeaponSlot === "B" && checkpoint.weaponBId === null)
+    || checkpoint.weaponId !== (checkpoint.activeWeaponSlot === "A" ? checkpoint.weaponAId : checkpoint.weaponBId)
     || !ARPG_ARMOR_BY_ID.has(checkpoint.armorId)
   ) return false;
 
@@ -475,9 +496,6 @@ export function isValidArpgRunCheckpointTransition(
   const hasCollectedEquipment = (kind: "weapon" | "armor", id: string) => next.runLoot.some(
     (item) => item.kind === kind && item.id === id,
   );
-  const hasCarriedOrCollectedWeapon = (id: string) => id === previous.weaponId
-    || id === previous.secondaryWeaponId
-    || hasCollectedEquipment("weapon", id);
 
   if (
     [...previousVisited].some((roomId) => !nextVisited.has(roomId))
@@ -497,8 +515,8 @@ export function isValidArpgRunCheckpointTransition(
       && !previousCleared.has(previousRoom.id)
       && next.currentRoomId !== previousRoom.id
     )
-    || !hasCarriedOrCollectedWeapon(next.weaponId)
-    || !hasCarriedOrCollectedWeapon(next.secondaryWeaponId)
+    || (next.weaponAId !== previous.weaponAId && !hasCollectedEquipment("weapon", next.weaponAId))
+    || (next.weaponBId !== previous.weaponBId && next.weaponBId !== null && !hasCollectedEquipment("weapon", next.weaponBId))
     || (next.armorId !== previous.armorId && !hasCollectedEquipment("armor", next.armorId))
     || next.xpEarned < previous.xpEarned
     || next.xpEarned !== previous.xpEarned
@@ -601,7 +619,6 @@ export function applyArpgRunCheckpoint(graph: DungeonGraph, checkpoint: ArpgRunC
 export function createInitialArpgRunCheckpoint(options: {
   startRoomId: string;
   weaponId: string;
-  secondaryWeaponId?: string;
   armorId: string;
   maxHp: number;
 }): ArpgRunCheckpoint {
@@ -614,7 +631,9 @@ export function createInitialArpgRunCheckpoint(options: {
     playerHp: options.maxHp,
     maxHp: options.maxHp,
     weaponId: options.weaponId,
-    secondaryWeaponId: options.secondaryWeaponId ?? getDefaultSecondaryArpgWeaponId(options.weaponId),
+    weaponAId: options.weaponId,
+    weaponBId: null,
+    activeWeaponSlot: "A",
     armorId: options.armorId,
     xpEarned: 0,
     runShards: 0,
@@ -634,7 +653,9 @@ export function snapshotArpgRunCheckpoint(options: {
   playerHp: number;
   maxHp: number;
   weaponId: string;
-  secondaryWeaponId?: string;
+  weaponAId: string;
+  weaponBId: string | null;
+  activeWeaponSlot: "A" | "B";
   armorId: string;
   xpEarned: number;
   runShards: number;

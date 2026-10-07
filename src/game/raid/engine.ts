@@ -230,7 +230,7 @@ export function createRaidState(
   random: RandomSource = Math.random,
 ): RaidState {
   if (players.length < RAID_MIN_PLAYERS || players.length > RAID_MAX_PLAYERS) {
-    throw new RaidRuleError("Uma Raid precisa de 2 a 5 jogadores.");
+    throw new RaidRuleError("Uma expedição cooperativa precisa de 2 a 4 jogadores.");
   }
   if (new Set(players.map((player) => player.id)).size !== players.length) {
     throw new RaidRuleError("Cada participante da Raid precisa ser único.");

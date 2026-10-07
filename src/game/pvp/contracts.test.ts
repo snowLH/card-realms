@@ -43,7 +43,7 @@ describe("contratos PVP hostis", () => {
       ...validAction,
       battleId: "A0000000-BBBB-4CCC-8DDD-EEEEEEEEEEEE",
       actionId: "B0000000-CCCC-4DDD-8EEE-FFFFFFFFFFFF",
-      action: "pass",
+      action: "attack",
     });
 
     expect(parsed.battleId).toBe("a0000000-bbbb-4ccc-8ddd-eeeeeeeeeeee");
@@ -57,12 +57,23 @@ describe("contratos PVP hostis", () => {
     }).challengeId).toBe("a0000000-bbbb-4ccc-8ddd-eeeeeeeeeeee");
   });
 
-  it("aceita anexar energia apenas por um cartão identificado", () => {
+  it("aceita entrada de movimento limitada e exige vetor de mira explícito", () => {
     expect(PvpActionSchema.safeParse({
       ...validAction,
-      action: "attach",
-      cardId: "player-a:energy:fire:1",
+      action: "input",
+      moveX: 1,
+      moveY: -1,
+      aimX: 0.5,
+      aimY: 0,
     }).success).toBe(true);
+    expect(PvpActionSchema.safeParse({
+      ...validAction,
+      action: "input",
+      moveX: 2,
+      moveY: 0,
+      aimX: 1,
+      aimY: 0,
+    }).success).toBe(false);
   });
 
   it("aceita desistência sem permitir escolher o vencedor", () => {
@@ -90,8 +101,8 @@ describe("contratos PVP hostis", () => {
   });
 
   it("distingue retry idempotente de reutilização hostil do action ID", () => {
-    const action = PvpActionSchema.parse({ ...validAction, action: "pass" });
-    expect(isSamePvpAction({ ...validAction, action: "pass" }, action)).toBe(true);
+    const action = PvpActionSchema.parse({ ...validAction, action: "attack" });
+    expect(isSamePvpAction({ ...validAction, action: "attack" }, action)).toBe(true);
     expect(isSamePvpAction({
       ...validAction,
       action: "ability",

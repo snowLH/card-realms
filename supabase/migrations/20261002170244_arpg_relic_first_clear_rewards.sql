@@ -73,12 +73,10 @@ begin
   return jsonb_build_array(target_relic_id);
 end;
 $$;
-
 revoke all on function private.claim_arpg_relic_unlock(uuid, uuid, text, boolean)
   from public, anon, authenticated;
 grant execute on function private.claim_arpg_relic_unlock(uuid, uuid, text, boolean)
   to service_role;
-
 create or replace function public.claim_arpg_expedition_result(
   target_player_id uuid,
   target_run_id uuid,
@@ -117,12 +115,10 @@ begin
   return reward || jsonb_build_object('newItems', merged_items);
 end;
 $$;
-
 revoke all on function public.claim_arpg_expedition_result(uuid, uuid, text, boolean, text[])
   from public, anon, authenticated;
 grant execute on function public.claim_arpg_expedition_result(uuid, uuid, text, boolean, text[])
   to service_role;
-
 -- Backfill relic ownership for accounts that already completed either expedition.
 insert into public.reward_ledger (user_id, source_type, source_id, reward)
 select
@@ -141,7 +137,6 @@ from public.reward_ledger ledger
 where ledger.source_type = 'arpg_expedition_first_clear'
   and ledger.source_id in ('mata-encantada', 'arquipelago-das-mares')
 on conflict (user_id, source_type, source_id) do nothing;
-
 insert into public.inventory_items (user_id, item_key, quantity, metadata)
 select
   ledger.user_id,

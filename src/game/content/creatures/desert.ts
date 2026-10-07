@@ -43,7 +43,7 @@ export const DESERT_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Permanece junto à pesagem do coração e devora aquele considerado indigno, impedindo sua continuidade no além.",
       folklore: { tradition: "Religião e mitologia do Egito Antigo", origin: "Egito Antigo", sourceNote: "Sua função é ligada ao julgamento funerário, não à caça aleatória.", adaptation: "Preserva a anatomia composta e o papel de consequência do julgamento." },
       regionId: "desert", element: "nature", traits: ["composto", "julgamento", "funerário"], rarity: "legendary", role: "guardian",
-      hp: 218, defense: 92, speed: 32, moves: ["Mandíbula do Julgamento", "Peso do Coração", "Sentença de Ammit"], obtainableBy: "Tumba dos Reis", spriteIndex: 20, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 218, defense: 92, speed: 32, moves: ["Mandíbula do Julgamento", "Peso do Coração", "Sentença de Ammit"], obtainableBy: "Tumba dos Reis", spriteIndex: 20, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "manticora", name: "Manticora", title: "Predadora dos Relatos Persas",
@@ -51,7 +51,7 @@ export const DESERT_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Relatos gregos sobre a Pérsia transmitiram e transformaram sua imagem, que depois entrou em bestiários europeus.",
       folklore: { tradition: "Relatos antigos e bestiários medievais", origin: "Pérsia em fontes gregas", sourceNote: "A transmissão histórica produziu variações importantes de anatomia.", adaptation: "Usa corpo de leão, face humana estilizada e cauda armada sem declarar uma forma única." },
       regionId: "desert", element: "fire", traits: ["leonino", "cauda", "bestiário"], rarity: "epic", role: "striker",
-      hp: 166, defense: 62, speed: 80, moves: ["Cauda de Espinhos", "Salto Leonino", "Rugido da Manticora"], obtainableBy: "Ossário Colossal", spriteIndex: 21, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 166, defense: 62, speed: 80, moves: ["Cauda de Espinhos", "Salto Leonino", "Rugido da Manticora"], obtainableBy: "Ossário Colossal", spriteIndex: 21, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "esfinge", name: "Esfinge", title: "Guardiã dos Limiares Sagrados",
@@ -59,7 +59,7 @@ export const DESERT_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "A esfinge egípcia e a esfinge grega possuem histórias distintas; esta entrada segue o motivo guardião egípcio.",
       folklore: { tradition: "Iconografia e religião do Egito Antigo", origin: "Egito Antigo", sourceNote: "Não funde o guardião egípcio com o enigma da tradição grega.", adaptation: "Mantém corpo de leão, cabeça humana e função protetora." },
       regionId: "desert", element: "spirit", traits: ["leonino", "guardião", "monumental"], rarity: "legendary", role: "controller",
-      hp: 186, defense: 84, speed: 48, moves: ["Vigília de Pedra", "Palavra Régia", "Limiar da Esfinge"], obtainableBy: "Ruínas do Sol", spriteIndex: 22, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 186, defense: 84, speed: 48, moves: ["Vigília de Pedra", "Palavra Régia", "Limiar da Esfinge"], obtainableBy: "Ruínas do Sol", spriteIndex: 22, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "roc", name: "Roc", title: "Ave que Oculta o Sol",
@@ -67,7 +67,7 @@ export const DESERT_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Histórias difundidas nas Mil e Uma Noites descrevem sua força para erguer animais enormes e sua escala quase inacreditável.",
       folklore: { tradition: "Literatura árabe e persa de viagens maravilhosas", origin: "Oceano Índico imaginado e Oriente Médio", sourceNote: "A grafia Rukh/Roc e os cenários variam entre traduções.", adaptation: "Preserva a ave colossal e a força de voo sem fundi-la com outras aves míticas." },
       regionId: "desert", element: "storm", traits: ["ave", "colossal", "viajante"], rarity: "mythic", role: "guardian",
-      hp: 224, defense: 78, speed: 68, moves: ["Garra do Roc", "Sombra do Sol", "Voo do Horizonte"], obtainableBy: "Portão de Areia", spriteIndex: 23, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 224, defense: 78, speed: 68, moves: ["Garra do Roc", "Sombra do Sol", "Voo do Horizonte"], obtainableBy: "Portão de Areia", spriteIndex: 23, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "ifrit", name: "Ifrit", title: "Espírito de Fogo Rebelde",
@@ -75,6 +75,6 @@ export const DESERT_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Textos e narrativas posteriores descrevem ifrits com temperamentos e papéis diversos, não como uma espécie uniforme de demônio.",
       folklore: { tradition: "Tradições islâmicas e folclores árabes", origin: "Oriente Médio", sourceNote: "Conceitos religiosos e narrativos variam por fonte e época.", adaptation: "Representa um jinn ígneo poderoso sem reduzir toda a categoria a antagonistas." },
       regionId: "desert", element: "fire", traits: ["jinn", "fogo", "poderoso"], rarity: "epic", role: "striker",
-      hp: 156, defense: 58, speed: 84, moves: ["Punho de Brasa", "Vento do Ifrit", "Coluna de Fogo"], obtainableBy: "Oásis Oculto", spriteIndex: 24, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 156, defense: 58, speed: 84, moves: ["Punho de Brasa", "Vento do Ifrit", "Coluna de Fogo"], obtainableBy: "Oásis Oculto", spriteIndex: 24, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
 ];

@@ -5,7 +5,6 @@ alter table public.player_world_state
   add column map_positions jsonb not null default '{}'::jsonb,
   add constraint player_world_map_positions_object
     check (jsonb_typeof(map_positions) = 'object');
-
 create or replace function private.save_world_position(
   target_region_id text,
   target_x integer,
@@ -63,12 +62,10 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.save_world_position(text, integer, integer)
   from public, anon;
 grant execute on function private.save_world_position(text, integer, integer)
   to authenticated, service_role;
-
 create or replace function public.save_world_position(
   target_region_id text,
   target_x integer,
@@ -81,12 +78,10 @@ set search_path = ''
 as $$
   select private.save_world_position(target_region_id, target_x, target_y);
 $$;
-
 revoke all on function public.save_world_position(text, integer, integer)
   from public, anon;
 grant execute on function public.save_world_position(text, integer, integer)
   to authenticated, service_role;
-
 -- Ordinary victories now award progression only. Creature cards remain
 -- exclusive to starters, physical regional chests and future special rewards.
 create or replace function private.claim_story_battle_reward(
@@ -138,7 +133,6 @@ begin
   return reward || jsonb_build_object('replayed', false);
 end;
 $$;
-
 revoke all on function private.claim_story_battle_reward(uuid, uuid)
   from public, anon, authenticated;
 grant execute on function private.claim_story_battle_reward(uuid, uuid)

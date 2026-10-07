@@ -100,7 +100,6 @@ begin
   );
 end;
 $missions$;
-
 revoke all on function public.record_mission_events(uuid, jsonb, jsonb)
   from public, anon, authenticated;
 grant execute on function public.record_mission_events(uuid, jsonb, jsonb)

@@ -13,10 +13,10 @@ export function WelcomeView({ onPreview }: { onPreview: () => void }) {
     <section className="welcome-view" aria-labelledby="welcome-title">
       <div className="welcome-view__copy">
         <span className="welcome-view__eyebrow">Sua coleção começa aqui</span>
-        <h1 id="welcome-title">Crie seu avatar e abra seu primeiro caminho.</h1>
+        <h1 id="welcome-title">Escolha sua Lenda ativa e abra seu primeiro caminho.</h1>
         <p>
-          Explore Aurória com seu avatar, equipe dois poderes e descubra seres do folclore
-          para sua coleção em baús e recompensas especiais.
+          Explore Aurória com sua Lenda e os dois ataques próprios dela. Encontre armas e relíquias nas masmorras
+          e descubra seres do folclore para sua coleção em baús e recompensas especiais.
         </p>
         <div className="welcome-view__actions">
           <LoginDialog prominent label="Começar com Google" />

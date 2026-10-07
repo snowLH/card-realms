@@ -9,24 +9,37 @@ export const ARPG_WEAPONS = [
   ...RUNIC_WEAPONS,
 ];
 
-export const ARPG_ARMORS = [
+const LEGACY_ARPG_ARMORS = [
   ...MATA_ARMORS,
   ...MARES_ARMORS,
   ...RUNIC_ARMORS,
 ];
 
+// Persisted runs still refer to these IDs. They no longer grant equipment
+// stats or effects; the old HP values are kept only to recognize old saves.
+const LEGACY_ARMOR_HP_BONUS_BY_ID = new Map(LEGACY_ARPG_ARMORS.map((item) => [item.id, item.maxHpBonus]));
+export const ARPG_ARMORS: ArpgArmorDefinition[] = LEGACY_ARPG_ARMORS.map(({ id, kind, rarity }) => ({
+  id,
+  kind,
+  rarity,
+  name: "Sem armadura",
+  description: "Identificador de compatibilidade de uma armadura removida do jogo.",
+  maxHpBonus: 0,
+  defenseBonus: 0,
+  moveSpeedBonus: 0,
+}));
+
+export function normalizeArmorlessHealth<T extends { armorId: string; playerHp: number; maxHp: number }>(state: T): T {
+  const baseHp = 120;
+  const legacyMaxHp = baseHp + (LEGACY_ARMOR_HP_BONUS_BY_ID.get(state.armorId) ?? 0);
+  if (state.maxHp !== baseHp && state.maxHp !== legacyMaxHp) return state;
+  return { ...state, maxHp: baseHp, playerHp: Math.min(baseHp, state.playerHp) };
+}
+
 export const ARPG_WEAPON_BY_ID = new Map(ARPG_WEAPONS.map((item) => [item.id, item]));
 export const ARPG_ARMOR_BY_ID = new Map(ARPG_ARMORS.map((item) => [item.id, item]));
 export const ARPG_WEAPON_IDS = new Set(ARPG_WEAPON_BY_ID.keys());
 export const ARPG_ARMOR_IDS = new Set(ARPG_ARMOR_BY_ID.keys());
-export const DEFAULT_ARPG_SECONDARY_WEAPON_ID = "iron-sword";
-
-export function getDefaultSecondaryArpgWeaponId(primaryWeaponId: string) {
-  if (primaryWeaponId !== DEFAULT_ARPG_SECONDARY_WEAPON_ID && ARPG_WEAPON_BY_ID.has(DEFAULT_ARPG_SECONDARY_WEAPON_ID)) {
-    return DEFAULT_ARPG_SECONDARY_WEAPON_ID;
-  }
-  return ARPG_WEAPONS.find((weapon) => weapon.id !== primaryWeaponId)?.id ?? primaryWeaponId;
-}
 
 export function getWeaponAttackIntervalMs(weapon: ArpgWeaponDefinition, moving: boolean) {
   return weapon.effect?.id === "forest-rhythm" && moving
@@ -35,19 +48,19 @@ export function getWeaponAttackIntervalMs(weapon: ArpgWeaponDefinition, moving: 
 }
 
 export function getArmorDashCooldownMs(armor: ArpgArmorDefinition, baseCooldownMs: number) {
-  return armor.effect?.id === "kelpie-step"
-    ? Math.round(baseCooldownMs * 0.8)
-    : baseCooldownMs;
+  void armor;
+  return baseCooldownMs;
 }
 
 export function getArmorAbilityCooldownMs(armor: ArpgArmorDefinition, baseCooldownMs: number) {
-  return armor.effect?.id === "ritual-focus"
-    ? Math.round(baseCooldownMs * 0.9)
-    : baseCooldownMs;
+  void armor;
+  return baseCooldownMs;
 }
 
 export function getArmorMovingDefenseBonus(armor: ArpgArmorDefinition, moving: boolean) {
-  return armor.effect?.id === "curupira-ward" && moving ? 2 : 0;
+  void armor;
+  void moving;
+  return 0;
 }
 
 export function getWeaponAttackProc(weapon: ArpgWeaponDefinition, attackCounter: number) {
@@ -61,5 +74,6 @@ export function getWeaponAttackProc(weapon: ArpgWeaponDefinition, attackCounter:
 }
 
 export function getArmorRetaliationDamage(armor: ArpgArmorDefinition) {
-  return armor.effect?.id === "ahuizotl-retaliation" ? 10 : 0;
+  void armor;
+  return 0;
 }

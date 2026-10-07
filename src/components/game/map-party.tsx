@@ -32,9 +32,10 @@ type PartyPayload = {
 };
 
 type LocalMessage = {
-  type: "presence" | "join" | "leave";
+  type: "presence" | "join" | "leave" | "full";
   roomCode: string;
   member: MapPartyMember;
+  requesterId?: string;
 };
 
 function localId() {
@@ -71,6 +72,12 @@ export function useMapParty({
   const localChannel = useRef<BroadcastChannel | null>(null);
   const sessionRef = useRef<MapPartySession | null>(null);
   const membersRef = useRef<MapPartyMember[]>([]);
+  const joinTimeoutRef = useRef<number | null>(null);
+
+  const updateMembers = useCallback((next: MapPartyMember[]) => {
+    membersRef.current = next;
+    setMembers(next);
+  }, []);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -137,24 +144,58 @@ export function useMapParty({
       const message = event.data;
       const active = sessionRef.current;
       if (!active || message.roomCode !== active.inviteCode) return;
-      if (message.type === "leave") {
-        setMembers((current) => current.filter((member) => member.id !== message.member.id));
+      if (message.type === "full") {
+        if (message.requesterId !== selfId) return;
+        if (joinTimeoutRef.current !== null) window.clearTimeout(joinTimeoutRef.current);
+        joinTimeoutRef.current = null;
+        sessionRef.current = null;
+        setSession(null);
+        updateMembers([]);
+        setError("Esta sala já está cheia. O limite é de 4 jogadores.");
         return;
       }
-      setMembers((current) => {
-        const next = current.filter((member) => member.id !== message.member.id);
-        return [...next, message.member].slice(0, 5);
-      });
+      if (message.type === "leave") {
+        updateMembers(membersRef.current.filter((member) => member.id !== message.member.id));
+        return;
+      }
       if (message.type === "join") {
-        const me = membersRef.current.find((member) => member.isSelf);
-        if (me) channel.postMessage({ type: "presence", roomCode: active.inviteCode, member: me } satisfies LocalMessage);
+        if (active.hostId !== selfId) return;
+        const current = membersRef.current;
+        if (!current.some((member) => member.id === message.member.id) && current.length >= 4) {
+          channel.postMessage({
+            type: "full",
+            roomCode: active.inviteCode,
+            member: message.member,
+            requesterId: message.member.id,
+          } satisfies LocalMessage);
+          return;
+        }
+        const joiningMember = { ...message.member, isSelf: message.member.id === selfId };
+        const next = [...current.filter((member) => member.id !== joiningMember.id), joiningMember].slice(0, 4);
+        updateMembers(next);
+        next.forEach((member) => channel.postMessage({
+          type: "presence",
+          roomCode: active.inviteCode,
+          member,
+        } satisfies LocalMessage));
+        return;
+      }
+      const current = membersRef.current;
+      const remoteMember = { ...message.member, isSelf: message.member.id === selfId };
+      const next = [...current.filter((member) => member.id !== remoteMember.id), remoteMember].slice(0, 4);
+      updateMembers(next);
+      if (next.some((member) => member.isSelf) && next.length > 1 && joinTimeoutRef.current !== null) {
+        window.clearTimeout(joinTimeoutRef.current);
+        joinTimeoutRef.current = null;
       }
     };
     return () => {
       channel.close();
       localChannel.current = null;
+      if (joinTimeoutRef.current !== null) window.clearTimeout(joinTimeoutRef.current);
+      joinTimeoutRef.current = null;
     };
-  }, [online]);
+  }, [online, selfId, updateMembers]);
 
   const localSelf = useCallback((point: GridPoint = { x: 4, y: 20 }): MapPartyMember => ({
     id: selfId,
@@ -198,11 +239,12 @@ export function useMapParty({
       hostId: selfId,
       inviteCode: code,
       regionId,
-      maxPlayers: 5,
+      maxPlayers: 4,
     };
     const me = localSelf();
+    sessionRef.current = nextSession;
     setSession(nextSession);
-    setMembers([me]);
+    updateMembers([me]);
     localChannel.current?.postMessage({ type: "presence", roomCode: code, member: me } satisfies LocalMessage);
   }
 
@@ -218,21 +260,33 @@ export function useMapParty({
       hostId: "",
       inviteCode: code,
       regionId,
-      maxPlayers: 5,
+      maxPlayers: 4,
     };
     const me = localSelf();
+    sessionRef.current = nextSession;
     setSession(nextSession);
-    setMembers([me]);
+    updateMembers([me]);
+    setError("");
     localChannel.current?.postMessage({ type: "join", roomCode: code, member: me } satisfies LocalMessage);
     localChannel.current?.postMessage({ type: "presence", roomCode: code, member: me } satisfies LocalMessage);
+    if (joinTimeoutRef.current !== null) window.clearTimeout(joinTimeoutRef.current);
+    joinTimeoutRef.current = window.setTimeout(() => {
+      if (sessionRef.current?.inviteCode !== code || membersRef.current.length > 1) return;
+      sessionRef.current = null;
+      setSession(null);
+      updateMembers([]);
+      joinTimeoutRef.current = null;
+      setError("Não encontramos uma sala local aberta com esse código.");
+    }, 750);
   }
 
   async function leave() {
     if (!session) return;
     if (online) {
       await action({ action: "leave", sessionId: session.id });
+      sessionRef.current = null;
       setSession(null);
-      setMembers([]);
+      updateMembers([]);
       return;
     }
     const me = members.find((member) => member.isSelf) ?? localSelf();
@@ -241,8 +295,9 @@ export function useMapParty({
       roomCode: session.inviteCode,
       member: me,
     } satisfies LocalMessage);
+    sessionRef.current = null;
     setSession(null);
-    setMembers([]);
+    updateMembers([]);
   }
 
   const syncPosition = useCallback(async (point: GridPoint) => {
@@ -257,13 +312,13 @@ export function useMapParty({
       return;
     }
     const me = { ...localSelf(point), x: point.x, y: point.y };
-    setMembers((current) => [me, ...current.filter((member) => !member.isSelf)].slice(0, 5));
+    updateMembers([me, ...membersRef.current.filter((member) => !member.isSelf)].slice(0, 4));
     localChannel.current?.postMessage({
       type: "presence",
       roomCode: session.inviteCode,
       member: me,
     } satisfies LocalMessage);
-  }, [action, localSelf, online, session]);
+  }, [action, localSelf, online, session, updateMembers]);
 
   return {
     session,
@@ -327,7 +382,7 @@ export function MapPartyPanel({
       )}
 
       {party.error ? <p role="alert">{party.error}</p> : null}
-      {!party.session ? <small>{typeof window !== "undefined" && !getSupabaseBrowserClient() ? "Modo local entre abas" : "Até 5 jogadores"}</small> : null}
+      {!party.session ? <small>{typeof window !== "undefined" && !getSupabaseBrowserClient() ? "Modo local entre abas" : "2–4 jogadores"}</small> : null}
     </aside>
   );
 }

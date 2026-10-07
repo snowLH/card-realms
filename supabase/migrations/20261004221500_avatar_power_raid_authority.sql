@@ -5,14 +5,11 @@
 alter table public.raid_rooms
   add column if not exists gameplay_mode text,
   add column if not exists gameplay_version smallint;
-
 alter table public.raid_participants
   add column if not exists combat_snapshot jsonb;
-
 alter table public.raid_reward_ledger
   add column if not exists coins_awarded integer not null default 0,
   add column if not exists xp_awarded bigint not null default 0;
-
 update public.raid_rooms as room
 set gameplay_mode = case
       when room.status is distinct from 'lobby' then 'legacy'
@@ -23,19 +20,15 @@ set gameplay_mode = case
 from public.raid_events as event
 where event.id = room.event_id
   and (room.gameplay_mode is null or room.gameplay_version is null);
-
 update public.raid_rooms
 set gameplay_mode = 'legacy', gameplay_version = 1
 where gameplay_mode is null or gameplay_version is null;
-
 alter table public.raid_rooms
   alter column gameplay_mode set not null,
   alter column gameplay_version set not null;
-
 alter table public.raid_rooms
   drop constraint if exists raid_rooms_gameplay_mode_check,
   drop constraint if exists raid_rooms_gameplay_version_check;
-
 alter table public.raid_rooms
   add constraint raid_rooms_gameplay_mode_check
     check (gameplay_mode in ('avatar', 'arpg', 'legacy')),
@@ -44,7 +37,6 @@ alter table public.raid_rooms
       (gameplay_mode = 'legacy' and gameplay_version = 1)
       or (gameplay_mode in ('avatar', 'arpg') and gameplay_version = 2)
     );
-
 -- A lobby that cannot be snapshotted under the new contract is archived as a
 -- whole. This preserves its old JSON without letting it enter the new engine.
 do $$
@@ -86,7 +78,6 @@ begin
   end loop;
 end;
 $$;
-
 create or replace function private.freeze_raid_gameplay_contract()
 returns trigger
 language plpgsql
@@ -101,15 +92,12 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists raid_rooms_freeze_gameplay_contract on public.raid_rooms;
 create trigger raid_rooms_freeze_gameplay_contract
 before update of gameplay_mode, gameplay_version on public.raid_rooms
 for each row execute function private.freeze_raid_gameplay_contract();
-
 revoke all on function private.freeze_raid_gameplay_contract() from public, anon, authenticated;
 grant execute on function private.freeze_raid_gameplay_contract() to service_role;
-
 -- Existing ledger rows stay intact. Only the event's future reward contract
 -- changes: Raid currency and XP are event rewards, not combat progression.
 update public.raid_events
@@ -132,7 +120,6 @@ set rewards = (coalesce(rewards, '{}'::jsonb)
       else 100
     end
   );
-
 create or replace function public.create_raid_room(target_event_id uuid)
 returns jsonb
 language plpgsql
@@ -197,10 +184,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function public.create_raid_room(uuid) from public, anon;
 grant execute on function public.create_raid_room(uuid) to authenticated, service_role;
-
 create or replace function public.join_raid_room(target_invite_code text)
 returns jsonb
 language plpgsql
@@ -291,10 +276,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function public.join_raid_room(text) from public, anon;
 grant execute on function public.join_raid_room(text) to authenticated, service_role;
-
 create or replace function public.set_raid_ready(target_room_id uuid, ready boolean)
 returns jsonb
 language plpgsql
@@ -326,10 +309,8 @@ begin
   return jsonb_build_object('roomId', target_room_id, 'ready', ready);
 end;
 $$;
-
 revoke all on function public.set_raid_ready(uuid, boolean) from public, anon;
 grant execute on function public.set_raid_ready(uuid, boolean) to authenticated, service_role;
-
 create or replace function public.start_raid_room(
   target_room_id uuid,
   submitted_state jsonb
@@ -501,10 +482,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function public.start_raid_room(uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.start_raid_room(uuid, jsonb) to service_role;
-
 create or replace function public.commit_raid_action(
   target_room_id uuid,
   acting_user_id uuid,
@@ -740,14 +719,12 @@ begin
   return committed_result;
 end;
 $$;
-
 revoke all on function public.commit_raid_action(
   uuid, uuid, integer, uuid, text, jsonb, jsonb, jsonb
 ) from public, anon, authenticated;
 grant execute on function public.commit_raid_action(
   uuid, uuid, integer, uuid, text, jsonb, jsonb, jsonb
 ) to service_role;
-
 create or replace function public.grant_raid_mythic_rewards(target_room_id uuid)
 returns jsonb
 language plpgsql
@@ -821,10 +798,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function public.grant_raid_mythic_rewards(uuid) from public, anon, authenticated;
 grant execute on function public.grant_raid_mythic_rewards(uuid) to service_role;
-
 -- Roc's former weekly-Raid power remains available as a one-time lobby-shop
 -- purchase. Existing inventory is untouched and Raid completion never grants it.
 create or replace function private.purchase_roc_horizon_storm()
@@ -906,10 +881,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.purchase_roc_horizon_storm() from public, anon;
 grant execute on function private.purchase_roc_horizon_storm() to authenticated;
-
 create or replace function public.purchase_arpg_power_card(target_card_id text)
 returns jsonb
 language plpgsql
@@ -923,6 +896,5 @@ begin
   return private.purchase_arpg_power_card(target_card_id);
 end;
 $$;
-
 revoke all on function public.purchase_arpg_power_card(text) from public, anon;
 grant execute on function public.purchase_arpg_power_card(text) to authenticated;

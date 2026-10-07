@@ -9,7 +9,7 @@ export default function NotFound() {
         </p>
         <h1 className="mt-3 text-4xl font-black">O mapa termina aqui.</h1>
         <p className="mt-4 text-muted-foreground">
-          Este caminho ainda não foi revelado pelos cartógrafos de Card Realms.
+          Este caminho ainda não foi revelado pelos cartógrafos de Folklard.
         </p>
         <Link
           href="/"

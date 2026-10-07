@@ -3,7 +3,7 @@ import type { Element, EnergyPool } from "../domain/elements";
 import type { AvatarConfig } from "../save/local-progress";
 
 export const RAID_MIN_PLAYERS = 2 as const;
-export const RAID_MAX_PLAYERS = 5 as const;
+export const RAID_MAX_PLAYERS = 4 as const;
 export const RAID_BOSS_ID = "raid-boss" as const;
 export const RAID_STATE_VERSION = 2 as const;
 export const RAID_GAMEPLAY_VERSION = 2 as const;
@@ -144,7 +144,7 @@ export type RaidEventDefinition = {
   endsAt: string;
   presentationTimezone: "America/Sao_Paulo";
   minPlayers: 2;
-  maxPlayers: 5;
+  maxPlayers: 4;
   recommendedLevel: number;
   boss: RaidBossSetup;
 };

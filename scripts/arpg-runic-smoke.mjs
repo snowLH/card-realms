@@ -141,7 +141,7 @@ const metrics = await evaluate(`(() => {
     hud:rect('.arpg-hud'),
     topbar:document.querySelector('.arpg-shell__topbar')?.innerText ?? null,
     secondAtlasLoaded: performance.getEntriesByType('resource')
-      .some((entry) => entry.name.includes('folklore-creatures-second-atlas.png')),
+      .some((entry) => entry.name.includes('folklore-creatures-second-atlas-chibi-portraits-v1.webp')),
     body:document.body.innerText.slice(0,2200)
   };
 })()`);

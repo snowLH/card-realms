@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PLAYABLE_LEGEND_IDS } from "@/game/arpg/content/legends";
 import { DEFAULT_REFUGE_FURNITURE, REFUGE_FURNITURE_KEYS, REFUGE_THEMES } from "@/game/refuge";
 
 export const LOCAL_PROGRESS_KEY = "card-realms:progress:v4";
@@ -7,6 +8,8 @@ const V2_PROGRESS_KEY = "card-realms:progress:v2";
 const LEGACY_PROGRESS_KEY = "card-realms:demo-progress:v1";
 
 export const AvatarConfigSchema = z.object({
+  legendId: z.enum(PLAYABLE_LEGEND_IDS).default("curupira"),
+  favoriteLegendId: z.enum(PLAYABLE_LEGEND_IDS).nullable().default("curupira"),
   skin: z.enum(["amber", "copper", "umber", "rose"]),
   hair: z.enum(["braids", "short", "waves", "mohawk"]),
   outfit: z.enum(["traveler", "scholar", "ranger", "merchant"]),
@@ -17,6 +20,8 @@ export const AvatarConfigSchema = z.object({
 export type AvatarConfig = z.infer<typeof AvatarConfigSchema>;
 
 export const DEFAULT_AVATAR_CONFIG: AvatarConfig = {
+  legendId: "curupira",
+  favoriteLegendId: "curupira",
   skin: "copper",
   hair: "braids",
   outfit: "traveler",

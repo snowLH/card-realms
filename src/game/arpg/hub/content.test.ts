@@ -27,12 +27,12 @@ describe("HUB físico do Card Realms", () => {
       kicker: "Raids semanais",
     });
     expect(HUB_STATIONS.find((station) => station.id === "avatar")).toMatchObject({
-      label: "Ateliê do Cartógrafo",
-      kicker: "Seu personagem",
+      label: "Lendas Jogáveis",
+      kicker: "Escolher Lenda",
     });
     expect(HUB_STATIONS.find((station) => station.id === "refuge")).toMatchObject({
       label: "Refúgio",
-      kicker: "Criaturas da coleção",
+      kicker: "Casa do Cartógrafo",
     });
     expect(HUB_STATIONS.some((station) => station.label.includes("Santuário"))).toBe(false);
   });

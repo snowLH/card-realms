@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_AVATAR_CONFIG } from "@/game/save/local-progress";
 
 const mocks = vi.hoisted(() => ({
   getClaims: vi.fn(),
   rpc: vi.fn(),
+  maybeSingle: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/env", () => ({ isSupabaseConfigured: () => true }));
@@ -10,6 +12,11 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: { getClaims: mocks.getClaims },
     rpc: mocks.rpc,
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({ maybeSingle: mocks.maybeSingle })),
+      })),
+    })),
   }),
 }));
 
@@ -25,10 +32,9 @@ function request(body: unknown) {
 
 const validLoadout = {
   weaponId: "forest-bow",
-  secondaryWeaponId: "iron-sword",
   armorId: "leather-armor",
   relicId: "cartographer-compass",
-  abilityIds: ["ancestral-roots", "boitata-flame"],
+  abilityIds: ["curupira-root-snare", "curupira-ember-arrow"],
 };
 
 describe("PATCH /api/arpg/loadout", () => {
@@ -36,6 +42,10 @@ describe("PATCH /api/arpg/loadout", () => {
     vi.clearAllMocks();
     mocks.getClaims.mockResolvedValue({ data: { claims: { sub: "player-1" } }, error: null });
     mocks.rpc.mockResolvedValue({ data: validLoadout, error: null });
+    mocks.maybeSingle.mockResolvedValue({
+      data: { avatar_config: DEFAULT_AVATAR_CONFIG },
+      error: null,
+    });
   });
 
   it("saves only two attacks through the authenticated RPC", async () => {
@@ -44,10 +54,9 @@ describe("PATCH /api/arpg/loadout", () => {
     expect(response.status).toBe(200);
     expect(mocks.rpc).toHaveBeenCalledWith("save_arpg_loadout", {
       target_weapon_id: "forest-bow",
-      target_secondary_weapon_id: "iron-sword",
       target_armor_id: "leather-armor",
       target_relic_id: "cartographer-compass",
-      target_ability_ids: ["ancestral-roots", "boitata-flame"],
+      target_ability_ids: ["curupira-root-snare", "curupira-ember-arrow"],
     });
   });
 
@@ -55,7 +64,7 @@ describe("PATCH /api/arpg/loadout", () => {
     const response = await PATCH(request({
       ...validLoadout,
       supportIds: ["support-saci", "support-iara"],
-      abilityIds: ["ancestral-roots", "boitata-flame", "saci-whirlwind", "iara-song"],
+      abilityIds: ["curupira-root-snare", "curupira-ember-arrow", "iara-enchanting-song", "iara-living-spring"],
     }));
 
     expect(response.status).toBe(400);

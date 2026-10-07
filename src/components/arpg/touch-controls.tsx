@@ -1,9 +1,7 @@
 "use client";
 
-import { Crosshair, Footprints, Hand, Sparkles, Swords } from "lucide-react";
+import { ArrowLeftRight, Crosshair, Footprints, Hand, Sparkles } from "lucide-react";
 import { ARPG_ABILITY_CARD_BY_ID } from "@/game/arpg/content/ability-cards";
-import { ARPG_WEAPONS, getDefaultSecondaryArpgWeaponId } from "@/game/arpg/content/equipment";
-import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
 import { MATA_CARDS } from "@/game/arpg/content/mata-encantada";
 import { CREATURE_BY_ID } from "@/game/catalog";
 import { ArpgBridge } from "@/game/arpg/runtime/bridge";
@@ -29,8 +27,6 @@ function activateFromKeyboard(action: () => void) {
 
 export function TouchControls({
   bridge,
-  weaponId,
-  secondaryWeaponId,
   abilityIds,
   abilityReadyAt,
   nowMs,
@@ -38,10 +34,10 @@ export function TouchControls({
   chestAvailable,
   exitPortalAvailable = false,
   specialRoomAvailable = false,
+  weaponBId = null,
+  activeWeaponSlot = "A",
 }: {
   bridge: ArpgBridge;
-  weaponId?: string;
-  secondaryWeaponId?: string;
   abilityIds: [string, string];
   abilityReadyAt: Record<string, number>;
   nowMs: number;
@@ -49,12 +45,10 @@ export function TouchControls({
   chestAvailable: boolean;
   exitPortalAvailable?: boolean;
   specialRoomAvailable?: boolean;
+  weaponBId?: string | null;
+  activeWeaponSlot?: "A" | "B";
 }) {
   const cards = abilityIds.map((id) => ARPG_ABILITY_CARD_BY_ID.get(id) ?? MATA_CARDS[0]);
-  const activeWeaponId = weaponId ?? DEFAULT_ARPG_LOADOUT.weaponId;
-  const reserveWeaponId = secondaryWeaponId ?? getDefaultSecondaryArpgWeaponId(activeWeaponId);
-  const weapon = ARPG_WEAPONS.find((item) => item.id === activeWeaponId) ?? ARPG_WEAPONS[0];
-  const secondaryWeapon = ARPG_WEAPONS.find((item) => item.id === reserveWeaponId) ?? ARPG_WEAPONS[0];
   const dashRemaining = Math.max(0, dashReadyAt - nowMs);
   const dashCooling = dashRemaining > 50;
   const showInteraction = chestAvailable || exitPortalAvailable || specialRoomAvailable;
@@ -85,9 +79,11 @@ export function TouchControls({
   const stopStick = () => bridge.setMove(0, 0);
 
   return (
-    <div className="arpg-touch" aria-label="Controles de toque">
+    <div className="arpg-touch" role="group" aria-label="Controles de combate">
       <div
         className="arpg-stick"
+        role="group"
+        aria-label="Joystick virtual. Arraste para mover. No teclado, use WASD ou as setas."
         onPointerDown={(event) => {
           event.currentTarget.setPointerCapture(event.pointerId);
           updateStick(event);
@@ -98,11 +94,11 @@ export function TouchControls({
         onPointerUp={stopStick}
         onPointerCancel={stopStick}
       >
-        <span className="arpg-stick__nub" />
+        <span className="arpg-stick__nub" aria-hidden="true" />
       </div>
 
       <div className="arpg-touch__actions">
-        <div className="arpg-touch__cards">
+        <div className="arpg-touch__cards" role="group" aria-label="Dois poderes equipados">
           {cards.map((card, index) => {
             const remaining = Math.max(0, (abilityReadyAt[card.id] ?? 0) - nowMs);
             const cooling = remaining > 50;
@@ -112,7 +108,8 @@ export function TouchControls({
                 type="button"
                 key={card.id}
                 className={cooling ? "is-cooling" : "is-ready"}
-                aria-label={`${card.name}: ${cooldownLabel}`}
+                aria-label={`Poder ${index + 1}: ${card.name}, ${cooldownLabel}`}
+                aria-keyshortcuts={index === 0 ? "1" : "2"}
                 title={card.name}
                 onPointerDown={() => bridge.queueAbility(index as 0 | 1)}
                 onClick={activateFromKeyboard(() => bridge.queueAbility(index as 0 | 1))}
@@ -126,21 +123,24 @@ export function TouchControls({
           })}
         </div>
 
-        <div className="arpg-touch__combat">
-          <button
-            type="button"
-            className="arpg-touch__weapon-swap"
-            aria-label={`Trocar arma: atual ${weapon.name}, próxima ${secondaryWeapon.name}`}
-            onPointerDown={() => bridge.queueWeaponSwap()}
-            onClick={activateFromKeyboard(() => bridge.queueWeaponSwap())}
-          >
-            <Swords aria-hidden="true" />
-            <span>Arma: {weapon.name}</span>
-            <small>Trocar por {secondaryWeapon.name}</small>
-          </button>
+        <div className="arpg-touch__combat" role="group" aria-label="Ataque básico, dash e interação">
+          {weaponBId ? (
+            <button
+              type="button"
+              aria-label={`Trocar arma para o slot ${activeWeaponSlot === "A" ? "B" : "A"}`}
+              aria-keyshortcuts="Q"
+              onPointerDown={() => bridge.queueWeaponSwitch()}
+              onClick={activateFromKeyboard(() => bridge.queueWeaponSwitch())}
+            >
+              <ArrowLeftRight aria-hidden="true" />
+              <span>Arma {activeWeaponSlot} · Q</span>
+            </button>
+          ) : null}
           <button
             type="button"
             className="arpg-touch__attack"
+            aria-label="Atacar e mirar no inimigo mais próximo"
+            aria-keyshortcuts="Space"
             onPointerDown={(event) => {
               event.currentTarget.setPointerCapture(event.pointerId);
               bridge.setAttack(true);
@@ -169,6 +169,8 @@ export function TouchControls({
           <button
             type="button"
             disabled={dashCooling}
+            aria-label={dashCooling ? `Dash em recarga por ${(dashRemaining / 1000).toFixed(1)} segundos` : "Usar dash. Tecla Shift"}
+            aria-keyshortcuts="Shift"
             onPointerDown={() => bridge.queueDash()}
             onClick={activateFromKeyboard(() => bridge.queueDash())}
           >
@@ -180,6 +182,7 @@ export function TouchControls({
               type="button"
               className="arpg-touch__interact"
               aria-label={interactionLabel}
+              aria-keyshortcuts="E"
               onPointerDown={() => bridge.queueInteract()}
               onClick={activateFromKeyboard(() => bridge.queueInteract())}
             >

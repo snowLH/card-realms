@@ -3,15 +3,12 @@
 
 alter table public.player_arpg_loadouts
   add column if not exists relic_id text not null default 'cartographer-compass';
-
 update public.player_arpg_loadouts
 set relic_id = 'cartographer-compass'
 where relic_id is null or btrim(relic_id) = '';
-
 -- Remove the previous overload so PostgREST exposes only the current contract.
 drop function if exists public.save_arpg_loadout(uuid, text, text, text[], text[]);
 drop function if exists private.save_arpg_loadout(uuid, text, text, text[], text[]);
-
 create or replace function private.save_arpg_loadout(
   target_player_id uuid,
   target_weapon_id text,
@@ -179,12 +176,10 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.save_arpg_loadout(uuid, text, text, text, text[], text[])
   from public, anon, authenticated;
 grant execute on function private.save_arpg_loadout(uuid, text, text, text, text[], text[])
   to service_role;
-
 create or replace function public.save_arpg_loadout(
   target_player_id uuid,
   target_weapon_id text,
@@ -207,7 +202,6 @@ as $$
     target_ability_ids
   );
 $$;
-
 revoke all on function public.save_arpg_loadout(uuid, text, text, text, text[], text[])
   from public, anon, authenticated;
 grant execute on function public.save_arpg_loadout(uuid, text, text, text, text[], text[])

@@ -11,16 +11,26 @@ export const DialogClose = DialogPrimitive.Close;
 
 export function DialogContent({
   className,
+  overlayClassName,
   children,
   showClose = true,
+  disableCenterTranslate = false,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & { showClose?: boolean }) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  showClose?: boolean;
+  overlayClassName?: string;
+  disableCenterTranslate?: boolean;
+}) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm data-[state=closed]:animate-out data-[state=open]:animate-in" />
+      <DialogPrimitive.Overlay className={cn(
+        "fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm data-[state=closed]:animate-out data-[state=open]:animate-in",
+        overlayClassName,
+      )} />
       <DialogPrimitive.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-2xl focus:outline-none",
+          "fixed left-1/2 top-1/2 z-50 max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-lg overflow-auto rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-2xl focus:outline-none",
+          !disableCenterTranslate && "-translate-x-1/2 -translate-y-1/2",
           className,
         )}
         {...props}

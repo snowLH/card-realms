@@ -1,8 +1,14 @@
 # Release 1.0 — checklist de aceite
-> **Estado vigente em 4 de outubro de 2026:** o usuário autorizou publicação direta na branch main, sem branches. As 38 migrations já foram aplicadas e verificadas no Supabase main (ywawwhnsvpfeppfcuwzg). As referências abaixo a staging indisponível são históricas. O deploy da aplicação ainda está pendente; a release segue parcial enquanto o gate final, pgTAP e aceites restantes não forem concluídos.
-
 
 Este documento acompanha o pedido de reformulação do ARPG e mantém o release como objetivo ativo. `PASS` exige evidência observável; compilar código ou escrever uma migration não comprova comportamento remoto.
+
+## Revalidação vigente — 7 de outubro de 2026
+
+- O Supabase autorizado `ywawwhnsvpfeppfcuwzg` está vinculado pela CLI e alinhado às migrations locais até `20261007105822_repair_raid_authority_wrappers`.
+- Os testes pgTAP remotos de Raid, loadout, bootstrap de perfil e retirada do gacha passaram (43, 9, 11 e 13 asserções).
+- `npm run verify:deploy`: PASS — typecheck, ESLint, 373/373 testes em 73 arquivos e build de produção local.
+- O contrato em vigor é avatar/Lenda com dois poderes, sem apoiadores em combate, com cooperação em dungeons e chefes/inimigos folclóricos. As entradas antigas deste documento permanecem como histórico.
+- Falta somente concluir o pacote prebuilt Vercel após retirar `.env.local` da coleta e executar a publicação autorizada.
 
 ## Revalidação do contrato final ARPG — 4 de outubro de 2026
 
@@ -68,7 +74,7 @@ Este documento acompanha o pedido de reformulação do ARPG e mantém o release 
 
 ## Incremento P1 — sprite original e smoke completo — 3 de outubro de 2026
 
-- O Cartógrafo recebeu spritesheet original em `public/art/cartographer-adventurer-spritesheet-v2.png`, com 11 linhas de quatro quadros e estados integrados em `player-sprites.ts`.
+- O Cartógrafo recebeu originalmente `artifacts/archive/public-art/cartographer-adventurer-spritesheet-v2.png`; o avatar atual é gerado em SVG pelo runtime em `player-sprites.ts`.
 - Dungeon e Guilda agora renderizam o mesmo sprite animado. A primeira repetição revelou que o collider estreito ficava preso no limite inferior de uma passagem; reposicionei o footprint e repeti o percurso.
 - O smoke CDP final passou em viewport landscape 844×390: 10 salas seeded, 21 transições/visitas, salas de combate/elite/descanso/loja/tesouro/evento, Curupira derrotado, loot elegível, resultado de extração, retorno à Guilda e zero erros de runtime.
 - A run visitante terminou com 126/154 HP. O teste local não alterou o Supabase.
@@ -232,7 +238,7 @@ Este documento acompanha o pedido de reformulação do ARPG e mantém o release 
 
 ## Incremento P1 — Arquivista animada no Arquivo das Lendas — 4 de outubro de 2026
 
-- Criei `public/art/guild-archivist-spritesheet.png`, uma personagem original com folha 4×4: espera, leitura/escrita, fala e caminhada. A cena do hub agora anima a Arquivista na estação e mostra a frase “As lendas vivem nas cartas” quando o jogador se aproxima.
+- Criei originalmente `artifacts/archive/public-art/guild-archivist-spritesheet.png`, personagem com ciclos de espera, leitura/escrita, fala e caminhada. A folha antiga está preservada; a Guilda ativa usa `public/art/guild-archivist-spritesheet-v1.webp`.
 - O CUA confirmou a personagem e seu prompt no preview local da Guilda. A tecla E não abriu a estação durante esta revisão; o fluxo Arquivo→cartas já tem cobertura anterior, mas esta interação física precisa de nova verificação. O PWA foi atualizado para cache v13 e a checagem de cache espera a nova imagem; o smoke PWA/CDP não foi executado nesta rodada.
 - `npm run verify:deploy`: PASS — typecheck, ESLint, 221/221 testes em 37 arquivos e build Next.js 16.3.6. Nenhuma migration, gravação remota ou publicação foi feita.
 
@@ -269,7 +275,7 @@ Este documento acompanha o pedido de reformulação do ARPG e mantém o release 
 
 ## Incremento P1 — naturalista do Bestiário — 4 de outubro de 2026
 
-- Criei `public/art/guild-bestiary-keeper-spritesheet.png`, folha original transparente 4×4 de Luzia: estudo, idle, fala e caminhada. Na Guilda, ela alterna esses ciclos, fala sobre respeitar versões diferentes do folclore e ocupa fisicamente a estação do Bestiário; `E` mantém o acesso ao catálogo com origens.
+- Criei originalmente `artifacts/archive/public-art/guild-bestiary-keeper-spritesheet.png`, folha transparente de Luzia. A folha antiga está preservada; a Guilda ativa usa `public/art/guild-bestiary-keeper-spritesheet-v1.webp`. Luzia alterna ciclos de estudo, idle, fala e caminhada, ocupa fisicamente a estação do Bestiário e `E` mantém o acesso ao catálogo com origens.
 - `scripts/arpg-hub-smoke.mjs` passou 33/33 checks em desktop e 844×390, confirmando Luzia→Bestiário e os percursos anteriores sem overflow ou erros fatais. `scripts/arpg-pwa-smoke.mjs`, em perfil limpo, confirmou service worker v14, cache essencial com 19 assets e remoção do v13.
 - Após o novo cenário e a folha da Luzia, repeti `scripts/arpg-full-run-smoke.mjs`: grafo de 12 salas, Curupira derrotado com 116/154 HP, padrões das três fases, duas barreiras físicas, loot/extração e retorno à Guilda; 12/12 checks, sem erros CDP.
 - `npm run verify:deploy`: PASS — typecheck, ESLint, 231/231 testes em 40 arquivos e build local Next.js 16.3.6. Não houve migration, gravação remota ou publicação.

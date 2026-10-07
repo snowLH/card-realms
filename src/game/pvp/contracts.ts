@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PvpRealtimeActionSchema } from "./realtime";
 
 const CanonicalUuidSchema = z.string().uuid().transform((value) => value.toLowerCase());
 
@@ -12,26 +13,7 @@ export const RespondChallengeSchema = z.discriminatedUnion("response", [
   z.strictObject({ challengeId: CanonicalUuidSchema, response: z.literal("cancel") }),
 ]);
 
-const VersionedAction = {
-  battleId: CanonicalUuidSchema,
-  expectedVersion: z.number().int().positive(),
-  actionId: CanonicalUuidSchema,
-};
-
-export const PvpActionSchema = z.discriminatedUnion("action", [
-  z.strictObject({
-    ...VersionedAction,
-    action: z.literal("attach"),
-    cardId: z.string().min(8).max(120),
-  }),
-  z.strictObject({
-    ...VersionedAction,
-    action: z.literal("ability"),
-    slot: z.union([z.literal(0), z.literal(1)]),
-  }),
-  z.strictObject({ ...VersionedAction, action: z.literal("pass") }),
-  z.strictObject({ ...VersionedAction, action: z.literal("concede") }),
-]);
+export const PvpActionSchema = PvpRealtimeActionSchema;
 
 export type PvpAction = z.infer<typeof PvpActionSchema>;
 

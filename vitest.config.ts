@@ -4,8 +4,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.{ts,tsx}"],
-    pool: "forks",
-    maxWorkers: 1,
+    setupFiles: ["./src/test/vitest.setup.ts"],
+    pool: "threads",
+    maxWorkers: 2,
     coverage: {
       reporter: ["text", "json", "html"],
     },

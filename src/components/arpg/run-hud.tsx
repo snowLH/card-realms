@@ -1,11 +1,14 @@
 "use client";
 
-import { Coins, Gem, Heart, Shield, Swords } from "lucide-react";
+import { Coins, Gem, Heart, Sparkles, Swords, Wind } from "lucide-react";
 import { ARPG_ABILITY_CARD_BY_ID } from "@/game/arpg/content/ability-cards";
-import { ARPG_ARMORS, ARPG_WEAPONS } from "@/game/arpg/content/equipment";
+import { ARPG_WEAPONS, ARPG_WEAPON_BY_ID } from "@/game/arpg/content/equipment";
 import { MATA_CARDS } from "@/game/arpg/content/mata-encantada";
 import { ARPG_RELIC_BY_ID, STARTER_ARPG_RELIC_ID } from "@/game/arpg/content/relics";
-import type { ArpgDungeonMapState, ArpgHudState, ArpgMiniMapRoomType } from "@/game/arpg/domain/types";
+import { PixelCreature } from "@/components/game/pixel-creature";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { CREATURE_BY_ID } from "@/game/catalog";
+import type { ArpgDungeonMapState, ArpgHudState, ArpgMiniMapRoomState, ArpgMiniMapRoomType } from "@/game/arpg/domain/types";
 
 function roomMarker(type: ArpgMiniMapRoomType) {
   if (type === "start") return "S";
@@ -28,6 +31,13 @@ function roomTypeLabel(type: ArpgMiniMapRoomType) {
   if (type === "event") return "Evento";
   if (type === "combat") return "Combate";
   return "Sala desconhecida";
+}
+
+function roomStateLabel(state: ArpgMiniMapRoomState) {
+  if (state === "active") return "ativa";
+  if (state === "combat") return "em combate";
+  if (state === "cleared") return "concluída";
+  return "revelada";
 }
 
 function DungeonMiniMap({ map, expanded = false }: { map: ArpgDungeonMapState; expanded?: boolean }) {
@@ -77,16 +87,50 @@ function DungeonMiniMap({ map, expanded = false }: { map: ArpgDungeonMapState; e
   );
 }
 
-export function DungeonMapOverlay({ map, onClose }: { map: ArpgDungeonMapState; onClose: () => void }) {
+export function DungeonMapOverlay({
+  map,
+  open = true,
+  onClose,
+  restoreFocus,
+}: {
+  map: ArpgDungeonMapState;
+  open?: boolean;
+  onClose: () => void;
+  restoreFocus?: () => void;
+}) {
+  const currentRoom = map.rooms.find((room) => room.id === map.currentRoomId);
+  const revealedTypes = [...new Set(map.rooms
+    .filter((room) => room.type !== "unknown")
+    .map((room) => roomTypeLabel(room.type)))];
+  const mapSummary = [
+    currentRoom
+      ? `Sala atual: ${roomTypeLabel(currentRoom.type)}, ${roomStateLabel(currentRoom.state)}.`
+      : "Sala atual não identificada.",
+    revealedTypes.length
+      ? `Tipos de sala revelados: ${revealedTypes.join(", ")}.`
+      : "Nenhum tipo de sala foi revelado ainda.",
+  ].join(" ");
+
   return (
-    <section className="arpg-map-overlay" role="dialog" aria-modal="true" aria-labelledby="arpg-map-title">
-      <div className="arpg-map-overlay__panel">
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
+      <DialogContent
+        className="arpg-map-overlay__panel"
+        aria-modal="true"
+        showClose={false}
+        onCloseAutoFocus={(event) => {
+          if (restoreFocus) {
+            event.preventDefault();
+            restoreFocus();
+          }
+        }}
+      >
         <header>
           <div>
             <small>ROTA DA EXPEDIÇÃO</small>
-            <h1 id="arpg-map-title">Mapa</h1>
+            <DialogTitle asChild><h1>Mapa</h1></DialogTitle>
+            <DialogDescription className="sr-only">{mapSummary}</DialogDescription>
           </div>
-          <button type="button" aria-label="Fechar mapa" autoFocus onClick={onClose}>×</button>
+          <button type="button" aria-label="Fechar mapa" onClick={onClose}>×</button>
         </header>
         <DungeonMiniMap map={map} expanded />
         <p className="arpg-map-overlay__legend">
@@ -95,37 +139,56 @@ export function DungeonMapOverlay({ map, onClose }: { map: ArpgDungeonMapState; 
           <span>? Próxima sala sem revelar</span>
         </p>
         <button className="arpg-map-overlay__close" type="button" onClick={onClose}>Continuar expedição</button>
-      </div>
-    </section>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 export function RunHud({ state }: { state: ArpgHudState | null }) {
   if (!state) return null;
-  const weapon = ARPG_WEAPONS.find((item) => item.id === state.weaponId) ?? ARPG_WEAPONS[0];
-  const secondaryWeapon = ARPG_WEAPONS.find((item) => item.id === state.secondaryWeaponId) ?? ARPG_WEAPONS[0];
-  const armor = ARPG_ARMORS.find((item) => item.id === state.armorId) ?? ARPG_ARMORS[0];
+  const weaponSlots = state.weaponSlots ?? { A: state.weaponId, B: null, active: "A" as const };
+  const weaponA = ARPG_WEAPON_BY_ID.get(weaponSlots.A) ?? ARPG_WEAPONS[0];
+  const weaponB = weaponSlots.B ? ARPG_WEAPON_BY_ID.get(weaponSlots.B) : null;
   const relic = ARPG_RELIC_BY_ID.get(state.relicId) ?? ARPG_RELIC_BY_ID.get(STARTER_ARPG_RELIC_ID)!;
   const cards = state.abilityIds.map((id) => ARPG_ABILITY_CARD_BY_ID.get(id) ?? MATA_CARDS[0]);
   const hpPercent = Math.max(0, Math.min(100, (state.hp / state.maxHp) * 100));
 
   return (
-    <div className="arpg-hud" aria-live="polite">
+    <div className="arpg-hud" role="group" aria-label="Estado da expedição">
       <div className="arpg-hud__status">
-        <span className="arpg-hud__status-item arpg-hud__status-health"><Heart aria-hidden="true" /> {Math.ceil(state.hp)}/{state.maxHp}</span>
+        <span className="arpg-hud__status-item arpg-hud__status-health">
+          <Heart aria-hidden="true" /><b>{Math.ceil(state.hp)}/{state.maxHp}</b>
+        </span>
         <div className="arpg-hud__hp arpg-hud__status-item" role="meter" aria-label="Vida" aria-valuemin={0} aria-valuemax={state.maxHp} aria-valuenow={Math.ceil(state.hp)}><i style={{ width: `${hpPercent}%` }} /></div>
-        <span className="arpg-hud__status-item arpg-hud__status-room">Sala {state.room}/{state.roomCount} · {state.enemiesRemaining} inimigos</span>
-        <span className="arpg-hud__status-item arpg-hud__status-shards"><Coins aria-hidden="true" /> {state.runShards} fragmentos</span>
+        <span className="arpg-hud__status-item arpg-hud__status-room">
+          <b>{state.room}/{state.roomCount}</b><small>SALA</small><i aria-hidden="true" />
+          <span className="arpg-hud__enemy-count">{state.enemiesRemaining} inimigos</span>
+        </span>
+        <span className="arpg-hud__status-item arpg-hud__status-shards">
+          <Coins aria-hidden="true" /><b>{state.runShards}</b><small>FRAG.</small>
+        </span>
       </div>
 
-      <div className="arpg-hud__loadout">
-        <span className="arpg-hud__equipment" role="img" aria-label={`Arma atual: ${weapon.name}; reserva: ${secondaryWeapon.name}; pressione Q para alternar`} title={`Atual: ${weapon.name} · Reserva: ${secondaryWeapon.name} · Q alterna`}>
-          <Swords aria-hidden="true" /><span className="arpg-hud__equipment-name">{weapon.name}</span>
-          <small className="arpg-hud__equipment-hint">Reserva: {secondaryWeapon.name} · Q</small>
+      <div className="arpg-hud__loadout" role="group" aria-label="Armas e relíquia equipadas nesta expedição">
+        <span
+          className={`arpg-hud__equipment${weaponSlots.active === "A" ? " is-active" : ""}`}
+          role="img"
+          aria-label={`Slot A${weaponSlots.active === "A" ? ", arma ativa" : ""}: ${weaponA.name}`}
+          title={`Slot A: ${weaponA.name}`}
+        >
+          <b>A</b><Swords aria-hidden="true" /><span className="arpg-hud__equipment-name">{weaponA.name}</span>
         </span>
-        <span className="arpg-hud__equipment" role="img" aria-label={`Armadura equipada: ${armor.name}`} title={`Armadura: ${armor.name}`}>
-          <Shield aria-hidden="true" /><span className="arpg-hud__equipment-name">{armor.name}</span>
-        </span>
+        {weaponB ? (
+          <span
+            className={`arpg-hud__equipment${weaponSlots.active === "B" ? " is-active" : ""}`}
+            role="img"
+            aria-label={`Slot B${weaponSlots.active === "B" ? ", arma ativa" : ""}: ${weaponB.name}`}
+            title={`Slot B: ${weaponB.name}`}
+          >
+            <b>B</b><Swords aria-hidden="true" /><span className="arpg-hud__equipment-name">{weaponB.name}</span>
+          </span>
+        ) : <span className="arpg-hud__interaction">B vazio</span>}
+        {weaponB ? <span className="arpg-hud__interaction">Q trocar</span> : null}
         <span className="arpg-hud__equipment" role="img" aria-label={`Relíquia equipada: ${relic.name}`} title={`Relíquia: ${relic.name}`}>
           <Gem aria-hidden="true" /><span className="arpg-hud__equipment-name">{relic.name}</span>
         </span>
@@ -133,14 +196,49 @@ export function RunHud({ state }: { state: ArpgHudState | null }) {
         {state.exitPortalAvailable ? <span className="arpg-hud__interaction">Portal de extração · E</span> : null}
       </div>
 
+      {state.runMoveSpeedBonus > 0 || state.runBasicDamageMultiplier > 1 ? (
+        <div className="arpg-hud__run-buffs" role="group" aria-label="Bônus temporários desta run">
+          <span className="arpg-hud__run-buffs-label">BÔNUS DA RUN</span>
+          {state.runMoveSpeedBonus > 0 ? (
+            <span
+              className="arpg-hud__run-buff"
+              aria-label={`Velocidade de movimento aumentada em ${state.runMoveSpeedBonus} pontos até o fim desta run`}
+              title={`Velocidade de movimento +${state.runMoveSpeedBonus} até o fim da run`}
+            >
+              <Wind aria-hidden="true" /> +{state.runMoveSpeedBonus} velocidade
+            </span>
+          ) : null}
+          {state.runBasicDamageMultiplier > 1 ? (
+            <span
+              className="arpg-hud__run-buff"
+              aria-label={`Dano básico aumentado em ${Math.round((state.runBasicDamageMultiplier - 1) * 100)}% até o fim desta run`}
+              title={`Dano básico +${Math.round((state.runBasicDamageMultiplier - 1) * 100)}% até o fim da run`}
+            >
+              <Swords aria-hidden="true" /> +{Math.round((state.runBasicDamageMultiplier - 1) * 100)}% dano básico
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
       {state.dungeonMap ? <DungeonMiniMap map={state.dungeonMap} /> : null}
 
       <div className="arpg-hud__cards">
         {cards.map((card, index) => {
           const remaining = Math.max(0, (state.abilityReadyAt[card.id] ?? 0) - state.nowMs);
+          const creature = CREATURE_BY_ID.get(card.creatureId);
           return (
-            <span key={card.id} className={remaining > 0 ? "is-cooling" : "is-ready"}>
-              <b>{index + 1}</b> {card.name}
+            <span
+              key={card.id}
+              className={remaining > 0 ? "is-cooling" : "is-ready"}
+              aria-label={`Poder ${index + 1}: ${card.name}, ${remaining > 0 ? `recarga de ${(remaining / 1000).toFixed(1)} segundos` : "pronto"}`}
+            >
+              <b>{index + 1}</b>
+              <span className="arpg-hud__card-portrait" aria-hidden="true">
+                {creature
+                  ? <PixelCreature sprite={creature.sprite} className="arpg-hud__card-sprite" label="" />
+                  : <Sparkles className="arpg-hud__card-fallback" aria-hidden="true" />}
+              </span>
+              <span className="arpg-hud__card-name">{card.name}</span>
               <small>{remaining > 0 ? `${(remaining / 1000).toFixed(1)}s` : "PRONTA"}</small>
             </span>
           );

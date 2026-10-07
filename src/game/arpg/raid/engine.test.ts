@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_ARPG_LOADOUT } from "../content/mata-encantada";
-import { ARPG_WEAPONS, getDefaultSecondaryArpgWeaponId } from "../content/equipment";
-import { DEFAULT_AVATAR_CONFIG } from "@/game/save/local-progress";
 import { ARPG_ROC_RAID_BOSS } from "./content";
 import {
   ArpgRaidRuleError,
@@ -22,11 +20,6 @@ function players(count = 2): ArpgRaidPlayerSetup[] {
     id: `player-${index + 1}`,
     name: `Cartógrafo ${index + 1}`,
     seat: index + 1,
-    avatarConfig: {
-      ...DEFAULT_AVATAR_CONFIG,
-      skin: index === 0 ? "amber" : "umber",
-      hair: index === 0 ? "mohawk" : "waves",
-    },
     loadout: structuredClone(DEFAULT_ARPG_LOADOUT),
   }));
 }
@@ -36,52 +29,18 @@ function state(count = 2) {
 }
 
 describe("ARPG Raid authoritative foundation", () => {
-  it("cria uma Raid Mítica com 2 a 5 loadouts ARPG, sem equipes de seis", () => {
-    const raid = state(5);
-    expect(raid.players).toHaveLength(5);
+  it("cria uma expedição mítica com 2 a 4 Lendas e dois poderes por jogador", () => {
+    const raid = state(4);
+    expect(raid.players).toHaveLength(4);
     expect(raid.players.every((player) => player.loadout.abilityIds.length === 2)).toBe(true);
-    expect(raid.players[0].avatarConfig).toEqual(expect.objectContaining({ skin: "amber", hair: "mohawk" }));
-    expect(raid.players[1].avatarConfig).toEqual(expect.objectContaining({ skin: "umber", hair: "waves" }));
     expect(raid.boss.catalogId).toBe("roc");
     expect(raid.boss.hp).toBe(10_000);
   });
 
-  it("valida a configuração do avatar no setup e no snapshot autoritativo", () => {
-    const raid = state();
-    const schemaReadyState = structuredClone(raid);
-    const secondWeaponId = ARPG_WEAPONS.find((weapon) => weapon.id !== raid.players[0].loadout.weaponId)!.id;
-    schemaReadyState.players[0].loadout.secondaryWeaponId = secondWeaponId;
-    schemaReadyState.players.forEach((player, index) => {
-      player.id = `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`;
-    });
-    const parsedSnapshot = ArpgRaidStateSchema.parse(schemaReadyState);
-    expect(parsedSnapshot.players[0].avatarConfig).toEqual(players()[0].avatarConfig);
-    expect(parsedSnapshot.players[0].loadout.secondaryWeaponId).toBe(secondWeaponId);
-    expect(ArpgRaidStateSchema.parse(JSON.parse(JSON.stringify(parsedSnapshot)))
-      .players[0].loadout.secondaryWeaponId).toBe(secondWeaponId);
-
-    const invalidAvatarState = structuredClone(schemaReadyState);
-    (invalidAvatarState.players[0].avatarConfig as { hair: string }).hair = "long";
-    expect(ArpgRaidStateSchema.safeParse(invalidAvatarState).success).toBe(false);
-
-    const legacyState = structuredClone(schemaReadyState);
-    delete (legacyState.players[0] as Partial<typeof legacyState.players[number]>).avatarConfig;
-    delete (legacyState.players[0].loadout as { secondaryWeaponId?: string }).secondaryWeaponId;
-    const parsedLegacySnapshot = ArpgRaidStateSchema.parse(legacyState);
-    expect(parsedLegacySnapshot.players[0].avatarConfig).toEqual(DEFAULT_AVATAR_CONFIG);
-    expect(parsedLegacySnapshot.players[0].loadout.secondaryWeaponId)
-      .toBe(getDefaultSecondaryArpgWeaponId(parsedLegacySnapshot.players[0].loadout.weaponId));
-
-    const invalidSetup = players();
-    (invalidSetup[0] as { avatarConfig: unknown }).avatarConfig = { ...DEFAULT_AVATAR_CONFIG, skin: "violet" };
-    expect(() => createArpgRaidState(ROOM_ID, EVENT_ID, invalidSetup, ARPG_ROC_RAID_BOSS, START))
-      .toThrow(ArpgRaidRuleError);
-  });
-
-  it("rejeita quantidade de participantes fora de 2–5", () => {
+  it("rejeita quantidade de participantes fora de 2–4", () => {
     expect(() => createArpgRaidState(ROOM_ID, EVENT_ID, players(1), ARPG_ROC_RAID_BOSS, START))
       .toThrow(ArpgRaidRuleError);
-    expect(() => createArpgRaidState(ROOM_ID, EVENT_ID, players(6), ARPG_ROC_RAID_BOSS, START))
+    expect(() => createArpgRaidState(ROOM_ID, EVENT_ID, players(5), ARPG_ROC_RAID_BOSS, START))
       .toThrow(ArpgRaidRuleError);
   });
 
@@ -111,23 +70,6 @@ describe("ARPG Raid authoritative foundation", () => {
       ...DEFAULT_ARPG_LOADOUT,
       abilityIds: ["ancestral-roots", "ancestral-roots"],
     }).success).toBe(false);
-    expect(ArpgRaidLoadoutSchema.safeParse({
-      ...DEFAULT_ARPG_LOADOUT,
-      secondaryWeaponId: DEFAULT_ARPG_LOADOUT.weaponId,
-    }).success).toBe(false);
-    expect(ArpgRaidLoadoutSchema.safeParse({
-      ...DEFAULT_ARPG_LOADOUT,
-      secondaryWeaponId: "missing-weapon",
-    }).success).toBe(false);
-  });
-
-  it("normaliza um loadout legado sem segunda arma para uma arma válida e distinta", () => {
-    const legacyLoadout = structuredClone(DEFAULT_ARPG_LOADOUT);
-    delete legacyLoadout.secondaryWeaponId;
-    const parsed = ArpgRaidLoadoutSchema.parse(legacyLoadout);
-
-    expect(parsed.secondaryWeaponId).toBe(getDefaultSecondaryArpgWeaponId(parsed.weaponId));
-    expect(parsed.secondaryWeaponId).not.toBe(parsed.weaponId);
   });
 
   it("aceita apenas dois slots de ataque e não aceita ações de supporter", () => {
@@ -149,6 +91,52 @@ describe("ARPG Raid authoritative foundation", () => {
     });
     expect(uppercase.roomId).toBe(ROOM_ID);
     expect(uppercase.actionId).toBe(common.actionId);
+  });
+
+  it("aceita reanimação cooperativa como ação estrita e canônica", () => {
+    const request = ArpgRaidActionRequestSchema.parse({
+      roomId: ROOM_ID.toUpperCase(),
+      expectedVersion: 1,
+      actionId: "33333333-3333-4333-8333-333333333333",
+      action: "revive",
+      targetPlayerId: "44444444-4444-4444-8444-444444444444".toUpperCase(),
+    });
+    expect(request.action).toBe("revive");
+    if (request.action === "revive") {
+      expect(request.targetPlayerId).toBe("44444444-4444-4444-8444-444444444444");
+    }
+    expect(ArpgRaidActionRequestSchema.safeParse({
+      roomId: ROOM_ID,
+      expectedVersion: 1,
+      actionId: "33333333-3333-4333-8333-333333333333",
+      action: "revive",
+      targetPlayerId: "not-a-player-id",
+      hp: 120,
+    }).success).toBe(false);
+  });
+
+  it("adiciona os campos de reanimação ao ler estados de Raid ARPG já persistidos", () => {
+    const previousState = createArpgRaidState(
+      ROOM_ID,
+      EVENT_ID,
+      [
+        { id: "33333333-3333-4333-8333-333333333333", name: "A", seat: 1, loadout: structuredClone(DEFAULT_ARPG_LOADOUT) },
+        { id: "44444444-4444-4444-8444-444444444444", name: "B", seat: 2, loadout: structuredClone(DEFAULT_ARPG_LOADOUT) },
+      ],
+      ARPG_ROC_RAID_BOSS,
+      START,
+    );
+    const legacySnapshot = structuredClone(previousState) as unknown as Record<string, unknown>;
+    delete legacySnapshot.reviveCharges;
+    legacySnapshot.players = previousState.players.map((player) => {
+      const legacyPlayer = { ...player } as { downedUntilMs?: number };
+      delete legacyPlayer.downedUntilMs;
+      return legacyPlayer;
+    });
+
+    const parsed = ArpgRaidStateSchema.parse(legacySnapshot);
+    expect(parsed.reviveCharges).toBe(2);
+    expect(parsed.players.every((player) => player.downedUntilMs === 0)).toBe(true);
   });
 
   it("integra movimento no servidor e limita o avanço máximo por requisição", () => {
@@ -222,7 +210,7 @@ describe("ARPG Raid authoritative foundation", () => {
     expect(deltas[3]).toBeGreaterThan(deltas[0]);
   });
 
-  it("aplica cura periódica da Iara e contra-ataque do Ahuízotl no servidor", () => {
+  it("aplica o proc de arma da Iara e não ativa armaduras legadas", () => {
     const healingSetups = players();
     healingSetups[0].loadout.weaponId = "iara-song-staff";
     const healingRaid = createArpgRaidState(ROOM_ID, EVENT_ID, healingSetups, ARPG_ROC_RAID_BOSS, START);
@@ -245,7 +233,7 @@ describe("ARPG Raid authoritative foundation", () => {
     retaliationRaid.boss.nextAttackAtMs = START;
     const bossHpBefore = retaliationRaid.boss.hp;
     const retaliated = advanceArpgRaid(retaliationRaid, START + 50).state;
-    expect(retaliated.boss.hp).toBe(bossHpBefore - 10);
+    expect(retaliated.boss.hp).toBe(bossHpBefore);
   });
 
   it("retry do mesmo actionId é idempotente e não avança o relógio", () => {
@@ -266,6 +254,70 @@ describe("ARPG Raid authoritative foundation", () => {
     const stepped = advanceArpgRaid(phaseTwo, START + 1_100).state;
     const attacked = advanceArpgRaid(stepped, START + 1_600).state;
     expect(attacked.players.some((player, index) => player.hp < beforeHp[index])).toBe(true);
+  });
+
+  it("derruba um jogador com janela de resgate e permite que o grupo o reergua uma vez", () => {
+    const raid = state();
+    raid.boss.x = raid.players[0].x;
+    raid.boss.y = raid.players[0].y;
+    raid.players[0].hp = 1;
+    raid.boss.nextAttackAtMs = START;
+
+    const downed = advanceArpgRaid(raid, START + 50).state;
+    const target = downed.players.find((player) => player.id === "player-1")!;
+    const source = downed.players.find((player) => player.id === "player-2")!;
+    expect(target.alive).toBe(false);
+    expect(target.downedUntilMs).toBe(downed.serverTimeMs + 20_000);
+    expect(downed.status).toBe("active");
+
+    target.x = source.x;
+    target.y = source.y;
+    const revived = applyArpgRaidAction(downed, source.id, {
+      kind: "revive",
+      actionId: "revive-player-1",
+      targetPlayerId: target.id,
+    }, downed.serverTimeMs);
+
+    expect(revived.state.reviveCharges).toBe(1);
+    expect(revived.state.players[0].alive).toBe(true);
+    expect(revived.state.players[0].hp).toBe(42);
+    expect(revived.state.players[0].downedUntilMs).toBe(0);
+    expect(revived.state.players[1].contribution.healing).toBe(42);
+    expect(revived.events.at(-1)?.kind).toBe("player_revived");
+  });
+
+  it("exige aliado derrubado próximo e uma reanimação restante", () => {
+    const raid = state();
+    raid.players[0].alive = false;
+    raid.players[0].hp = 0;
+    raid.players[0].downedUntilMs = START + 10_000;
+
+    expect(() => applyArpgRaidAction(raid, "player-2", {
+      kind: "revive",
+      actionId: "revive-too-far",
+      targetPlayerId: "player-1",
+    }, START)).toThrow("Chegue mais perto");
+
+    raid.players[0].x = raid.players[1].x;
+    raid.players[0].y = raid.players[1].y;
+    raid.reviveCharges = 0;
+    expect(() => applyArpgRaidAction(raid, "player-2", {
+      kind: "revive",
+      actionId: "revive-no-charge",
+      targetPlayerId: "player-1",
+    }, START)).toThrow("não tem mais reanimações");
+  });
+
+  it("elimina um jogador derrubado quando termina a janela de resgate", () => {
+    const raid = state();
+    raid.players[0].alive = false;
+    raid.players[0].hp = 0;
+    raid.players[0].downedUntilMs = START + 50;
+
+    const expired = advanceArpgRaid(raid, START + 50);
+    expect(expired.state.players[0].downedUntilMs).toBe(0);
+    expect(expired.state.status).toBe("active");
+    expect(expired.events.some((event) => event.kind === "player_eliminated")).toBe(true);
   });
 
   it("vitória e elegibilidade de recompensa dependem de contribuição server-side", () => {

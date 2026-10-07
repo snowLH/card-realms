@@ -360,7 +360,7 @@ export function LocalExploration({
               className="local-party-player"
               style={actorStyle({ x: member.x, y: member.y }, map)}
             >
-              <CharacterAvatar2D config={member.avatar} compact />
+              <CharacterAvatar2D config={member.avatar} compact ariaLabel={`Avatar de ${member.name}`} />
               <span>{member.name}</span>
             </div>
           ))}
@@ -369,7 +369,7 @@ export function LocalExploration({
             className={cn("local-player", path.length && "is-walking", facing === "left" && "is-facing-left")}
             style={actorStyle(player, map)}
           >
-            <CharacterAvatar2D config={avatar} compact />
+            <CharacterAvatar2D config={avatar} compact ariaLabel="Seu avatar na expedição" />
             <span>Você</span>
           </div>
         </div>
@@ -400,8 +400,8 @@ export function LocalExploration({
               <Button type="button" variant="game" onClick={() => {
                 setInteraction(null);
                 onBattle({ kind: "wild", regionId: region.id, creatureId: encounterCreature.id });
-              }}><Swords /> Iniciar batalha de cartas</Button>
-              <small>As batalhas rendem moedas e experiência. Novos poderes podem ser comprados e equipados no Arquivo de Poderes da Guilda.</small>
+              }}><Swords /> Iniciar combate</Button>
+              <small>Este encontro abre uma expedição de ação da região. Lute com sua Lenda e seus dois ataques de assinatura; a extração registra as recompensas.</small>
             </>
           ) : null}
         </aside>

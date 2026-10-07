@@ -46,7 +46,7 @@ export function PwaInstallButton() {
     <button type="button" className="pwa-install-button" onClick={() => void install()}>
       <Download />
       <span>
-        <strong>Instalar Card Realms</strong>
+        <strong>Instalar Folklard</strong>
         <small>Adicionar como aplicativo</small>
       </span>
     </button>

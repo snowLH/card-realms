@@ -25,6 +25,48 @@ export type DungeonLoot = {
   label: string;
 };
 
+// Old signed run tokens can still point to armor choices from retired loot
+// plans. Keep only the IDs needed to validate and drain those runs; new room
+// catalogs contain weapons only.
+const LEGACY_ARMOR_LOOT: Record<ArpgExpeditionId, readonly (readonly DungeonLoot[])[]> = {
+  "mata-encantada": [
+    [],
+    [
+      { kind: "armor", id: "ritual-cloak", label: "Manto Ritual" },
+      { kind: "armor", id: "forest-guardian-armor", label: "Peitoral dos Rastros do Curupira" },
+    ],
+    [],
+    [
+      { kind: "armor", id: "forest-guardian-armor", label: "Peitoral dos Rastros do Curupira" },
+      { kind: "armor", id: "ritual-cloak", label: "Manto Ritual" },
+    ],
+  ],
+  "arquipelago-das-mares": [
+    [],
+    [
+      { kind: "armor", id: "river-shell-armor", label: "Armadura de Conchas" },
+      { kind: "armor", id: "kelpie-mist-cloak", label: "Manto da Névoa do Kelpie" },
+    ],
+    [],
+    [
+      { kind: "armor", id: "ahuizotl-guard-armor", label: "Armadura do Ahuízotl" },
+      { kind: "armor", id: "kelpie-mist-cloak", label: "Manto da Névoa do Kelpie" },
+    ],
+  ],
+  "montanhas-runicas": [
+    [],
+    [
+      { kind: "armor", id: "highland-coat", label: "Casaco das Alturas" },
+      { kind: "armor", id: "amarok-hunter-armor", label: "Couraça da Caçada do Amarok" },
+    ],
+    [],
+    [
+      { kind: "armor", id: "carbunclo-mantle", label: "Manto da Gema do Carbunclo" },
+      { kind: "armor", id: "amarok-hunter-armor", label: "Couraça da Caçada do Amarok" },
+    ],
+  ],
+};
+
 export type ArpgDungeonRuntimeConfig = {
   id: ArpgExpeditionId;
   sceneKey: string;
@@ -37,7 +79,25 @@ export type ArpgDungeonRuntimeConfig = {
   createRoomPlan: () => string[][];
   enemyFrames: Partial<Record<string, number>>;
   enemyAtlas?: Partial<Record<string, "folklore-atlas" | "folklore-atlas-2">>;
-  enemyAnimations?: Partial<Record<string, "curupira-boss" | "amarok-boss" | "iara-boss" | "sprout-enemy" | "boto-enemy" | "raiju-enemy">>;
+  enemyAnimations?: Partial<Record<string,
+    | "curupira-boss"
+    | "amarok-boss"
+    | "iara-boss"
+    | "sprout-enemy"
+    | "boto-enemy"
+    | "raiju-enemy"
+    | "shade-enemy"
+    | "thorn-enemy"
+    | "corrupted-guardian-enemy"
+    | "mapinguari-enemy"
+    | "kappa-enemy"
+    | "ratatoskr-enemy"
+    | "carbunclo-enemy"
+    | "kelpie-enemy"
+    | "ahuizotl-enemy"
+    | "alicanto-enemy"
+    | "yeti-enemy"
+  >>;
   messages: {
     intro: string;
     bossIntro: string;
@@ -63,7 +123,10 @@ function pickLootPlan(
 ) {
   return pools.map((pool) => {
     const roll = Math.max(0, Math.min(0.999999999, random()));
-    return pool[Math.floor(roll * pool.length)];
+    const availableLoot = pool.some((item) => item.kind === "weapon")
+      ? pool.filter((item) => item.kind === "weapon")
+      : pool;
+    return availableLoot[Math.floor(roll * availableLoot.length)];
   });
 }
 
@@ -95,7 +158,14 @@ const MATA_DUNGEON: ArpgDungeonRuntimeConfig = {
   createLootPlan: (random) => pickLootPlan(MATA_ROOM_LOOT_POOLS, random),
   createRoomPlan: () => createMataRoomPlan(),
   enemyFrames: { miniBoss: 12, boss: 10 },
-  enemyAnimations: { sprout: "sprout-enemy", boss: "curupira-boss" },
+  enemyAnimations: {
+    shade: "shade-enemy",
+    thorn: "thorn-enemy",
+    elite: "corrupted-guardian-enemy",
+    sprout: "sprout-enemy",
+    miniBoss: "mapinguari-enemy",
+    boss: "curupira-boss",
+  },
   messages: {
     intro: "Mata Encantada iniciada. Derrote a primeira onda.",
     bossIntro: "O Curupira Ancestral entrou na arena.",
@@ -126,7 +196,13 @@ const MARES_DUNGEON: ArpgDungeonRuntimeConfig = {
   createLootPlan: (random) => pickLootPlan(MARES_ROOM_LOOT_POOLS, random),
   createRoomPlan: () => shuffledRoomPlan(MARES_ROOM_WAVES),
   enemyFrames: { skirmisher: 6, guardian: 8, elite: 7, miniBoss: 9, boss: 5 },
-  enemyAnimations: { skirmisher: "boto-enemy", boss: "iara-boss" },
+  enemyAnimations: {
+    skirmisher: "boto-enemy",
+    guardian: "kappa-enemy",
+    elite: "kelpie-enemy",
+    miniBoss: "ahuizotl-enemy",
+    boss: "iara-boss",
+  },
   messages: {
     intro: "Arquipélago das Marés iniciado. Atravesse a primeira ilha.",
     bossIntro: "O canto da Iara ecoa pela arena inundada.",
@@ -152,7 +228,14 @@ const RUNIC_DUNGEON: ArpgDungeonRuntimeConfig = {
   createRoomPlan: () => shuffledRoomPlan(RUNIC_ROOM_WAVES),
   enemyFrames: { messenger: 14, stormBeast: 16, treasureLight: 24, elite: 11, miniBoss: 13, boss: 14 },
   enemyAtlas: { messenger: "folklore-atlas-2", elite: "folklore-atlas-2", miniBoss: "folklore-atlas-2" },
-  enemyAnimations: { stormBeast: "raiju-enemy", boss: "amarok-boss" },
+  enemyAnimations: {
+    messenger: "ratatoskr-enemy",
+    stormBeast: "raiju-enemy",
+    treasureLight: "carbunclo-enemy",
+    elite: "alicanto-enemy",
+    miniBoss: "yeti-enemy",
+    boss: "amarok-boss",
+  },
   messages: {
     intro: "Montanhas Rúnicas iniciadas. Suba pelas passagens antes que a tempestade feche o caminho.",
     bossIntro: "Um uivo atravessa o cume: Amarok iniciou a caçada.",
@@ -182,7 +265,8 @@ export function createDungeonLootPlan(
 export function isDungeonLootPlanValid(expeditionId: ArpgExpeditionId, itemIds: readonly string[]) {
   const dungeon = ARPG_DUNGEON_CONFIGS[expeditionId];
   return itemIds.length === dungeon.roomLootPools.length
-    && itemIds.every((id, index) => dungeon.roomLootPools[index].some((item) => item.id === id));
+    && itemIds.every((id, index) => dungeon.roomLootPools[index].some((item) => item.id === id)
+      || LEGACY_ARMOR_LOOT[expeditionId][index]?.some((item) => item.id === id));
 }
 
 export function resolveDungeonLootPlan(
@@ -192,5 +276,6 @@ export function resolveDungeonLootPlan(
   const dungeon = ARPG_DUNGEON_CONFIGS[expeditionId];
   if (!itemIds) return dungeon.createLootPlan();
   if (!isDungeonLootPlanValid(expeditionId, itemIds)) throw new Error("Plano de loot ARPG inválido.");
-  return itemIds.map((id, index) => dungeon.roomLootPools[index].find((item) => item.id === id)!);
+  return itemIds.map((id, index) => dungeon.roomLootPools[index].find((item) => item.id === id)
+    ?? LEGACY_ARMOR_LOOT[expeditionId][index].find((item) => item.id === id)!);
 }

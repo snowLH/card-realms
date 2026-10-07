@@ -16,11 +16,12 @@ function createState(runShards: number): ArpgHudState {
     roomCount: 10,
     enemiesRemaining: 0,
     weaponId: "forest-bow",
-    secondaryWeaponId: "iron-sword",
     armorId: "leather-armor",
     relicId: "cartographer-compass",
     dungeonMap: null,
     runShards,
+    runMoveSpeedBonus: 0,
+    runBasicDamageMultiplier: 1,
     chestAvailable: false,
     pendingLoot: null,
     pendingRoomChoice: {
@@ -54,6 +55,7 @@ describe("RoomChoice", () => {
     expect(screen.getByRole("button", { name: /Afiar/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Seguir/i })).toBeEnabled();
     expect(screen.getByText(/8 fragmentos da run/i)).toBeInTheDocument();
+    expect(screen.getByText(/os dois ataques principais vêm juntos com a lenda/i)).toBeInTheDocument();
   });
 
   it("envia a escolha válida para o bridge", () => {

@@ -1,22 +1,16 @@
-import { randomInt, randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
-  BattleStateSchema,
-  BattleLogEntrySchema,
-  GameRuleError,
-  attachEnergy,
-  concedeBattle,
-  passTurn,
-  resolveAbility,
-} from "@/game/battle";
-import {
-  PvpActionSchema,
-  isSamePvpAction,
-  visiblePvpEvents,
-  visiblePvpState,
-  withOpaquePvpEventIds,
-} from "@/game/pvp";
+  PvpRealtimeActionSchema,
+  PvpRealtimeEventSchema,
+  PvpRealtimeRuleError,
+  PvpRealtimeStateSchema,
+  applyPvpRealtimeAction,
+  toPvpRealtimeEngineAction,
+  visiblePvpRealtimeEvents,
+  visiblePvpRealtimeState,
+} from "@/game/pvp/realtime";
+import { isSamePvpAction } from "@/game/pvp/contracts";
 import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthoritativePvpBattle, PvpBattleAccessError, PvpBattleHistoricalError } from "@/server/pvp/battles";
@@ -29,7 +23,7 @@ export async function POST(request: Request) {
     if (!isSupabaseConfigured() || !isSupabaseAdminConfigured()) {
       return NextResponse.json({ error: "O servidor PVP não está configurado." }, { status: 503 });
     }
-    const action = PvpActionSchema.parse(await request.json());
+    const action = PvpRealtimeActionSchema.parse(await request.json());
     const supabase = await createClient();
     const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
     const actorId = claimsData?.claims?.sub;
@@ -37,89 +31,88 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Autenticação necessária." }, { status: 401 });
     }
 
-    const actionType = action.action === "attach" ? "attach_energy" : action.action;
-    const { admin, battle: battleRow, boardId } = await loadAuthoritativePvpBattle(action.battleId, actorId);
-    const { data: previous } = await admin
+    const { admin, battle } = await loadAuthoritativePvpBattle(action.battleId, actorId);
+    const { data: previous, error: previousError } = await admin
       .from("battle_actions")
       .select("action_type,payload,result")
       .eq("battle_id", action.battleId)
       .eq("user_id", actorId)
       .eq("client_action_id", action.actionId)
       .maybeSingle();
+    if (previousError) {
+      return NextResponse.json({ error: "Não foi possível confirmar a ação anterior." }, { status: 503 });
+    }
     if (previous?.result) {
-      if (previous.action_type !== actionType || !isSamePvpAction(previous.payload, action)) {
+      if (previous.action_type !== action.action || !isSamePvpAction(previous.payload, action)) {
         return NextResponse.json(
           { error: "Este identificador de ação já foi usado com outro comando." },
           { status: 409 },
         );
       }
       const stored = previous.result as { state?: unknown; events?: unknown; version?: unknown };
-      const storedState = BattleStateSchema.parse(stored.state);
-      const visible = visiblePvpState(storedState, actorId);
-      const storedEvents = z.array(BattleLogEntrySchema).parse(stored.events);
+      const storedState = PvpRealtimeStateSchema.parse(stored.state);
+      const visible = visiblePvpRealtimeState(storedState, actorId);
+      const storedEvents = z.array(PvpRealtimeEventSchema).parse(stored.events);
       return NextResponse.json({
-        state: visible.state,
-        events: visiblePvpEvents(storedEvents),
+        state: visible,
+        events: visiblePvpRealtimeEvents(storedEvents),
         version: stored.version,
-        boardId,
         authority: "server",
-        hidden: visible.hidden,
       });
     }
-    if (battleRow.version !== action.expectedVersion) {
+    if (battle.version !== action.expectedVersion) {
       return NextResponse.json(
-        { error: "A batalha avançou em outra sessão. Atualize o estado.", currentVersion: battleRow.version },
+        { error: "O duelo avançou em outra sessão. Atualize o estado.", currentVersion: battle.version, conflict: true },
         { status: 409 },
       );
     }
 
-    const state = battleRow.state;
-    if (state.mode !== "pvp" || state.id !== action.battleId) {
-      throw new GameRuleError("Batalha PVP inválida.");
-    }
-    if (action.action !== "concede" && state.turn.sideId !== actorId) {
-      throw new GameRuleError("Aguarde o seu turno.");
-    }
+    const resolved = applyPvpRealtimeAction(
+      battle.state,
+      actorId,
+      toPvpRealtimeEngineAction(action),
+      Date.now(),
+    );
+    const finalState = PvpRealtimeStateSchema.parse(resolved.state);
+    const resultEvents = z.array(PvpRealtimeEventSchema).parse(resolved.events);
 
-    const roll = () => randomInt(1, 7);
-    const effectRoll = () => randomInt(1, 101);
-    const resolved = action.action === "attach"
-      ? attachEnergy(state, actorId, action.cardId, action.actionId)
-      : action.action === "ability"
-        ? resolveAbility(state, actorId, action.slot, roll(), effectRoll(), action.actionId)
-        : action.action === "concede"
-          ? concedeBattle(state, actorId, action.actionId)
-          : passTurn(state, actorId, action.actionId);
-    const result = withOpaquePvpEventIds(resolved, randomUUID);
-
-    const { data, error } = await admin.rpc("commit_pvp_action", {
+    const { data: committed, error: commitError } = await admin.rpc("commit_pvp_action", {
       target_battle_id: action.battleId,
       acting_user_id: actorId,
       expected_version: action.expectedVersion,
       target_client_action_id: action.actionId,
-      target_action_type: actionType,
+      target_action_type: action.action,
       action_payload: action,
-      result_state: result.state,
-      result_events: result.events,
+      result_state: finalState,
+      result_events: resultEvents,
     });
-    if (error) {
-      const conflict = error.code === "40001" || error.code === "23505";
+    if (commitError) {
+      const conflict = commitError.code === "40001";
+      const duplicateId = commitError.code === "23505";
+      const latestVersion = conflict
+        ? await admin.from("battles").select("version").eq("id", action.battleId).maybeSingle()
+        : null;
       return NextResponse.json(
-        { error: conflict ? "A batalha avançou em outra sessão. Atualize o estado." : "A ação não pôde ser confirmada." },
-        { status: conflict ? 409 : 503 },
+        {
+          error: conflict
+            ? "O duelo avançou em outra sessão. Atualize o estado."
+            : duplicateId
+              ? "Este identificador de ação já foi usado. Atualize o estado."
+              : "A ação não pôde ser confirmada.",
+          ...(conflict ? { conflict: true, currentVersion: latestVersion?.data?.version } : {}),
+        },
+        { status: conflict || duplicateId ? 409 : 503 },
       );
     }
-    const committed = data as { state?: unknown; events?: unknown; version?: unknown } | null;
-    const committedState = BattleStateSchema.parse(committed?.state);
-    const visible = visiblePvpState(committedState, actorId);
-    const committedEvents = z.array(BattleLogEntrySchema).parse(committed?.events);
+
+    const stored = committed as { state?: unknown; events?: unknown; version?: unknown } | null;
+    const committedState = PvpRealtimeStateSchema.parse(stored?.state ?? finalState);
+    const committedEvents = z.array(PvpRealtimeEventSchema).parse(stored?.events ?? resultEvents);
     return NextResponse.json({
-      state: visible.state,
-      events: visiblePvpEvents(committedEvents),
-      version: committed?.version,
-      boardId,
+      state: visiblePvpRealtimeState(committedState, actorId),
+      events: visiblePvpRealtimeEvents(committedEvents),
+      version: stored?.version,
       authority: "server",
-      hidden: visible.hidden,
     });
   } catch (error) {
     if (error instanceof PvpBattleAccessError) {
@@ -130,9 +123,11 @@ export async function POST(request: Request) {
     }
     const message = error instanceof z.ZodError
       ? "A ação PVP é inválida."
-      : error instanceof GameRuleError
+      : error instanceof PvpRealtimeRuleError
         ? error.message
         : "Não foi possível processar a ação PVP.";
-    return NextResponse.json({ error: message }, { status: error instanceof GameRuleError ? 409 : 400 });
+    return NextResponse.json({ error: message }, {
+      status: error instanceof PvpRealtimeRuleError ? 409 : error instanceof z.ZodError ? 400 : 500,
+    });
   }
 }

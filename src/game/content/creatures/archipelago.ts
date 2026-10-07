@@ -52,7 +52,7 @@ export const ARCHIPELAGO_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Marinheiros japoneses contam que a figura escura pode virar embarcações ou exigir um barril, sendo vencida por astúcia em algumas versões.",
       folklore: { tradition: "Folclore marítimo japonês", origin: "Japão", sourceNote: "Forma, tamanho e comportamento variam entre regiões costeiras.", adaptation: "Mantém a silhueta escura, a escala marítima e o encontro com navegantes." },
       regionId: "archipelago", element: "water", traits: ["marítimo", "gigante", "aparição"], rarity: "epic", role: "guardian",
-      hp: 206, defense: 86, speed: 24, moves: ["Onda Silenciosa", "Pedido do Barril", "Noite sobre o Mar"], obtainableBy: "Abismo dos Espíritos", spriteIndex: 5, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 206, defense: 86, speed: 24, moves: ["Onda Silenciosa", "Pedido do Barril", "Noite sobre o Mar"], obtainableBy: "Abismo dos Espíritos", spriteIndex: 5, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "ningyo", name: "Ningyo", title: "Oráculo das Correntes",
@@ -60,7 +60,7 @@ export const ARCHIPELAGO_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Registros e contos descrevem combinações entre peixe e traços humanos; capturá-lo pode anunciar desastres ou longevidade em narrativas distintas.",
       folklore: { tradition: "Folclore japonês", origin: "Japão", sourceNote: "Não equivale à sereia europeia e possui iconografias variadas.", adaptation: "Preserva a forma híbrida aquática e o papel de presságio." },
       regionId: "archipelago", element: "water", traits: ["aquático", "oráculo", "presságio"], rarity: "rare", role: "support",
-      hp: 120, defense: 52, speed: 78, moves: ["Escama Oracular", "Voz da Corrente", "Maré do Presságio"], obtainableBy: "Templo das Marés", spriteIndex: 6, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 120, defense: 52, speed: 78, moves: ["Escama Oracular", "Voz da Corrente", "Maré do Presságio"], obtainableBy: "Templo das Marés", spriteIndex: 6, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "selkie", name: "Selkie", title: "Viajante da Pele de Foca",
@@ -68,7 +68,7 @@ export const ARCHIPELAGO_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Baladas e contos do Atlântico Norte narram amores e cativeiros ligados ao esconderijo da pele que permite seu retorno ao mar.",
       folklore: { tradition: "Folclores escocês e das ilhas do Atlântico Norte", origin: "Escócia, Orkney e Shetland", sourceNote: "O tom varia entre romance, perda e advertência.", adaptation: "Mantém a pele de foca como centro da metamorfose e evita tratá-la como sereia." },
       regionId: "archipelago", element: "spirit", traits: ["foca", "metamorfa", "marítima"], rarity: "rare", role: "skirmisher",
-      hp: 126, defense: 48, speed: 88, moves: ["Pele Guardada", "Passo na Praia", "Retorno às Ondas"], obtainableBy: "Ilhas das Promessas", spriteIndex: 7, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 126, defense: 48, speed: 88, moves: ["Pele Guardada", "Passo na Praia", "Retorno às Ondas"], obtainableBy: "Ilhas das Promessas", spriteIndex: 7, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "bake-kujira", name: "Bake-kujira", title: "Esqueleto da Baleia Fantasma",
@@ -76,7 +76,7 @@ export const ARCHIPELAGO_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Uma narrativa associada à costa de Shimane descreve pescadores encontrando a aparição e os infortúnios que seguiram sua aproximação.",
       folklore: { tradition: "Folclore japonês", origin: "Shimane, Japão", sourceNote: "É uma narrativa regional moderna em comparação com yōkai muito antigos.", adaptation: "Mantém a baleia esquelética, o cortejo animal e o caráter de aparição." },
       regionId: "archipelago", element: "spirit", traits: ["baleia", "esquelético", "fantasma"], rarity: "legendary", role: "controller",
-      hp: 188, defense: 72, speed: 40, moves: ["Canto Oco", "Cortejo do Mar", "Maré Fantasma"], obtainableBy: "Recife Ancestral", spriteIndex: 8, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 188, defense: 72, speed: 40, moves: ["Canto Oco", "Cortejo do Mar", "Maré Fantasma"], obtainableBy: "Recife Ancestral", spriteIndex: 8, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
   {
       id: "nokk", name: "Nøkk", title: "Cavalo das Águas Escuras",
@@ -84,6 +84,6 @@ export const ARCHIPELAGO_CREATURE_SEEDS: CreatureSeed[] = [
       lore: "Tradições escandinavas narram encontros perigosos, música e mudanças de forma ligadas à água.",
       folklore: { tradition: "Folclores escandinavos", origin: "Escandinávia", sourceNote: "Nomes e formas variam entre línguas e regiões nórdicas.", adaptation: "Usa a forma equina aquática e mantém sua natureza metamórfica." },
       regionId: "archipelago", element: "water", traits: ["equino", "metamorfo", "lacustre"], rarity: "epic", role: "controller",
-      hp: 148, defense: 62, speed: 84, moves: ["Galope Submerso", "Canção da Margem", "Forma do Nøkk"], obtainableBy: "Cais Cartógrafo", spriteIndex: 9, spriteSheet: "/art/folklore-creatures-second-atlas.png",
+      hp: 148, defense: 62, speed: 84, moves: ["Galope Submerso", "Canção da Margem", "Forma do Nøkk"], obtainableBy: "Cais Cartógrafo", spriteIndex: 9, spriteSheet: "/art/folklore-creatures-second-atlas-chibi-portraits-v1.webp",
     },
 ];

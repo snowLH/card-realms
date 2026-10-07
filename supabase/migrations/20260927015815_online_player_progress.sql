@@ -7,7 +7,6 @@ create table public.region_connections (
   primary key (from_region_id, to_region_id),
   check (from_region_id <> to_region_id)
 );
-
 insert into public.region_connections (from_region_id, to_region_id) values
   ('roots', 'archipelago'), ('archipelago', 'roots'),
   ('roots', 'runic'), ('runic', 'roots'),
@@ -17,7 +16,6 @@ insert into public.region_connections (from_region_id, to_region_id) values
   ('deep-sea', 'desert'), ('desert', 'deep-sea'),
   ('runic', 'eclipse'), ('eclipse', 'runic'),
   ('desert', 'eclipse'), ('eclipse', 'desert');
-
 create table public.player_world_state (
   user_id uuid primary key references public.profiles(id) on delete cascade,
   current_region_id text not null references public.regions(id),
@@ -27,7 +25,6 @@ create table public.player_world_state (
   check (cardinality(unlocked_region_ids) between 1 and 100),
   check (current_region_id = any(unlocked_region_ids))
 );
-
 create table public.player_energy_inventory (
   user_id uuid not null references public.profiles(id) on delete cascade,
   element public.card_element not null,
@@ -35,7 +32,6 @@ create table public.player_energy_inventory (
   updated_at timestamptz not null default now(),
   primary key (user_id, element)
 );
-
 create table public.inventory_items (
   user_id uuid not null references public.profiles(id) on delete cascade,
   item_key text not null check (item_key ~ '^[a-z0-9][a-z0-9_-]{1,79}$'),
@@ -44,7 +40,6 @@ create table public.inventory_items (
   updated_at timestamptz not null default now(),
   primary key (user_id, item_key)
 );
-
 create table public.achievements (
   id text primary key check (id ~ '^[a-z0-9][a-z0-9_-]{1,79}$'),
   title text not null check (char_length(title) between 1 and 80),
@@ -54,7 +49,6 @@ create table public.achievements (
   reward jsonb not null default '{}'::jsonb check (jsonb_typeof(reward) = 'object'),
   enabled boolean not null default true
 );
-
 create table public.player_achievements (
   user_id uuid not null references public.profiles(id) on delete cascade,
   achievement_id text not null references public.achievements(id) on delete cascade,
@@ -62,7 +56,6 @@ create table public.player_achievements (
   claimed_at timestamptz,
   primary key (user_id, achievement_id)
 );
-
 create table public.battle_results (
   battle_id uuid not null references public.battles(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -75,15 +68,12 @@ create table public.battle_results (
   finished_at timestamptz not null default now(),
   primary key (battle_id, user_id)
 );
-
 create index battle_results_user_finished_idx
 on public.battle_results (user_id, finished_at desc);
-
 insert into public.achievements (id, title, description, icon_key, criteria, reward) values
   ('first-bond', 'Primeiro vínculo', 'Adquira sua primeira criatura.', 'bond', '{"type":"collection_size","count":1}', '{"coins":25}'),
   ('six-paths', 'Seis caminhos', 'Forme uma equipe válida com seis criaturas.', 'team', '{"type":"valid_team","count":1}', '{"coins":50}'),
   ('roots-sanctuary', 'Símbolo das Raízes', 'Conclua o Santuário de Provação das Raízes.', 'sanctuary', '{"type":"sanctuary","region":"roots"}', '{"coins":120}');
-
 alter table public.player_world_state enable row level security;
 alter table public.player_energy_inventory enable row level security;
 alter table public.inventory_items enable row level security;
@@ -91,12 +81,10 @@ alter table public.achievements enable row level security;
 alter table public.player_achievements enable row level security;
 alter table public.battle_results enable row level security;
 alter table public.region_connections enable row level security;
-
 create policy "connections are readable" on public.region_connections
 for select to anon, authenticated using (true);
 create policy "achievements are readable" on public.achievements
 for select to anon, authenticated using (enabled);
-
 create policy "players read own world state" on public.player_world_state
 for select to authenticated using ((select auth.uid()) = user_id);
 create policy "players read own energy" on public.player_energy_inventory
@@ -107,28 +95,22 @@ create policy "players read own achievements" on public.player_achievements
 for select to authenticated using ((select auth.uid()) = user_id);
 create policy "players read own battle results" on public.battle_results
 for select to authenticated using ((select auth.uid()) = user_id);
-
 revoke all on public.region_connections, public.player_world_state,
   public.player_energy_inventory, public.inventory_items, public.achievements,
   public.player_achievements, public.battle_results from anon, authenticated;
-
 grant select on public.region_connections, public.achievements to anon, authenticated;
 grant select on public.player_world_state, public.player_energy_inventory,
   public.inventory_items, public.player_achievements, public.battle_results
 to authenticated;
-
 create trigger player_world_state_set_updated_at
 before update on public.player_world_state
 for each row execute function public.set_updated_at();
-
 create trigger player_energy_inventory_set_updated_at
 before update on public.player_energy_inventory
 for each row execute function public.set_updated_at();
-
 create trigger inventory_items_set_updated_at
 before update on public.inventory_items
 for each row execute function public.set_updated_at();
-
 create or replace function private.initialize_player_progress()
 returns trigger
 language plpgsql
@@ -158,36 +140,29 @@ begin
   return new;
 end;
 $$;
-
 revoke all on function private.initialize_player_progress() from public, anon, authenticated;
 grant execute on function private.initialize_player_progress() to service_role;
-
 create trigger initialize_player_progress_after_profile
 after insert on public.profiles
 for each row execute function private.initialize_player_progress();
-
 insert into public.player_world_state (user_id, current_region_id, unlocked_region_ids)
 select id, 'roots', array['roots','archipelago','runic']::text[]
 from public.profiles
 on conflict (user_id) do nothing;
-
 insert into public.player_energy_inventory (user_id, element, quantity)
 select profiles.id, elements.element, 12
 from public.profiles
 cross join unnest(enum_range(null::public.card_element)) as elements(element)
 on conflict (user_id, element) do nothing;
-
 insert into public.exploration_progress (user_id, region_id)
 select id, 'roots' from public.profiles
 on conflict (user_id, region_id) do nothing;
-
 insert into public.player_missions (user_id, mission_id)
 select profiles.id, missions.id
 from public.profiles
 cross join public.missions
 where missions.enabled
 on conflict (user_id, mission_id) do nothing;
-
 create or replace function private.get_player_snapshot()
 returns jsonb
 language plpgsql
@@ -362,10 +337,8 @@ begin
   return snapshot;
 end;
 $$;
-
 revoke all on function private.get_player_snapshot() from public, anon;
 grant execute on function private.get_player_snapshot() to authenticated, service_role;
-
 create or replace function public.get_my_player_snapshot()
 returns jsonb
 language sql
@@ -375,10 +348,8 @@ set search_path = ''
 as $$
   select private.get_player_snapshot();
 $$;
-
 revoke all on function public.get_my_player_snapshot() from public, anon;
 grant execute on function public.get_my_player_snapshot() to authenticated, service_role;
-
 create or replace function private.travel_to_region(target_region_id text)
 returns jsonb
 language plpgsql
@@ -425,10 +396,8 @@ begin
   return jsonb_build_object('currentRegionId', target_region_id);
 end;
 $$;
-
 revoke all on function private.travel_to_region(text) from public, anon;
 grant execute on function private.travel_to_region(text) to authenticated, service_role;
-
 create or replace function public.travel_to_region(target_region_id text)
 returns jsonb
 language sql
@@ -437,10 +406,8 @@ set search_path = ''
 as $$
   select private.travel_to_region(target_region_id);
 $$;
-
 revoke all on function public.travel_to_region(text) from public, anon;
 grant execute on function public.travel_to_region(text) to authenticated, service_role;
-
 create or replace function private.activate_team(target_team_id uuid)
 returns jsonb
 language plpgsql
@@ -474,10 +441,8 @@ begin
   return jsonb_build_object('activeTeamId', target_team_id);
 end;
 $$;
-
 revoke all on function private.activate_team(uuid) from public, anon;
 grant execute on function private.activate_team(uuid) to authenticated, service_role;
-
 create or replace function public.activate_team(target_team_id uuid)
 returns jsonb
 language sql
@@ -486,10 +451,8 @@ set search_path = ''
 as $$
   select private.activate_team(target_team_id);
 $$;
-
 revoke all on function public.activate_team(uuid) from public, anon;
 grant execute on function public.activate_team(uuid) to authenticated, service_role;
-
 create or replace function private.claim_region_treasure(target_region_id text)
 returns jsonb
 language plpgsql
@@ -553,10 +516,8 @@ begin
   );
 end;
 $$;
-
 revoke all on function private.claim_region_treasure(text) from public, anon;
 grant execute on function private.claim_region_treasure(text) to authenticated, service_role;
-
 create or replace function public.claim_region_treasure(target_region_id text)
 returns jsonb
 language sql
@@ -565,10 +526,8 @@ set search_path = ''
 as $$
   select private.claim_region_treasure(target_region_id);
 $$;
-
 revoke all on function public.claim_region_treasure(text) from public, anon;
 grant execute on function public.claim_region_treasure(text) to authenticated, service_role;
-
 grant all privileges on public.region_connections, public.player_world_state,
   public.player_energy_inventory, public.inventory_items, public.achievements,
   public.player_achievements, public.battle_results to service_role;

@@ -10,9 +10,9 @@ describe("navegação física da Guilda", () => {
     });
   });
 
-  it("abre loja de poderes e ateliê, mantendo Mercador e Portal nos sistemas próprios", () => {
+  it("abre os ataques da Lenda e a escolha de Lendas, mantendo Mercador e Portal nos sistemas próprios", () => {
     expect(resolveHubNavigation("archive")).toEqual({ kind: "loadout-focus", focus: "cards" });
-    expect(resolveHubNavigation("avatar")).toEqual({ kind: "loadout-focus", focus: "avatar" });
+    expect(resolveHubNavigation("avatar")).toEqual({ kind: "loadout-focus", focus: "legend" });
     expect(resolveHubNavigation("merchant")).toEqual({ kind: "view", view: "village" });
     expect(resolveHubNavigation("portal")).toEqual({ kind: "view", view: "expeditions" });
   });
