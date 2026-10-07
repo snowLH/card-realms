@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeftRight, Crosshair, Footprints, Hand, Sparkles } from "lucide-react";
+import { useRef } from "react";
 import { ARPG_ABILITY_CARD_BY_ID } from "@/game/arpg/content/ability-cards";
 import { MATA_CARDS } from "@/game/arpg/content/mata-encantada";
 import { CREATURE_BY_ID } from "@/game/catalog";
@@ -48,6 +49,7 @@ export function TouchControls({
   weaponBId?: string | null;
   activeWeaponSlot?: "A" | "B";
 }) {
+  const stickRef = useRef<HTMLDivElement>(null);
   const cards = abilityIds.map((id) => ARPG_ABILITY_CARD_BY_ID.get(id) ?? MATA_CARDS[0]);
   const dashRemaining = Math.max(0, dashReadyAt - nowMs);
   const dashCooling = dashRemaining > 50;
@@ -73,14 +75,25 @@ export function TouchControls({
     const radius = Math.max(1, rect.width * 0.42);
     const length = Math.hypot(x, y);
     const scale = length > radius ? radius / length : 1;
-    bridge.setMove((x * scale) / radius, (y * scale) / radius);
+    const offsetX = x * scale;
+    const offsetY = y * scale;
+    const nub = stickRef.current?.querySelector<HTMLElement>(".arpg-stick__nub");
+    nub?.style.setProperty("--stick-x", `${offsetX}px`);
+    nub?.style.setProperty("--stick-y", `${offsetY}px`);
+    bridge.setMove(offsetX / radius, offsetY / radius);
   };
 
-  const stopStick = () => bridge.setMove(0, 0);
+  const stopStick = () => {
+    bridge.setMove(0, 0);
+    const nub = stickRef.current?.querySelector<HTMLElement>(".arpg-stick__nub");
+    nub?.style.setProperty("--stick-x", "0px");
+    nub?.style.setProperty("--stick-y", "0px");
+  };
 
   return (
     <div className="arpg-touch" role="group" aria-label="Controles de combate">
       <div
+        ref={stickRef}
         className="arpg-stick"
         role="group"
         aria-label="Joystick virtual. Arraste para mover. No teclado, use WASD ou as setas."
@@ -93,6 +106,7 @@ export function TouchControls({
         }}
         onPointerUp={stopStick}
         onPointerCancel={stopStick}
+        onLostPointerCapture={stopStick}
       >
         <span className="arpg-stick__nub" aria-hidden="true" />
       </div>

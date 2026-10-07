@@ -25,6 +25,7 @@ import { LoginDialog } from "@/components/auth/login-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { readJsonResponse } from "@/lib/http/read-json-response";
 import { cn } from "@/lib/utils";
 import { PixelCreature } from "./pixel-creature";
 
@@ -108,6 +109,10 @@ function countdown(target: string, serverNow: string) {
   return `${hours}h ${String(minutes).padStart(2, "0")}m`;
 }
 
+function isArpgDungeonEvent(event: RaidScheduleItem) {
+  return event.bossConfig?.gameplayMode === "arpg";
+}
+
 export function RaidView({
   bootstrap,
   dismissedRoomId = null,
@@ -123,7 +128,7 @@ export function RaidView({
   const [schedule, setSchedule] = useState<RaidScheduleItem[]>([]);
   const [rewards, setRewards] = useState<RaidReward[]>([]);
   const [roomId, setRoomId] = useState<string | null>(null);
-  const [roomMode, setRoomMode] = useState<RaidGameplayMode>("avatar");
+  const [roomMode, setRoomMode] = useState<RaidGameplayMode>("arpg");
   const [room, setRoom] = useState<RaidRoomResponse | null>(null);
   const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(bootstrap.source === "supabase");
@@ -134,7 +139,7 @@ export function RaidView({
     if (bootstrap.source !== "supabase") return;
     try {
       const response = await fetch("/api/raids", { cache: "no-store" });
-      const payload = (await response.json()) as {
+      const payload = await readJsonResponse<{
         schedule?: RaidScheduleItem[];
         rewards?: RaidReward[];
         activeRoom?: {
@@ -145,11 +150,11 @@ export function RaidView({
           gameplayMode: RaidGameplayMode;
         } | null;
         error?: string;
-      };
-      if (!response.ok) throw new Error(payload.error ?? "O calendário de Raids não respondeu.");
-      setSchedule(payload.schedule ?? []);
+      }>(response, "O calendário das dungeons não respondeu.");
+      if (!response.ok) throw new Error(payload.error ?? "O calendário das dungeons não respondeu.");
+      setSchedule((payload.schedule ?? []).filter(isArpgDungeonEvent));
       setRewards(payload.rewards ?? []);
-      if (payload.activeRoom && !roomId) {
+      if (payload.activeRoom?.gameplayMode === "arpg" && !roomId) {
         setRoomMode(payload.activeRoom.gameplayMode);
         setRoomId(payload.activeRoom.roomId);
       }
@@ -165,9 +170,12 @@ export function RaidView({
     try {
       const prefix = targetMode === "arpg" ? "/api/arpg/raids" : "/api/raids";
       const response = await fetch(`${prefix}/rooms/${targetRoomId}`, { cache: "no-store" });
-      const payload = (await response.json()) as RaidRoomResponse;
+      const payload = await readJsonResponse<RaidRoomResponse>(response, "A sala da dungeon não respondeu.");
       if (!response.ok) throw new Error(payload.error ?? "A sala da Raid não respondeu.");
       const resolvedMode = payload.gameplayMode ?? targetMode;
+      if (resolvedMode !== "arpg") {
+        throw new Error("Este código pertence a uma sala antiga. Peça um código de dungeon cooperativa atualizado.");
+      }
       setRoomMode(resolvedMode);
       setRoom(payload);
       setError("");
@@ -230,13 +238,13 @@ export function RaidView({
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      const payload = (await response.json()) as {
+      const payload = await readJsonResponse<{
         result?: { roomId?: string; gameplayMode?: RaidGameplayMode };
         error?: string;
-      };
+      }>(response, "A ação da sala não recebeu uma resposta válida do servidor.");
       if (!response.ok) throw new Error(payload.error ?? "A ação da Raid não pôde ser concluída.");
       if (payload.result?.roomId) {
-        const nextMode = payload.result.gameplayMode ?? roomMode;
+        const nextMode = payload.result.gameplayMode ?? "arpg";
         setRoomMode(nextMode);
         setRoomId(payload.result.roomId);
         await refreshRoom(payload.result.roomId, nextMode);
@@ -257,9 +265,8 @@ export function RaidView({
     setBusy(true);
     setError("");
     try {
-      const prefix = roomMode === "arpg" ? "/api/arpg/raids" : "/api/raids";
-      const response = await fetch(`${prefix}/rooms/${roomId}/start`, { method: "POST" });
-      const payload = (await response.json()) as { error?: string };
+      const response = await fetch(`/api/arpg/raids/rooms/${roomId}/start`, { method: "POST" });
+      const payload = await readJsonResponse<{ error?: string }>(response, "A dungeon não recebeu uma resposta válida do servidor.");
       if (!response.ok) throw new Error(payload.error ?? "A expedição cooperativa não pôde ser iniciada.");
       onDismissRaid?.(null);
       onOpenRaid(roomId, roomMode);
@@ -305,16 +312,16 @@ export function RaidView({
     <section className="content-view raid-view">
       <header className="view-heading raid-heading">
         <div>
-          <span className="view-eyebrow">Cooperativo online</span>
-          <h1>Expedições cooperativas</h1>
-          <p>Crie uma sala, reúna seu grupo e entre em uma dungeon com as Lendas de todos os participantes.</p>
+          <span className="view-eyebrow">Dungeon cooperativa online</span>
+          <h1>Jogue dungeons com amigos</h1>
+          <p>Crie uma sala ou entre com um código. Reúnam suas Lendas e avancem juntos pelas salas.</p>
         </div>
         <Badge className={cn(
           "raid-live-badge",
           activeEvent ? "is-live" : "is-waiting",
         )}>
           {activeEvent ? <Radio /> : <CalendarDays />}
-          {activeEvent ? "Expedição ativa" : "Próxima expedição"}
+          {activeEvent ? "Dungeon disponível" : "Próxima dungeon"}
         </Badge>
       </header>
 
@@ -395,7 +402,7 @@ export function RaidView({
             </div>
 
             <div className="raid-lobby-actions">
-              {room.room.status === "active" && roomMode !== "legacy" ? (
+              {room.room.status === "active" ? (
                 <Button
                   variant="game"
                   disabled={busy}
@@ -406,7 +413,7 @@ export function RaidView({
                 >
                   <Play /> RETOMAR EXPEDIÇÃO
                 </Button>
-              ) : roomMode !== "legacy" ? <>
+              ) : <>
                 <Button
                   variant={roomPlayer?.isReady ? "secondary" : "game"}
                   disabled={busy}
@@ -433,9 +440,7 @@ export function RaidView({
                     <Clock3 /> Aguardando líder
                   </Button>
                 )}
-              </> : (
-                <span className="raid-lobby-archive-note"><ShieldAlert /> Sala de regras antigas, somente consulta</span>
-              )}
+              </>}
 
               <Button
                 variant="ghost"
@@ -451,11 +456,7 @@ export function RaidView({
             </div>
 
             <p className="raid-lobby-note">
-              A expedição começa com {room.event.min_players}–{room.event.max_players} jogadores. {roomMode === "arpg"
-                ? "O grupo atravessa salas compartilhadas, derrota ondas e avança até o chefe final. O servidor salva ações, inimigos e progresso para todos."
-                : roomMode === "avatar"
-                  ? "Cada jogador entra com sua Lenda ativa e os dois ataques próprios dela."
-                  : "Esta sala histórica foi preservada e não aceita novas ações de combate."}
+              A dungeon começa com {room.event.min_players}–{room.event.max_players} jogadores. O grupo atravessa salas compartilhadas, derrota ondas e avança até o chefe final. O servidor salva ações, inimigos e progresso para todos.
             </p>
           </article>
         </div>
@@ -466,12 +467,12 @@ export function RaidView({
           {activeEvent ? (
             <article className="raid-event-hero">
               <div className="raid-event-hero__content">
-                <span className="raid-event-live"><Radio /> EXPEDIÇÃO ATIVA</span>
-                <h2>{activeEvent.title}</h2>
-                <p>O evento termina em {countdown(activeEvent.endsAt, activeEvent.serverNow)}.</p>
+                <span className="raid-event-live"><Radio /> DUNGEON DISPONÍVEL</span>
+                <h2>Expedição cooperativa</h2>
+                <p>Reúna de 2 a 4 jogadores, compartilhe o código e explore uma masmorra juntos.</p>
                 <div className="raid-event-actions">
                   <Button variant="game" disabled={busy} onClick={() => void lobbyAction({ action: "create", eventId: activeEvent.id })}>
-                    <Users /> CRIAR SALA
+                    <Users /> CRIAR SALA DA DUNGEON
                   </Button>
                   <div className="raid-code-join">
                     <KeyRound />
@@ -487,7 +488,7 @@ export function RaidView({
                       disabled={busy || inviteCode.trim().length < 4}
                       onClick={() => void lobbyAction({ action: "join", inviteCode: inviteCode.trim() })}
                     >
-                      <LogIn /> Entrar
+                        <LogIn /> Entrar na dungeon
                     </Button>
                   </div>
                 </div>
@@ -507,9 +508,9 @@ export function RaidView({
           ) : nextEvent ? (
             <article className="raid-next-card">
               <div>
-                <span className="view-eyebrow">PRÓXIMA EXPEDIÇÃO</span>
-                <h2>{nextEvent.title}</h2>
-                <p>Começa em <strong>{countdown(nextEvent.startsAt, nextEvent.serverNow)}</strong>.</p>
+                <span className="view-eyebrow">DUNGEON COOPERATIVA</span>
+                <h2>Próxima dungeon</h2>
+                <p>As salas cooperativas estarão disponíveis em <strong>{countdown(nextEvent.startsAt, nextEvent.serverNow)}</strong>.</p>
               </div>
               <div className="raid-next-card__time">
                 <CalendarDays />
@@ -529,7 +530,7 @@ export function RaidView({
           ) : (
             <div className="raid-empty">
               <CalendarDays />
-              <div><strong>Nenhuma expedição publicada</strong><p>A próxima dungeon cooperativa aparecerá aqui quando for programada.</p></div>
+              <div><strong>Dungeon cooperativa indisponível</strong><p>Não há uma dungeon ARPG ativa no momento. Tente novamente mais tarde.</p></div>
             </div>
           )}
 

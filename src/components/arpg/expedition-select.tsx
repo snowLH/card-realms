@@ -7,6 +7,7 @@ import {
   getArpgExpedition,
   type ArpgExpeditionId,
 } from "@/game/arpg/content/expeditions";
+import { readJsonResponse } from "@/lib/http/read-json-response";
 
 type ActiveRunSummary = {
   runId: string;
@@ -29,7 +30,10 @@ export function ArpgExpeditionSelect({
     void fetch("/api/arpg/run", { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) return null;
-        const payload = await response.json() as { activeRun?: ActiveRunSummary | null };
+        const payload = await readJsonResponse<{ activeRun?: ActiveRunSummary | null }>(
+          response,
+          "A consulta da expedição ativa retornou uma resposta inválida.",
+        );
         return payload.activeRun ?? null;
       })
       .then((run) => {

@@ -53,6 +53,27 @@ const COLUMNS = NATIVE_PIXEL_ACTOR_FRAME_COLUMNS;
 const ROWS = Object.keys(NATIVE_PIXEL_ACTOR_ANIMATION_ROWS).length;
 const FRAME_COUNT = COLUMNS * ROWS;
 
+export type NativePixelWalkPose = Readonly<{
+  stride: -2 | 0 | 2;
+  leftLift: 0 | 1 | 2;
+  rightLift: 0 | 1 | 2;
+  bodyBob: -1 | 0;
+}>;
+
+const NATIVE_PIXEL_WALK_CYCLE: readonly NativePixelWalkPose[] = [
+  { stride: -2, leftLift: 0, rightLift: 2, bodyBob: 0 },
+  { stride: 0, leftLift: 1, rightLift: 1, bodyBob: -1 },
+  { stride: 2, leftLift: 2, rightLift: 0, bodyBob: 0 },
+  { stride: 0, leftLift: 1, rightLift: 1, bodyBob: -1 },
+];
+
+/** A readable four-frame stride with alternating foot lift at the native 32px grid. */
+export function getNativePixelWalkPose(frame: number): NativePixelWalkPose {
+  const wrappedFrame = ((Math.trunc(frame) % NATIVE_PIXEL_WALK_CYCLE.length) + NATIVE_PIXEL_WALK_CYCLE.length)
+    % NATIVE_PIXEL_WALK_CYCLE.length;
+  return NATIVE_PIXEL_WALK_CYCLE[wrappedFrame];
+}
+
 type ActorKind = "npc" | "curupira" | "amarok" | "iara" | "sprout" | "boto" | "raiju" | "nativeCreature";
 
 type ActorDesign = Readonly<{
@@ -280,11 +301,12 @@ function drawHumanActor(
   const attacking = actor === "curupira" && row === 2;
   const shooting = actor === "curupira" && row === 3;
   const damaged = row === 4;
-  const stride = walking ? [-1, 0, 1, 0][frame] : 0;
+  const walkPose = walking ? getNativePixelWalkPose(frame) : null;
+  const stride = walkPose?.stride ?? 0;
   const bob = row === 0
     ? [0, -1, 0, -1][frame]
     : walking
-      ? [0, 1, 0, -1][frame]
+      ? walkPose!.bodyBob
       : damaged
         ? [0, -1, 1, 0][frame]
         : 0;
@@ -310,20 +332,23 @@ function drawHumanActor(
 
   const leftLegX = 12 + stride;
   const rightLegX = 18 - stride;
-  p.rect(leftLegX, 23 + bob, 4, 5, design.ink);
-  p.rect(leftLegX + 1, 24 + bob, 2, 3, design.bodyDark);
-  p.rect(leftLegX - 1, 27 + bob, 6, 2, design.ink);
-  p.rect(leftLegX, 27 + bob, 4, 1, design.bodyLight);
-  p.rect(rightLegX, 23 + bob, 4, 5, design.ink);
-  p.rect(rightLegX + 1, 24 + bob, 2, 3, design.bodyDark);
-  p.rect(rightLegX - 1, 27 + bob, 6, 2, design.ink);
-  p.rect(rightLegX, 27 + bob, 4, 1, design.bodyLight);
+  const leftLegY = 23 + bob + (walkPose?.leftLift ?? 0);
+  const rightLegY = 23 + bob + (walkPose?.rightLift ?? 0);
+  p.rect(leftLegX, leftLegY, 4, 5, design.ink);
+  p.rect(leftLegX + 1, leftLegY + 1, 2, 3, design.bodyDark);
+  p.rect(leftLegX - 1, leftLegY + 4, 6, 2, design.ink);
+  p.rect(leftLegX, leftLegY + 4, 4, 1, design.bodyLight);
+  p.rect(rightLegX, rightLegY, 4, 5, design.ink);
+  p.rect(rightLegX + 1, rightLegY + 1, 2, 3, design.bodyDark);
+  p.rect(rightLegX - 1, rightLegY + 4, 6, 2, design.ink);
+  p.rect(rightLegX, rightLegY + 4, 4, 1, design.bodyLight);
 
   const raisedArm = working || talking || attacking || shooting;
-  p.rect(8, 15 + bob, 6, 9, design.ink);
-  p.rect(9, 16 + bob, 4, 7, design.bodyDark);
-  p.rect(9, 21 + bob, 4, 3, design.ink);
-  p.rect(10, 22 + bob, 2, 1, design.face);
+  const leftArmSwing = walking ? -stride : 0;
+  p.rect(8 + leftArmSwing, 15 + bob, 6, 9, design.ink);
+  p.rect(9 + leftArmSwing, 16 + bob, 4, 7, design.bodyDark);
+  p.rect(9 + leftArmSwing, 21 + bob, 4, 3, design.ink);
+  p.rect(10 + leftArmSwing, 22 + bob, 2, 1, design.face);
 
   if (raisedArm) {
     const handY = working

@@ -99,6 +99,41 @@ describe("TouchControls ability cards", () => {
     expect(bridge.queueWeaponSwitch).toHaveBeenCalledOnce();
   });
 
+  it("moves the virtual joystick nub with the pointer and recenters it on release", () => {
+    const bridge = { setMove: vi.fn() } as unknown as ArpgBridge;
+    const { container } = render(
+      <TouchControls
+        bridge={bridge}
+        abilityIds={CURUPIRA_ABILITIES}
+        abilityReadyAt={{}}
+        nowMs={0}
+        dashReadyAt={0}
+        chestAvailable={false}
+      />,
+    );
+    const stick = container.querySelector<HTMLDivElement>(".arpg-stick")!;
+    const nub = stick.querySelector<HTMLElement>(".arpg-stick__nub")!;
+    const captured = new Set<number>();
+    stick.getBoundingClientRect = () => ({
+      x: 0, y: 0, left: 0, top: 0, right: 100, bottom: 100, width: 100, height: 100,
+      toJSON: () => ({}),
+    });
+    stick.setPointerCapture = vi.fn((pointerId) => captured.add(pointerId));
+    stick.hasPointerCapture = vi.fn((pointerId) => captured.has(pointerId));
+
+    fireEvent.pointerDown(stick, { pointerId: 7, clientX: 50, clientY: 50 });
+    fireEvent.pointerMove(stick, { pointerId: 7, clientX: 80, clientY: 40 });
+
+    expect(bridge.setMove).toHaveBeenLastCalledWith(30 / 42, -10 / 42);
+    expect(nub.style.getPropertyValue("--stick-x")).toBe("30px");
+    expect(nub.style.getPropertyValue("--stick-y")).toBe("-10px");
+
+    fireEvent.pointerUp(stick, { pointerId: 7 });
+    expect(bridge.setMove).toHaveBeenLastCalledWith(0, 0);
+    expect(nub.style.getPropertyValue("--stick-x")).toBe("0px");
+    expect(nub.style.getPropertyValue("--stick-y")).toBe("0px");
+  });
+
   it("retains attack while the touch pointer leaves the button and releases it on every end path", () => {
     const bridge = { setAttack: vi.fn() } as unknown as ArpgBridge;
     const { container } = render(

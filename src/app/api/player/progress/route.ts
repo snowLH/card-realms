@@ -16,6 +16,7 @@ import { POST as purchaseArpgPower } from "@/server/http-handlers/arpg-power-pur
 import { PATCH as saveAvatar } from "@/server/http-handlers/player-avatar";
 import { POST as purchaseLegend } from "@/server/http-handlers/player-legend-purchase";
 import { GET as authCallback } from "@/server/http-handlers/auth-callback";
+import { GET as loadRaidLobby, POST as updateRaidLobby } from "@/server/http-handlers/legacy/raids";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -92,6 +93,9 @@ export async function GET(request: Request) {
   const handler = delegatedHandler(request);
   if (handler === "auth") {
     return authCallback(request);
+  }
+  if (handler === "raids") {
+    return loadRaidLobby();
   }
   if (handler !== null) {
     return NextResponse.json({ error: "Método não permitido." }, { status: 405 });
@@ -176,6 +180,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   switch (delegatedHandler(request)) {
+    case "raids":
+      return updateRaidLobby(request);
     case "power":
       return purchaseArpgPower(request);
     case "legend":

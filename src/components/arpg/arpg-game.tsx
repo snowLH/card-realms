@@ -19,6 +19,7 @@ import { RoomChoice } from "./room-choice";
 import { DungeonMapOverlay, RunHud } from "./run-hud";
 import { TouchControls } from "./touch-controls";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
+import { readJsonResponse } from "@/lib/http/read-json-response";
 import {
   resolveAtlasEncounterTarget,
   type AtlasEncounterReference,
@@ -99,6 +100,7 @@ export function ArpgGame({
   const [mapOpen, setMapOpen] = useState(false);
   const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
   const [bootError, setBootError] = useState<string | null>(null);
+  const [bootAttempt, setBootAttempt] = useState(0);
   const [atlasTarget, setAtlasTarget] = useState<AtlasEncounterTarget | null>(null);
   const hasDungeonMap = Boolean(hud?.dungeonMap);
 
@@ -179,11 +181,11 @@ export function ArpgGame({
             command,
           }),
         });
-        const payload = await response.json() as {
+        const payload = await readJsonResponse<{
           revision?: number;
           state?: ArpgDungeonCombatState;
           error?: string;
-        };
+        }>(response, "O servidor enviou uma resposta inválida para o combate.");
         if (!response.ok || typeof payload.revision !== "number" || !payload.state) {
           throw new Error(payload.error ?? "O combate não pôde ser sincronizado com o servidor.");
         }
@@ -212,7 +214,10 @@ export function ArpgGame({
             checkpoint,
           }),
         });
-        const payload = await response.json() as { revision?: number; error?: string };
+        const payload = await readJsonResponse<{ revision?: number; error?: string }>(
+          response,
+          "O servidor enviou uma resposta inválida ao salvar a sala.",
+        );
         if (!response.ok || typeof payload.revision !== "number") {
           throw new Error(payload.error ?? "O checkpoint não pôde ser salvo.");
         }
@@ -254,7 +259,10 @@ export function ArpgGame({
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ action: "complete", token, victory: state.victory }),
         });
-        const payload = await response.json() as ArpgExtractionResult & { error?: string };
+        const payload = await readJsonResponse<ArpgExtractionResult & { error?: string }>(
+          response,
+          "O servidor enviou uma resposta inválida ao registrar a extração.",
+        );
         if (!response.ok) throw new Error(payload.error ?? "A extração não pôde ser validada.");
         setExtractionMessage(payload.persisted
           ? "Extração registrada na conta."
@@ -277,7 +285,10 @@ export function ArpgGame({
 
     const boot = async () => {
       try {
+        runTokenRef.current = null;
+        persistentRunRef.current = false;
         runCompletedRef.current = false;
+        setBootError(null);
         const response = await fetch("/api/arpg/run", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -287,7 +298,7 @@ export function ArpgGame({
             ...(atlasEncounter ? { atlasEncounter } : {}),
           }),
         });
-        const payload = await response.json() as {
+        const payload = await readJsonResponse<{
           token?: string;
           lootItemIds?: string[];
           runSeed?: string;
@@ -299,7 +310,7 @@ export function ArpgGame({
           resumed?: boolean;
           atlasEncounter?: AtlasEncounterReference | null;
           error?: string;
-        };
+        }>(response, "O servidor enviou uma resposta inválida ao abrir a expedição.");
         if (!response.ok || !payload.token || !payload.runSeed || !payload.checkpoint) {
           throw new Error(payload.error ?? "A sessão da run não pôde ser criada.");
         }
@@ -357,7 +368,7 @@ export function ArpgGame({
       destroyGame?.();
       setReady(false);
     };
-  }, [atlasEncounter, avatarConfig, bridge, expedition, expeditionId]);
+  }, [atlasEncounter, avatarConfig, bootAttempt, bridge, expedition, expeditionId]);
 
   const requestFullscreen = async () => {
     const element = document.documentElement;
@@ -430,20 +441,35 @@ export function ArpgGame({
 
         <div className="arpg-stage">
           <div ref={hostRef} className="arpg-stage__canvas" />
-          {!ready ? <div className="arpg-stage__loading">{bootError ?? "Carregando motor ARPG..."}</div> : null}
+          {!ready ? (
+            <div className="arpg-stage__loading" role={bootError ? "alert" : "status"}>
+              {bootError ? (
+                <div className="arpg-stage__loading-panel">
+                  <strong>Não foi possível entrar na dungeon</strong>
+                  <p>{bootError}</p>
+                  <button type="button" onClick={() => setBootAttempt((attempt) => attempt + 1)}>
+                    Tentar novamente
+                  </button>
+                  <button type="button" onClick={onExit}>{exitLabel}</button>
+                </div>
+              ) : "Carregando motor ARPG..."}
+            </div>
+          ) : null}
           <RunHud state={hud} />
-          <TouchControls
-            bridge={bridge}
-            abilityIds={hud?.abilityIds ?? loadout.abilityIds}
-            abilityReadyAt={hud?.abilityReadyAt ?? {}}
-            nowMs={hud?.nowMs ?? 0}
-            dashReadyAt={hud?.dashReadyAt ?? 0}
-            chestAvailable={hud?.chestAvailable ?? false}
-            exitPortalAvailable={hud?.exitPortalAvailable ?? false}
-            specialRoomAvailable={specialRoomAvailable}
-            weaponBId={hud?.weaponSlots?.B ?? null}
-            activeWeaponSlot={hud?.weaponSlots?.active ?? "A"}
-          />
+          {ready ? (
+            <TouchControls
+              bridge={bridge}
+              abilityIds={hud?.abilityIds ?? loadout.abilityIds}
+              abilityReadyAt={hud?.abilityReadyAt ?? {}}
+              nowMs={hud?.nowMs ?? 0}
+              dashReadyAt={hud?.dashReadyAt ?? 0}
+              chestAvailable={hud?.chestAvailable ?? false}
+              exitPortalAvailable={hud?.exitPortalAvailable ?? false}
+              specialRoomAvailable={specialRoomAvailable}
+              weaponBId={hud?.weaponSlots?.B ?? null}
+              activeWeaponSlot={hud?.weaponSlots?.active ?? "A"}
+            />
+          ) : null}
           <LootChoice state={hud} bridge={bridge} />
           <RoomChoice state={hud} bridge={bridge} />
           {paused ? (
