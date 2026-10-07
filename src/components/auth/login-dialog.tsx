@@ -5,6 +5,7 @@ import { LogIn, LogOut, Mail, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { isGoogleOAuthEnabled } from "@/lib/supabase/provider-settings";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -57,13 +58,29 @@ export function LoginDialog({
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
     setBusy(true);
-    const redirectTo = `${window.location.origin}/auth/callback`;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
-    if (error) {
-      setMessage(error.message);
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      if (!supabaseUrl || !publishableKey) {
+        setMessage("O login com Google está indisponível no momento. Use o acesso por e-mail.");
+        return;
+      }
+
+      const googleEnabled = await isGoogleOAuthEnabled(supabaseUrl, publishableKey);
+      if (!googleEnabled) {
+        setMessage("O login com Google ainda não está ativado neste projeto. Use o acesso por e-mail enquanto configuramos o provedor.");
+        return;
+      }
+
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+      if (error) setMessage(error.message);
+    } catch {
+      setMessage("Não foi possível verificar o login com Google. Tente novamente ou use o acesso por e-mail.");
+    } finally {
       setBusy(false);
     }
   }
@@ -115,7 +132,7 @@ export function LoginDialog({
             <Button variant="secondary" className="w-full" onClick={signOut} disabled={busy}>
               <LogOut /> Sair desta conta
             </Button>
-            {message ? <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">{message}</p> : null}
+            {message ? <p role="status" aria-live="polite" className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">{message}</p> : null}
           </div>
         ) : configured ? (
           <div className="space-y-4">
@@ -144,7 +161,7 @@ export function LoginDialog({
                 Receber link de acesso
               </Button>
             </form>
-            {message ? <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">{message}</p> : null}
+            {message ? <p role="status" aria-live="polite" className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">{message}</p> : null}
           </div>
         ) : (
           <div className="rounded-xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm leading-relaxed text-amber-100">
