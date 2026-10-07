@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { POST } from "./route";
+import { POST } from "@/server/http-handlers/arpg-power-purchase";
 
 function request(cardId: string) {
   return new Request("http://localhost/api/arpg/powers/purchase", {

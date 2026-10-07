@@ -20,7 +20,7 @@ vi.mock("@/lib/game-token", () => ({
   verifyBattleState: mocks.verifyBattleState,
 }));
 
-import { POST } from "./route";
+import { POST } from "@/server/http-handlers/legacy/battle";
 
 function request(body: unknown) {
   return new Request("http://localhost/api/battle", {

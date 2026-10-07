@@ -13,16 +13,18 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { PATCH } from "./route";
+import { GET, PATCH, POST } from "./route";
 
 const teamId = "00000000-0000-4000-8000-000000000001";
 const memberId = "00000000-0000-4000-8000-000000000002";
 
-function request(body: unknown) {
-  return new Request("http://localhost/api/player/progress", {
-    method: "PATCH",
+function request(body: unknown, method = "PATCH", handler?: string) {
+  const url = new URL("http://localhost/api/player/progress");
+  if (handler) url.searchParams.set("handler", handler);
+  return new Request(url, {
+    method,
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
+    ...(method === "GET" ? {} : { body: JSON.stringify(body) }),
   });
 }
 
@@ -53,6 +55,25 @@ describe("PATCH /api/player/progress retired team mutations", () => {
 
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ error: "Autenticação necessária." });
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("shared endpoint method dispatch", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each([
+    ["GET", GET, "power"],
+    ["POST", POST, "loadout"],
+    ["PATCH", PATCH, "power"],
+    ["PATCH", PATCH, "auth"],
+  ] as const)("returns 405 for %s with a handler that does not support it", async (method, handlerFn, handler) => {
+    const response = await handlerFn(request({ action: "choose_starter", creatureId: "boitata" }, method, handler));
+
+    expect(response.status).toBe(405);
+    expect(mocks.getClaims).not.toHaveBeenCalled();
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
 });

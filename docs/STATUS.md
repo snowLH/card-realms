@@ -6,8 +6,10 @@
 - O contrato atual usa avatar/Lenda com dois poderes, cooperação em dungeons e inimigos/bosses folclóricos. O legado de equipes de seis criaturas e apoiadores aparece abaixo somente como histórico.
 - As migrations locais e remotas estão alinhadas até `20261007105822_repair_raid_authority_wrappers`. A correção restaura a validação da segunda arma e dos dois poderes sem perder a autoridade avatar/ARPG, contribuição e eventos Realtime.
 - PgTAP remoto passou nos testes focais: Raid avatar/ARPG (43 asserções), loadout (9), bootstrap de novo perfil (11) e retirada do gacha legado (13).
-- `npm run verify:deploy` passou neste snapshot: typecheck, ESLint, 373 testes em 73 arquivos e build de produção Next.js 16.3.6.
-- A publicação Vercel ainda exige o build prebuilt limpo e a conferência final do pacote sem `.env.local`; o Git auto-deploy continua desativado por configuração.
+- `npm run verify:deploy` passou neste snapshot: typecheck, ESLint, 377 testes em 73 arquivos e build de produção Next.js 16.3.6 via Webpack.
+- A versão jogável está publicada em [card-realms.vercel.app](https://card-realms.vercel.app/) (deployment `dpl_4jhsK2FLsqaeMzTfimufPbqVVB36`, READY). O smoke de produção abriu JOGAR → Guilda, percorreu o avatar com WASD, abriu a rota Mata Encantada e iniciou uma run de 9 salas com HUD e dois poderes.
+- O endpoint de progresso responde `401` JSON sem sessão, como esperado; manifest e ícones publicados respondem `200`. A inspeção de logs do deployment não encontrou erros `500` no período verificado.
+- O build prebuilt foi publicado sem `.env.local`. A configuração mantém Git auto-deploy desativado; o pacote de produção respeita o limite Hobby de 12 funções primárias.
 
 Os registros abaixo são históricos. Quando uma linha antiga disser que o staging ou as migrations estavam bloqueados, ela descreve o snapshot daquela data.
 

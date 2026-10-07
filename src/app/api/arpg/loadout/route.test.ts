@@ -20,7 +20,7 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { PATCH } from "./route";
+import { PATCH } from "@/server/http-handlers/arpg-loadout";
 
 function request(body: unknown) {
   return new Request("http://localhost/api/arpg/loadout", {

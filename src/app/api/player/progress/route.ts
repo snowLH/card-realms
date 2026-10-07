@@ -11,9 +11,18 @@ import { BATTLE_BOARD_IDS } from "@/game/battle/presentation";
 import { ELEMENTS } from "@/game/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
+import { PATCH as saveArpgLoadout } from "@/server/http-handlers/arpg-loadout";
+import { POST as purchaseArpgPower } from "@/server/http-handlers/arpg-power-purchase";
+import { PATCH as saveAvatar } from "@/server/http-handlers/player-avatar";
+import { POST as purchaseLegend } from "@/server/http-handlers/player-legend-purchase";
+import { GET as authCallback } from "@/server/http-handlers/auth-callback";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function delegatedHandler(request: Request) {
+  return new URL(request.url).searchParams.get("handler");
+}
 
 const refugeFurnitureSchema = z.object({
   id: z.string().min(1).max(100),
@@ -79,7 +88,15 @@ async function authenticatedClient() {
   return { ok: true, supabase, userId: data.claims.sub } as const;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const handler = delegatedHandler(request);
+  if (handler === "auth") {
+    return authCallback(request);
+  }
+  if (handler !== null) {
+    return NextResponse.json({ error: "Método não permitido." }, { status: 405 });
+  }
+
   const auth = await authenticatedClient();
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -157,7 +174,29 @@ export async function GET() {
   return NextResponse.json({ snapshot: parsed.data, authority: "supabase" });
 }
 
+export async function POST(request: Request) {
+  switch (delegatedHandler(request)) {
+    case "power":
+      return purchaseArpgPower(request);
+    case "legend":
+      return purchaseLegend(request);
+    default:
+      return NextResponse.json({ error: "Ação de progresso inválida." }, { status: 405 });
+  }
+}
+
 export async function PATCH(request: Request) {
+  const handler = delegatedHandler(request);
+  switch (handler) {
+    case "loadout":
+      return saveArpgLoadout(request);
+    case "avatar":
+      return saveAvatar(request);
+  }
+  if (handler !== null) {
+    return NextResponse.json({ error: "Método não permitido." }, { status: 405 });
+  }
+
   try {
     const payload = mutationSchema.parse(await request.json());
     const auth = await authenticatedClient();
