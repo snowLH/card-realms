@@ -54,16 +54,13 @@ describe("ARPG runtime asset manifest", () => {
     }
   });
 
-  it("keeps an archived PNG source for every deployed WebP", () => {
+  it("ships compressed WebP art without accidentally committing source PNGs", () => {
     const publicArt = resolve(process.cwd(), "public", "art");
-    const archivedArt = resolve(process.cwd(), "artifacts", "archive", "public-art");
-    const webpFiles = readdirSync(publicArt).filter((file) => file.endsWith(".webp"));
-    expect(webpFiles.length).toBeGreaterThan(0);
-
-    for (const file of webpFiles) {
-      const sourcePath = resolve(archivedArt, file.replace(/\.webp$/i, ".png"));
-      expect(existsSync(sourcePath)).toBe(true);
-    }
+    const artFiles = readdirSync(publicArt);
+    expect(artFiles.filter((file) => file.endsWith(".webp")).length).toBeGreaterThan(0);
+    expect(artFiles.some((file) => file.toLowerCase().endsWith(".png"))).toBe(false);
+    // The original PNG archive is kept outside the deployed game repository.
+    // CI checks only files expected to exist in a fresh clone.
   });
 
   it("keeps sprite frame sizes and animation ranges in the reusable manifest", () => {
