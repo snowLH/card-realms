@@ -99,12 +99,11 @@ export function TitleScreen({
           <UsersRound aria-hidden="true" />
           <span>COOPERATIVO<small>Dungeons com amigos</small></span>
         </button>
+        <Link href="/instalar" className="title-screen__download" aria-label="Baixar Folklard para PC ou celular">
+          <Download aria-hidden="true" />
+          <span>BAIXAR APLICATIVO</span>
+        </Link>
       </nav>
-
-      <Link href="/instalar" className="title-screen__download" aria-label="Baixar Folklard para PC ou celular">
-        <Download aria-hidden="true" />
-        <span>BAIXAR APLICATIVO</span>
-      </Link>
 
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent className="title-screen__dialog">
