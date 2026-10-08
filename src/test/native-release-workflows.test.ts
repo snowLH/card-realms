@@ -44,6 +44,17 @@ describe("native release workflow hardening", () => {
     expect(desktop).toContain("if: github.ref == 'refs/heads/main'");
   });
 
+  it("only allows signed native release jobs to run from main", () => {
+    for (const path of [
+      ".github/workflows/android-signed-release.yml",
+      ".github/workflows/windows-signed-release.yml",
+      ".github/workflows/ios-signed-release.yml",
+    ] as const) {
+      const source = workflow(path);
+      expect(source, path).toContain("if: github.ref == 'refs/heads/main'");
+    }
+  });
+
   it("publishes signed Android builds with integrity metadata", () => {
     const source = workflow(".github/workflows/android-signed-release.yml");
     expect(source).toContain("node release-metadata.cjs release signed-release");
