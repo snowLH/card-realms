@@ -13,6 +13,18 @@ import { ARPG_ASSETS } from "../assets";
 
 export const MATA_WEAPONS: ArpgWeaponDefinition[] = [
   {
+    id: "thorn-guard-blade",
+    name: "Lâmina do Guardião dos Espinhos",
+    kind: "sword",
+    rarity: "rare",
+    element: "nature",
+    damage: 31,
+    attackRateMs: 510,
+    range: 90,
+    effect: { id: "tide-cleave", label: "Ramos Cortantes", description: "O golpe causa um segundo corte em área com 35% do dano." },
+    description: "Uma lâmina viva, mais lenta e eficaz contra grupos.",
+  },
+  {
     id: "iron-sword",
     name: "Espada de Ferro",
     kind: "sword",
@@ -209,6 +221,7 @@ export const MATA_ROOM_LOOT_POOLS = [
   [
     { kind: "weapon", id: "forest-bow", label: "Arco da Mata" },
     { kind: "weapon", id: "ritual-staff", label: "Cajado Ritual" },
+    { kind: "weapon", id: "thorn-guard-blade", label: "Lâmina do Guardião dos Espinhos" },
   ],
   [
     { kind: "weapon", id: "forest-bow", label: "Arco da Mata" },
