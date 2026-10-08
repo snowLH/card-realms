@@ -1,4 +1,5 @@
 "use strict";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { app, BrowserWindow, shell, session, Menu } = require("electron");
 const GAME_URL = "https://card-realms.vercel.app/";
 const GAME_ORIGIN = new URL(GAME_URL).origin;
