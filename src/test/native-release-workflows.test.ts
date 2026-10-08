@@ -25,6 +25,18 @@ describe("native release workflow hardening", () => {
     }
   });
 
+  it("isolates native concurrency by ref and cancels only stale PR validation", () => {
+    for (const path of [
+      ".github/workflows/android-app.yml",
+      ".github/workflows/desktop-app.yml",
+      ".github/workflows/ios-simulator.yml",
+    ] as const) {
+      const source = workflow(path);
+      expect(source, path).toContain("${{ github.ref }}");
+      expect(source, path).toContain("cancel-in-progress: ${{ github.event_name == 'pull_request' }}");
+    }
+  });
+
   it("validates native changes in pull requests but reserves push releases for main", () => {
     for (const path of [
       ".github/workflows/android-app.yml",
