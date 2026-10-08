@@ -15,9 +15,32 @@ export type DownloadRelease = {
   size: number | null;
   updatedAt: string | null;
   sha256: string | null;
+  version: string | null;
+  commit: string | null;
 };
 type Asset = { name: string; state: string; size: number; updated_at?: string; digest?: string; browser_download_url: string };
 type Release = { tag_name: string; name?: string; draft: boolean; assets: Asset[] };
+
+async function readBuildMetadata(platform: DownloadPlatform, release: Release | null | undefined, asset: Asset | undefined, fetcher: typeof fetch) {
+  const empty = { version: null, commit: null };
+  if (!release || !asset) return empty;
+  const platformName = { windows: "Windows", linux: "Linux", android: "Android" }[platform];
+  const file = `Folklard-${platformName}.json`;
+  const url = `https://github.com/${REPOSITORY}/releases/download/${release.tag_name}/${file}`;
+  if (!release.assets.some((candidate) => candidate.name === file && candidate.state === "uploaded"
+    && candidate.size > 0 && candidate.size <= 4096 && candidate.browser_download_url === url)) return empty;
+  try {
+    const response = await fetcher(url, { next: { revalidate: 300 }, signal: AbortSignal.timeout(6500) });
+    if (!response.ok) return empty;
+    const metadata = await response.json();
+    if (metadata.file !== asset.name || metadata.size !== asset.size
+      || typeof metadata.version !== "string" || !/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(metadata.version)
+      || typeof metadata.commit !== "string" || !/^[a-f0-9]{40}$/i.test(metadata.commit)
+      || typeof metadata.sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(metadata.sha256)
+      || (asset.digest && `sha256:${metadata.sha256}` !== asset.digest)) return empty;
+    return { version: metadata.version as string, commit: metadata.commit as string };
+  } catch { return empty; }
+}
 
 export function downloadUrl(platform: DownloadPlatform) {
   const { tag, file } = DOWNLOADS[platform];
@@ -66,11 +89,17 @@ export async function getDownloadReleases(fetcher: typeof fetch = fetch): Promis
     const asset = release?.assets.find((candidate) => candidate.name === spec.file
       && candidate.state === "uploaded" && candidate.size > 0 && candidate.browser_download_url === url);
     // If metadata is temporarily rate limited, the real binary can still be checked.
-    const check = release && !asset ? { available: false, size: null } : await checkBinary(url, asset?.size ?? null, fetcher);
+    const [check, metadata] = await Promise.all([
+      release && !asset ? Promise.resolve({ available: false, size: null }) : checkBinary(url, asset?.size ?? null, fetcher),
+      readBuildMetadata(platform, release, asset, fetcher),
+    ]);
     const digest = asset?.digest?.match(/^sha256:([a-f0-9]{64})$/i)?.[1] ?? null;
     return [platform, {
       available: check.available, url, tag: spec.tag, name: release?.name ?? null,
-      size: asset?.size ?? check.size, updatedAt: asset?.updated_at ?? null, sha256: digest,
+      size: asset?.size ?? check.size,
+      updatedAt: asset?.updated_at && Number.isFinite(Date.parse(asset.updated_at)) ? asset.updated_at : null,
+      sha256: digest,
+      ...metadata,
     }] as const;
   }));
   return Object.fromEntries(results) as Record<DownloadPlatform, DownloadRelease>;

@@ -49,4 +49,34 @@ describe("official installer availability", () => {
     const releases = await getDownloadReleases(fetcher);
     expect(Object.values(releases).every((release) => !release.available)).toBe(true);
   });
+  it.each([true, false])("only displays build identity when metadata matches the binary (valid=%s)", async (valid) => {
+    const base = mockFetch();
+    const fetcher = vi.fn<typeof fetch>(async (url, options) => {
+      if (String(url).endsWith("Folklard-Windows.json")) {
+        return Response.json({ file: DOWNLOADS.windows.file, size: 128, version: "0.2.0",
+          commit: "b".repeat(40), sha256: (valid ? "a" : "c").repeat(64) });
+      }
+      const response = await base(url, options);
+      if (!String(url).endsWith("/downloads-desktop")) return response;
+      const release = await response.json();
+      release.assets.push({ name: "Folklard-Windows.json", state: "uploaded", size: 287,
+        browser_download_url: "https://github.com/snowLH/card-realms/releases/download/downloads-desktop/Folklard-Windows.json" });
+      return Response.json(release);
+    });
+    const releases = await getDownloadReleases(fetcher);
+    expect(releases.windows).toMatchObject({ available: true,
+      version: valid ? "0.2.0" : null, commit: valid ? "b".repeat(40) : null });
+    expect(releases.android.version).toBeNull();
+  });
+  it("ignores a malformed release timestamp instead of breaking the installation page", async () => {
+    const base = mockFetch();
+    const fetcher = vi.fn<typeof fetch>(async (url, options) => {
+      const response = await base(url, options);
+      if (!String(url).startsWith("https://api.github.com/")) return response;
+      const release = await response.json();
+      release.assets[0].updated_at = "invalid-date";
+      return Response.json(release);
+    });
+    expect((await getDownloadReleases(fetcher)).windows.updatedAt).toBeNull();
+  });
 });

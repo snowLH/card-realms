@@ -18,7 +18,7 @@ const platforms: { key: DownloadPlatform; title: string; button: string; require
   },
   {
     key: "android", title: "Android", button: "BAIXAR APK ANDROID",
-    requirements: "Android 6 ou superior · WebView atualizado · internet",
+    requirements: "Android 7 ou superior · WebView 111 ou superior · internet",
     steps: ["Baixe o APK e abra pelo gerenciador de arquivos.", "Se solicitado, permita a instalação por esse aplicativo apenas para concluir a instalação.", "Nas dungeons, gire o aparelho para paisagem e use o joystick e os botões de combate."],
     note: "APK de teste com assinatura de desenvolvimento. A compatibilidade física ainda está em validação.",
   },
@@ -33,9 +33,10 @@ const platforms: { key: DownloadPlatform; title: string; button: string; require
 function ReleaseDetails({ release }: { release: DownloadRelease }) {
   return (
     <dl className="folklard-install__release">
-      <div><dt>Edição</dt><dd>Teste · {release.tag}</dd></div>
+      <div><dt>Versão</dt><dd>{release.version ?? release.tag} · teste</dd></div>
       {release.size !== null && <div><dt>Arquivo</dt><dd>{new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(release.size / 1048576)} MB</dd></div>}
       {release.updatedAt && <div><dt>Atualizado</dt><dd>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "UTC" }).format(new Date(release.updatedAt))}</dd></div>}
+      {release.commit && <div><dt>Compilação</dt><dd>{release.commit.slice(0, 7)}</dd></div>}
     </dl>
   );
 }
