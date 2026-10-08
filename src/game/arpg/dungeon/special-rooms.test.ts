@@ -15,8 +15,8 @@ describe("salas especiais procedurais", () => {
 
   it("só cria escolha para descanso, evento e mercador", () => {
     expect(getSpecialRoomEncounter("mata-encantada", "combat")).toBeNull();
-    expect(getSpecialRoomEncounter("mata-encantada", "rest")?.options).toHaveLength(2);
-    expect(getSpecialRoomEncounter("mata-encantada", "shop")?.options).toHaveLength(3);
+    expect(getSpecialRoomEncounter("mata-encantada", "rest")?.options).toHaveLength(3);
+    expect(getSpecialRoomEncounter("mata-encantada", "shop")?.options).toHaveLength(4);
     expect(getSpecialRoomEncounter("mata-encantada", "event")?.options).toHaveLength(2);
   });
 
@@ -40,6 +40,18 @@ describe("salas especiais procedurais", () => {
       hpDelta: -10,
       shardsDelta: 20,
     });
+  });
+
+  it("offers exclusive event choices in every biome", () => {
+    expect(getSpecialRoomEncounter("montanhas-runicas", "event")?.title).toBe("Oráculo da nevasca");
+    expect(resolveSpecialRoomChoice("montanhas-runicas", "event-risk")).toMatchObject({ hpDelta: -14, shardsDelta: 22 });
+    expect(resolveSpecialRoomChoice("montanhas-runicas", "event-safe")).toMatchObject({ hpDelta: 0, shardsDelta: 8 });
+  });
+
+  it("makes damage and movement upgrades mutually exclusive per room choice", () => {
+    expect(resolveSpecialRoomChoice("mata-encantada", "rest-focus")).toMatchObject({ basicDamageMultiplier: 1.08 });
+    expect(resolveSpecialRoomChoice("mata-encantada", "shop-speed")).toMatchObject({ shardsDelta: -12, moveSpeedBonus: 12 });
+    expect(() => resolveSpecialRoomChoice("mata-encantada", "fake-choice" as "event-safe")).toThrow();
   });
 
   it("só permite interagir com o ponto físico da sala especial ao alcance", () => {
