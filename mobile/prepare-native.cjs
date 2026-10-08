@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { version } = require("./package.json");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { computeNativeBuildNumber } = require("./native-version.cjs");
 const target = process.argv[2];
 const buildNumber = computeNativeBuildNumber(version, process.env.GITHUB_RUN_NUMBER ?? 1);
