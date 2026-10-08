@@ -21,6 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -45,6 +47,8 @@ jobs:
         working-directory: desktop
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -54,8 +58,6 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Build dedicated installer
         run: npm run ${{ matrix.target }}
-        env:
-          GH_TOKEN: ${{ github.token }}
       - name: Prepare direct download and integrity metadata
         run: node release-metadata.cjs ${{ matrix.platform }}
       - uses: actions/upload-artifact@v7
