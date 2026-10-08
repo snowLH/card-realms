@@ -1997,7 +1997,8 @@
 .arpg-dungeon-reward .arpg-loot-choice__compare > article {
   position: relative;
   gap: 6px;
-  overflow: hidden;
+  min-height: min-content;
+  overflow: visible;
   border: 2px solid #53694f;
   border-radius: 4px;
   padding: 14px 12px 12px;
@@ -2302,6 +2303,28 @@
     max-height: calc(100dvh - 12px);
     gap: 8px;
     padding: 10px 12px;
+  }
+
+  .arpg-dungeon-reward .arpg-loot-choice__panel {
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    overflow: hidden;
+  }
+
+  .arpg-dungeon-reward .arpg-loot-choice__compare {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 2px 5px 4px 2px;
+    scrollbar-gutter: stable;
+    scrollbar-color: var(--choice-accent) #142118;
+  }
+
+  .arpg-dungeon-reward .arpg-loot-choice__actions {
+    position: sticky;
+    z-index: 2;
+    bottom: 0;
+    padding-top: 5px;
+    background: linear-gradient(180deg, transparent, rgba(15, 25, 19, .98) 38%);
   }
 
   .arpg-dungeon-reward .arpg-loot-choice__panel > header,
