@@ -48,8 +48,16 @@ export function createDungeonRuntimeTextures(scene: import("phaser").Scene) {
       graphics.generateTexture("arpg-enemy", 36, 36);
       graphics.clear();
 
-      graphics.fillStyle(0xffffff, 1);
-      graphics.fillRect(3, 3, 7, 7);
+      // High-contrast three-tone bolt, readable on every biome background.
+      graphics.clear();
+      graphics.fillStyle(0x235b62, 0.92);
+      graphics.fillRect(0, 5, 13, 3);
+      graphics.fillRect(5, 0, 3, 13);
+      graphics.fillStyle(0x75e4cc, 1);
+      graphics.fillRect(2, 4, 9, 5);
+      graphics.fillRect(4, 2, 5, 9);
+      graphics.fillStyle(0xfff5d5, 1);
+      graphics.fillRect(5, 5, 3, 3);
       graphics.generateTexture("arpg-projectile", 13, 13);
 
       graphics.clear();
