@@ -129,14 +129,16 @@ describe("ARPG Raid authoritative foundation", () => {
     const legacySnapshot = structuredClone(previousState) as unknown as Record<string, unknown>;
     delete legacySnapshot.reviveCharges;
     legacySnapshot.players = previousState.players.map((player) => {
-      const legacyPlayer = { ...player } as { downedUntilMs?: number };
+      const legacyPlayer = { ...player } as { downedUntilMs?: number; lastInputAtMs?: number };
       delete legacyPlayer.downedUntilMs;
+      delete legacyPlayer.lastInputAtMs;
       return legacyPlayer;
     });
 
     const parsed = ArpgRaidStateSchema.parse(legacySnapshot);
     expect(parsed.reviveCharges).toBe(2);
     expect(parsed.players.every((player) => player.downedUntilMs === 0)).toBe(true);
+    expect(parsed.players.every((player) => player.lastInputAtMs === 0)).toBe(true);
   });
 
   it("integra movimento no servidor e limita o avanço máximo por requisição", () => {
