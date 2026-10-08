@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { PLAYABLE_LEGEND_BY_ID } from "@/game/arpg/content/legends";
 import { DEFAULT_AVATAR_CONFIG, AvatarConfigSchema } from "@/game/save/local-progress";
-import { RaidLobbyActionSchema } from "@/game/raid";
+import { RaidLobbyActionSchema } from "@/game/arpg/raid/lobby-schema";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 

@@ -7,8 +7,6 @@ import {
   REFUGE_FURNITURE_UNLOCK_ITEM_KEYS,
   REFUGE_THEMES,
 } from "@/game/refuge";
-import { BATTLE_BOARD_IDS } from "@/game/battle/presentation";
-import { ELEMENTS } from "@/game/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { PATCH as saveArpgLoadout } from "@/server/http-handlers/arpg-loadout";
@@ -16,7 +14,7 @@ import { POST as purchaseArpgPower } from "@/server/http-handlers/arpg-power-pur
 import { PATCH as saveAvatar } from "@/server/http-handlers/player-avatar";
 import { POST as purchaseLegend } from "@/server/http-handlers/player-legend-purchase";
 import { GET as authCallback } from "@/server/http-handlers/auth-callback";
-import { GET as loadRaidLobby, POST as updateRaidLobby } from "@/server/http-handlers/legacy/raids";
+import { GET as loadRaidLobby, POST as updateRaidLobby } from "@/server/http-handlers/arpg-raid-lobby";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,17 +46,8 @@ const mutationSchema = z.discriminatedUnion("action", [
     y: z.number().int().min(0).max(24),
   }),
   z.object({
-    action: z.literal("buy_energy"),
-    element: z.enum(ELEMENTS),
-    quantity: z.union([z.literal(1), z.literal(5)]),
-  }),
-  z.object({
     action: z.literal("buy_merchant_item"),
     itemKey: z.string().min(1).max(80).refine((itemKey) => ARPG_MERCHANT_PRODUCT_KEYS.has(itemKey)),
-  }),
-  z.object({
-    action: z.literal("choose_starter"),
-    creatureId: z.enum(["boitata", "iara", "curupira"]),
   }),
   z.object({ action: z.literal("activate_team"), teamId: z.string().uuid() }),
   z.object({
@@ -66,9 +55,7 @@ const mutationSchema = z.discriminatedUnion("action", [
     memberIds: z.array(z.string().uuid()).min(1).max(6),
     name: z.string().trim().min(1).max(60).optional(),
   }),
-  z.object({ action: z.literal("evolve_creature"), instanceId: z.string().uuid() }),
   z.object({ action: z.literal("claim_mission"), missionId: z.string().min(1).max(80) }),
-  z.object({ action: z.literal("save_battle_board"), boardId: z.enum(BATTLE_BOARD_IDS) }),
   z.object({
     action: z.literal("save_refuge"),
     companionId: z.string().min(1).max(80).nullable(),
@@ -217,20 +204,6 @@ export async function PATCH(request: Request) {
       );
     }
 
-    if (payload.action === "evolve_creature") {
-      const { data, error } = await auth.supabase.rpc("evolve_owned_creature", {
-        target_instance_id: payload.instanceId,
-      });
-      if (error) {
-        const conflict = error.code === "22023" || error.code === "P0002";
-        return NextResponse.json(
-          { error: conflict ? error.message : "Não foi possível evoluir esta carta." },
-          { status: conflict ? 409 : 503 },
-        );
-      }
-      return NextResponse.json({ result: data, authority: "supabase" });
-    }
-
     if (payload.action === "claim_mission") {
       const { data, error } = await auth.supabase.rpc("claim_mission_reward", {
         target_mission_id: payload.missionId,
@@ -243,33 +216,6 @@ export async function PATCH(request: Request) {
         );
       }
       return NextResponse.json({ result: data, authority: "supabase" });
-    }
-
-    if (payload.action === "save_battle_board") {
-      const { data: house, error: houseError } = await auth.supabase
-        .from("houses")
-        .select("layout")
-        .eq("user_id", auth.userId)
-        .single();
-      if (houseError || !house) {
-        return NextResponse.json({ error: "O perfil de personalização não foi encontrado." }, { status: 404 });
-      }
-      const previousLayout = house.layout
-        && typeof house.layout === "object"
-        && !Array.isArray(house.layout)
-        ? house.layout as Record<string, unknown>
-        : {};
-      const { error: updateError } = await auth.supabase
-        .from("houses")
-        .update({ layout: { ...previousLayout, preferredBattleBoard: payload.boardId } })
-        .eq("user_id", auth.userId);
-      if (updateError) {
-        return NextResponse.json({ error: "Não foi possível salvar seu tabuleiro." }, { status: 503 });
-      }
-      return NextResponse.json({
-        result: { boardId: payload.boardId },
-        authority: "supabase",
-      });
     }
 
     if (payload.action === "save_refuge") {
@@ -370,16 +316,9 @@ export async function PATCH(request: Request) {
                 target_x: payload.x,
                 target_y: payload.y,
               })
-          : payload.action === "buy_energy"
-            ? auth.supabase.rpc("buy_energy_pack", {
-                target_element: payload.element,
-                target_quantity: payload.quantity,
-              })
-            : payload.action === "buy_merchant_item"
-              ? auth.supabase.rpc("purchase_arpg_merchant_item", {
-                  target_item_key: payload.itemKey,
-                })
-              : auth.supabase.rpc("choose_starter_card", { target_creature_id: payload.creatureId });
+          : auth.supabase.rpc("purchase_arpg_merchant_item", {
+              target_item_key: payload.itemKey,
+            });
 
     const { data, error } = await rpc;
     if (error) {

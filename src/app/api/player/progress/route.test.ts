@@ -59,6 +59,24 @@ describe("PATCH /api/player/progress retired team mutations", () => {
   });
 });
 
+describe("retired classic mutations are rejected before any database operation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getClaims.mockResolvedValue({ data: { claims: { sub: "player-1" } }, error: null });
+  });
+
+  it.each([
+    { action: "buy_energy", element: "fire", quantity: 5 },
+    { action: "choose_starter", creatureId: "boitata" },
+    { action: "evolve_creature", instanceId: memberId },
+    { action: "save_battle_board", boardId: "classic" },
+  ])("rejects %s with a 400 instead of mutating SQL", async (payload) => {
+    const response = await PATCH(request(payload));
+    expect(response.status).toBe(400);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+});
+
 describe("shared endpoint method dispatch", () => {
   beforeEach(() => {
     vi.clearAllMocks();

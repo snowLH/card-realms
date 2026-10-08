@@ -20,7 +20,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import type { PlayerBootstrap } from "@/game/player";
 import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
-import type { RaidGameplayMode } from "@/game/raid";
+import type { RaidGameplayMode } from "@/game/arpg/raid/lobby-schema";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
