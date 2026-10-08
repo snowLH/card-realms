@@ -61,15 +61,13 @@ describe("telas de progressão da conta", () => {
     render(
       <VillageView
         coins={500}
-        energy={{ fire: 0, water: 0, nature: 0, storm: 0, spirit: 0 }}
         ownedItemKeys={[]}
         onBack={vi.fn()}
-        onBuy={vi.fn()}
         onBuyItem={vi.fn()}
       />,
     );
 
-    expect(screen.getByText("Mercadora de energias")).toBeInTheDocument();
+    expect(screen.queryByText("Mercadora de energias")).not.toBeInTheDocument();
     expect(screen.getByText("Itens e cosméticos")).toBeInTheDocument();
     expect(screen.getByText(/Armas e relíquias são conquistadas nas masmorras/i)).toBeInTheDocument();
     expect(screen.queryByText(/armadura|armor/i)).not.toBeInTheDocument();

@@ -37,7 +37,7 @@ import type { ArpgLoadout } from "@/game/arpg/domain/types";
 import type { GridPoint } from "@/game/exploration/pathfinding";
 import type { PlayerBootstrap } from "@/game/player";
 import type { RefugeSavePayload } from "@/game/refuge";
-import type { BattleEncounter, Element, EnergyPool, RegionAreaDefinition, RegionDefinition } from "@/game/types";
+import type { BattleEncounter, EnergyPool, RegionAreaDefinition, RegionDefinition } from "@/game/types";
 import {
   DEFAULT_AVATAR_CONFIG,
   DEFAULT_LOCAL_PROGRESS,
@@ -470,30 +470,6 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     }
   };
 
-  const handleBuyEnergy = async (element: Element, quantity: 1 | 5, price: number) => {
-    if (coins < price) {
-      setToast("Moedas insuficientes para este pacote.");
-      return;
-    }
-    if (bootstrap.source === "supabase") {
-      try {
-        const result = await mutateRemoteProgress({ action: "buy_energy", element, quantity }) as {
-          coins: number;
-          energy: EnergyPool;
-        };
-        setCoins(result.coins);
-        setEnergy(result.energy);
-        setToast(`${quantity} energia(s) adicionada(s) ao inventário.`);
-      } catch (error) {
-        setToast(error instanceof Error ? error.message : "A compra não pôde ser concluída.");
-      }
-      return;
-    }
-    setCoins((current) => current - price);
-    setEnergy((current) => ({ ...current, [element]: current[element] + quantity }));
-    setToast(`${quantity} energia(s) comprada(s) na Vila Cartógrafa.`);
-  };
-
   const handleBuyMerchantItem = async (itemKey: string) => {
     const product = ARPG_MERCHANT_PRODUCT_BY_KEY.get(itemKey);
     if (!product) {
@@ -835,11 +811,9 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
         {!showWelcome && view === "village" ? (
           <VillageView
             coins={coins}
-            energy={energy}
             ownedItemKeys={equipmentIds}
             onBack={() => navigate(villageReturnView)}
             backLabel={villageReturnView === "hub" ? "Voltar à Guilda" : "Voltar ao Atlas"}
-            onBuy={handleBuyEnergy}
             onBuyItem={handleBuyMerchantItem}
           />
         ) : null}
