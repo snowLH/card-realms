@@ -1170,11 +1170,17 @@ export function createArpgDungeonScene(
         return this.aimVector.set(touch.aimX, touch.aimY).normalize();
       }
 
+      // Mobile attack buttons have no analog aim. Lock to the nearest live target.
+      // Desktop players keep precision mouse aim, including when firing.
       if (touch.attack || this.gamepad.attack) {
         const nearest = this.findNearestEnemy(460);
         if (nearest) {
           return this.aimVector.set(nearest.x - this.player.x, nearest.y - this.player.y).normalize();
         }
+        // Do not snap back to the origin when no enemy is available.
+        return this.aimVector.lengthSq() > 0.001
+          ? this.aimVector.normalize()
+          : this.aimVector.set(1, 0);
       }
 
       const pointer = this.input.activePointer;
