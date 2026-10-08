@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Settings, UsersRound } from "lucide-react";
+import { Download, Settings, UsersRound } from "lucide-react";
+import Link from "next/link";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArpgAudio } from "@/game/arpg/runtime/arpg-audio";
@@ -99,6 +100,11 @@ export function TitleScreen({
           <span>COOPERATIVO<small>Dungeons com amigos</small></span>
         </button>
       </nav>
+
+      <Link href="/instalar" className="title-screen__download" aria-label="Baixar Folklard para PC ou celular">
+        <Download aria-hidden="true" />
+        <span>BAIXAR APLICATIVO</span>
+      </Link>
 
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent className="title-screen__dialog">
