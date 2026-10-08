@@ -2,7 +2,6 @@ import type { ArpgAbilityCardDefinition } from "../domain/types";
 import { LEGEND_ABILITY_DEFINITIONS } from "./legend-abilities";
 
 type SignatureId = (typeof LEGEND_ABILITY_DEFINITIONS)[number]["id"];
-type SignatureTuning = Readonly<{ damage: number; cooldown: number; radius: number; healing: number }>;
 
 /** A bounded first-pass balance profile for every playable signature skill.
  * Combat is driven by the same definitions in Phaser and on the server.
