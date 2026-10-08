@@ -448,6 +448,40 @@ export function ArpgRaidArena({
   }, [refresh, roomId]);
 
   useEffect(() => {
+    const stopMovement = () => {
+      keysRef.current.clear();
+      gamepadPressedRef.current.clear();
+      gamepadAttackHeldRef.current = false;
+      gamepadWasMovingRef.current = false;
+      const current = movementRef.current;
+      movementRef.current = { ...current, x: 0, y: 0 };
+      lastInputRef.current = { ...lastInputRef.current, x: Number.NaN, y: Number.NaN, at: 0 };
+      if (stateRef.current?.status === "active") {
+        inputSeqRef.current += 1;
+        void sendAction({
+          action: "input",
+          clientSeq: inputSeqRef.current,
+          moveX: 0,
+          moveY: 0,
+          aimX: current.aimX,
+          aimY: current.aimY,
+        });
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") stopMovement();
+    };
+    window.addEventListener("blur", stopMovement);
+    window.addEventListener("pagehide", stopMovement);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("blur", stopMovement);
+      window.removeEventListener("pagehide", stopMovement);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [sendAction]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => {
       const movement = movementRef.current;
       const now = performance.now();
