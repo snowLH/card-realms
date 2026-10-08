@@ -28,5 +28,12 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Diagnose full dependency audit
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
       - name: Verify deployability
         run: npm run verify:deploy
