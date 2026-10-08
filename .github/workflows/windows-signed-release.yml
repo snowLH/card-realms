@@ -3,6 +3,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: windows-signed-release
+  cancel-in-progress: false
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -42,10 +45,38 @@ jobs:
           CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
         run: npm run dist:win
+      - name: Prepare signed download and integrity metadata
+        run: node release-metadata.cjs Windows signed-release
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
           name: folklard-windows-signed
-          path: desktop/dist/*.exe
+          path: |
+            desktop/dist/Folklard-Windows.exe
+            desktop/dist/Folklard-Windows.json
           if-no-files-found: error
           retention-days: 30
+
+  publish:
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: folklard-windows-signed
+          path: signed-windows
+      - name: Publish signed Windows download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: downloads-desktop
+          name: Folklard - PC
+          prerelease: true
+          make_latest: false
+          body: |
+            Windows assinado do commit ${{ github.sha }}. O asset Linux permanece no mesmo canal de downloads.
+            Versão, tamanho, commit e SHA-256 em Folklard-Windows.json.
+          files: signed-windows/*
+          fail_on_unmatched_files: true
+          overwrite_files: true
