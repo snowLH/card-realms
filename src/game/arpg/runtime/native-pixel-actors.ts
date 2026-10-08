@@ -1260,6 +1260,19 @@ function drawActorFrame(
     }
   }
 
+  // Action-readable magical impact accents, animated independently of silhouette.
+  if (design.kind !== "npc" && (row === NATIVE_PIXEL_ACTOR_ANIMATION_ROWS.attack || row === NATIVE_PIXEL_ACTOR_ANIMATION_ROWS.shoot)) {
+    const swing = frame % 4;
+    const x = row === NATIVE_PIXEL_ACTOR_ANIMATION_ROWS.shoot ? 24 + swing : 25 - swing;
+    p.rect(x, 13 - (swing % 2), 3, 2, design.accent, 0.95);
+    p.rect(x + 1, 11 - (swing % 2), 1, 2, design.bodyLight, 0.9);
+    p.rect(4 + swing, 16, 2, 1, design.accent, 0.75);
+  }
+  if (design.kind !== "npc" && row === NATIVE_PIXEL_ACTOR_ANIMATION_ROWS.idle && frame % 2 === 0) {
+    p.rect(5, 19, 2, 2, design.accent, 0.55);
+    p.rect(25, 21, 2, 2, design.bodyLight, 0.6);
+  }
+
   if (row === NATIVE_PIXEL_ACTOR_ANIMATION_ROWS.damage) {
     // A compact hit flash gives every silhouette a readable damage reaction.
     const recoil = frame % 2;
