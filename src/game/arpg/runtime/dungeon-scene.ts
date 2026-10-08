@@ -66,6 +66,7 @@ import { acceptServerConfirmedCombatResponse } from "./visual-events";
 import { getEnemyMovementIntent, type EnemyCombatRole } from "./enemy-behavior";
 import { selectNearestTarget, resolveCombatDirection } from "./combat-targeting";
 import { getCurupiraBossPattern, getCurupiraBossPhase } from "./boss-patterns";
+import { getRegionalBossPattern } from "../dungeon/region-boss-patterns";
 import { readBrowserGamepad, type GamepadFrame } from "./gamepad";
 import { pickGroupMember } from "./group-member";
 import {
@@ -3047,11 +3048,19 @@ export function createArpgDungeonScene(
         return;
       }
 
-      if (phase === 1) {
+      const regionalPattern = getRegionalBossPattern(dungeon.id, phase, patternIndex);
+      enemy.setData("bossPatternIndex", patternIndex + 1);
+      enemy.setData("lastBossPattern", regionalPattern);
+      if (regionalPattern === "tide-volley" || regionalPattern === "frost-shards") {
         this.fireBossVolley(enemy, 3, 0.14);
         enemy.setData("nextSpecialAt", time + 2200);
-      } else if (phase === 2) {
-        this.telegraphAreaStrike(this.player.x, this.player.y, 100, 16, dungeon.colors.phaseTwo, 760);
+      } else if (regionalPattern === "undertow-sweep") {
+        this.telegraphAreaStrike(this.player.x, this.player.y, 110, 18, dungeon.colors.phaseTwo, 720);
+        enemy.setData("nextSpecialAt", time + 2000);
+      } else if (regionalPattern === "ice-lanes") {
+        for (const offset of [-100, 0, 100]) {
+          this.telegraphAreaStrike(this.player.x + offset, this.player.y, 65, 15, dungeon.colors.phaseTwo, 650);
+        }
         enemy.setData("nextSpecialAt", time + 2000);
       } else {
         this.teleportBoss(enemy);
@@ -3059,19 +3068,6 @@ export function createArpgDungeonScene(
         this.telegraphAreaStrike(this.player.x, this.player.y, 88, 18, dungeon.colors.phaseThree, 700);
         enemy.setData("nextSpecialAt", time + 1650);
       }
-    }
-
-    private fireBossVolley(enemy: ArcadeSprite, count: number, spread: number) {
-      const base = new Phaser.Math.Vector2(
-        this.player.x - enemy.x,
-        this.player.y - enemy.y,
-      ).normalize();
-      const center = (count - 1) / 2;
-      for (let index = 0; index < count; index += 1) {
-        const direction = base.clone().rotate((index - center) * spread);
-        this.fireEnemyProjectile(enemy, direction, 13, 330, dungeon.colors.projectile, 2200);
-      }
-      bridge.emitMessage(dungeon.messages.bossVolley);
     }
 
     private summonCurupiraDecoys(enemy: ArcadeSprite) {

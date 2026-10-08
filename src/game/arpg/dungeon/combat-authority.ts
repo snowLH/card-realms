@@ -9,6 +9,7 @@ import { getRunShardReward } from "./special-rooms";
 import { buildRoomTileData, createSafeRoomSpawnPoints, ROOM_OBSTACLE_TILE, ROOM_WALL_TILE } from "./room-tilemap";
 import { populateArpgDungeonContent } from "./content";
 import { getCurupiraBossPattern, getCurupiraBossPhase, type CurupiraBossPhase } from "./boss-patterns";
+import { getRegionalBossPattern } from "./region-boss-patterns";
 import type { DungeonGraph, DungeonRoom } from "./types";
 
 const MAX_ENEMIES_PER_ROOM = 24;
@@ -522,12 +523,13 @@ function launchBossPattern(
       intervalMs = 1_750;
     }
   } else if (graph.regionId === "arquipelago-das-mares") {
-    if (phase === 1) {
-      pattern = "tide-volley";
+    const chosen = getRegionalBossPattern(graph.regionId, phase, patternIndex);
+    if (chosen === "tide-volley") {
+      pattern = chosen;
       fireBossVolley(state, enemy, targetX, targetY, 3, 0.14, 14, 345);
       intervalMs = 2_200;
-    } else if (phase === 2) {
-      pattern = "undertow-sweep";
+    } else if (chosen === "undertow-sweep") {
+      pattern = chosen;
       addBossRectHazard(state, enemy, atMs, pattern,
         (enemy.x + targetX) / 2, (enemy.y + targetY) / 2, 250, 62, aimAngle, 18, 700, "sweep");
       intervalMs = 2_000;
@@ -543,12 +545,13 @@ function launchBossPattern(
       intervalMs = 1_650;
     }
   } else {
-    if (phase === 1) {
-      pattern = "frost-shards";
+    const chosen = getRegionalBossPattern(graph.regionId, phase, patternIndex);
+    if (chosen === "frost-shards") {
+      pattern = chosen;
       fireBossVolley(state, enemy, targetX, targetY, 3, 0.12, 14, 360);
       intervalMs = 2_200;
-    } else if (phase === 2) {
-      pattern = "ice-lanes";
+    } else if (chosen === "ice-lanes") {
+      pattern = chosen;
       [-1, 0, 1].forEach((offset) => {
         const laneCenter = clampPointToRoom(tiles,
           targetX + perpendicularX * offset * 76,
