@@ -1,39 +1,78 @@
 import "./install.css";
 import Link from "next/link";
-import { Download, Monitor, Smartphone, ShieldCheck } from "lucide-react";
+import { Download, Monitor, Smartphone, ShieldCheck, Apple, Gamepad2 } from "lucide-react";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Instalar Folklard — PC e celular" };
+export const metadata: Metadata = {
+  title: "Baixar Folklard — Windows, Android e Linux",
+  description: "Baixe o Folklard — Crônicas de Aurória como aplicativo para computador ou celular.",
+};
 
-export default function InstallPage() {
+const releases = {
+  windows: "https://github.com/snowLH/card-realms/releases/download/downloads-desktop/Folklard-Windows.exe",
+  android: "https://github.com/snowLH/card-realms/releases/download/downloads-android/Folklard-Android.apk",
+  linux: "https://github.com/snowLH/card-realms/releases/download/downloads-desktop/Folklard-Linux.AppImage",
+};
+
+type DownloadKey = keyof typeof releases;
+
+async function getAvailableDownloads(): Promise<Record<DownloadKey, boolean>> {
+  const checks = await Promise.all(
+    (Object.keys(releases) as DownloadKey[]).map(async (key) => {
+      try {
+        const response = await fetch(releases[key], { method: "HEAD", redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(4500) });
+        return [key, response.status >= 200 && response.status < 400] as const;
+      } catch {
+        return [key, false] as const;
+      }
+    }),
+  );
+  return Object.fromEntries(checks) as Record<DownloadKey, boolean>;
+}
+
+export default async function InstallPage() {
+  const available = await getAvailableDownloads();
   return (
     <main className="folklard-install">
       <div className="folklard-install__hero">
-        <span className="folklard-install__eyebrow">CRÔNICAS DE AURÓRIA</span>
-        <h1>Leve Folklard para sua tela</h1>
-        <p>Instale o jogo como aplicativo no computador ou celular. Seu progresso online continua ligado à mesma conta.</p>
+        <span className="folklard-install__eyebrow"><Gamepad2 size={18} aria-hidden="true" /> CRÔNICAS DE AURÓRIA</span>
+        <h1>Seu próximo mundo começa aqui.</h1>
+        <p>Baixe Folklard diretamente pelo nosso site e jogue em uma janela dedicada, no computador ou celular. Escolha sua plataforma.</p>
         <Link href="/">← Voltar ao jogo</Link>
       </div>
       <div className="folklard-install__grid">
-        <article>
-          <Smartphone aria-hidden="true" />
-          <h2>Android e iPhone</h2>
-          <p>Android: abra o jogo no Chrome e escolha <strong>Instalar aplicativo</strong> no menu. iPhone: no Safari, toque em <strong>Compartilhar → Adicionar à Tela de Início</strong>.</p>
-          <p>O aplicativo abre em tela própria, sem a barra normal do navegador.</p>
-          <a href="https://github.com/snowLH/card-realms/actions/workflows/android-app.yml" target="_blank" rel="noopener noreferrer">Ver versões Android de teste ↗</a>
-        </article>
-        <article>
+        <article className="folklard-install__card">
           <Monitor aria-hidden="true" />
-          <h2>Windows e Linux</h2>
-          <p>O cliente desktop dedicado é empacotado em instalador Windows e AppImage Linux. Os arquivos ficam nos artefatos das execuções concluídas do GitHub Actions.</p>
-          <a href="https://github.com/snowLH/card-realms/actions/workflows/desktop-app.yml" target="_blank" rel="noopener noreferrer"><Download aria-hidden="true" /> Ver instaladores ↗</a>
+          <h2>Windows</h2>
+          <p>Instalador para computadores com Windows 10 ou 11 (64 bits).</p>
+          {available.windows ? <a className="folklard-install__button" href={releases.windows}><Download size={19} /> BAIXAR PARA WINDOWS</a> : <span className="folklard-install__unavailable">Preparando download para Windows</span>}
+          <small>Versão de teste • conexão com a internet necessária</small>
         </article>
-        <article>
-          <ShieldCheck aria-hidden="true" />
-          <h2>Antes de instalar</h2>
-          <p>Os instaladores ainda são compilações de teste, sem assinatura de distribuição. O jogo precisa de internet para carregar o servidor e usar recursos online.</p>
-          <p>O APK Android é de desenvolvimento; não é uma versão publicada na Play Store.</p>
+        <article className="folklard-install__card">
+          <Smartphone aria-hidden="true" />
+          <h2>Android</h2>
+          <p>Aplicativo APK para instalar no seu celular Android.</p>
+          {available.android ? <a className="folklard-install__button" href={releases.android}><Download size={19} /> BAIXAR APK ANDROID</a> : <span className="folklard-install__unavailable">Preparando APK para Android</span>}
+          <small>APK de teste • pode exigir autorização para instalar</small>
         </article>
+        <article className="folklard-install__card">
+          <Monitor aria-hidden="true" />
+          <h2>Linux</h2>
+          <p>Aplicativo portátil AppImage para sistemas Linux 64 bits.</p>
+          {available.linux ? <a className="folklard-install__button" href={releases.linux}><Download size={19} /> BAIXAR PARA LINUX</a> : <span className="folklard-install__unavailable">Preparando download para Linux</span>}
+          <small>Versão de teste • arquivo AppImage</small>
+        </article>
+        <article className="folklard-install__card">
+          <Apple aria-hidden="true" />
+          <h2>iPhone e iPad</h2>
+          <p>No Safari, abra o jogo e toque em <strong>Compartilhar → Adicionar à Tela de Início</strong>. O aplicativo aparece com ícone próprio.</p>
+          <Link className="folklard-install__button" href="/">ABRIR PARA INSTALAR</Link>
+          <small>Distribuição nativa pela App Store ainda indisponível</small>
+        </article>
+      </div>
+      <div className="folklard-install__note">
+        <ShieldCheck aria-hidden="true" />
+        <p>Downloads hospedados na área oficial de versões do projeto. Os instaladores ainda não têm assinatura de distribuição e não foram homologados em todos os aparelhos. O jogo utiliza o servidor online para carregar e salvar seu progresso.</p>
       </div>
     </main>
   );
