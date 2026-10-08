@@ -44,7 +44,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys
-        .filter((key) => key.startsWith("card-realms-") && (DEVELOPMENT_ORIGIN || key !== STATIC_CACHE))
+        .filter((key) => (key.startsWith("card-realms-") || key.startsWith("folklard-")) && (DEVELOPMENT_ORIGIN || key !== STATIC_CACHE))
         .map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
