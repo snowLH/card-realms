@@ -1,25 +1,33 @@
 name: Desktop installers
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-app.yml"
   push:
+    branches:
+      - main
     paths:
       - "desktop/**"
       - ".github/workflows/desktop-app.yml"
 permissions:
   contents: read
 concurrency:
-  group: desktop-downloads
-  cancel-in-progress: false
+  group: desktop-downloads-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: "24"
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
           cache: npm
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
       - run: npm run verify:deploy
   desktop:
     needs: verify
@@ -38,21 +46,21 @@ jobs:
       run:
         working-directory: desktop
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: "24"
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
           cache: npm
           cache-dependency-path: desktop/package-lock.json
       - name: Install locked desktop dependencies
         run: npm ci --no-audit --no-fund
       - name: Build dedicated installer
         run: npm run ${{ matrix.target }}
-        env:
-          GH_TOKEN: ${{ github.token }}
       - name: Prepare direct download and integrity metadata
         run: node release-metadata.cjs ${{ matrix.platform }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: folklard-${{ matrix.platform }}-download
           path: |
@@ -63,11 +71,12 @@ jobs:
           retention-days: 30
   publish:
     needs: desktop
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: folklard-*-download
           merge-multiple: true
@@ -78,17 +87,36 @@ jobs:
           test -s installers/Folklard-Linux.AppImage
           test -s installers/Folklard-Windows.json
           test -s installers/Folklard-Linux.json
-      - name: Publish verified test builds
-        uses: softprops/action-gh-release@v2
+      - name: Preserve a signed Windows download
+        run: |
+          mkdir -p publish
+          cp installers/Folklard-Linux.AppImage publish/
+          cp installers/Folklard-Linux.json publish/
+          publish_windows=true
+          if curl --fail --location --silent --show-error \
+            'https://github.com/snowLH/card-realms/releases/download/downloads-desktop/Folklard-Windows.json' \
+            -o current-windows.json; then
+            if node -e "const m=require('./current-windows.json'); process.exit(m.signing === 'signed-release' ? 0 : 1)"; then
+              publish_windows=false
+              echo '### Signed Windows asset preserved' >> "$GITHUB_STEP_SUMMARY"
+              echo 'Only Linux will be refreshed; the signed Windows release will not be downgraded by an unsigned automatic build.' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          if [ "$publish_windows" = true ]; then
+            cp installers/Folklard-Windows.exe publish/
+            cp installers/Folklard-Windows.json publish/
+          fi
+      - name: Publish verified desktop builds
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: downloads-desktop
-          name: Folklard - PC (versões de teste)
+          name: Folklard - PC
           prerelease: true
           make_latest: false
           body: |
-            Aplicativos de teste para Windows x64 e Linux x86_64.
-            Build do commit ${{ github.sha }}. Versão, tamanho e SHA-256 em cada arquivo JSON.
-            Conexão com a internet necessária. Instaladores sem certificado de distribuição.
-          files: installers/*
+            Builds oficiais do canal de downloads para Windows x64 e Linux x86_64.
+            A versão, o commit, o SHA-256 e o estado de assinatura ficam registrados nos arquivos JSON.
+            O pipeline automático nunca substitui um Windows assinado por um build sem assinatura.
+          files: publish/*
           fail_on_unmatched_files: true
           overwrite_files: true

@@ -7,6 +7,8 @@ export const DOWNLOADS = {
   linux: { tag: "downloads-desktop", file: "Folklard-Linux.AppImage" },
 } as const;
 export type DownloadPlatform = keyof typeof DOWNLOADS;
+export type DownloadSigning = "development-test" | "unsigned-test" | "signed-release";
+const DOWNLOAD_SIGNINGS = new Set<DownloadSigning>(["development-test", "unsigned-test", "signed-release"]);
 export type DownloadRelease = {
   available: boolean;
   url: string;
@@ -17,12 +19,13 @@ export type DownloadRelease = {
   sha256: string | null;
   version: string | null;
   commit: string | null;
+  signing: DownloadSigning | null;
 };
 type Asset = { name: string; state: string; size: number; updated_at?: string; digest?: string; browser_download_url: string };
 type Release = { tag_name: string; name?: string; draft: boolean; assets: Asset[] };
 
 async function readBuildMetadata(platform: DownloadPlatform, release: Release | null | undefined, asset: Asset | undefined, fetcher: typeof fetch) {
-  const empty = { version: null, commit: null };
+  const empty = { version: null, commit: null, signing: null as DownloadSigning | null };
   if (!release || !asset) return empty;
   const platformName = { windows: "Windows", linux: "Linux", android: "Android" }[platform];
   const file = `Folklard-${platformName}.json`;
@@ -37,8 +40,13 @@ async function readBuildMetadata(platform: DownloadPlatform, release: Release | 
       || typeof metadata.version !== "string" || !/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(metadata.version)
       || typeof metadata.commit !== "string" || !/^[a-f0-9]{40}$/i.test(metadata.commit)
       || typeof metadata.sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(metadata.sha256)
+      || typeof metadata.signing !== "string" || !DOWNLOAD_SIGNINGS.has(metadata.signing as DownloadSigning)
       || (asset.digest && `sha256:${metadata.sha256}` !== asset.digest)) return empty;
-    return { version: metadata.version as string, commit: metadata.commit as string };
+    return {
+      version: metadata.version as string,
+      commit: metadata.commit as string,
+      signing: metadata.signing as DownloadSigning,
+    };
   } catch { return empty; }
 }
 
