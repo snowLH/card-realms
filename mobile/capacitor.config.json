@@ -4,9 +4,12 @@
   "webDir": "www",
   "server": {
     "url": "https://card-realms.vercel.app",
-    "cleartext": false
+    "cleartext": false,
+    "errorPath": "offline.html"
   },
   "android": {
-    "allowMixedContent": false
+    "allowMixedContent": false,
+    "minWebViewVersion": 111,
+    "backgroundColor": "#0b211e"
   }
 }

@@ -1,0 +1,82 @@
+name: iOS signed archive
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:deploy
+  archive:
+    needs: verify
+    runs-on: macos-latest
+    environment: ios-release
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Require real Apple distribution credentials
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+        run: |
+          test -n "$CERTIFICATE_BASE64" && test -n "$CERTIFICATE_PASSWORD" && test -n "$PROFILE_BASE64" && test -n "$TEAM_ID" || { echo 'Apple distribution certificate, password, App Store provisioning profile and team ID are required'; exit 1; }
+      - name: Generate branded iOS project
+        run: |
+          npm ci --no-audit --no-fund
+          npm run ios:init
+          node prepare-native.cjs ios
+          npx cap sync ios
+      - name: Install certificate and validate provisioning profile
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+        run: |
+          printf '%s' "$CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/folklard.p12"
+          printf '%s' "$PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/folklard.mobileprovision"
+          security cms -D -i "$RUNNER_TEMP/folklard.mobileprovision" > "$RUNNER_TEMP/folklard-profile.plist"
+          python3 signing-profile.py
+          keychain_password="$(openssl rand -hex 32)"
+          security create-keychain -p "$keychain_password" "$RUNNER_TEMP/folklard-signing.keychain-db"
+          security set-keychain-settings -lut 21600 "$RUNNER_TEMP/folklard-signing.keychain-db"
+          security unlock-keychain -p "$keychain_password" "$RUNNER_TEMP/folklard-signing.keychain-db"
+          security import "$RUNNER_TEMP/folklard.p12" -P "$CERTIFICATE_PASSWORD" -t cert -f pkcs12 -k "$RUNNER_TEMP/folklard-signing.keychain-db"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$keychain_password" "$RUNNER_TEMP/folklard-signing.keychain-db"
+          security list-keychains -d user -s "$RUNNER_TEMP/folklard-signing.keychain-db"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$RUNNER_TEMP/folklard.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/folklard.mobileprovision"
+      - name: Archive and export for App Store Connect
+        env:
+          TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath build/Folklard.xcarchive DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" archive
+          xcodebuild -exportArchive -archivePath build/Folklard.xcarchive -exportOptionsPlist "$RUNNER_TEMP/folklard-export.plist" -exportPath build/export
+      - name: Upload distribution archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: folklard-ios-app-store-archive
+          path: mobile/build/export/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove signing material
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/folklard-signing.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/folklard.p12" "$RUNNER_TEMP/folklard.mobileprovision" "$RUNNER_TEMP/folklard-profile.plist" "$RUNNER_TEMP/folklard-export.plist" "$HOME/Library/MobileDevice/Provisioning Profiles/folklard.mobileprovision"

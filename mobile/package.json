@@ -1,19 +1,21 @@
 {
   "name": "folklard-android",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "android:init": "cap add android",
     "android:sync": "cap sync android",
-    "ios:init": "cap add ios",
+    "ios:init": "node init-ios.cjs",
     "ios:sync": "cap sync ios"
   },
   "dependencies": {
-    "@capacitor/core": "^7.4.0",
-    "@capacitor/android": "^7.4.0",
-    "@capacitor/ios": "^7.4.0"
+    "@capacitor/android": "7.6.9",
+    "@capacitor/app": "7.1.2",
+    "@capacitor/core": "7.6.9",
+    "@capacitor/ios": "7.6.9",
+    "@capacitor/screen-orientation": "7.0.4"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.4.0"
+    "@capacitor/cli": "7.6.9"
   }
 }

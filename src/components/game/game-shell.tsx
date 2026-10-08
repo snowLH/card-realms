@@ -46,6 +46,7 @@ import {
 } from "@/game/save/local-progress";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { cn } from "@/lib/utils";
+import { connectNativeApp, NATIVE_BACK_EVENT, setNativeLandscape } from "@/lib/native-app";
 import { ArpgExpeditionSelect } from "@/components/arpg/expedition-select";
 import { ArpgLoadoutView, type ArpgLoadoutFocus } from "@/components/arpg/loadout-view";
 import { CollectionView } from "./collection-view";
@@ -262,7 +263,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     setArpgLoadoutDirty(true);
   }, [activeLegendId, equipmentIds]);
 
-  const persistArpgLoadout = async (force = false) => {
+  const persistArpgLoadout = useCallback(async (force = false) => {
     if (avatarSavePending.current) {
       setToast("Aguarde a confirmação da Lenda escolhida antes de continuar.");
       return false;
@@ -282,7 +283,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       setToast(error instanceof Error ? error.message : "Não foi possível salvar o Arsenal.");
       return false;
     }
-  };
+  }, [arpgLoadoutDirty, bootstrap.source, playableArpgLoadout]);
 
   const navigate = async (next: View) => {
     const requiresRemoteLoadout = next === "raid";
@@ -642,6 +643,29 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     };
     void navigate(destination[action]);
   };
+
+  useEffect(() => connectNativeApp(), []);
+  useEffect(() => {
+    void setNativeLandscape(!titleOpen && (view === "play" || Boolean(raidRoomId)));
+    return () => { void setNativeLandscape(false); };
+  }, [titleOpen, view, raidRoomId]);
+
+  useEffect(() => {
+    const onBack = (event: Event) => {
+      if (event.defaultPrevented || titleOpen) return;
+      event.preventDefault();
+      if (view === "play") return; // The dungeon handles map/pause without abandoning the run.
+      if (raidRoomId) {
+        setToast("Use Sair da raid para encerrar sua participação.");
+      } else if (view === "hub") {
+        setTitleOpen(true);
+      } else {
+        void runAfterPersistingLoadout(arpgLoadoutDirty, () => persistArpgLoadout(), () => setView("hub"));
+      }
+    };
+    window.addEventListener(NATIVE_BACK_EVENT, onBack);
+    return () => window.removeEventListener(NATIVE_BACK_EVENT, onBack);
+  }, [titleOpen, view, raidRoomId, arpgLoadoutDirty, persistArpgLoadout]);
 
   return (
     <main className={cn("game-app", showWelcome && "game-app--welcome", titleOpen && "game-app--title")}>

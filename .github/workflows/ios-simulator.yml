@@ -8,7 +8,18 @@ on:
 permissions:
   contents: read
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:deploy
   ios:
+    needs: verify
     runs-on: macos-latest
     defaults:
       run:
@@ -17,13 +28,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
-      - name: Install Capacitor
-        run: npm install --no-audit --no-fund
-      - name: Generate iOS project
-        run: npx cap add ios
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Install locked Capacitor dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Generate branded iOS project with Swift Package Manager
+        run: |
+          npm run ios:init
+          node prepare-native.cjs ios
+          npx cap sync ios
       - name: Compile for iPhone simulator without signing
-        run: xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO -derivedDataPath build build
+        run: xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO -derivedDataPath build build
       - name: Upload simulator application
         uses: actions/upload-artifact@v4
         with:

@@ -1,5 +1,7 @@
 "use client";
 
+import { NATIVE_BACK_EVENT } from "@/lib/native-app";
+
 import { Map as MapIcon, Maximize2, Pause, Play, Smartphone, Volume2, VolumeX, X } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
@@ -162,6 +164,18 @@ export function ArpgGame({
   useEffect(() => bindInputLifecycle(bridge, () => {
     if (ready && !runResult) setPaused(true);
   }), [bridge, ready, runResult]);
+
+  useEffect(() => {
+    const onBack = (event: Event) => {
+      event.preventDefault();
+      bridge.clearGameplayInput();
+      if (runResult) onExit();
+      else if (mapOpen) setMapOpen(false);
+      else setPaused(true);
+    };
+    window.addEventListener(NATIVE_BACK_EVENT, onBack);
+    return () => window.removeEventListener(NATIVE_BACK_EVENT, onBack);
+  }, [bridge, mapOpen, runResult, onExit]);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -396,7 +410,7 @@ export function ArpgGame({
 
   return (
     <section className={`arpg-shell${portraitMobile === true ? " arpg-shell--portrait-mobile" : ""}`}>
-      <div className="arpg-playfield">
+      <div className="arpg-playfield" inert={portraitMobile === true}>
         <div className="arpg-shell__topbar">
           <div>
             <strong>{expedition.name}</strong>

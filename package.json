@@ -18,6 +18,9 @@
     "test:staging:idempotency": "node scripts/staging-idempotency-probe.mjs"
   },
   "dependencies": {
+    "@capacitor/app": "7.1.2",
+    "@capacitor/core": "7.6.9",
+    "@capacitor/screen-orientation": "7.0.4",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.117.2",
     "class-variance-authority": "0.7.1",

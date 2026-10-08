@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, type PointerEvent } from "react";
 import type { ArpgBridge } from "@/game/arpg/runtime/bridge";
+import { NATIVE_SUSPEND_EVENT } from "@/lib/native-events";
 
 /** Release ownership as well as input: browsers can omit pointerup on suspension. */
 function useInputRelease(release: () => void) {
@@ -9,10 +10,12 @@ function useInputRelease(release: () => void) {
     const onVisibility = () => { if (document.hidden) release(); };
     window.addEventListener("blur", release);
     window.addEventListener("pagehide", release);
+    window.addEventListener(NATIVE_SUSPEND_EVENT, release);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.removeEventListener("blur", release);
       window.removeEventListener("pagehide", release);
+      window.removeEventListener(NATIVE_SUSPEND_EVENT, release);
       document.removeEventListener("visibilitychange", onVisibility);
       release();
     };

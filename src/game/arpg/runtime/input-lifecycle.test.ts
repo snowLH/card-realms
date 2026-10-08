@@ -6,7 +6,7 @@ import { bindInputLifecycle } from "./input-lifecycle";
 afterEach(() => Reflect.deleteProperty(document, "hidden"));
 
 describe("game input across app suspension", () => {
-  it.each(["blur", "pagehide"])("clears held and queued actions on %s and removes listeners on destroy", (event) => {
+  it.each(["blur", "pagehide", "folklard:native-suspend"])("clears held and queued actions on %s and removes listeners on destroy", (event) => {
     const bridge = new ArpgBridge();
     const suspend = vi.fn();
     const release = bindInputLifecycle(bridge, suspend);
