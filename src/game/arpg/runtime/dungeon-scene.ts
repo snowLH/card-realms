@@ -99,6 +99,7 @@ import {
   type ArpgEnemyAnimationProfile,
 } from "./enemy-sprites";
 import { getPixelArtTextureKey } from "./pixel-art-sheet";
+import { playActorIdle } from "./actor-idle";
 import { GENERATED_SPRITE_FRAME_SIZE, queueGeneratedLegendSpriteSheet } from "./legend-sprite-sheets";
 import {
   createNativePixelActorSheet,
@@ -230,9 +231,8 @@ export function createArpgDungeonScene(
   const playerTextureKey = `folklard-playable-legend-${playerActorId}`;
   const playerAnimationKeyPrefix = `folklard-playable-legend-${playerActorId}`;
 
-  const setNativePlayerRestPose = (sprite: ArcadeSprite) => {
-    sprite.anims.stop();
-    sprite.setFrame(NATIVE_PIXEL_ACTOR_ANIMATION_MAP[playerActorId].idle * NATIVE_PIXEL_ACTOR_FRAME_COLUMNS);
+  const setNativePlayerRestPose = (sprite: ArcadeSprite, reducedMotion = false) => {
+    playActorIdle(sprite, `${playerAnimationKeyPrefix}-idle`, 0, reducedMotion);
   };
 
   const playNativePlayerAnimation = (
@@ -446,6 +446,7 @@ export function createArpgDungeonScene(
         columns: NATIVE_PIXEL_ACTOR_FRAME_COLUMNS,
         keyPrefix: playerAnimationKeyPrefix,
         animations: {
+          idle: { row: playerAnimationRows.idle, frameRate: 5, repeat: -1 },
           walk: { row: playerAnimationRows.walk, frameRate: 9, repeat: -1 },
           attack: { row: playerAnimationRows.attack, frameRate: 12, repeat: 0 },
           shoot: { row: playerAnimationRows.shoot, frameRate: 12, repeat: 0 },
@@ -532,7 +533,7 @@ export function createArpgDungeonScene(
       this.ensureEntityGroundShadow(this.player, 30);
       this.events.once("shutdown", () => this.clearEntityGroundShadows());
       this.events.once("destroy", () => this.clearEntityGroundShadows());
-      setNativePlayerRestPose(this.player);
+      setNativePlayerRestPose(this.player, this.prefersReducedMotion);
       this.floatingWeapon = this.add.graphics().setDepth(11);
       this.targetMarker = this.add.graphics().setDepth(18);
       this.events.once("shutdown", () => this.clearFloatingWeapon());
@@ -793,7 +794,7 @@ export function createArpgDungeonScene(
       this.player.setVelocity(move.x * speed, move.y * speed);
       if (time < this.playerActionUntil) return;
       if (move.lengthSq() < 0.001) {
-        setNativePlayerRestPose(this.player);
+        setNativePlayerRestPose(this.player, this.prefersReducedMotion);
       } else {
         playNativePlayerAnimation(this.player, "walk");
       }

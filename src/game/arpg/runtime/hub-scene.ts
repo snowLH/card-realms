@@ -7,6 +7,7 @@ import { ArpgAudio } from "./arpg-audio";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
 import { ARPG_ASSET_MANIFEST } from "../assets";
 import { getPixelArtTextureKey } from "./pixel-art-sheet";
+import { playActorIdle } from "./actor-idle";
 import { GENERATED_SPRITE_FRAME_SIZE, queueGeneratedLegendSpriteSheet } from "./legend-sprite-sheets";
 import {
   createNativePixelActorSheet,
@@ -42,7 +43,7 @@ const GUILD_CHARACTER_SCALE_BY_ACTOR: Readonly<Partial<Record<NativePixelActorId
   archivist: 0.274,
   bestiaryKeeper: 0.277,
 };
-const NATIVE_PLAYER_CYCLES = ["walk", "attack", "shoot", "damage", "defeat"] as const;
+const NATIVE_PLAYER_CYCLES = ["idle", "walk", "attack", "shoot", "damage", "defeat"] as const;
 const BLACKSMITH_ASSET = ARPG_ASSET_MANIFEST.guildNpcs.blacksmith;
 const BLACKSMITH_TEXTURE = getPixelArtTextureKey(BLACKSMITH_ASSET.textureKey);
 const BLACKSMITH_HOME = { x: 344, y: 254 };
@@ -107,8 +108,8 @@ function registerNativePlayerAnimations(scene: import("phaser").Scene, actorId: 
         start,
         end: start + NATIVE_PIXEL_ACTOR_FRAMES_PER_CYCLE - 1,
       }),
-      frameRate: name === "walk" ? 9 : name === "defeat" ? 6 : 10,
-      repeat: name === "walk" ? -1 : 0,
+      frameRate: name === "walk" ? 9 : name === "idle" ? 5 : name === "defeat" ? 6 : 10,
+      repeat: name === "walk" || name === "idle" ? -1 : 0,
     });
   }
 }
@@ -123,9 +124,8 @@ function playNativePlayerAnimation(
   if (restart || sprite.anims.currentAnim?.key !== key) sprite.play(key);
 }
 
-function setNativePlayerRestPose(sprite: ArcadeSprite, actorId: NativePixelActorId) {
-  sprite.anims.stop();
-  sprite.setFrame(NATIVE_PIXEL_ACTOR_ANIMATION_MAP[actorId].idle * NATIVE_PIXEL_ACTOR_FRAMES_PER_CYCLE);
+function setNativePlayerRestPose(sprite: ArcadeSprite, actorId: NativePixelActorId, reducedMotion = false) {
+  playActorIdle(sprite, getNativePlayerAnimationKey(actorId, "idle"), 0, reducedMotion);
 }
 
 function setGuildActorRestPose(sprite: import("phaser").GameObjects.Sprite, actorId: NativePixelActorId) {
@@ -168,6 +168,7 @@ export function createArpgHubScene(
 ) {
   const playerActorId: NativePixelActorId = avatarConfig.legendId;
   const playerTextureKey = getNativePlayerTextureKey(playerActorId);
+  const idleMotionQuery = typeof window === "undefined" ? null : window.matchMedia("(prefers-reduced-motion: reduce)");
   return class ArpgHubScene extends Phaser.Scene {
     private player!: ArcadeSprite;
     private keys!: { up: Key; down: Key; left: Key; right: Key; interact: Key };
@@ -276,7 +277,7 @@ export function createArpgHubScene(
       const playerRadius = playerScale === NATIVE_PLAYER_SCALE ? 5 : 40;
       const playerGroundY = playerScale === NATIVE_PLAYER_SCALE ? 23 : 202;
       this.player.setCircle(playerRadius, playerFrameSize / 2 - playerRadius, playerGroundY - playerRadius);
-      setNativePlayerRestPose(this.player, playerActorId);
+      setNativePlayerRestPose(this.player, playerActorId, idleMotionQuery?.matches);
       for (const visual of this.stationVisuals.values()) {
         this.physics.add.existing(visual, true);
         this.physics.add.collider(this.player, visual);
@@ -928,7 +929,7 @@ export function createArpgHubScene(
       if (Math.abs(x) > 0.01) this.player.setFlipX(x < 0);
       this.player.setVelocity(x * PLAYER_SPEED, y * PLAYER_SPEED);
       if (magnitude < 0.001) {
-        setNativePlayerRestPose(this.player, playerActorId);
+        setNativePlayerRestPose(this.player, playerActorId, idleMotionQuery?.matches);
       } else {
         playNativePlayerAnimation(this.player, playerActorId, "walk");
       }
