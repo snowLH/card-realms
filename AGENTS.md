@@ -8,12 +8,22 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# Deployment safety
+# FOLKLARD: gameplay is exclusively a real-time ARPG
 
-- Vercel Git auto-deployments are intentionally disabled in `vercel.json`.
-- Never use `main` as a scratch/work branch or push a sequence of intermediate refactor commits there.
-- Before any production deployment, `npm run verify:deploy` must pass completely: typecheck, lint, tests, and Next.js production build.
-- For production, prefer a local Vercel production build followed by a prebuilt deployment: `vercel pull --yes --environment=production`, then `vercel build --prod`, then `vercel deploy --prebuilt --prod`.
-- Do not create a remote deployment to discover build errors. Fix build/type/lint/test failures locally or in CI first.
-- Database migrations must be applied and verified against the intended Supabase project before promoting application code that depends on them.
-- Do not re-enable automatic Vercel Git deployments unless the user explicitly asks for that behavior.
+The user explicitly authorized direct implementation on `main`. Do not create development branches; the separate branch workflow has caused deploy issues. Preserve history and commit cohesive, reviewed changes; never force-push main. A code commit is not permission to deploy to production.
+
+## Product rules
+- `src/game/arpg` is the primary gameplay: Phaser top-down action, procedural dungeons, folklore playable legends, two signature powers, two weapon slots, bosses, loot, online progression, co-op ARPG.
+- `src/components/game/game-shell.tsx` is navigation only, not a second game engine.
+- Retired TCG, energy packs, turn-based PvP and board-picking must not be added back to the playable UI. Internal legacy API, schema and snapshot fields exist only to preserve past saves and database compatibility until an audited migration is possible.
+- Never copy code/assets/map layouts of Soul Knight or any other proprietary title. Reuse abstract genre conventions and build original IP.
+- **Visual assets, spritesheets, UI art, animation, color and layout passes are reserved for ChatGPT Work.** Gameplay/API tasks may modify structural markup required to support interaction, but never block or rewrite art passes.
+
+## Code quality and release safety
+- Keep domain and simulation functions pure/testable; avoid adding methods to the already-large Phaser DungeonScene when they belong in independent modules.
+- Changes to encounter generation must stay seed deterministic and match client/server.
+- Supabase performs persisted economy and authorization. Never trust client loot, run clears or coins; never commit secrets.
+- Before deployment, `npm run verify:deploy` must pass fully (typecheck, lint, Vitest, Next production build). Inspect latest GitHub Actions status if only remote testing is available.
+- Migrations cannot be presumed applied. Do not touch an unrelated Supabase project or promote code requiring unverified schema.
+- Vercel auto-deploy remains disabled in `vercel.json`. Production deployment is a separate, verified step.
+- Document any inaccessible staging, device or browser tests honestly.

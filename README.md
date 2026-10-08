@@ -1,37 +1,29 @@
-# Card Realms — Mundo dos Colecionadores
+# Folklard — Crônicas de Aurória
 
-RPG 2D de cartas colecionáveis para navegador, mobile-first, baseado em criaturas de folclores e mitologias reais. Esta versão consolida a fundação do protótipo original sem descartar seus mapas, arena, refúgio, autenticação e direção de interface.
+**Roguelite de ação 2D para navegador e celulares**, com heróis e criaturas de folclores do mundo. Desenvolvido em **Next.js + React + Phaser + TypeScript**, com autenticação, salvamento online e modos cooperativos apoiados por Supabase.
 
-## Regras centrais
+O projeto surgiu como Card Realms (cartas por turnos), mas **o gameplay atual é o ARPG em tempo real**. Os modos TCG/PvP clássicos e a loja de energias antigas foram retirados da navegação; módulos internos de compatibilidade permanecem até que a migração dos dados históricos seja segura.
 
-- Existem exatamente cinco elementos: Fogo, Água, Natureza, Tempestade e Espírito.
-- Cada lado leva exatamente seis criaturas; uma fica ativa e cinco permanecem disponíveis para troca.
-- Energia é um baralho de 30 cartas (seis por elemento), com mão inicial de cinco, compra e descarte.
-- Cada turno permite até duas anexações de energia e uma ação principal: atacar, trocar ou passar.
-- Troca voluntária consome a ação principal e encerra o turno. Troca após derrota é uma fase obrigatória e não consome a ação do novo turno.
-- Ataques consomem as energias anexadas mesmo quando o D6 falha. Defesa, velocidade, crítico, escudo, afinidade elemental e efeitos de status participam do cálculo.
-- O ciclo de vantagem é: Fogo → Natureza → Espírito → Tempestade → Água → Fogo.
+## Como jogar
+- Comece na Guilda, selecione uma lenda folclórica e equipe **dois poderes de assinatura**.
+- Entre numa expedição; dungeons de **8 a 12 salas** são montadas por seed com caminhos, encontros, salas especiais, baús, elites e boss final.
+- Use WASD/mouse, gamepad ou touch landscape para **mover, mirar, atacar, desviar e trocar armas**. Em botões móveis a mira prioriza inimigos visíveis, nunca através de obstáculos.
+- Encontre armas e melhorias na run, vença o chefe e atravesse o portal de extração.
+- Progresso de visitante é salvo no navegador. Com conta, recompensas e inventário permanentes exigem confirmação do servidor.
 
-## O que funciona
+## Conteúdo atualmente estruturado
+- **13 lendas jogáveis**, incluindo Curupira, Iara, Kappa, Raijū, Amarok, Kelpie e Yeti, com poderes únicos.
+- Três biomas: **Mata Encantada**, **Arquipélago das Marés** e **Montanhas Rúnicas**.
+- Inimigos de funções diferentes (corpo a corpo, disparo, magia, investida, elite) e padrões especiais de boss.
+- Guilda explorável, Arsenal, bestiário, relíquias, cartas-poder, equipamentos, Mercador de itens/cosméticos, Refúgio, mapa e Raids ARPG cooperativas.
+- Dungeon procedural com checkpoints, combate validado para contas autenticadas, loot e portal final.
+- PWA, áudio, controles móveis e opções de pausa.
 
-- mapa com posição persistida do jogador e viagem apenas entre regiões vizinhas;
-- batalha completa contra NPC, com motor autoritativo no servidor e IA baseada na mão, custo, chance de acerto e afinidade;
-- 25 seres de tradições reais, cada um com nome, origem, nota de fonte, adaptação, atributos, golpes e sprite próprio;
-- save local v2 validado por Zod e migração segura do save demonstrativo anterior;
-- token de batalha opaco e autenticado com AES-256-GCM;
-- coleção, equipe, perfil e refúgio responsivos;
-- autenticação Supabase e snapshot remoto para perfil, coleção, equipe, energias, inventário, mundo, missões, conquistas, casa e histórico;
-- mutações remotas transacionais para viagem, tesouro idempotente e ativação de equipe;
-- fundação PVP com desafios entre amigos, snapshot de equipes, ações versionadas/idempotentes, projeção que oculta a mão adversária e atualização por Realtime com polling de recuperação;
-- testes do motor, dos turnos, da IA, dos efeitos e do save.
-
-O modo visitante continua usando o save local v2. Quando há conta e schema compatível, Supabase passa a ser a fonte de verdade e o armazenamento do navegador vira apenas cache de emergência. Sem credenciais válidas, o jogo informa o fallback em vez de simular sincronização.
-
-O PVP foi homologado em 27 de setembro de 2026 contra um Supabase real de staging, com duas contas autenticadas e duas sessões independentes: amizade, desafio, aceite, batalha, Realtime, polling, reconexão, término, privacidade, anti-replay e persistência passaram. Missões jogáveis completas, captura, editor do refúgio e o catálogo de 400+ criaturas continuam como marcos posteriores. A prevenção de replay da batalha demonstrativa contra NPC ainda é local ao processo e não é usada pelo PVP persistente.
+Alguns recursos dependentes de Supabase ainda requerem homologação real em staging e dispositivo físico. **Build/testes automatizados não comprovam sozinhos a qualidade da jogabilidade nem a segurança de um banco de produção não verificado.**
 
 ## Executar localmente
 
-Requisitos: Node.js 22 ou superior.
+Requer Node.js 22+.
 
 ```bash
 npm ci
@@ -40,46 +32,31 @@ npm run dev
 
 Abra `http://localhost:3000`.
 
-Verificações:
-
 ```bash
-npm run typecheck
-npm run lint
-npm test
-npm run build
+npm run verify:deploy
 ```
 
-## Configurar Supabase
+O comando executa typecheck, ESLint, Vitest e build de produção. Scripts de smoke em `scripts/arpg-*.mjs` ajudam a testar runs e PWA com browser local.
 
-1. Copie `.env.example` para `.env.local` e informe a URL, a chave publicável, `SUPABASE_SECRET_KEY` somente no servidor e uma chave aleatória longa em `GAME_ACTION_SECRET`.
-2. Aplique as migrations de `supabase/migrations/` em ordem com a CLI do Supabase.
-3. Habilite os provedores desejados e cadastre `http://localhost:3000/auth/callback` no ambiente local.
-4. Em produção, use o domínio real nos redirects e mantenha `SUPABASE_SECRET_KEY` exclusivamente no servidor.
+## Estrutura do projeto
 
-As migrations movem helpers `SECURITY DEFINER` para um schema não exposto, substituem o enum antigo pelos cinco elementos, sincronizam o catálogo inicial, criam o progresso remoto e adicionam a fronteira PVP autoritativa. O roteiro reproduzível e a evidência da homologação estão em `docs/SUPABASE_STAGING.md` e `docs/STATUS.md`.
+| Diretório | Papel |
+| --- | --- |
+| `src/game/arpg/content` | Definições de lendas, poderes, armas, biomas, inimigos, loot |
+| `src/game/arpg/dungeon` | RNG, grafo, geração de sala, combate autoritativo, checkpoint |
+| `src/game/arpg/runtime` | Phaser, controle, projéteis, mira, câmera, hub e áudio |
+| `src/components/arpg` | HUD, controles touch e sobreposição React |
+| `src/components/game/game-shell.tsx` | Navegação e fluxo de conta |
+| `src/app/api/arpg` e `src/server/arpg` | APIs, validação e autoridade online |
+| `src/lib/supabase`, `supabase/migrations` | Identidade, RLS, RPCs e dados persistentes |
+| `public/art` | Assets autorais do projeto, não de jogos de referência |
+| `docs/ART_PASS_HANDOFF.md` | Contrato visual para Work |
 
-## Arquitetura
+## Produção e dados
+- Site publicado anteriormente: https://card-realms.vercel.app
+- Código: https://github.com/snowLH/card-realms
+- A `main` é a branch ativa. **Commits não significam deploy automático.** O projeto mantém auto-deploy desabilitado; validar o gate antes de promover.
+- Os ambientes Supabase de produção e staging não devem ser misturados. Nunca expor secrets no cliente.
 
-- `src/game/domain/`: contratos de elementos, criaturas e mundo;
-- `src/game/content/`: dados declarativos de criaturas e regiões;
-- `src/game/battle/`: estado, regras puras e planejamento da IA;
-- `src/game/player/`: contrato validado do snapshot remoto;
-- `src/game/pvp/`: contratos HTTP e projeção de visibilidade do duelo;
-- `src/game/save/`: persistência local versionada;
-- `src/app/api/battle/`: validação da fronteira HTTP e autoridade do servidor;
-- `src/app/api/player/`: leitura e mutações do progresso autenticado;
-- `src/app/api/pvp/`: convites, leitura de sala e confirmação de ações;
-- `src/server/`: orquestração exclusiva do servidor para progresso e PVP;
-- `src/components/game/`: mapa, coleção, equipe, arena e refúgio;
-- `supabase/migrations/`: esquema, RLS, catálogo e endurecimento de segurança;
-- `docs/TECHNICAL_AUDIT.md`: auditoria do protótipo recebido;
-- `docs/ARCHITECTURE.md`: limites, invariantes e caminho de expansão.
-- `docs/SUPABASE_STAGING.md`: criação do staging, migrations, secrets e roteiro de homologação A/B.
-
-## Publicação
-
-- Produção existente: https://card-realms.vercel.app
-- Preview de staging: https://card-realms-git-staging-snow-lh-s-projects.vercel.app
-- Repositório de origem: https://github.com/snowLH/card-realms
-
-O commit de release `44ef44c` foi promovido à Vercel Production. O Preview usa somente o Supabase de staging e a produção mantém variáveis próprias, sem reutilizar credenciais de teste. A interface pública está publicada, mas o PVP autenticado continua homologado apenas em staging até que as mesmas migrations sejam aplicadas e auditadas no banco legado de produção.
+## Referências de design
+O ritmo de ação e a exploração em salas têm inspiração genérica em roguelites como Soul Knight; **personagens, arte, níveis, áudio e implementação devem ser originais**.
