@@ -1,5 +1,6 @@
 import type { ArpgAbilityCardDefinition } from "../domain/types";
 import { LEGEND_ABILITY_DEFINITIONS } from "./legend-abilities";
+import { tuneSignaturePower } from "./legend-balance";
 
 /** Kept unchanged so signed runs and historical battles keep their original rules. */
 export const LEGACY_ARPG_ABILITY_CARDS: ArpgAbilityCardDefinition[] = [
@@ -225,7 +226,7 @@ const legacyCardById = new Map(LEGACY_ARPG_ABILITY_CARDS.map((card) => [card.id,
 
 export const ARPG_ABILITY_CARDS: ArpgAbilityCardDefinition[] = LEGEND_ABILITY_DEFINITIONS.map((definition) => {
   const template = legacyCardById.get(definition.templateId)!;
-  return {
+  return tuneSignaturePower({
     ...template,
     id: definition.id,
     visualEffectId: definition.templateId,
@@ -239,7 +240,7 @@ export const ARPG_ABILITY_CARDS: ArpgAbilityCardDefinition[] = LEGEND_ABILITY_DE
       source: definition.legendId === "curupira" ? "starter" : "legend",
       label: definition.legendId === "curupira" ? "Ataque da Lenda inicial" : "Incluído com esta Lenda",
     },
-  };
+  }, definition.id);
 });
 
 export const STARTER_ARPG_ABILITY_IDS = ["curupira-root-snare", "curupira-ember-arrow"] as const;
