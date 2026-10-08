@@ -7226,3 +7226,81 @@ button.creature-card:disabled {
   .raid-avatar-energy-cards { flex: 1; }
   .raid-archive-note { margin: 2rem auto; padding: 1rem; }
 }
+
+
+/* Folklard visual pass — consistent pixel-fantasy surface language */
+:root {
+  --folklard-gold: #f3ce7d;
+  --folklard-mint: #77e3c4;
+  --folklard-panel: #10232a;
+  --folklard-edge: #48605b;
+  --folklard-ink: #07151c;
+}
+.title-screen__brand h1 {
+  color: #f8e8b8;
+  text-shadow: 0 3px 0 #543c34, 0 7px 0 #192c2c, 0 12px 24px #000a;
+  letter-spacing: -.055em;
+}
+.title-screen__logo-mark {
+  filter: drop-shadow(0 0 14px #7fe7b36b);
+}
+.title-screen__play,
+.arpg-loot-choice__actions .is-primary,
+.arpg-map-overlay__close {
+  border: 2px solid #f6d994;
+  box-shadow: inset 0 2px #fff4c688, inset 0 -4px #64472b88, 0 5px 0 #142a2c, 0 10px 28px #0008;
+  transition: transform 120ms steps(2,end), filter 120ms linear, box-shadow 120ms linear;
+}
+.title-screen__play:hover,
+.arpg-loot-choice__actions .is-primary:hover,
+.arpg-map-overlay__close:hover {
+  filter: brightness(1.13);
+  transform: translateY(-2px);
+}
+.title-screen__play:active,
+.arpg-loot-choice__actions .is-primary:active,
+.arpg-map-overlay__close:active {
+  transform: translateY(3px);
+  box-shadow: inset 0 2px #fff4c688, inset 0 -2px #64472b88, 0 2px 0 #142a2c;
+}
+.arpg-loot-choice__panel,
+.arpg-map-overlay__panel,
+.region-panel {
+  border: 2px solid #536e64;
+  background: linear-gradient(155deg, #17312e 0%, #0b1c26 65%, #0a1522 100%);
+  box-shadow: inset 0 0 0 3px #091c20, inset 0 2px #d5b77b55, 0 22px 75px #000b;
+}
+.arpg-loot-choice__panel header strong,
+.arpg-map-overlay__panel h1,
+.region-panel h1 {
+  color: #f6e5b6;
+  text-shadow: 0 2px #18292a;
+}
+.arpg-room-choice__option,
+.arpg-loot-choice__compare article {
+  border: 2px solid #45615b;
+  background: linear-gradient(160deg, #1d3938, #10242d);
+  box-shadow: inset 0 2px #b9d4b019, 0 4px 0 #08181f;
+  transition: border-color 120ms, transform 120ms, background 120ms;
+}
+.arpg-room-choice__option:hover:not(:disabled) {
+  border-color: #f3ce7d;
+  background: linear-gradient(160deg, #2c4b42, #172f37);
+  transform: translateY(-2px);
+}
+.arpg-room-choice__option:disabled { opacity: .52; filter: grayscale(.3); }
+.arpg-hud__minimap {
+  border-color: #698578;
+  box-shadow: inset 0 0 0 2px #0c1c20, 0 5px 18px #0009;
+}
+.arpg-minimap-room.is-current rect {
+  stroke: #ffe6a2;
+  stroke-width: 2px;
+  filter: drop-shadow(0 0 3px #ffe6a2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .title-screen__play,
+  .arpg-loot-choice__actions .is-primary,
+  .arpg-map-overlay__close,
+  .arpg-room-choice__option { transition: none; }
+}
