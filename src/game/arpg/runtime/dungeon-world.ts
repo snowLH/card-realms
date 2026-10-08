@@ -1,4 +1,5 @@
 import { DUNGEON_TILE_SIZE, buildDungeonPixelLayout, type DungeonPixelLayout } from "../dungeon/layout";
+import { drawBiomeFloorVariant } from "./dungeon-floor-tiles";
 import { ARPG_ROOM_TEMPLATE_BY_ID } from "../dungeon/templates";
 import { createSeededRandom } from "../dungeon/rng";
 import { buildRoomTileData, createSafeRoomSpawnPoints, ROOM_FLOOR_TILE, ROOM_OBSTACLE_TILE, ROOM_RUNE_TILE, ROOM_WALL_TILE, ROOM_WATER_TILE, type RoomSpawnPoint } from "../dungeon/room-tilemap";
@@ -251,77 +252,9 @@ export class DungeonWorldRuntime {
     context.fillRect(tileX(5) + 12, 18, 8, 2);
     context.fillRect(tileX(5) + 14, 22, 4, 2);
 
-    this.drawBiomeFloorVariant(context, tileX(6), 0);
-    this.drawBiomeFloorVariant(context, tileX(7), 1);
+    drawBiomeFloorVariant(context, tileX(6), 0, palette, this.graph.regionId);
+    drawBiomeFloorVariant(context, tileX(7), 1, palette, this.graph.regionId);
     texture.refresh();
-  }
-
-  private drawBiomeFloorVariant(context: CanvasRenderingContext2D, x: number, variant: number) {
-    const tile = (color: string) => {
-      context.fillStyle = color;
-      context.fillRect(x, 0, DUNGEON_TILE_SIZE, DUNGEON_TILE_SIZE);
-    };
-    const pixel = (color: string, px: number, py: number, width: number, height: number, alpha = 1) => {
-      context.globalAlpha = alpha;
-      context.fillStyle = color;
-      context.fillRect(x + px, py, width, height);
-      context.globalAlpha = 1;
-    };
-
-    tile(this.palette.floor);
-    pixel(this.palette.wall, 0, 30, DUNGEON_TILE_SIZE, 2, 0.68);
-    pixel(this.palette.wall, 30, 0, 2, DUNGEON_TILE_SIZE, 0.68);
-    pixel(this.palette.floorDetail, 3, 3, 26, 3, 0.72);
-    pixel(this.palette.floorDetail, 3, 3, 3, 26, 0.72);
-    if (this.graph.regionId === "mata-encantada") {
-      const root = this.palette.floorDetail;
-      const moss = this.palette.wallHighlight;
-      if (variant === 0) {
-        pixel(root, 3, 12, 10, 3);
-        pixel(root, 9, 7, 3, 7);
-        pixel(root, 11, 7, 7, 2);
-        pixel(moss, 5, 17, 4, 2, 0.55);
-      } else {
-        pixel(root, 7, 5, 3, 3);
-        pixel(root, 11, 8, 4, 3);
-        pixel(root, 16, 12, 3, 3);
-        pixel(moss, 10, 6, 2, 2, 0.55);
-        pixel(moss, 15, 13, 2, 2, 0.55);
-      }
-      return;
-    }
-
-    if (this.graph.regionId === "arquipelago-das-mares") {
-      const tide = this.palette.floorDetail;
-      const foam = this.palette.wallHighlight;
-      if (variant === 0) {
-        pixel(tide, 3, 9, 10, 3);
-        pixel(tide, 10, 12, 12, 3);
-        pixel(foam, 5, 7, 5, 2, 0.45);
-        pixel(foam, 16, 15, 6, 2, 0.4);
-      } else {
-        pixel(tide, 7, 6, 4, 3);
-        pixel(tide, 12, 9, 5, 3);
-        pixel(tide, 17, 12, 4, 3);
-        pixel(foam, 8, 5, 2, 2, 0.5);
-        pixel(foam, 18, 14, 3, 2, 0.4);
-      }
-      return;
-    }
-
-    const slate = this.palette.floorDetail;
-    const ice = this.palette.wallHighlight;
-    if (variant === 0) {
-      pixel(slate, 6, 5, 4, 3);
-      pixel(slate, 10, 8, 3, 5);
-      pixel(slate, 13, 12, 4, 3);
-      pixel(ice, 7, 6, 2, 2, 0.45);
-    } else {
-      pixel(slate, 13, 5, 3, 3);
-      pixel(slate, 10, 8, 9, 3);
-      pixel(slate, 13, 11, 3, 4);
-      pixel(ice, 14, 8, 2, 2, 0.5);
-    }
   }
 
   private createFloorVariantData(tiles: number[][], roomId: string) {
