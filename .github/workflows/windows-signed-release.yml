@@ -4,7 +4,18 @@ on:
 permissions:
   contents: read
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:deploy
   windows:
+    needs: verify
     runs-on: windows-latest
     environment: windows-release
     defaults:
@@ -14,7 +25,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
       - name: Require code signing certificate
         shell: pwsh
         env:
@@ -23,7 +36,7 @@ jobs:
         run: |
           if (-not $env:CSC_LINK -or -not $env:CSC_KEY_PASSWORD) { throw "Windows signing credentials are missing" }
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Build signed Windows installer
         env:
           CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}

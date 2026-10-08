@@ -1,32 +1,26 @@
 "use strict";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { app, BrowserWindow, shell, session, Menu } = require("electron");
-const GAME_URL = "https://card-realms.vercel.app/";
-const GAME_ORIGIN = new URL(GAME_URL).origin;
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const path = require("node:path");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { bindGameWindow } = require("./window-controller.cjs");
 let window;
 function createWindow() {
   window = new BrowserWindow({
     width: 1280, height: 800, minWidth: 800, minHeight: 560,
     backgroundColor: "#0b1715", title: "Folklard — Crônicas de Aurória",
-    autoHideMenuBar: true, show: false,
+    autoHideMenuBar: true, show: false, icon: path.join(__dirname, "assets", "icon.png"),
     webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true,
       webSecurity: true, webviewTag: false, spellcheck: false },
   });
   window.once("ready-to-show", () => window.show());
-  window.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("https://")) shell.openExternal(url);
-    return { action: "deny" };
-  });
-  window.webContents.on("will-navigate", (event, url) => {
-    if (!url.startsWith(GAME_ORIGIN + "/")) {
-      event.preventDefault();
-      if (url.startsWith("https://")) shell.openExternal(url);
-    }
-  });
-  window.loadURL(GAME_URL);
+  const controller = bindGameWindow(window, shell, path.join(__dirname, "offline.html"));
+  void controller.loadGame();
   Menu.setApplicationMenu(null);
 }
 app.whenReady().then(() => {
+  app.setName("Folklard");
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(["fullscreen", "clipboard-sanitized-write"].includes(permission));
   });

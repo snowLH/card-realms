@@ -1,6 +1,6 @@
 {
   "name": "folklard-desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Folklard desktop client",
   "main": "main.cjs",
@@ -10,8 +10,8 @@
     "dist:linux": "electron-builder --linux AppImage --x64 --publish never"
   },
   "devDependencies": {
-    "electron": "^38.0.0",
-    "electron-builder": "^26.0.12"
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3"
   },
   "build": {
     "appId": "com.folklard.auroria",
@@ -19,6 +19,10 @@
     "asar": true,
     "files": [
       "main.cjs",
+      "window-controller.cjs",
+      "offline.html",
+      "offline.css",
+      "assets/**",
       "package.json"
     ],
     "directories": {
@@ -27,18 +31,21 @@
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "icon": "assets/icon.png"
     },
     "linux": {
       "target": [
         "AppImage"
       ],
-      "category": "Game"
+      "category": "Game",
+      "icon": "assets/icon.png"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
-    }
+    },
+    "artifactName": "Folklard-${os}-${arch}-${version}.${ext}"
   },
   "repository": {
     "type": "git",
