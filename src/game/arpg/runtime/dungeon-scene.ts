@@ -1000,17 +1000,10 @@ export function createArpgDungeonScene(
     }
 
     private resolveAimVector() {
-      const gamepadMagnitude = Math.abs(this.gamepad.aimX) + Math.abs(this.gamepad.aimY);
-      if (gamepadMagnitude > 0.1) {
-        return this.aimVector.set(this.gamepad.aimX, this.gamepad.aimY).normalize();
-      }
-      const touch = bridge.getInput();
-      if (touch.attack || Math.abs(touch.aimX) + Math.abs(touch.aimY) > 0.1) {
-        return this.aimVector.set(touch.aimX, touch.aimY).normalize();
-      }
-      const pointer = this.input.activePointer;
-      this.aimVector.set(pointer.worldX - this.player.x, pointer.worldY - this.player.y);
-      return this.aimVector.lengthSq() > 0.001 ? this.aimVector.normalize() : this.aimVector.set(1, 0);
+      // Keep dash and ability targeting consistent with regular attacks.
+      // A touch-attack button with no analog input must never create a zero
+      // direction, otherwise a requested dash appears unresponsive.
+      return this.resolveCombatAim();
     }
 
     private facePlayer(direction: { x: number }) {
