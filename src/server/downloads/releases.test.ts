@@ -54,7 +54,7 @@ describe("official installer availability", () => {
     const fetcher = vi.fn<typeof fetch>(async (url, options) => {
       if (String(url).endsWith("Folklard-Windows.json")) {
         return Response.json({ file: DOWNLOADS.windows.file, size: 128, version: "0.2.0",
-          commit: "b".repeat(40), sha256: (valid ? "a" : "c").repeat(64) });
+          commit: "b".repeat(40), sha256: (valid ? "a" : "c").repeat(64), signing: "signed-release" });
       }
       const response = await base(url, options);
       if (!String(url).endsWith("/downloads-desktop")) return response;
@@ -65,9 +65,27 @@ describe("official installer availability", () => {
     });
     const releases = await getDownloadReleases(fetcher);
     expect(releases.windows).toMatchObject({ available: true,
-      version: valid ? "0.2.0" : null, commit: valid ? "b".repeat(40) : null });
+      version: valid ? "0.2.0" : null, commit: valid ? "b".repeat(40) : null,
+      signing: valid ? "signed-release" : null });
     expect(releases.android.version).toBeNull();
   });
+  it("rejects unrecognized signing metadata instead of presenting it as trusted", async () => {
+    const base = mockFetch();
+    const fetcher = vi.fn<typeof fetch>(async (url, options) => {
+      if (String(url).endsWith("Folklard-Windows.json")) {
+        return Response.json({ file: DOWNLOADS.windows.file, size: 128, version: "0.2.0",
+          commit: "b".repeat(40), sha256: "a".repeat(64), signing: "mystery-signature" });
+      }
+      const response = await base(url, options);
+      if (!String(url).endsWith("/downloads-desktop")) return response;
+      const release = await response.json();
+      release.assets.push({ name: "Folklard-Windows.json", state: "uploaded", size: 287,
+        browser_download_url: "https://github.com/snowLH/card-realms/releases/download/downloads-desktop/Folklard-Windows.json" });
+      return Response.json(release);
+    });
+    expect((await getDownloadReleases(fetcher)).windows.signing).toBeNull();
+  });
+
   it("ignores a malformed release timestamp instead of breaking the installation page", async () => {
     const base = mockFetch();
     const fetcher = vi.fn<typeof fetch>(async (url, options) => {
