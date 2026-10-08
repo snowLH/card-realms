@@ -1009,13 +1009,31 @@ export function createArpgDungeonScene(
       if (!marker) return;
       marker.clear();
       if (!target) return;
-      const arm = 5;
-      const radius = 14;
+
+      const definitionId = String(target.getData("definitionId") ?? "");
+      const combatRole = String(target.getData("combatRole") ?? "melee");
+      const locked = target === this.autoAimTarget;
+      const accent = definitionId === "boss"
+        ? 0xffcb72
+        : definitionId === "miniBoss" || combatRole === "elite"
+          ? 0xff9278
+          : locked
+            ? 0x8fe4c2
+            : 0xf4dc8e;
+      const bodyRadius = Math.max(14, Math.min(24, Number(target.getData("radius")) || 14));
+      const pulse = locked ? (Math.sin(this.time.now / 95) + 1) * 1.25 : 0;
+      const radius = bodyRadius + pulse;
+      const arm = locked ? 7 : 5;
       const left = target.x - radius;
       const right = target.x + radius;
       const top = target.y - radius;
       const bottom = target.y + radius;
-      marker.lineStyle(2, 0xf4dc8e, 0.92);
+
+      if (locked) {
+        marker.lineStyle(1, accent, 0.28);
+        marker.strokeCircle(target.x, target.y, radius + 7);
+      }
+      marker.lineStyle(locked ? 3 : 2, accent, locked ? 1 : 0.9);
       marker.lineBetween(left, top + arm, left, top);
       marker.lineBetween(left, top, left + arm, top);
       marker.lineBetween(right - arm, top, right, top);
@@ -1024,7 +1042,7 @@ export function createArpgDungeonScene(
       marker.lineBetween(left, bottom, left + arm, bottom);
       marker.lineBetween(right - arm, bottom, right, bottom);
       marker.lineBetween(right, bottom - arm, right, bottom);
-      marker.fillStyle(0xfff0bf, 0.9).fillCircle(target.x, target.y, 1.5);
+      marker.fillStyle(accent, locked ? 1 : 0.82).fillCircle(target.x, target.y, locked ? 2 : 1.5);
     }
 
     private drawFloatingWeapon(
