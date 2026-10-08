@@ -26,14 +26,12 @@ jobs:
           cache: npm
 
       - name: Install
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
+      # Full dev audit currently includes GHSA-vfj7-8cjw-p6xm through Next's lint toolchain.
+      # The upstream braces package has no patched release; production dependencies are gated below.
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
-
-      - name: Diagnose full dependency audit
-        continue-on-error: true
-        run: npm audit --audit-level=high
 
       - name: Verify deployability
         run: npm run verify:deploy
