@@ -17,6 +17,17 @@ function workflow(path: (typeof workflowPaths)[number]) {
 }
 
 describe("native release workflow hardening", () => {
+  it("pins external GitHub Actions to immutable commit SHAs", () => {
+    for (const path of workflowPaths) {
+      const source = workflow(path);
+      const refs = [...source.matchAll(/uses:\s+([^\s@]+)@([^\s#]+)/g)];
+      expect(refs.length, path).toBeGreaterThan(0);
+      for (const [, action, ref] of refs) {
+        expect(ref, `${path}: ${action}`).toMatch(/^[a-f0-9]{40}$/);
+      }
+    }
+  });
+
   it("does not persist checkout credentials in build jobs", () => {
     for (const path of workflowPaths) {
       const source = workflow(path);
