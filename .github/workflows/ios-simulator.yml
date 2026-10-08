@@ -1,7 +1,13 @@
 name: iOS simulator app
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "mobile/**"
+      - ".github/workflows/ios-simulator.yml"
   push:
+    branches:
+      - main
     paths:
       - "mobile/**"
       - ".github/workflows/ios-simulator.yml"
