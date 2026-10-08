@@ -9,6 +9,7 @@ import "./mobile-pixel-overhaul.css";
 import "./arpg.css";
 import "./folklard-art-pass.css";
 import "./arpg-raid.css";
+import "./dungeon-mobile-fixes.css";
 
 export const metadata: Metadata = {
   title: "Folklard — Crônicas de Aurória",
