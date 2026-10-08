@@ -7304,3 +7304,54 @@ button.creature-card:disabled {
   .arpg-map-overlay__close,
   .arpg-room-choice__option { transition: none; }
 }
+
+/* Guild, world map, and mobile navigation — unified fantasy treatment. */
+.app-header {
+  border-bottom: 2px solid #52695d;
+  background: linear-gradient(180deg, #172a2bfa, #091922f7);
+  box-shadow: inset 0 -2px #081317, 0 5px 24px #0008;
+}
+.brand__mark {
+  background: linear-gradient(145deg, #fff1ae 0%, #c9954f 47%, #518e7a 100%);
+  box-shadow: 0 0 0 2px #07181a, 0 3px 0 #684d36;
+}
+.side-nav {
+  border-right: 2px solid #52695d;
+  background: linear-gradient(165deg, #1b3432, #0c1d29 70%);
+}
+.side-nav nav button.is-active {
+  background: linear-gradient(90deg, #3b6d5766, #1a383c44);
+  box-shadow: inset 4px 0 #f3ce7d;
+  color: #fff0c3;
+}
+.mobile-nav {
+  border-top: 2px solid #516b5f;
+  background: linear-gradient(180deg, #172d2dfb, #091823fd);
+}
+.mobile-nav button.is-active {
+  color: #f5d88f;
+  text-shadow: 0 0 12px #f0c96d77;
+}
+.map-node__icon {
+  border: 2px solid #dfc28b;
+  border-radius: 6px;
+  background: linear-gradient(145deg, #26463f, #10212d);
+  box-shadow: inset 0 2px #ffffff22, 0 0 0 4px #06161dbb, 0 5px 0 #081920, 0 12px 24px #0008;
+}
+.map-node--selected .map-node__icon,
+.map-node:hover .map-node__icon {
+  border-color: #fff0b3;
+  box-shadow: inset 0 2px #ffffff33, 0 0 0 4px #06161dbb, 0 0 25px var(--node-accent);
+}
+.map-node__label,
+.village-marker {
+  border: 2px solid #6d7866;
+  border-radius: 6px;
+  background: #122a2be8;
+  box-shadow: 0 4px 0 #07191b, 0 7px 15px #0008;
+}
+@media (max-width: 640px) {
+  .arpg-loot-choice__panel,
+  .arpg-map-overlay__panel { max-height: 92dvh; overflow-y: auto; }
+  .arpg-room-choice__option { min-height: 58px; }
+}
