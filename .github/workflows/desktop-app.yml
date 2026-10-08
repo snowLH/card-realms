@@ -14,8 +14,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: desktop-downloads
-  cancel-in-progress: false
+  group: desktop-downloads-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   verify:
     runs-on: ubuntu-latest
