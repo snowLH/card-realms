@@ -63,6 +63,7 @@ import {
 import { ArpgAudio, type ArpgSoundCue } from "./arpg-audio";
 import { acceptServerConfirmedCombatResponse } from "./visual-events";
 import { getEnemyMovementIntent, type EnemyCombatRole } from "./enemy-behavior";
+import { selectNearestTarget, resolveCombatDirection } from "./combat-targeting";
 import { getCurupiraBossPattern, getCurupiraBossPhase } from "./boss-patterns";
 import { readBrowserGamepad, type GamepadFrame } from "./gamepad";
 import { pickGroupMember } from "./group-member";
@@ -1159,56 +1160,38 @@ export function createArpgDungeonScene(
       }
     }
     private resolveCombatAim() {
-      const gamepadMagnitude = Math.abs(this.gamepad.aimX) + Math.abs(this.gamepad.aimY);
-      if (gamepadMagnitude > 0.1) {
-        return this.aimVector.set(this.gamepad.aimX, this.gamepad.aimY).normalize();
-      }
-
       const touch = bridge.getInput();
-      const touchMagnitude = Math.abs(touch.aimX) + Math.abs(touch.aimY);
-      if (touchMagnitude > 0.1) {
-        return this.aimVector.set(touch.aimX, touch.aimY).normalize();
-      }
-
-      if (touch.attack || this.gamepad.attack) {
-        const nearest = this.findNearestEnemy(460);
-        if (nearest) {
-          return this.aimVector.set(nearest.x - this.player.x, nearest.y - this.player.y).normalize();
-        }
-      }
-
       const pointer = this.input.activePointer;
-      this.aimVector.set(pointer.worldX - this.player.x, pointer.worldY - this.player.y);
-      return this.aimVector.lengthSq() > 0.001 ? this.aimVector.normalize() : this.aimVector.set(1, 0);
+      const nearest = (touch.attack || this.gamepad.attack) ? this.findNearestEnemy(460) : null;
+      const direction = resolveCombatDirection({
+        gamepad: { x: this.gamepad.aimX, y: this.gamepad.aimY },
+        touch: { x: touch.aimX, y: touch.aimY },
+        autoAim: touch.attack || this.gamepad.attack,
+        player: { x: this.player.x, y: this.player.y },
+        target: nearest,
+        pointer: pointer.wasTouch ? null : { x: pointer.worldX, y: pointer.worldY },
+        previous: this.aimVector,
+      });
+      return this.aimVector.set(direction.x, direction.y);
     }
 
     private findNearestEnemy(maxDistance = Number.POSITIVE_INFINITY): ArcadeSprite | null {
-      let nearest: ArcadeSprite | null = null;
-      let nearestDistanceSq = maxDistance * maxDistance;
       const playerCell = this.navigation ? worldToGridCell(this.player, this.navigation) : null;
       const playerCellKey = playerCell ? gridCellKey(playerCell.x, playerCell.y) : null;
       const playerRoomId = playerCellKey
         ? this.navigation?.roomIdByCell?.get(playerCellKey) ?? dungeonManager?.getCurrentRoom().id
         : undefined;
-      this.enemies.getChildren().forEach((child) => {
-        const enemy = child as ArcadeSprite;
-        if (!enemy.active || !enemy.getData("spawnReady")) return;
-        const dx = enemy.x - this.player.x;
-        const dy = enemy.y - this.player.y;
-        const distanceSq = dx * dx + dy * dy;
-        if (this.navigation) {
+      return selectNearestTarget(this.player, this.enemies.getChildren() as ArcadeSprite[], {
+        maxDistance,
+        available: (enemy) => enemy.active && Boolean(enemy.getData("spawnReady")),
+        visible: (enemy) => {
+          if (!this.navigation) return true;
           const enemyCell = worldToGridCell(enemy, this.navigation);
-          const enemyCellKey = gridCellKey(enemyCell.x, enemyCell.y);
-          const enemyRoomId = this.navigation.roomIdByCell?.get(enemyCellKey);
-          if (playerRoomId && enemyRoomId && enemyRoomId !== playerRoomId) return;
-          if (!hasGridLineOfSight(this.navigation, this.player, enemy)) return;
-        }
-        if (distanceSq < nearestDistanceSq) {
-          nearest = enemy;
-          nearestDistanceSq = distanceSq;
-        }
+          const enemyRoomId = this.navigation.roomIdByCell?.get(gridCellKey(enemyCell.x, enemyCell.y));
+          if (playerRoomId && enemyRoomId && enemyRoomId !== playerRoomId) return false;
+          return hasGridLineOfSight(this.navigation, this.player, enemy);
+        },
       });
-      return nearest;
     }
 
     private updateFloatingWeapon() {
