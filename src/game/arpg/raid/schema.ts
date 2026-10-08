@@ -40,6 +40,7 @@ const PlayerSchema = z.strictObject({
   downedUntilMs: z.number().finite().nonnegative().default(0),
   loadout: ArpgRaidLoadoutSchema,
   input: InputSchema,
+  lastInputAtMs: z.number().finite().nonnegative().default(0),
   nextAttackAtMs: z.number().finite().nonnegative(),
   nextDashAtMs: z.number().finite().nonnegative(),
   dashingUntilMs: z.number().finite().nonnegative(),
