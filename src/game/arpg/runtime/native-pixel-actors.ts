@@ -1242,6 +1242,24 @@ function drawActorFrame(
       break;
   }
 
+  // Unique animated crest for every folklore actor, excluding the guild NPCs.
+  if (design.kind !== "npc" && row !== NATIVE_PIXEL_ACTOR_ANIMATION_ROWS.defeat) {
+    const shimmer = frame % 2 === 0;
+    p.rect(15, 1, 3, 2, design.ink);
+    p.rect(16, 1, 1, 2, design.accent);
+    if (shimmer) {
+      p.rect(12, 3, 2, 1, design.accent, 0.75);
+      p.rect(20, 3, 2, 1, design.accent, 0.75);
+    }
+    if (actor === "raiju" || actor === "amarok" || actor === "yeti") {
+      p.rect(11, 4, 2, 2, design.accent, 0.8);
+      p.rect(21, 4, 2, 2, design.accent, 0.8);
+    } else if (actor === "iara" || actor === "boto" || actor === "kelpie" || actor === "kappa") {
+      p.rect(12, 5, 2, 1, design.bodyLight, 0.85);
+      p.rect(20, 5, 2, 1, design.bodyLight, 0.85);
+    }
+  }
+
   if (row === NATIVE_PIXEL_ACTOR_ANIMATION_ROWS.damage) {
     // A compact hit flash gives every silhouette a readable damage reaction.
     const recoil = frame % 2;
