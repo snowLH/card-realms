@@ -19,3 +19,6 @@ O workflow manual **Android signed release** só pode gerar um APK assinado quan
 
 ## Validação em dispositivos reais
 Para concluir a homologação, testar em Android, iPhone, Windows e Linux: login e retorno de OAuth, áudio, touch/controle virtual, teclado, FPS, reentrada após minimizar, rede intermitente, progresso salvo, co-op e instalação/desinstalação. Os pipelines de CI verificam compilação, **não** substituem testes físicos. O cliente desktop e o app móvel carregam o servidor hospedado e exigem conexão para jogar.
+
+## Windows assinado
+O workflow manual **Windows signed release** utiliza o ambiente protegido `windows-release` e requer os segredos `WINDOWS_CSC_LINK` (certificado de assinatura de código) e `WINDOWS_CSC_KEY_PASSWORD`. Sem certificado válido, só os instaladores de teste sem assinatura estão disponíveis. A assinatura não dispensa validação de reputação e de instalação em máquina real.
