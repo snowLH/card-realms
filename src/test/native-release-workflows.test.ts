@@ -25,6 +25,18 @@ describe("native release workflow hardening", () => {
     }
   });
 
+  it("validates native changes in pull requests but reserves push releases for main", () => {
+    for (const path of [
+      ".github/workflows/android-app.yml",
+      ".github/workflows/desktop-app.yml",
+      ".github/workflows/ios-simulator.yml",
+    ] as const) {
+      const source = workflow(path);
+      expect(source, path).toContain("pull_request:");
+      expect(source, path).toMatch(/push:\n\s+branches:\n\s+- main/);
+    }
+  });
+
   it("never publishes automatic native downloads from feature branches", () => {
     const android = workflow(".github/workflows/android-app.yml");
     const desktop = workflow(".github/workflows/desktop-app.yml");
