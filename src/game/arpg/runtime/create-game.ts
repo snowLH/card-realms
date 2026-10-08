@@ -56,14 +56,16 @@ export async function createArpgGame(
     setPaused(paused: boolean) {
       const scene = game.scene.getScenes(false)[0];
       if (!scene) return;
+      bridge.clearGameplayInput();
+      scene.input.keyboard?.resetKeys();
       if (paused) {
-        bridge.clearGameplayInput();
         scene.scene.pause();
       } else {
         scene.scene.resume();
       }
     },
     destroy() {
+      bridge.clearGameplayInput();
       game.destroy(true);
     },
   };

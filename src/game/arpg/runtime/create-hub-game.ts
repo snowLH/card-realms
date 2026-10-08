@@ -3,6 +3,7 @@ import type { PlayableLegendId } from "../content/legends";
 import type { ArpgBridge } from "./bridge";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
 import { ARPG_LOGICAL_VIEWPORT, ARPG_PIXEL_RENDER_SETTINGS } from "./render-config";
+import { bindInputLifecycle } from "./input-lifecycle";
 
 export async function createArpgHubGame(
   parent: HTMLElement,
@@ -34,5 +35,9 @@ export async function createArpgHubGame(
     scene: [HubScene],
   });
 
-  return { game, destroy: () => game.destroy(true) };
+  const releaseInput = bindInputLifecycle(bridge, () => {
+    const scene = game.scene.getScenes(false)[0];
+    scene?.input.keyboard?.resetKeys();
+  });
+  return { game, destroy: () => { releaseInput(); game.destroy(true); } };
 }

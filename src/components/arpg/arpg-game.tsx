@@ -1,6 +1,6 @@
 "use client";
 
-import { Map as MapIcon, Maximize2, Pause, Play, Volume2, VolumeX, X } from "lucide-react";
+import { Map as MapIcon, Maximize2, Pause, Play, Smartphone, Volume2, VolumeX, X } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   DEFAULT_ARPG_EXPEDITION_ID,
@@ -14,6 +14,7 @@ import type { ArpgDungeonCombatState } from "@/game/arpg/dungeon/combat-authorit
 import { getLocalDungeonCompletionReward } from "@/game/arpg/dungeon/rewards";
 import { ArpgBridge } from "@/game/arpg/runtime/bridge";
 import { createArpgGame } from "@/game/arpg/runtime/create-game";
+import { bindInputLifecycle } from "@/game/arpg/runtime/input-lifecycle";
 import { LootChoice } from "./loot-choice";
 import { RoomChoice } from "./room-choice";
 import { DungeonMapOverlay, RunHud } from "./run-hud";
@@ -155,8 +156,12 @@ export function ArpgGame({
   }, [ready, runResult, mapOpen, paused, hasDungeonMap]);
 
   useEffect(() => {
-    gameControlRef.current?.setPaused(paused || mapOpen);
-  }, [paused, mapOpen]);
+    gameControlRef.current?.setPaused(paused || mapOpen || portraitMobile === true);
+  }, [paused, mapOpen, portraitMobile, ready]);
+
+  useEffect(() => bindInputLifecycle(bridge, () => {
+    if (ready && !runResult) setPaused(true);
+  }), [bridge, ready, runResult]);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -371,8 +376,12 @@ export function ArpgGame({
   }, [atlasEncounter, avatarConfig, bootAttempt, bridge, expedition, expeditionId]);
 
   const requestFullscreen = async () => {
-    const element = document.documentElement;
-    if (!document.fullscreenElement) await element.requestFullscreen?.();
+    try {
+      const element = document.documentElement;
+      if (!document.fullscreenElement) await element.requestFullscreen?.();
+    } catch {
+      setMessage("Tela cheia indisponível neste navegador. A expedição continua nesta janela.");
+    }
   };
   const currentDungeonRoom = hud?.dungeonMap?.rooms.find(
     (room) => room.id === hud?.dungeonMap?.currentRoomId,
@@ -508,6 +517,14 @@ export function ArpgGame({
         <span>D-pad ↑ / ↓ ataques · RB interagir</span>
       </div>
 
+      {portraitMobile === true ? (
+        <div className="arpg-rotate-gate" role="status">
+          <Smartphone aria-hidden="true" />
+          <strong>Gire o aparelho</strong>
+          <span>A dungeon foi pausada. Jogue com a tela na horizontal para ter espaço para mover, atacar e usar seus poderes.</span>
+          <button type="button" onClick={onExit}>{exitLabel}</button>
+        </div>
+      ) : null}
       {runResult ? (
         <div className="arpg-run-result">
           <div>

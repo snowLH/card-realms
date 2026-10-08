@@ -3,7 +3,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ArpgBridge } from "@/game/arpg/runtime/bridge";
+import { ArpgBridge } from "@/game/arpg/runtime/bridge";
 import { TouchControls } from "./touch-controls";
 
 const CURUPIRA_ABILITIES = ["curupira-root-snare", "curupira-ember-arrow"] as [string, string];
@@ -12,7 +12,7 @@ afterEach(() => cleanup());
 
 describe("TouchControls ability cards", () => {
   it("shows each cooldown on its mobile action and queues that card", () => {
-    const bridge = { queueAbility: vi.fn() } as unknown as ArpgBridge;
+    const bridge = Object.assign(new ArpgBridge(), { queueAbility: vi.fn() });
     render(
       <TouchControls
         bridge={bridge}
@@ -37,7 +37,7 @@ describe("TouchControls ability cards", () => {
   });
 
   it("shows exactly two attacks and has no support controls", () => {
-    const bridge = { queueAbility: vi.fn() } as unknown as ArpgBridge;
+    const bridge = Object.assign(new ArpgBridge(), { queueAbility: vi.fn() });
     const { container } = render(
       <TouchControls
         bridge={bridge}
@@ -57,10 +57,10 @@ describe("TouchControls ability cards", () => {
   });
 
   it("offers a contextual touch action for an active special room", () => {
-    const bridge = {
+    const bridge = Object.assign(new ArpgBridge(), {
       queueAbility: vi.fn(),
       queueInteract: vi.fn(),
-    } as unknown as ArpgBridge;
+    });
     render(
       <TouchControls
         bridge={bridge}
@@ -80,7 +80,7 @@ describe("TouchControls ability cards", () => {
   });
 
   it("offers a one-touch swap when a second weapon is equipped", () => {
-    const bridge = { queueWeaponSwitch: vi.fn() } as unknown as ArpgBridge;
+    const bridge = Object.assign(new ArpgBridge(), { queueWeaponSwitch: vi.fn() });
     render(
       <TouchControls
         bridge={bridge}
@@ -100,7 +100,7 @@ describe("TouchControls ability cards", () => {
   });
 
   it("moves the virtual joystick nub with the pointer and recenters it on release", () => {
-    const bridge = { setMove: vi.fn() } as unknown as ArpgBridge;
+    const bridge = Object.assign(new ArpgBridge(), { setMove: vi.fn() });
     const { container } = render(
       <TouchControls
         bridge={bridge}
@@ -135,7 +135,7 @@ describe("TouchControls ability cards", () => {
   });
 
   it("retains attack while the touch pointer leaves the button and releases it on every end path", () => {
-    const bridge = { setAttack: vi.fn() } as unknown as ArpgBridge;
+    const bridge = Object.assign(new ArpgBridge(), { setAttack: vi.fn() });
     const { container } = render(
       <TouchControls
         bridge={bridge}
@@ -169,7 +169,7 @@ describe("TouchControls ability cards", () => {
   });
 
   it("keeps attack keyboard input from reaching Phaser movement shortcuts", () => {
-    const bridge = { setAttack: vi.fn() } as unknown as ArpgBridge;
+    const bridge = Object.assign(new ArpgBridge(), { setAttack: vi.fn() });
     const { container } = render(
       <TouchControls
         bridge={bridge}
