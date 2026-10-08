@@ -5,7 +5,7 @@ import { advanceArpgRaid, applyArpgRaidAction, createArpgRaidState } from "../ra
 import { ArpgRaidStateSchema } from "../raid/schema";
 import { ARPG_RAID_PLAYER_MARGIN } from "../raid/types";
 import type { ArpgRaidPlayerSetup } from "../raid/types";
-import { attachArpgSharedDungeon, planArpgCoopRoomSequence, spawnArpgRaidDungeonWave } from "./shared-run";
+import { ARPG_SHARED_DUNGEON_MIN_DURATION_MS, attachArpgSharedDungeon, planArpgCoopRoomSequence, spawnArpgRaidDungeonWave } from "./shared-run";
 import { generateDungeon } from "../dungeon/generator";
 
 const START = 1_800_000_000_000;
@@ -53,6 +53,7 @@ describe("shared ARPG co-op dungeon", () => {
     expect(parsed.dungeon?.seed).toBe(second.dungeon?.seed);
     expect(parsed.dungeon?.rooms.map((room) => room.id)).toEqual(second.dungeon?.rooms.map((room) => room.id));
     expect(parsed.dungeon?.rooms.length).toBe(8);
+    expect(parsed.maxDurationMs).toBeGreaterThanOrEqual(ARPG_SHARED_DUNGEON_MIN_DURATION_MS);
     expect(parsed.dungeon?.rooms.at(-1)?.type).toBe("boss");
     const activeRoom = parsed.dungeon!.rooms[parsed.dungeon!.roomIndex];
     if (activeRoom.type === "combat" || activeRoom.type === "elite") {
@@ -145,6 +146,14 @@ describe("shared ARPG co-op dungeon", () => {
     expect(room.state).toBe("awaiting_exit");
     expect(room.nextRoomAtMs).toBeNull();
     expect(ArpgRaidStateSchema.safeParse(state).success).toBe(true);
+  });
+
+  it("upgrades saved dungeon timers but not standalone boss raid timers", () => {
+    const older = createSharedRun();
+    older.maxDurationMs = 6 * 60_000;
+    expect(advanceArpgRaid(older, START + 50).state.maxDurationMs).toBe(ARPG_SHARED_DUNGEON_MIN_DURATION_MS);
+    const bossOnly = createArpgRaidState(ROOM_ID, EVENT_ID, createPlayers(), ARPG_ROC_RAID_BOSS, START);
+    expect(advanceArpgRaid(bossOnly, START + 50).state.maxDurationMs).toBe(6 * 60_000);
   });
 
   it("migrates a saved timer-complete room to a traversable open corridor", () => {
