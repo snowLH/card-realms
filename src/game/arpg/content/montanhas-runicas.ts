@@ -6,18 +6,7 @@ import type {
 import { ARPG_ASSETS } from "../assets";
 
 export const RUNIC_WEAPONS: ArpgWeaponDefinition[] = [
-  {
-    id: "frostfall-sword",
-    name: "Espada da Nevasca",
-    kind: "sword",
-    rarity: "rare",
-    element: "water",
-    damage: 37,
-    attackRateMs: 600,
-    range: 94,
-    effect: { id: "tide-cleave", label: "Lâmina Congelada", description: "O impacto gera um corte secundário em área com 35% do dano." },
-    description: "Uma espada pesada que sacrifica velocidade por ataques amplos.",
-  },
+
   {
     id: "runic-sabre",
     name: "Sabre Rúnico",
@@ -62,6 +51,18 @@ export const RUNIC_WEAPONS: ArpgWeaponDefinition[] = [
       description: "A cada quarto ataque básico, dispara um segundo pulso com 60% do dano.",
     },
     description: "Relíquia de jogo inspirada na associação do Raijū com relâmpagos e tempestades.",
+  },
+  {
+    id: "frostfall-sword",
+    name: "Espada da Nevasca",
+    kind: "sword",
+    rarity: "rare",
+    element: "water",
+    damage: 37,
+    attackRateMs: 600,
+    range: 94,
+    effect: { id: "tide-cleave", label: "Lâmina Congelada", description: "O impacto gera um corte secundário em área com 35% do dano." },
+    description: "Uma espada pesada que sacrifica velocidade por ataques amplos.",
   },
 ];
 
