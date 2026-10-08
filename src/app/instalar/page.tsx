@@ -33,7 +33,9 @@ const platforms: { key: DownloadPlatform; title: string; button: string; require
 function ReleaseDetails({ release }: { release: DownloadRelease }) {
   return (
     <dl className="folklard-install__release">
-      <div><dt>Versão</dt><dd>{release.version ?? release.tag} · teste</dd></div>
+      {release.version
+          ? <div><dt>Versão</dt><dd>{release.version} · teste</dd></div>
+          : <div><dt>Canal</dt><dd>Build de teste</dd></div>}
       {release.size !== null && <div><dt>Arquivo</dt><dd>{new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(release.size / 1048576)} MB</dd></div>}
       {release.updatedAt && <div><dt>Atualizado</dt><dd>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "UTC" }).format(new Date(release.updatedAt))}</dd></div>}
       {release.commit && <div><dt>Compilação</dt><dd>{release.commit.slice(0, 7)}</dd></div>}
