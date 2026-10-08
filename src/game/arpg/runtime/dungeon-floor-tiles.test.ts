@@ -8,7 +8,7 @@ function draw(regionId: string, variant: number) {
   const context = {
     fillStyle: "",
     globalAlpha: 1,
-    fillRect(x: number, y: number, width: number, height: number) {
+    fillRect(this: { fillStyle: string }, x: number, y: number, width: number, height: number) {
       rects.push([x, y, width, height, this.fillStyle].join(":"));
     },
   } as unknown as CanvasRenderingContext2D;
