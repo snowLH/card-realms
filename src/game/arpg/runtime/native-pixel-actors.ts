@@ -1208,6 +1208,97 @@ function drawNativeFolkloreCreature(
   }
 }
 
+/**
+ * Per-creature pixel embellishments. Kept inside the 32px sprite so they
+ * survive nearest-neighbour scaling and never affect combat hitboxes.
+ */
+function drawFolkloreIdentity(p: PixelPainter, actor: NativePixelActorId, d: ActorDesign, row: number, frame: number) {
+  if (row === NATIVE_PIXEL_ACTOR_ANIMATION_ROWS.defeat) return;
+  const flutter = frame % 2;
+  switch (actor) {
+    case "curupira":
+      // Ember hair and a trail of forest fireflies.
+      p.rect(11, 2 + flutter, 3, 2, "#ffb64e");
+      p.rect(17, 1 + flutter, 2, 3, "#f66d36");
+      p.rect(4 + frame, 23, 2, 2, "#b8e27b", .8);
+      break;
+    case "amarok":
+      // Crescent moon crest and glacial breath.
+      p.rect(13, 2, 7, 2, "#d7eff5");
+      p.rect(15, 2, 5, 1, d.bodyDark);
+      p.rect(25 + flutter, 15, 3, 1, "#a6edf0", .8);
+      break;
+    case "iara":
+      // Coral tiara and pearlescent water droplets.
+      p.rect(12, 3, 2, 3, "#f4c88c");
+      p.rect(18, 3, 2, 3, "#f4c88c");
+      p.rect(26, 21 - flutter, 2, 3, "#a3f2e4", .8);
+      break;
+    case "sprout":
+      // Two asymmetrical sprouting leaves.
+      p.rect(11, 3 - flutter, 5, 2, "#b7df67");
+      p.rect(17, 1 + flutter, 3, 4, "#6cae4a");
+      break;
+    case "boto":
+      // Pink river sparkles and a golden hat band.
+      p.rect(9, 6, 14, 1, "#f1d58a");
+      p.rect(5, 21 - flutter, 2, 2, "#f5a4bc", .8);
+      break;
+    case "raiju":
+      // Forked lightning horns.
+      p.rect(10, 2, 2, 4, "#f7e88c");
+      p.rect(8, 1 + flutter, 3, 2, "#f5cf52");
+      p.rect(22, 2, 2, 4, "#f7e88c");
+      p.rect(24, 1 + flutter, 2, 2, "#f5cf52");
+      break;
+    case "mapinguari":
+      // Single cyclopean eye and bark scars.
+      p.rect(14, 12, 5, 4, "#211a19");
+      p.rect(16, 13, 2, 2, "#f4cf79");
+      p.rect(6, 19, 2, 6, "#bc8c5a", .8);
+      break;
+    case "kappa":
+      // Crown bowl with rippling water.
+      p.rect(12, 3, 9, 2, "#2e6d67");
+      p.rect(14, 3 + flutter, 5, 1, "#9cf1d9");
+      break;
+    case "kelpie":
+      // Riverweed mane and luminous foam.
+      p.rect(9, 6, 2, 6, "#65b7a5");
+      p.rect(23, 18 - flutter, 4, 2, "#b3efe5", .8);
+      break;
+    case "ahuizotl":
+      // Distinctive hand-like tail tip.
+      p.rect(27, 18, 3, 3, "#31252c");
+      p.rect(28, 16 - flutter, 2, 3, "#b9957d");
+      break;
+    case "ratatoskr":
+      // Acorn charm and twitching tail highlight.
+      p.rect(26, 9 + flutter, 3, 2, "#e7b96c");
+      p.rect(5, 17, 3, 3, "#8a5132");
+      break;
+    case "carbunclo":
+      // A glowing gemstone mounted on its forehead.
+      p.rect(14, 5, 5, 4, "#173e48");
+      p.rect(15, 5 + flutter, 3, 2, "#80f7ef");
+      break;
+    case "alicanto":
+      // Ore-encrusted feathers and a gold shimmer.
+      p.rect(7, 12, 3, 2, "#f5d987");
+      p.rect(22, 14, 3, 2, "#f5d987");
+      p.rect(16, 3 - flutter, 2, 2, "#fff3b6");
+      break;
+    case "yeti":
+      // Jagged ice crown and snowy breath.
+      p.rect(10, 4, 3, 3, "#ecfbff");
+      p.rect(19, 4, 3, 3, "#ecfbff");
+      p.rect(26, 17 + flutter, 3, 2, "#b7e9f5", .85);
+      break;
+    default:
+      break;
+  }
+}
+
 function drawActorFrame(
   context: CanvasRenderingContext2D,
   actor: NativePixelActorId,
@@ -1241,6 +1332,8 @@ function drawActorFrame(
       drawNativeFolkloreCreature(p, actor, design, row, frame);
       break;
   }
+
+  if (design.kind !== "npc") drawFolkloreIdentity(p, actor, design, row, frame);
 
   // Unique animated crest for every folklore actor, excluding the guild NPCs.
   if (design.kind !== "npc" && row !== NATIVE_PIXEL_ACTOR_ANIMATION_ROWS.defeat) {
