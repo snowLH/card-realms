@@ -1,7 +1,13 @@
 name: Android test APK
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "mobile/**"
+      - ".github/workflows/android-app.yml"
   push:
+    branches:
+      - main
     paths:
       - "mobile/**"
       - ".github/workflows/android-app.yml"
