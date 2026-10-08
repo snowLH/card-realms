@@ -65,6 +65,7 @@ import { ArpgAudio, type ArpgSoundCue } from "./arpg-audio";
 import { acceptServerConfirmedCombatResponse } from "./visual-events";
 import { createDungeonRuntimeTextures } from "./dungeon-runtime-textures";
 import { getEnemyMovementIntent, type EnemyCombatRole } from "./enemy-behavior";
+import { indexRuntimeEntities } from "./entity-index";
 import { selectNearestTarget, resolveCombatDirection } from "./combat-targeting";
 import { getCurupiraBossPattern, getCurupiraBossPhase } from "./boss-patterns";
 import { getRegionalBossPattern } from "../dungeon/region-boss-patterns";
@@ -2162,10 +2163,9 @@ export function createArpgDungeonScene(
         this.shakeCameraForDamage();
       }
 
+      const localEnemiesById = indexRuntimeEntities(this.enemies.getChildren() as ArcadeSprite[]);
       for (const serverEnemy of state.enemies) {
-        const enemy = this.enemies.getChildren().find((child) => (
-          String((child as ArcadeSprite).getData("runtimeId")) === serverEnemy.id
-        )) as ArcadeSprite | undefined;
+        const enemy = localEnemiesById.get(serverEnemy.id);
         if (!enemy) continue;
         enemy.setData("hp", serverEnemy.hp);
         enemy.setData("maxHp", serverEnemy.maxHp);
