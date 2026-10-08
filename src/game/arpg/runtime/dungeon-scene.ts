@@ -1,4 +1,5 @@
 import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
+import { ARPG_BASE_HP as PLAYER_BASE_HP, ARPG_BASE_SPEED as PLAYER_BASE_SPEED, ARPG_DASH_SPEED as DASH_SPEED, ARPG_DASH_DURATION_MS as DASH_MS, ARPG_DASH_COOLDOWN_MS as DASH_COOLDOWN_MS } from "../domain/combat-config";
 import { ARPG_ASSET_MANIFEST, getArpgSpriteSheetFrameConfig, registerArpgSpriteSheetAnimations } from "../assets";
 import type { ArpgDungeonRuntimeConfig, DungeonLoot } from "../content/dungeons";
 import {
@@ -168,11 +169,6 @@ type SpecialRoomAnchor = {
 
 const WORLD_WIDTH = 1280;
 const WORLD_HEIGHT = 720;
-const PLAYER_BASE_HP = 120;
-const PLAYER_BASE_SPEED = 220;
-const DASH_SPEED = 610;
-const DASH_MS = 170;
-const DASH_COOLDOWN_MS = 820;
 const DUNGEON_CAMERA_FOLLOW_LERP = 0.16;
 const NATIVE_LEGEND_FRAME_SIZE = 32;
 const NATIVE_LEGEND_PLAYER_SCALE = CARTOGRAPHER_PLAYER_FRAME_SIZE

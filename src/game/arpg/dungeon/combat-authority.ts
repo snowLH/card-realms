@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ARPG_BASE_SPEED as PLAYER_BASE_SPEED, ARPG_DASH_SPEED as PLAYER_DASH_SPEED, ARPG_DASH_DURATION_MS as PLAYER_DASH_DURATION_MS, ARPG_DASH_COOLDOWN_MS as PLAYER_DASH_COOLDOWN_MS } from "../domain/combat-config";
 import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
 import { ARPG_DUNGEON_CONFIGS } from "../content/dungeons";
 import { ARPG_ARMOR_BY_ID, ARPG_WEAPON_BY_ID, getArmorAbilityCooldownMs, getArmorDashCooldownMs, getArmorMovingDefenseBonus, getWeaponAttackIntervalMs, getWeaponAttackProc, normalizeArmorlessHealth } from "../content/equipment";
@@ -16,11 +17,7 @@ const MAX_HAZARDS_PER_ROOM = 48;
 const MAX_PROCESSED_ACTIONS = 120;
 const SIMULATION_STEP_MS = 50;
 const MAX_ADVANCE_MS = 2_000;
-const PLAYER_BASE_SPEED = 220;
 const PLAYER_RADIUS = 18;
-const PLAYER_DASH_SPEED = 610;
-const PLAYER_DASH_DURATION_MS = 170;
-const PLAYER_DASH_COOLDOWN_MS = 820;
 
 const EncounterEnemySchema = z.strictObject({
   id: z.string().min(1).max(80),
