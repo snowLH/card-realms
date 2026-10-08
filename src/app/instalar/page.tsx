@@ -9,26 +9,45 @@ export const metadata: Metadata = {
   description: "Baixe Folklard — Crônicas de Aurória. Downloads oficiais, requisitos e instruções de instalação.",
 };
 
-const platforms: { key: DownloadPlatform; title: string; button: string; requirements: string; steps: string[]; note: string }[] = [
+const platforms: { key: DownloadPlatform; title: string; button: string; requirements: string; steps: string[] }[] = [
   {
     key: "windows", title: "Windows", button: "BAIXAR PARA WINDOWS",
     requirements: "Windows 10 ou 11 · processador x64 · internet",
     steps: ["Baixe o instalador .exe e abra o arquivo.", "Escolha a pasta de instalação e abra Folklard pelo atalho.", "Use WASD ou as setas para mover. F11 alterna a tela cheia."],
-    note: "Instalador de teste sem certificado de distribuição. O Windows pode exibir um aviso de editor desconhecido.",
   },
   {
     key: "android", title: "Android", button: "BAIXAR APK ANDROID",
     requirements: "Android 7 ou superior · WebView 111 ou superior · internet",
     steps: ["Baixe o APK e abra pelo gerenciador de arquivos.", "Se solicitado, permita a instalação por esse aplicativo apenas para concluir a instalação.", "Nas dungeons, gire o aparelho para paisagem e use o joystick e os botões de combate."],
-    note: "APK de teste com assinatura de desenvolvimento. A compatibilidade física ainda está em validação.",
   },
   {
     key: "linux", title: "Linux", button: "BAIXAR PARA LINUX",
     requirements: "Linux · processador x86_64 · suporte a AppImage · internet",
     steps: ["Baixe o arquivo .AppImage.", "Nas propriedades do arquivo, permita a execução como programa e abra Folklard.", "Algumas distribuições exigem o pacote FUSE para executar AppImages."],
-    note: "Aplicativo portátil de teste. Não exige uma instalação tradicional.",
   },
 ];
+
+
+function signingLabel(release: DownloadRelease) {
+  if (release.signing === "signed-release") return "Distribuição";
+  if (release.signing === "development-test") return "Desenvolvimento";
+  if (release.signing === "unsigned-test") return "Não assinada";
+  return null;
+}
+
+function platformReleaseNote(platform: DownloadPlatform, release: DownloadRelease) {
+  if (platform === "windows") {
+    return release.signing === "signed-release"
+      ? "Instalador assinado para distribuição. O SmartScreen ainda pode alertar enquanto a versão ganha reputação."
+      : "Instalador de teste sem certificado de distribuição confirmado. O Windows pode exibir um aviso de editor desconhecido.";
+  }
+  if (platform === "android") {
+    return release.signing === "signed-release"
+      ? "APK assinado para distribuição. Quem instalou um APK de desenvolvimento anterior pode precisar desinstalá-lo antes de instalar esta versão."
+      : "APK de teste com assinatura de desenvolvimento ou assinatura ainda não confirmada. A compatibilidade física continua em validação.";
+  }
+  return "Aplicativo portátil de teste. Não exige uma instalação tradicional.";
+}
 
 function ReleaseDetails({ release }: { release: DownloadRelease }) {
   return (
@@ -39,6 +58,7 @@ function ReleaseDetails({ release }: { release: DownloadRelease }) {
       {release.size !== null && <div><dt>Arquivo</dt><dd>{new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(release.size / 1048576)} MB</dd></div>}
       {release.updatedAt && <div><dt>Atualizado</dt><dd>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "UTC" }).format(new Date(release.updatedAt))}</dd></div>}
       {release.commit && <div><dt>Compilação</dt><dd>{release.commit.slice(0, 7)}</dd></div>}
+      {signingLabel(release) && <div><dt>Assinatura</dt><dd>{signingLabel(release)}</dd></div>}
     </dl>
   );
 }
@@ -71,7 +91,7 @@ export default async function InstallPage() {
                 <summary>Como instalar</summary>
                 <ol>{platform.steps.map((step) => <li key={step}>{step}</li>)}</ol>
               </details>
-              <small>{platform.note}</small>
+              <small>{platformReleaseNote(platform.key, release)}</small>
               {release.sha256 && <details className="folklard-install__checksum"><summary>Verificar integridade · SHA-256</summary><code>{release.sha256}</code></details>}
             </article>
           );
