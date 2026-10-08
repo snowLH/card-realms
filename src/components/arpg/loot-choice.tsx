@@ -47,12 +47,7 @@ function WeaponDetails({ item }: { item: ArpgWeaponDefinition }) {
 export function LootChoice({ state, bridge }: { state: ArpgHudState | null; bridge: ArpgBridge }) {
   const pending = state?.pendingLoot;
   const dialogRef = useRef<HTMLDivElement>(null);
-  if (!pending || pending.kind !== "weapon") return null;
-
-  const weaponSlots = state!.weaponSlots ?? { A: state!.weaponId, B: null, active: "A" as const };
-  const current = ARPG_WEAPON_BY_ID.get(weaponSlots[weaponSlots.active] ?? state!.weaponId);
-  const found = ARPG_WEAPON_BY_ID.get(pending.id);
-  if (!current || !found) return null;
+  const weaponSlots = state?.weaponSlots ?? { A: state?.weaponId ?? "", B: null, active: "A" as const };
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -95,7 +90,12 @@ export function LootChoice({ state, bridge }: { state: ArpgHudState | null; brid
 
     dialog.addEventListener("keydown", onKeyDown);
     return () => dialog.removeEventListener("keydown", onKeyDown);
-  }, [pending.id, weaponSlots.A, weaponSlots.B, weaponSlots.active]);
+  }, [pending?.id, weaponSlots.A, weaponSlots.B, weaponSlots.active]);
+
+  if (!pending || pending.kind !== "weapon" || !state) return null;
+  const current = ARPG_WEAPON_BY_ID.get(weaponSlots[weaponSlots.active] ?? state.weaponId);
+  const found = ARPG_WEAPON_BY_ID.get(pending.id);
+  if (!current || !found) return null;
 
   return (
     <div
