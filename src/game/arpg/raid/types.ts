@@ -6,6 +6,8 @@ export const ARPG_RAID_MIN_PLAYERS = 2 as const;
 export const ARPG_RAID_MAX_PLAYERS = 4 as const;
 export const ARPG_RAID_STATE_VERSION = 2 as const;
 export const ARPG_RAID_PLAYER_MARGIN = 45 as const;
+/** Input keep-alives arrive at most every ~900 ms; after this window stale movement is stopped server-side. */
+export const ARPG_RAID_INPUT_STALE_MS = 2_500 as const;
 
 export type ArpgRaidStatus = "active" | "victory" | "defeat";
 export type ArpgRaidPhase = 1 | 2 | 3;
@@ -38,6 +40,8 @@ export type ArpgRaidPlayerState = {
   downedUntilMs: number;
   loadout: ArpgLoadout;
   input: ArpgRaidInputVector;
+  /** Server time of the latest movement/aim packet, used to stop runaway movement after disconnects. */
+  lastInputAtMs: number;
   nextAttackAtMs: number;
   nextDashAtMs: number;
   dashingUntilMs: number;
