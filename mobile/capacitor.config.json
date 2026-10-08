@@ -1,0 +1,12 @@
+{
+  "appId": "com.folklard.auroria",
+  "appName": "Folklard",
+  "webDir": "www",
+  "server": {
+    "url": "https://card-realms.vercel.app",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
