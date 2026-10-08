@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveCombatDirection, selectNearestTarget } from "./combat-targeting";
+import { resolveCombatDirection, selectNearestTarget, selectStableTarget } from "./combat-targeting";
 
 const enemies = [
   { x: 20, y: 0, active: false, visible: true },
@@ -15,6 +15,22 @@ describe("selectNearestTarget", () => {
   it("respects distance and rejects corrupt coordinates", () => {
     expect(selectNearestTarget({ x: 0, y: 0 }, enemies, { ...options, maxDistance: 80 })).toBeNull();
     expect(selectNearestTarget({ x: 0, y: 0 }, [{ x: NaN, y: 0, active: true, visible: true }, ...enemies], options)).toEqual(enemies[2]);
+  });
+
+  it("keeps a valid preferred target until a challenger is clearly closer", () => {
+    const preferred = { x: 100, y: 0, active: true, visible: true };
+    const almostSame = { x: 92, y: 0, active: true, visible: true };
+    expect(selectStableTarget({ x: 0, y: 0 }, [preferred, almostSame], preferred, options)).toBe(preferred);
+
+    const muchCloser = { x: 60, y: 0, active: true, visible: true };
+    expect(selectStableTarget({ x: 0, y: 0 }, [preferred, muchCloser], preferred, options)).toBe(muchCloser);
+  });
+
+  it("drops a preferred target immediately when it becomes invalid", () => {
+    const preferred = { x: 70, y: 0, active: false, visible: true };
+    const fallback = { x: 90, y: 0, active: true, visible: true };
+    expect(selectStableTarget({ x: 0, y: 0 }, [preferred, fallback], preferred, options)).toBe(fallback);
+    expect(selectStableTarget({ x: 0, y: 0 }, [preferred], preferred, { ...options, maxDistance: 40 })).toBeNull();
   });
 });
 const input = {
