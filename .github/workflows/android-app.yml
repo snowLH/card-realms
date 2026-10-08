@@ -80,7 +80,7 @@ jobs:
           retention-days: 30
   publish:
     needs: android
-    if: needs.android.outputs.update-compatible == 'true'
+    if: github.ref == 'refs/heads/main' && needs.android.outputs.update-compatible == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
