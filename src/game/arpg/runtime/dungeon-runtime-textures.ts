@@ -118,32 +118,57 @@ export function createDungeonRuntimeTextures(scene: import("phaser").Scene) {
       graphics.generateTexture("arpg-breakable-vase", 40, 40);
 
       graphics.clear();
-      graphics.fillStyle(0x513a25, 1);
-      graphics.fillRect(18, 27, 5, 10);
-      graphics.fillStyle(0x3e713c, 1);
-      graphics.fillEllipse(12, 18, 19, 19);
-      graphics.fillStyle(0x548b45, 1);
-      graphics.fillEllipse(24, 14, 19, 18);
-      graphics.fillStyle(0x6ba24d, 1);
-      graphics.fillEllipse(19, 9, 17, 15);
-      graphics.fillStyle(0x9cb85d, 1);
-      graphics.fillRect(12, 14, 4, 3);
-      graphics.fillRect(23, 11, 4, 3);
+      // Layered forest shrub, with distinct leaf clusters and a grounded trunk.
+      graphics.fillStyle(0x352b25, 1);
+      graphics.fillRect(16, 24, 8, 13);
+      graphics.fillStyle(0x765137, 1);
+      graphics.fillRect(19, 25, 3, 10);
+      graphics.fillStyle(0x1b4034, 1);
+      graphics.fillRect(5, 17, 28, 14);
+      graphics.fillRect(11, 10, 19, 18);
+      graphics.fillStyle(0x35674a, 1);
+      graphics.fillRect(4, 17, 13, 9);
+      graphics.fillRect(11, 9, 15, 16);
+      graphics.fillRect(23, 15, 12, 12);
+      graphics.fillStyle(0x548e5c, 1);
+      graphics.fillRect(8, 15, 8, 6);
+      graphics.fillRect(13, 9, 9, 7);
+      graphics.fillRect(24, 16, 8, 7);
+      graphics.fillStyle(0x9ac776, 1);
+      graphics.fillRect(11, 15, 5, 3);
+      graphics.fillRect(16, 10, 5, 3);
+      graphics.fillRect(27, 18, 4, 3);
+      graphics.fillStyle(0xe6bc75, 1);
+      graphics.fillRect(8, 23, 3, 3);
+      graphics.fillRect(26, 12, 3, 3);
+      graphics.fillStyle(0x213e36, 1);
+      graphics.fillRect(12, 27, 5, 4);
+      graphics.fillRect(25, 27, 5, 4);
       graphics.generateTexture("arpg-breakable-shrub", 40, 40);
 
       graphics.clear();
-      graphics.fillStyle(0x514652, 1);
-      graphics.fillRect(8, 27, 24, 8);
-      graphics.fillStyle(0x918398, 1);
-      graphics.fillRect(12, 20, 16, 8);
-      graphics.fillStyle(0x89c6cb, 1);
-      graphics.fillPoints([
-        { x: 20, y: 3 }, { x: 29, y: 15 }, { x: 20, y: 25 }, { x: 11, y: 15 },
-      ], true);
-      graphics.fillStyle(0xc7ecdb, 0.92);
-      graphics.fillTriangle(20, 5, 20, 22, 27, 15);
-      graphics.lineStyle(2, 0x31525a, 1);
-      graphics.strokeRect(8, 27, 24, 8);
+      // Ancient runic obelisk with a luminous cyan gem and stone pedestal.
+      graphics.fillStyle(0x272c3e, 1);
+      graphics.fillRect(6, 29, 28, 8);
+      graphics.fillRect(10, 22, 20, 8);
+      graphics.fillStyle(0x5b6071, 1);
+      graphics.fillRect(8, 29, 24, 5);
+      graphics.fillRect(13, 24, 14, 6);
+      graphics.fillStyle(0x9690a0, 1);
+      graphics.fillRect(10, 29, 20, 2);
+      graphics.fillStyle(0x1c4e59, 1);
+      graphics.fillRect(17, 5, 7, 19);
+      graphics.fillRect(13, 10, 15, 9);
+      graphics.fillStyle(0x56aab2, 1);
+      graphics.fillRect(18, 4, 4, 18);
+      graphics.fillRect(14, 12, 13, 5);
+      graphics.fillStyle(0xa6eee2, 1);
+      graphics.fillRect(19, 7, 2, 11);
+      graphics.fillRect(16, 12, 2, 4);
+      graphics.fillStyle(0xf9f0c0, 1);
+      graphics.fillRect(19, 10, 2, 4);
+      graphics.fillRect(11, 26, 3, 2);
+      graphics.fillRect(26, 26, 3, 2);
       graphics.generateTexture("arpg-breakable-relic", 40, 40);
 
       graphics.clear();
