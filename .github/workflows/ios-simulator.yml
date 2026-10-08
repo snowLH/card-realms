@@ -1,0 +1,33 @@
+name: iOS simulator app
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "mobile/**"
+      - ".github/workflows/ios-simulator.yml"
+permissions:
+  contents: read
+jobs:
+  ios:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Capacitor
+        run: npm install --no-audit --no-fund
+      - name: Generate iOS project
+        run: npx cap add ios
+      - name: Compile for iPhone simulator without signing
+        run: xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO -derivedDataPath build build
+      - name: Upload simulator application
+        uses: actions/upload-artifact@v4
+        with:
+          name: folklard-ios-simulator
+          path: mobile/build/Build/Products/Debug-iphonesimulator/App.app
+          if-no-files-found: error
+          retention-days: 14
