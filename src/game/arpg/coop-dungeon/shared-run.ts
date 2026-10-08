@@ -23,6 +23,7 @@ const ROOM_LABELS: Record<DungeonRoom["type"], string> = {
 };
 
 export const ARPG_SHARED_DUNGEON_CORRIDOR_WIDTH = DUNGEON_TILE_SIZE * 8;
+export const ARPG_SHARED_DUNGEON_MIN_DURATION_MS = 20 * 60_000;
 
 /** Each generated co-op arena must be accessible. We visit the graph in
  * breadth-first order and reserve the final boss for last. The room corridor
@@ -149,6 +150,8 @@ export function attachArpgSharedDungeon(
     player.y = spawn.y;
   }
   state.dungeon = dungeon;
+  // A multi-room expedition must not inherit the six-minute single-boss timeout.
+  state.maxDurationMs = Math.max(state.maxDurationMs, ARPG_SHARED_DUNGEON_MIN_DURATION_MS);
   state.boss.x = current.roomWidth / 2;
   state.boss.y = current.worldHeight / 2 - 110;
   return state;
