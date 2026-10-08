@@ -143,6 +143,8 @@ describe("fundação ARPG da Mata Encantada", () => {
     expect(MATA_CARDS).toHaveLength(2);
     expect(MATA_WEAPONS).toHaveLength(4);
     expect(MATA_ARMORS).toHaveLength(3);
+    expect(DEFAULT_ARPG_LOADOUT.weaponId).toBe("forest-bow");
+    expect(MATA_WEAPONS[0]?.id).toBe("iron-sword");
     expect(DEFAULT_ARPG_LOADOUT.abilityIds).toHaveLength(2);
     expect(DEFAULT_ARPG_LOADOUT.abilityIds).toEqual([...STARTER_ARPG_ABILITY_IDS]);
   });
