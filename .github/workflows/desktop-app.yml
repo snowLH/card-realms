@@ -63,6 +63,7 @@ jobs:
           retention-days: 30
   publish:
     needs: desktop
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
