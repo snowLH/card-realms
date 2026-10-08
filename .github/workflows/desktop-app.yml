@@ -1,7 +1,13 @@
 name: Desktop installers
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-app.yml"
   push:
+    branches:
+      - main
     paths:
       - "desktop/**"
       - ".github/workflows/desktop-app.yml"
