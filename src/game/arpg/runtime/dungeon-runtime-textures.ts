@@ -95,16 +95,26 @@ export function createDungeonRuntimeTextures(scene: import("phaser").Scene) {
       graphics.generateTexture("arpg-breakable-crate", 40, 40);
 
       graphics.clear();
-      graphics.fillStyle(0x663a32, 1);
-      graphics.fillRect(14, 5, 12, 6);
-      graphics.fillEllipse(20, 22, 26, 25);
-      graphics.fillStyle(0xb9664b, 1);
-      graphics.fillRect(15, 5, 10, 4);
-      graphics.fillRect(12, 15, 16, 4);
-      graphics.fillStyle(0xd49a69, 1);
-      graphics.fillRect(16, 7, 8, 2);
-      graphics.lineStyle(3, 0x663a32, 1);
-      graphics.strokeEllipse(20, 22, 26, 25);
+      graphics.fillStyle(0x38232c, 1);
+      graphics.fillRect(11, 14, 18, 19);
+      graphics.fillRect(14, 7, 12, 9);
+      graphics.fillRect(16, 4, 8, 5);
+      graphics.fillStyle(0x995a50, 1);
+      graphics.fillRect(13, 15, 14, 15);
+      graphics.fillRect(15, 8, 10, 9);
+      graphics.fillStyle(0xc98668, 1);
+      graphics.fillRect(15, 12, 4, 13);
+      graphics.fillRect(16, 6, 8, 3);
+      graphics.fillRect(13, 17, 14, 3);
+      graphics.fillStyle(0xe2b98a, 1);
+      graphics.fillRect(16, 11, 3, 4);
+      graphics.fillRect(17, 18, 2, 6);
+      graphics.fillStyle(0x6e3e40, 1);
+      graphics.fillRect(12, 24, 16, 4);
+      graphics.fillRect(17, 30, 7, 3);
+      graphics.fillStyle(0xefd7a6, 1);
+      graphics.fillRect(19, 14, 3, 3);
+      graphics.fillRect(25, 21, 2, 4);
       graphics.generateTexture("arpg-breakable-vase", 40, 40);
 
       graphics.clear();
