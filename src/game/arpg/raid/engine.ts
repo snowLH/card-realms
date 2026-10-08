@@ -25,6 +25,7 @@ import {
   spawnArpgRaidDungeonWave,
 } from "../coop-dungeon/shared-run";
 import {
+  ARPG_RAID_INPUT_STALE_MS,
   ARPG_RAID_MAX_PLAYERS,
   ARPG_RAID_MIN_PLAYERS,
   ARPG_RAID_PLAYER_MARGIN,
@@ -279,6 +280,10 @@ function advancePlayers(state: ArpgRaidState, fromMs: number, toMs: number) {
   const corridorOpen = Boolean(room && room.type !== "boss" && room.state === "awaiting_exit" && room.corridorWidth > 0);
   for (const player of state.players) {
     if (!player.alive) continue;
+    if (toMs - player.lastInputAtMs > ARPG_RAID_INPUT_STALE_MS
+      && (Math.abs(player.input.moveX) > 0.001 || Math.abs(player.input.moveY) > 0.001)) {
+      player.input = { ...player.input, moveX: 0, moveY: 0 };
+    }
     const armor = armorFor(player);
     let remaining = dtSeconds;
     let cursorMs = fromMs;
@@ -482,6 +487,7 @@ export function createArpgRaidState(
         downedUntilMs: 0,
         loadout: structuredClone(setup.loadout),
         input: { moveX: 0, moveY: 0, aimX: 0, aimY: -1 },
+        lastInputAtMs: nowMs,
         nextAttackAtMs: nowMs,
         nextDashAtMs: nowMs,
         dashingUntilMs: nowMs,
@@ -857,6 +863,7 @@ export function applyArpgRaidAction(
     const movement = normalize(action.moveX, action.moveY);
     const aim = normalize(action.aimX, action.aimY);
     player.input = { moveX: movement.x, moveY: movement.y, aimX: aim.x, aimY: aim.y };
+    player.lastInputAtMs = atMs;
   } else if (action.kind === "attack") {
     performAttack(state, player, atMs, events);
   } else if (action.kind === "dash") {
