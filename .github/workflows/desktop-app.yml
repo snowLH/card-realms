@@ -1,0 +1,39 @@
+name: Desktop installers
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-app.yml"
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: dist:win
+          - os: ubuntu-latest
+            target: dist:linux
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install desktop dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build dedicated installer
+        run: npm run ${{ matrix.target }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: folklard-${{ matrix.os }}
+          path: desktop/dist/*
+          if-no-files-found: error
+          retention-days: 30
