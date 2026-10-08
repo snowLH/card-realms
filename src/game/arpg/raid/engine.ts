@@ -18,6 +18,7 @@ import {
 } from "../content/relics";
 import type { ArpgArmorDefinition, ArpgWeaponDefinition } from "../domain/types";
 import {
+  ARPG_SHARED_DUNGEON_MIN_DURATION_MS,
   activeArpgRaidDungeonRoom,
   activeArpgRaidDungeonWorld,
   entryPositionsForRoom,
@@ -525,6 +526,8 @@ export function createArpgRaidState(
 
 export function advanceArpgRaid(input: ArpgRaidState, requestedNowMs: number): ArpgRaidActionResult {
   const state = structuredClone(input);
+  // Upgrade historical co-op snapshots that inherited the old boss-only timer.
+  if (state.dungeon) state.maxDurationMs = Math.max(state.maxDurationMs, ARPG_SHARED_DUNGEON_MIN_DURATION_MS);
   for (const player of state.players) {
     player.maxHp = PLAYER_BASE_HP;
     player.hp = Math.min(player.hp, PLAYER_BASE_HP);
