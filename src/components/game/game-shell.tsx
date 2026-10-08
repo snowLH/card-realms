@@ -36,8 +36,6 @@ import { ARPG_RELIC_BY_ID, ARPG_RELIC_IDS, STARTER_ARPG_RELIC_ID } from "@/game/
 import type { ArpgLoadout } from "@/game/arpg/domain/types";
 import type { GridPoint } from "@/game/exploration/pathfinding";
 import type { PlayerBootstrap } from "@/game/player";
-import type { RaidGameplayMode } from "@/game/raid";
-import { resolveBattleBoard, type BattleBoardId } from "@/game/battle/presentation";
 import type { RefugeSavePayload } from "@/game/refuge";
 import type { BattleEncounter, Element, EnergyPool, RegionAreaDefinition, RegionDefinition } from "@/game/types";
 import {
@@ -54,7 +52,6 @@ import { ArpgLoadoutView, type ArpgLoadoutFocus } from "@/components/arpg/loadou
 import { CollectionView } from "./collection-view";
 import { GameMenu, type GameMenuAction } from "./game-menu";
 import { RefugeView } from "./refuge-view";
-import { PvpView } from "./pvp-view";
 import { RaidView } from "./raid-view";
 import { ProfileView } from "./profile-view";
 import { VillageView } from "./village-view";
@@ -62,30 +59,6 @@ import { WorldMap } from "./world-map";
 import { WelcomeView } from "./welcome-view";
 import { TitleScreen } from "./title-screen";
 import { runAfterPersistingLoadout } from "./loadout-navigation";
-
-const BattleArena = dynamic(
-  () => import("./battle-arena").then((module) => module.BattleArena),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="battle-loading" role="status">
-        Preparando a arena...
-      </div>
-    ),
-  },
-);
-
-const RaidArena = dynamic(
-  () => import("./raid-arena").then((module) => module.RaidArena),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="battle-loading" role="status">
-        Preparando a Raid Mítica...
-      </div>
-    ),
-  },
-);
 
 const ArpgRaidArena = dynamic(
   () => import("@/components/arpg/arpg-raid-arena").then((module) => module.ArpgRaidArena),
@@ -105,7 +78,7 @@ const ArpgHub = dynamic(
   { ssr: false, loading: () => <div className="battle-loading">Abrindo a Guilda dos Cartógrafos...</div> },
 );
 
-type View = "hub" | "expeditions" | "play" | "map" | "village" | "collection" | "loadout" | "refuge" | "raid" | "pvp" | "profile";
+type View = "hub" | "expeditions" | "play" | "map" | "village" | "collection" | "loadout" | "refuge" | "raid" | "profile";
 
 const ARPG_EQUIPMENT_IDS = new Set([
   ...ARPG_WEAPONS.map((item) => item.id),
@@ -206,10 +179,8 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   ) ?? REGIONS[0];
   const [selectedRegion, setSelectedRegion] = useState<RegionDefinition | null>(initialRegion);
   const [playerRegionId, setPlayerRegionId] = useState(initialRegion.id);
-  const [pvpBattleId, setPvpBattleId] = useState<string | null>(null);
   const [raidRoomId, setRaidRoomId] = useState<string | null>(null);
   const [dismissedRaidRoomId, setDismissedRaidRoomId] = useState<string | null>(null);
-  const [raidGameplayMode, setRaidGameplayMode] = useState<RaidGameplayMode>("avatar");
   const [coins, setCoins] = useState(remoteSnapshot?.profile.coins ?? DEFAULT_LOCAL_PROGRESS.coins);
   const [xp, setXp] = useState(remoteSnapshot?.profile.xp ?? DEFAULT_LOCAL_PROGRESS.xp);
   const [currentAreaId, setCurrentAreaId] = useState<string | null>(
@@ -225,7 +196,6 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   const [avatar, setAvatar] = useState<AvatarConfig>(remoteSnapshot?.profile.avatarConfig ?? DEFAULT_AVATAR_CONFIG);
   const avatarSavePending = useRef(false);
   const [localRefuge, setLocalRefuge] = useState<RefugeSavePayload>(DEFAULT_LOCAL_PROGRESS.refuge);
-  const [battleBoard, setBattleBoard] = useState<BattleBoardId>(() => resolveBattleBoard(remoteSnapshot?.house?.layout?.preferredBattleBoard));
   const [equipmentIds, setEquipmentIds] = useState<string[]>(() => {
     const remoteArpgItems = remoteSnapshot?.inventory
       .filter((item) => item.quantity > 0 && ARPG_INVENTORY_ITEM_IDS.has(item.itemKey))
@@ -362,7 +332,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
   };
 
   const navigate = async (next: View) => {
-    const requiresRemoteLoadout = next === "pvp" || next === "raid";
+    const requiresRemoteLoadout = next === "raid";
     await runAfterPersistingLoadout(
       next !== "loadout" && (arpgLoadoutDirty || requiresRemoteLoadout),
       () => persistArpgLoadout(requiresRemoteLoadout),
@@ -690,22 +660,6 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       : "Refúgio salvo neste aparelho.");
   };
 
-  const handleSaveBattleBoard = async (nextBoard: BattleBoardId) => {
-    const previous = battleBoard;
-    setBattleBoard(nextBoard);
-    if (bootstrap.source !== "supabase") {
-      setToast("Tabuleiro escolhido para esta sessão.");
-      return;
-    }
-    try {
-      await mutateRemoteProgress({ action: "save_battle_board", boardId: nextBoard });
-      setToast("Tabuleiro favorito salvo na sua conta.");
-    } catch (error) {
-      setBattleBoard(previous);
-      throw error;
-    }
-  };
-
   const activeAvatar = useMemo(() => ({
     ...avatar,
     ...getLegendAppearance(activeLegendId),
@@ -733,11 +687,6 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     ]));
   }, [visibleOwnedCatalogIds]);
   const showWelcome = isSupabaseConfigured() && !bootstrap.identity && !guestPreview;
-  const pvpSession = useMemo(() => (
-    pvpBattleId && bootstrap.identity
-      ? { battleId: pvpBattleId, playerId: bootstrap.identity.id }
-      : undefined
-  ), [bootstrap.identity, pvpBattleId]);
   const beginTitleMode = (nextView: View) => {
     if (showWelcome) setGuestPreview(true);
     setTitleOpen(false);
@@ -759,7 +708,6 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       arsenal: "loadout",
       bestiary: "collection",
       refuge: "refuge",
-      pvp: "pvp",
       cooperative: "raid",
       profile: "profile",
     };
@@ -773,7 +721,6 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
           loginEnabled={isSupabaseConfigured()}
           signedIn={Boolean(bootstrap.identity)}
           onPlay={() => beginTitleMode("hub")}
-          onPvp={() => beginTitleMode("pvp")}
           onCooperative={() => beginTitleMode("raid")}
         />
       ) : null}
@@ -933,13 +880,15 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             dismissedRoomId={dismissedRaidRoomId}
             onDismissRaid={setDismissedRaidRoomId}
             onOpenRaid={(roomId, mode) => {
+              if (mode !== "arpg") {
+                setToast("A Raid de cartas foi desativada. Use uma dungeon cooperativa.");
+                return;
+              }
               setDismissedRaidRoomId(null);
-              setRaidGameplayMode(mode);
               setRaidRoomId(roomId);
             }}
           />
         ) : null}
-        {!showWelcome && view === "pvp" ? <PvpView bootstrap={bootstrap} onOpenBattle={setPvpBattleId} /> : null}
         {!showWelcome && view === "profile" ? (
           <ProfileView
             coins={coins}
@@ -949,13 +898,11 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
             source={bootstrap.source}
             snapshot={remoteSnapshot}
             avatar={activeAvatar}
-            preferredBattleBoard={battleBoard}
-            onSaveBattleBoard={handleSaveBattleBoard}
           />
         ) : null}
       </div> : null}
 
-      {!showWelcome && !titleOpen && view !== "play" && !raidRoomId && !pvpSession ? (
+      {!showWelcome && !titleOpen && view !== "play" && !raidRoomId ? (
         <GameMenu
           currentView={view === "hub" ? "hub" : "other"}
           playerName={playerName}
@@ -968,38 +915,12 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       {toast ? <div className="game-toast" role="status" aria-live="polite"><Trophy /> {toast}</div> : null}
       {raidRoomId && bootstrap.identity ? (
         <div className="battle-overlay raid-overlay">
-          {raidGameplayMode === "arpg" ? (
-            <ArpgRaidArena
-              roomId={raidRoomId}
-              playerId={bootstrap.identity.id}
-              onClose={() => {
-                setDismissedRaidRoomId(raidRoomId);
-                setRaidRoomId(null);
-                if (bootstrap.source === "supabase") router.refresh();
-              }}
-            />
-          ) : (
-            <RaidArena
-              roomId={raidRoomId}
-              playerId={bootstrap.identity.id}
-              gameplayMode={raidGameplayMode}
-              onClose={() => {
-                setRaidRoomId(null);
-                setDismissedRaidRoomId(raidRoomId);
-                setRaidGameplayMode("avatar");
-                if (bootstrap.source === "supabase") router.refresh();
-              }}
-            />
-          )}
-        </div>
-      ) : null}
-      {pvpSession ? (
-        <div className="battle-overlay">
-          <BattleArena
-            open
-            pvp={pvpSession}
+          <ArpgRaidArena
+            roomId={raidRoomId}
+            playerId={bootstrap.identity.id}
             onClose={() => {
-              setPvpBattleId(null);
+              setDismissedRaidRoomId(raidRoomId);
+              setRaidRoomId(null);
               if (bootstrap.source === "supabase") router.refresh();
             }}
           />

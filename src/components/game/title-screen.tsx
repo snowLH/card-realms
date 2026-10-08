@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Settings, Swords, UsersRound } from "lucide-react";
+import { Settings, UsersRound } from "lucide-react";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArpgAudio } from "@/game/arpg/runtime/arpg-audio";
@@ -15,13 +15,11 @@ export function TitleScreen({
   loginEnabled,
   signedIn,
   onPlay,
-  onPvp,
   onCooperative,
 }: {
   loginEnabled: boolean;
   signedIn: boolean;
   onPlay: () => void;
-  onPvp?: () => void;
   onCooperative?: () => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -95,10 +93,6 @@ export function TitleScreen({
             JOGAR
             <small>{signedIn ? "Entrar na Guilda" : "Começar como visitante"}</small>
           </span>
-        </button>
-        <button type="button" className="title-screen__mode title-screen__mode--pvp" onClick={onPvp} disabled={!onPvp}>
-          <Swords aria-hidden="true" />
-          <span>CONFLITO<small>PvP · avatar + 2 poderes</small></span>
         </button>
         <button type="button" className="title-screen__mode title-screen__mode--cooperative" onClick={onCooperative} disabled={!onCooperative}>
           <UsersRound aria-hidden="true" />

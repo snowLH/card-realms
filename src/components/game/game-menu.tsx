@@ -13,7 +13,6 @@ export type GameMenuAction =
   | "appearance"
   | "bestiary"
   | "refuge"
-  | "pvp"
   | "cooperative"
   | "profile";
 
