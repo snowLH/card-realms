@@ -64,6 +64,14 @@ describe("native release workflow hardening", () => {
     expect(source).toContain("contents: write");
   });
 
+  it("never downgrades a signed Windows download from the automatic desktop workflow", () => {
+    const source = workflow(".github/workflows/desktop-app.yml");
+    expect(source).toContain("Preserve a signed Windows download");
+    expect(source).toContain("m.signing === 'signed-release'");
+    expect(source).toContain("files: publish/*");
+    expect(source).not.toContain("files: installers/*");
+  });
+
   it("publishes signed Windows builds without removing the Linux release channel", () => {
     const source = workflow(".github/workflows/windows-signed-release.yml");
     expect(source).toContain("node release-metadata.cjs Windows signed-release");
