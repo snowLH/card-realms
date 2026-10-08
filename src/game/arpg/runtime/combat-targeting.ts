@@ -27,6 +27,34 @@ export function selectNearestTarget<T extends CombatPoint>(
   return closest;
 }
 
+/** Keeps an existing auto-aim target until another visible target is meaningfully closer.
+ * This prevents the reticle from flickering between enemies whose distances differ by only
+ * a few pixels while the player is moving. */
+export function selectStableTarget<T extends CombatPoint>(
+  origin: CombatPoint,
+  targets: readonly T[],
+  preferred: T | null,
+  options: TargetOptions<T> & Readonly<{ switchRatio?: number }>,
+): T | null {
+  const { switchRatio = 0.82, ...targetOptions } = options;
+  const nearest = selectNearestTarget(origin, targets, targetOptions);
+  if (!preferred || !targets.includes(preferred)) return nearest;
+  if (!targetOptions.available(preferred) || !targetOptions.visible(preferred)) return nearest;
+
+  const dx = preferred.x - origin.x;
+  const dy = preferred.y - origin.y;
+  const preferredDistanceSq = dx * dx + dy * dy;
+  const maxDistance = targetOptions.maxDistance ?? Number.POSITIVE_INFINITY;
+  if (!Number.isFinite(preferredDistanceSq) || preferredDistanceSq > maxDistance * maxDistance) return nearest;
+  if (!nearest || nearest === preferred) return preferred;
+
+  const nx = nearest.x - origin.x;
+  const ny = nearest.y - origin.y;
+  const nearestDistanceSq = nx * nx + ny * ny;
+  const clampedRatio = Math.min(0.99, Math.max(0.1, switchRatio));
+  return nearestDistanceSq < preferredDistanceSq * clampedRatio * clampedRatio ? nearest : preferred;
+}
+
 function normalized(vector: CombatPoint | null): CombatPoint | null {
   if (!vector || !Number.isFinite(vector.x) || !Number.isFinite(vector.y)) return null;
   const length = Math.hypot(vector.x, vector.y);

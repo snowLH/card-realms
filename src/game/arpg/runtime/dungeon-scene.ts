@@ -66,7 +66,7 @@ import { acceptServerConfirmedCombatResponse } from "./visual-events";
 import { createDungeonRuntimeTextures } from "./dungeon-runtime-textures";
 import { getEnemyMovementIntent, type EnemyCombatRole } from "./enemy-behavior";
 import { indexRuntimeEntities } from "./entity-index";
-import { selectNearestTarget, resolveCombatDirection } from "./combat-targeting";
+import { selectNearestTarget, selectStableTarget, resolveCombatDirection } from "./combat-targeting";
 import { getCurupiraBossPattern, getCurupiraBossPhase } from "./boss-patterns";
 import { getRegionalBossPattern } from "../dungeon/region-boss-patterns";
 import { readBrowserGamepad, type GamepadFrame } from "./gamepad";
@@ -252,6 +252,7 @@ export function createArpgDungeonScene(
     private player!: ArcadeSprite;
     private floatingWeapon: import("phaser").GameObjects.Graphics | null = null;
     private targetMarker: import("phaser").GameObjects.Graphics | null = null;
+    private autoAimTarget: ArcadeSprite | null = null;
     private enemies!: import("phaser").Physics.Arcade.Group;
     private readonly entityGroundShadows = new Map<ArcadeSprite, import("phaser").GameObjects.Image>();
     private projectiles!: import("phaser").Physics.Arcade.Group;
@@ -952,42 +953,47 @@ export function createArpgDungeonScene(
     private resolveCombatAim() {
       const touch = bridge.getInput();
       const pointer = this.input.activePointer;
-      const nearest = (touch.attack || this.gamepad.attack) ? this.findNearestEnemy(460) : null;
+      const autoAimActive = touch.attack || this.gamepad.attack;
+      this.autoAimTarget = autoAimActive ? this.findNearestEnemy(460, this.autoAimTarget) : null;
       const direction = resolveCombatDirection({
         gamepad: { x: this.gamepad.aimX, y: this.gamepad.aimY },
         touch: { x: touch.aimX, y: touch.aimY },
-        autoAim: touch.attack || this.gamepad.attack,
+        autoAim: autoAimActive,
         player: { x: this.player.x, y: this.player.y },
-        target: nearest,
+        target: this.autoAimTarget,
         pointer: pointer.wasTouch ? null : { x: pointer.worldX, y: pointer.worldY },
         previous: this.aimVector,
       });
       return this.aimVector.set(direction.x, direction.y);
     }
 
-    private findNearestEnemy(maxDistance = Number.POSITIVE_INFINITY): ArcadeSprite | null {
+    private findNearestEnemy(maxDistance = Number.POSITIVE_INFINITY, preferred: ArcadeSprite | null = null): ArcadeSprite | null {
       const playerCell = this.navigation ? worldToGridCell(this.player, this.navigation) : null;
       const playerCellKey = playerCell ? gridCellKey(playerCell.x, playerCell.y) : null;
       const playerRoomId = playerCellKey
         ? this.navigation?.roomIdByCell?.get(playerCellKey) ?? dungeonManager?.getCurrentRoom().id
         : undefined;
-      return selectNearestTarget(this.player, this.enemies.getChildren() as ArcadeSprite[], {
+      const targets = this.enemies.getChildren() as ArcadeSprite[];
+      const options = {
         maxDistance,
-        available: (enemy) => enemy.active && Boolean(enemy.getData("spawnReady")),
-        visible: (enemy) => {
+        available: (enemy: ArcadeSprite) => enemy.active && Boolean(enemy.getData("spawnReady")),
+        visible: (enemy: ArcadeSprite) => {
           if (!this.navigation) return true;
           const enemyCell = worldToGridCell(enemy, this.navigation);
           const enemyRoomId = this.navigation.roomIdByCell?.get(gridCellKey(enemyCell.x, enemyCell.y));
           if (playerRoomId && enemyRoomId && enemyRoomId !== playerRoomId) return false;
           return hasGridLineOfSight(this.navigation, this.player, enemy);
         },
-      });
+      };
+      return preferred
+        ? selectStableTarget(this.player, targets, preferred, options)
+        : selectNearestTarget(this.player, targets, options);
     }
 
     private updateFloatingWeapon() {
       if (!this.floatingWeapon || !this.player?.active) return;
       const weapon = ARPG_WEAPON_BY_ID.get(this.currentWeaponId) ?? ARPG_WEAPONS[0];
-      const enemy = this.findNearestEnemy(560);
+      const enemy = this.autoAimTarget?.active ? this.autoAimTarget : this.findNearestEnemy(560);
       this.drawTargetMarker(enemy);
       const pose = getFloatingWeaponPose({
         player: this.player,
@@ -1003,13 +1009,31 @@ export function createArpgDungeonScene(
       if (!marker) return;
       marker.clear();
       if (!target) return;
-      const arm = 5;
-      const radius = 14;
+
+      const definitionId = String(target.getData("definitionId") ?? "");
+      const combatRole = String(target.getData("combatRole") ?? "melee");
+      const locked = target === this.autoAimTarget;
+      const accent = definitionId === "boss"
+        ? 0xffcb72
+        : definitionId === "miniBoss" || combatRole === "elite"
+          ? 0xff9278
+          : locked
+            ? 0x8fe4c2
+            : 0xf4dc8e;
+      const bodyRadius = Math.max(14, Math.min(24, Number(target.getData("radius")) || 14));
+      const pulse = locked ? (Math.sin(this.time.now / 95) + 1) * 1.25 : 0;
+      const radius = bodyRadius + pulse;
+      const arm = locked ? 7 : 5;
       const left = target.x - radius;
       const right = target.x + radius;
       const top = target.y - radius;
       const bottom = target.y + radius;
-      marker.lineStyle(2, 0xf4dc8e, 0.92);
+
+      if (locked) {
+        marker.lineStyle(1, accent, 0.28);
+        marker.strokeCircle(target.x, target.y, radius + 7);
+      }
+      marker.lineStyle(locked ? 3 : 2, accent, locked ? 1 : 0.9);
       marker.lineBetween(left, top + arm, left, top);
       marker.lineBetween(left, top, left + arm, top);
       marker.lineBetween(right - arm, top, right, top);
@@ -1018,7 +1042,7 @@ export function createArpgDungeonScene(
       marker.lineBetween(left, bottom, left + arm, bottom);
       marker.lineBetween(right - arm, bottom, right, bottom);
       marker.lineBetween(right, bottom - arm, right, bottom);
-      marker.fillStyle(0xfff0bf, 0.9).fillCircle(target.x, target.y, 1.5);
+      marker.fillStyle(accent, locked ? 1 : 0.82).fillCircle(target.x, target.y, locked ? 2 : 1.5);
     }
 
     private drawFloatingWeapon(
