@@ -39,6 +39,10 @@ export function drawBiomeFloorVariant(context: CanvasRenderingContext2D, x: numb
         pixel(moss, 10, 6, 2, 2, 0.55);
         pixel(moss, 15, 13, 2, 2, 0.55);
       }
+      // Fallen petals and moss add an unmistakable forest identity.
+      pixel("#b6c66e", 22, 24, 3, 2, 0.7);
+      pixel("#d4a278", 24, 8, 2, 2, 0.7);
+      pixel("#577b4b", 4, 24, 6, 3, 0.65);
       return;
     }
 
@@ -57,6 +61,10 @@ export function drawBiomeFloorVariant(context: CanvasRenderingContext2D, x: numb
         pixel(foam, 8, 5, 2, 2, 0.5);
         pixel(foam, 18, 14, 3, 2, 0.4);
       }
+      // Sea-glass shards and tide foam break up otherwise flat sand.
+      pixel("#85d6d0", 22, 23, 4, 2, 0.7);
+      pixel("#e8dfb5", 3, 24, 5, 2, 0.65);
+      pixel("#2b8e9c", 25, 5, 2, 4, 0.65);
       return;
     }
 
@@ -73,5 +81,9 @@ export function drawBiomeFloorVariant(context: CanvasRenderingContext2D, x: numb
       pixel(slate, 13, 11, 3, 4);
       pixel(ice, 14, 8, 2, 2, 0.5);
     }
+    // Frost cracks and a cold crystal highlight for the rune mountains.
+    pixel("#a9e2ee", 23, 22, 2, 7, 0.6);
+    pixel("#d7f3f1", 21, 24, 6, 2, 0.75);
+    pixel("#60788e", 4, 22, 8, 2, 0.65);
   }
 
