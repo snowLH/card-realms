@@ -5,6 +5,7 @@ import { connectedRoomIds } from "../dungeon/graph";
 import { populateArpgDungeonContent } from "../dungeon/content";
 import { generateDungeon } from "../dungeon/generator";
 import { createSeededRandom } from "../dungeon/rng";
+import { scaleCoopEnemyHealth } from "./scaling";
 import { ARPG_ROOM_TEMPLATE_BY_ID } from "../dungeon/templates";
 import type { ArpgRaidDungeonEnemyState, ArpgRaidDungeonRoomState, ArpgRaidDungeonState, ArpgRaidPlayerState, ArpgRaidState } from "../raid/types";
 import type { ArpgExpeditionId } from "../content/expeditions";
@@ -66,8 +67,7 @@ function buildRoomEnemies(
     const definition = config.enemies[definitionId];
     if (!definition) return [];
     const position = positions[partySize + index] ?? { x: room.worldWidth / 2, y: room.worldHeight / 2 };
-    const hpScale = room.type === "elite" ? 0.7 : 0.5;
-    const maxHp = Math.max(24, Math.round(definition.maxHp * hpScale));
+    const maxHp = scaleCoopEnemyHealth(definition.maxHp, room.type === "elite", partySize);
     return [{
       id: `${room.id}:w${waveIndex}:${index}:${random.int(0, 0xffff).toString(16)}`,
       definitionId,
