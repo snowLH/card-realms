@@ -6,20 +6,14 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREATURES, REGIONS } from "@/game/catalog";
 import { ARPG_ABILITY_CARD_IDS } from "@/game/arpg/content/ability-cards";
-import { ARPG_WEAPONS } from "@/game/arpg/content/equipment";
 import {
   getLegendAppearance,
   getLegendSignatureAbilityIds,
-  hasExactLegendPowers,
   legendInventoryKey,
-  PLAYABLE_LEGENDS,
   PLAYABLE_LEGEND_BY_ID,
   type PlayableLegendId,
 } from "@/game/arpg/content/legends";
-import {
-  ARPG_MERCHANT_PRODUCT_BY_KEY,
-  ARPG_MERCHANT_PRODUCT_KEYS,
-} from "@/game/arpg/content/merchant-catalog";
+import { ARPG_MERCHANT_PRODUCT_BY_KEY } from "@/game/arpg/content/merchant-catalog";
 import {
   DEFAULT_ARPG_EXPEDITION_ID,
   type ArpgExpeditionId,
@@ -31,8 +25,13 @@ import {
 } from "@/game/arpg/content/atlas-encounters";
 import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
 import { normalizeLegacyArpgLoadout } from "@/game/arpg/domain/loadout-schema";
+import {
+  ARPG_INVENTORY_ITEM_IDS,
+  getOwnedPlayableLegendIds,
+  normalizeArpgLoadoutOwnership,
+} from "@/game/arpg/domain/ownership";
 import { resolveHubNavigation } from "@/game/arpg/hub/navigation";
-import { ARPG_RELIC_BY_ID, ARPG_RELIC_IDS, STARTER_ARPG_RELIC_ID } from "@/game/arpg/content/relics";
+import { ARPG_RELIC_BY_ID } from "@/game/arpg/content/relics";
 import type { ArpgLoadout } from "@/game/arpg/domain/types";
 import type { GridPoint } from "@/game/exploration/pathfinding";
 import type { PlayerBootstrap } from "@/game/player";
@@ -79,52 +78,6 @@ const ArpgHub = dynamic(
 );
 
 type View = "hub" | "expeditions" | "play" | "map" | "village" | "collection" | "loadout" | "refuge" | "raid" | "profile";
-
-const ARPG_EQUIPMENT_IDS = new Set([
-  ...ARPG_WEAPONS.map((item) => item.id),
-]);
-
-const ARPG_INVENTORY_ITEM_IDS = new Set([
-  ...ARPG_EQUIPMENT_IDS,
-  ...ARPG_RELIC_IDS,
-  ...ARPG_ABILITY_CARD_IDS,
-  ...ARPG_MERCHANT_PRODUCT_KEYS,
-  ...PLAYABLE_LEGENDS.map((legend) => legendInventoryKey(legend.id)),
-]);
-
-function getOwnedPlayableLegendIds(inventoryItemKeys: readonly string[]): PlayableLegendId[] {
-  const inventory = new Set(inventoryItemKeys);
-  return ["curupira", ...PLAYABLE_LEGENDS
-    .filter((legend) => legend.id !== "curupira" && inventory.has(legendInventoryKey(legend.id)))
-    .map((legend) => legend.id)];
-}
-
-function normalizeArpgLoadoutOwnership(
-  loadout: ArpgLoadout,
-  inventoryItemKeys: readonly string[],
-  legendId: PlayableLegendId,
-): ArpgLoadout {
-  const owned = new Set([
-    DEFAULT_ARPG_LOADOUT.weaponId,
-    DEFAULT_ARPG_LOADOUT.armorId,
-    STARTER_ARPG_RELIC_ID,
-    ...inventoryItemKeys,
-  ]);
-  const abilityIds: [string, string] = hasExactLegendPowers(loadout.abilityIds, legendId)
-    ? [...loadout.abilityIds]
-    : getLegendSignatureAbilityIds(legendId);
-  return {
-    ...loadout,
-    weaponId: owned.has(loadout.weaponId) ? loadout.weaponId : DEFAULT_ARPG_LOADOUT.weaponId,
-    // Retain the legacy field for persisted run compatibility, but new runs
-    // always enter without defensive equipment.
-    armorId: DEFAULT_ARPG_LOADOUT.armorId,
-    relicId: ARPG_RELIC_IDS.has(loadout.relicId) && owned.has(loadout.relicId)
-      ? loadout.relicId
-      : STARTER_ARPG_RELIC_ID,
-    abilityIds,
-  };
-}
 
 function readArpgLoadout(storageKey: string): ArpgLoadout {
   try {
