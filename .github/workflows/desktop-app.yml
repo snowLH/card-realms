@@ -85,17 +85,36 @@ jobs:
           test -s installers/Folklard-Linux.AppImage
           test -s installers/Folklard-Windows.json
           test -s installers/Folklard-Linux.json
-      - name: Publish verified test builds
+      - name: Preserve a signed Windows download
+        run: |
+          mkdir -p publish
+          cp installers/Folklard-Linux.AppImage publish/
+          cp installers/Folklard-Linux.json publish/
+          publish_windows=true
+          if curl --fail --location --silent --show-error \
+            'https://github.com/snowLH/card-realms/releases/download/downloads-desktop/Folklard-Windows.json' \
+            -o current-windows.json; then
+            if node -e "const m=require('./current-windows.json'); process.exit(m.signing === 'signed-release' ? 0 : 1)"; then
+              publish_windows=false
+              echo '### Signed Windows asset preserved' >> "$GITHUB_STEP_SUMMARY"
+              echo 'Only Linux will be refreshed; the signed Windows release will not be downgraded by an unsigned automatic build.' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          if [ "$publish_windows" = true ]; then
+            cp installers/Folklard-Windows.exe publish/
+            cp installers/Folklard-Windows.json publish/
+          fi
+      - name: Publish verified desktop builds
         uses: softprops/action-gh-release@v3
         with:
           tag_name: downloads-desktop
-          name: Folklard - PC (versões de teste)
+          name: Folklard - PC
           prerelease: true
           make_latest: false
           body: |
-            Aplicativos de teste para Windows x64 e Linux x86_64.
-            Build do commit ${{ github.sha }}. Versão, tamanho e SHA-256 em cada arquivo JSON.
-            Conexão com a internet necessária. Instaladores sem certificado de distribuição.
-          files: installers/*
+            Builds oficiais do canal de downloads para Windows x64 e Linux x86_64.
+            A versão, o commit, o SHA-256 e o estado de assinatura ficam registrados nos arquivos JSON.
+            O pipeline automático nunca substitui um Windows assinado por um build sem assinatura.
+          files: publish/*
           fail_on_unmatched_files: true
           overwrite_files: true
