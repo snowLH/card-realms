@@ -154,3 +154,33 @@
   .arpg-shell .arpg-touch__cards button { height: 58px; min-height: 58px; }
   .arpg-shell .arpg-touch__attack { width: 64px; min-width: 64px; height: 64px; min-height: 64px; }
 }
+
+/* Title menu: download is a real third menu item, never a floating overlay. */
+.title-screen__menu > .title-screen__download {
+  position: relative;
+  inset: auto;
+  left: auto; right: auto; bottom: auto;
+  grid-column: 1 / -1;
+  transform: none;
+  width: 100%; min-height: 48px;
+  margin: 0;
+  font-size: 11px;
+}
+@media (max-width: 767px) and (orientation: portrait) {
+  .title-screen__menu {
+    bottom: max(20px, env(safe-area-inset-bottom));
+    gap: 8px;
+  }
+  .title-screen__menu > .title-screen__download {
+    min-height: 46px; padding: 9px 12px;
+    font-size: 10px;
+  }
+  .title-screen__menu > .title-screen__play { min-height: 70px; }
+  .title-screen__menu > .title-screen__mode { min-height: 60px; }
+}
+@media (max-height: 540px) and (orientation: landscape) {
+  .title-screen__menu > .title-screen__download {
+    min-height: 34px; padding: 5px 10px;
+    font-size: 9px;
+  }
+}
