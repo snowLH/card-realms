@@ -89,6 +89,23 @@ describe("ArpgRaidArena", () => {
     expect(actions).toContain("input");
   });
 
+  it("envia input neutro quando a janela perde foco", async () => {
+    const inputPackets: Array<{ moveX: number; moveY: number }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (request: RequestInfo | URL, init?: RequestInit) => {
+      if (String(request).includes("/actions")) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { action?: string; moveX?: number; moveY?: number };
+        if (body.action === "input") inputPackets.push({ moveX: Number(body.moveX), moveY: Number(body.moveY) });
+        return { ok: true, json: async () => ({ state: createState(), version: 8 }) };
+      }
+      return { ok: true, json: async () => payload() };
+    }));
+
+    render(<ArpgRaidArena roomId={ROOM_ID} playerId={PLAYER_ID} onClose={() => undefined} />);
+    await waitFor(() => expect(screen.getByText("Roc — O Céu Desaparece")).toBeInTheDocument());
+    window.dispatchEvent(new Event("blur"));
+    await waitFor(() => expect(inputPackets.some((packet) => packet.moveX === 0 && packet.moveY === 0)).toBe(true));
+  });
+
   it("mostra o corredor aberto e quantos aliados já chegaram à saída", async () => {
     const sharedState = attachArpgSharedDungeon(createState());
     const room = sharedState.dungeon!.rooms[sharedState.dungeon!.roomIndex];
