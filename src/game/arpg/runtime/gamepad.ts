@@ -34,6 +34,7 @@ const EMPTY_GAMEPAD_RESULT: GamepadReadResult = {
   pressedButtons: EMPTY_PRESSED_BUTTONS,
 };
 export function normalizeGamepadAxis(value: number, deadzone = 0.18) {
+  if (!Number.isFinite(value)) return 0;
   const magnitude = Math.abs(value);
   if (magnitude <= deadzone) return 0;
   const scaled = (magnitude - deadzone) / Math.max(0.0001, 1 - deadzone);
@@ -81,7 +82,13 @@ export function readBrowserGamepad(previousPressed: ReadonlySet<number>): Gamepa
   if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function") {
     return EMPTY_GAMEPAD_RESULT;
   }
-  const pads = navigator.getGamepads();
+  let pads: (Gamepad | null)[];
+  try {
+    pads = Array.from(navigator.getGamepads());
+  } catch {
+    // Browsers can revoke Gamepad API access while a device is connecting.
+    return EMPTY_GAMEPAD_RESULT;
+  }
   let pad: Gamepad | null = null;
   for (let index = 0; index < pads.length; index += 1) {
     const candidate = pads[index];

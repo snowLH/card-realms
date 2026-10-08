@@ -15,6 +15,8 @@ describe("entrada ARPG por gamepad", () => {
     expect(normalizeGamepadAxis(1)).toBe(1);
     expect(normalizeGamepadAxis(-1)).toBe(-1);
     expect(normalizeGamepadAxis(0.6)).toBeGreaterThan(0.4);
+    expect(normalizeGamepadAxis(Number.NaN)).toBe(0);
+    expect(normalizeGamepadAxis(Number.POSITIVE_INFINITY)).toBe(0);
   });
 
   it("mapeia sticks e botões do controle padrão", () => {
@@ -45,6 +47,14 @@ describe("entrada ARPG por gamepad", () => {
     expect(held.frame.interactPressed).toBe(false);
     expect(held.frame.abilityPressed[0]).toBe(false);
     expect(held.frame.abilityPressed[1]).toBe(false);
+  });
+
+  it("sanitizes corrupt hardware stick readings instead of poisoning physics", () => {
+    const result = mapStandardGamepad({ connected: true, axes: [Number.NaN, Infinity, -Infinity, 0.5], buttons: buttons() });
+    expect(result.frame.moveX).toBe(0);
+    expect(result.frame.moveY).toBe(0);
+    expect(result.frame.aimX).toBe(0);
+    expect(Number.isFinite(result.frame.aimY)).toBe(true);
   });
 
   it("reutiliza o frame neutro sem alocações quando não há controle conectado", () => {
