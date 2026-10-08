@@ -17,6 +17,16 @@ function workflow(path: (typeof workflowPaths)[number]) {
 }
 
 describe("native release workflow hardening", () => {
+  it("does not persist checkout credentials in build jobs", () => {
+    for (const path of workflowPaths) {
+      const source = workflow(path);
+      const checkoutCount = source.match(/uses: actions\/checkout@/g)?.length ?? 0;
+      const hardenedCount = source.match(/persist-credentials: false/g)?.length ?? 0;
+      expect(hardenedCount, path).toBe(checkoutCount);
+    }
+    expect(workflow(".github/workflows/desktop-app.yml")).not.toContain("GH_TOKEN:");
+  });
+
   it("keeps every application workflow on the production Node 22 runtime", () => {
     for (const path of workflowPaths) {
       const source = workflow(path);
