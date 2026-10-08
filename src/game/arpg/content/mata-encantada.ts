@@ -12,18 +12,7 @@ import { STARTER_ARPG_RELIC_ID } from "./relics";
 import { ARPG_ASSETS } from "../assets";
 
 export const MATA_WEAPONS: ArpgWeaponDefinition[] = [
-  {
-    id: "thorn-guard-blade",
-    name: "Lâmina do Guardião dos Espinhos",
-    kind: "sword",
-    rarity: "rare",
-    element: "nature",
-    damage: 31,
-    attackRateMs: 510,
-    range: 90,
-    effect: { id: "tide-cleave", label: "Ramos Cortantes", description: "O golpe causa um segundo corte em área com 35% do dano." },
-    description: "Uma lâmina viva, mais lenta e eficaz contra grupos.",
-  },
+
   {
     id: "iron-sword",
     name: "Espada de Ferro",
@@ -67,6 +56,18 @@ export const MATA_WEAPONS: ArpgWeaponDefinition[] = [
       description: "A cada quarto ataque básico, dispara um segundo pulso com 60% do dano.",
     },
     description: "Dispara pulsos espirituais de alcance médio.",
+  },
+  {
+    id: "thorn-guard-blade",
+    name: "Lâmina do Guardião dos Espinhos",
+    kind: "sword",
+    rarity: "rare",
+    element: "nature",
+    damage: 31,
+    attackRateMs: 510,
+    range: 90,
+    effect: { id: "tide-cleave", label: "Ramos Cortantes", description: "O golpe causa um segundo corte em área com 35% do dano." },
+    description: "Uma lâmina viva, mais lenta e eficaz contra grupos.",
   },
 ];
 
