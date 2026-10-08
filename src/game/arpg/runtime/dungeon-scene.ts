@@ -66,7 +66,7 @@ import { acceptServerConfirmedCombatResponse } from "./visual-events";
 import { createDungeonRuntimeTextures } from "./dungeon-runtime-textures";
 import { getEnemyMovementIntent, type EnemyCombatRole } from "./enemy-behavior";
 import { indexRuntimeEntities } from "./entity-index";
-import { selectNearestTarget, resolveCombatDirection } from "./combat-targeting";
+import { selectNearestTarget, selectStableTarget, resolveCombatDirection } from "./combat-targeting";
 import { getCurupiraBossPattern, getCurupiraBossPhase } from "./boss-patterns";
 import { getRegionalBossPattern } from "../dungeon/region-boss-patterns";
 import { readBrowserGamepad, type GamepadFrame } from "./gamepad";
@@ -252,6 +252,7 @@ export function createArpgDungeonScene(
     private player!: ArcadeSprite;
     private floatingWeapon: import("phaser").GameObjects.Graphics | null = null;
     private targetMarker: import("phaser").GameObjects.Graphics | null = null;
+    private autoAimTarget: ArcadeSprite | null = null;
     private enemies!: import("phaser").Physics.Arcade.Group;
     private readonly entityGroundShadows = new Map<ArcadeSprite, import("phaser").GameObjects.Image>();
     private projectiles!: import("phaser").Physics.Arcade.Group;
@@ -952,42 +953,47 @@ export function createArpgDungeonScene(
     private resolveCombatAim() {
       const touch = bridge.getInput();
       const pointer = this.input.activePointer;
-      const nearest = (touch.attack || this.gamepad.attack) ? this.findNearestEnemy(460) : null;
+      const autoAimActive = touch.attack || this.gamepad.attack;
+      this.autoAimTarget = autoAimActive ? this.findNearestEnemy(460, this.autoAimTarget) : null;
       const direction = resolveCombatDirection({
         gamepad: { x: this.gamepad.aimX, y: this.gamepad.aimY },
         touch: { x: touch.aimX, y: touch.aimY },
-        autoAim: touch.attack || this.gamepad.attack,
+        autoAim: autoAimActive,
         player: { x: this.player.x, y: this.player.y },
-        target: nearest,
+        target: this.autoAimTarget,
         pointer: pointer.wasTouch ? null : { x: pointer.worldX, y: pointer.worldY },
         previous: this.aimVector,
       });
       return this.aimVector.set(direction.x, direction.y);
     }
 
-    private findNearestEnemy(maxDistance = Number.POSITIVE_INFINITY): ArcadeSprite | null {
+    private findNearestEnemy(maxDistance = Number.POSITIVE_INFINITY, preferred: ArcadeSprite | null = null): ArcadeSprite | null {
       const playerCell = this.navigation ? worldToGridCell(this.player, this.navigation) : null;
       const playerCellKey = playerCell ? gridCellKey(playerCell.x, playerCell.y) : null;
       const playerRoomId = playerCellKey
         ? this.navigation?.roomIdByCell?.get(playerCellKey) ?? dungeonManager?.getCurrentRoom().id
         : undefined;
-      return selectNearestTarget(this.player, this.enemies.getChildren() as ArcadeSprite[], {
+      const targets = this.enemies.getChildren() as ArcadeSprite[];
+      const options = {
         maxDistance,
-        available: (enemy) => enemy.active && Boolean(enemy.getData("spawnReady")),
-        visible: (enemy) => {
+        available: (enemy: ArcadeSprite) => enemy.active && Boolean(enemy.getData("spawnReady")),
+        visible: (enemy: ArcadeSprite) => {
           if (!this.navigation) return true;
           const enemyCell = worldToGridCell(enemy, this.navigation);
           const enemyRoomId = this.navigation.roomIdByCell?.get(gridCellKey(enemyCell.x, enemyCell.y));
           if (playerRoomId && enemyRoomId && enemyRoomId !== playerRoomId) return false;
           return hasGridLineOfSight(this.navigation, this.player, enemy);
         },
-      });
+      };
+      return preferred
+        ? selectStableTarget(this.player, targets, preferred, options)
+        : selectNearestTarget(this.player, targets, options);
     }
 
     private updateFloatingWeapon() {
       if (!this.floatingWeapon || !this.player?.active) return;
       const weapon = ARPG_WEAPON_BY_ID.get(this.currentWeaponId) ?? ARPG_WEAPONS[0];
-      const enemy = this.findNearestEnemy(560);
+      const enemy = this.autoAimTarget?.active ? this.autoAimTarget : this.findNearestEnemy(560);
       this.drawTargetMarker(enemy);
       const pose = getFloatingWeaponPose({
         player: this.player,
