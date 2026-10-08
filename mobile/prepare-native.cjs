@@ -5,10 +5,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { version } = require("./package.json");
+const { computeNativeBuildNumber } = require("./native-version.cjs");
 const target = process.argv[2];
-const parts = version.split(".").map(Number);
-if (parts.length !== 3 || parts.some((part) => !Number.isSafeInteger(part) || part < 0)) throw new Error("Invalid app version");
-const buildNumber = parts[0] * 10000 + parts[1] * 100 + parts[2] + 1;
+const buildNumber = computeNativeBuildNumber(version, process.env.GITHUB_RUN_NUMBER ?? 1);
 const root = __dirname;
 function edit(file, transform) {
   fs.writeFileSync(file, transform(fs.readFileSync(file, "utf8")));
