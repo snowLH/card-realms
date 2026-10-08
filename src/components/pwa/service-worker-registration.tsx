@@ -18,7 +18,7 @@ export function ServiceWorkerRegistration() {
             .map((registration) => registration.unregister()));
           if ("caches" in window) {
             const keys = await caches.keys();
-            await Promise.all(keys.filter((key) => key.startsWith("card-realms-")).map((key) => caches.delete(key)));
+            await Promise.all(keys.filter((key) => (key.startsWith("card-realms-") || key.startsWith("folklard-"))).map((key) => caches.delete(key)));
           }
           // Unregistering only releases existing controlled pages on their next navigation.
           if (hadController && !cancelled) window.location.reload();
