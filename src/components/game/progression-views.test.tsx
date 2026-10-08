@@ -1,19 +1,24 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CollectionView } from "./collection-view";
 import { VillageView } from "./village-view";
+
+afterEach(() => cleanup());
 
 describe("telas de progressão da conta", () => {
   it("mantém o Bestiário público para consultar monstros e chefes", () => {
     render(<CollectionView ownedCatalogIds={["iara"]} />);
 
-    expect(screen.getAllByText("Gota de Iara").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Boitatá").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Carta não descoberta")).not.toBeInTheDocument();
     expect(screen.getByText("Bestiário de Folklard")).toBeInTheDocument();
+    const search = screen.getByPlaceholderText("Nome, habitat, origem ou traço");
+    fireEvent.change(search, { target: { value: "Iara" } });
+    expect(screen.getAllByRole("button", { name: /Abrir ficha de .*Iara/i }).length).toBeGreaterThan(0);
+    fireEvent.change(search, { target: { value: "Boitatá" } });
+    expect(screen.getAllByRole("button", { name: /Abrir ficha de .*Boitatá/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Carta não descoberta")).not.toBeInTheDocument();
   });
 
   it("mantém a loja focada em suprimentos e cosméticos sem ofertas de armadura", () => {
