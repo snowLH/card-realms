@@ -1,4 +1,4 @@
-const CACHE_VERSION = "card-realms-arpg-v20";
+const CACHE_VERSION = "folklard-arpg-v21";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DEVELOPMENT_ORIGIN = ["localhost", "127.0.0.1", "[::1]"].includes(self.location.hostname);
 const CORE_ASSETS = [
