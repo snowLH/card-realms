@@ -3070,6 +3070,19 @@ export function createArpgDungeonScene(
       }
     }
 
+    private fireBossVolley(enemy: ArcadeSprite, count: number, spread: number) {
+      const base = new Phaser.Math.Vector2(
+        this.player.x - enemy.x,
+        this.player.y - enemy.y,
+      ).normalize();
+      const center = (count - 1) / 2;
+      for (let index = 0; index < count; index += 1) {
+        const direction = base.clone().rotate((index - center) * spread);
+        this.fireEnemyProjectile(enemy, direction, 13, 330, dungeon.colors.projectile, 2200);
+      }
+      bridge.emitMessage(dungeon.messages.bossVolley);
+    }
+
     private summonCurupiraDecoys(enemy: ArcadeSprite) {
       const profile = dungeon.enemyAnimations?.boss;
       if (!isArpgEnemyAnimationProfile(profile)) return;
