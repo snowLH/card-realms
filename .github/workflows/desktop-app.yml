@@ -14,8 +14,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -38,8 +38,8 @@ jobs:
       run:
         working-directory: desktop
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -52,7 +52,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Prepare direct download and integrity metadata
         run: node release-metadata.cjs ${{ matrix.platform }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: folklard-${{ matrix.platform }}-download
           path: |
@@ -67,7 +67,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: folklard-*-download
           merge-multiple: true
@@ -79,7 +79,7 @@ jobs:
           test -s installers/Folklard-Windows.json
           test -s installers/Folklard-Linux.json
       - name: Publish verified test builds
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: downloads-desktop
           name: Folklard - PC (versões de teste)
