@@ -5,6 +5,8 @@ on:
     paths:
       - "desktop/**"
       - ".github/workflows/desktop-app.yml"
+permissions:
+  contents: write
 jobs:
   desktop:
     strategy:
@@ -30,6 +32,26 @@ jobs:
         run: npm run ${{ matrix.target }}
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Name downloadable installers
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp "$(find dist -maxdepth 1 -name '*.exe' | head -1)" dist/Folklard-Windows.exe
+          else
+            cp "$(find dist -maxdepth 1 -name '*.AppImage' | head -1)" dist/Folklard-Linux.AppImage
+          fi
+      - name: Publish direct-download files
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: downloads-desktop
+          name: Folklard - PC (versões de teste)
+          prerelease: true
+          make_latest: false
+          files: |
+            desktop/dist/Folklard-Windows.exe
+            desktop/dist/Folklard-Linux.AppImage
+          fail_on_unmatched_files: false
+          overwrite_files: true
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
