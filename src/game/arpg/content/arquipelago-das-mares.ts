@@ -7,6 +7,19 @@ import { ARPG_ASSETS } from "../assets";
 
 export const MARES_WEAPONS: ArpgWeaponDefinition[] = [
   {
+    id: "coral-ward-bow",
+    name: "Arco de Coral das Marés",
+    kind: "bow",
+    rarity: "epic",
+    element: "water",
+    damage: 26,
+    attackRateMs: 590,
+    projectileSpeed: 720,
+    range: 720,
+    effect: { id: "river-pierce", label: "Disparo de Coral", description: "Flechas de coral atravessam vários alvos alinhados." },
+    description: "Um arco preciso, de disparos lentos e penetrantes.",
+  },
+  {
     id: "tide-blade",
     name: "Lâmina das Marés",
     kind: "sword",
@@ -178,6 +191,7 @@ export const MARES_ROOM_LOOT_POOLS = [
   [
     { kind: "weapon", id: "iara-song-staff", label: "Cajado do Canto da Iara" },
     { kind: "weapon", id: "river-bow", label: "Arco Ribeirinho" },
+    { kind: "weapon", id: "coral-ward-bow", label: "Arco de Coral das Marés" },
   ],
   [
     { kind: "weapon", id: "iara-song-staff", label: "Cajado do Canto da Iara" },
