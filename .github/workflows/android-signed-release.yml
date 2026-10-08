@@ -3,6 +3,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: android-signed-release
+  cancel-in-progress: false
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -77,13 +80,42 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: bash ./gradlew assembleRelease
+      - name: Prepare signed download and integrity metadata
+        run: node release-metadata.cjs release signed-release
       - name: Upload signed release
         uses: actions/upload-artifact@v4
         with:
           name: folklard-android-signed
-          path: mobile/android/app/build/outputs/apk/release/*.apk
+          path: |
+            mobile/android/app/build/outputs/apk/release/Folklard-Android.apk
+            mobile/android/app/build/outputs/apk/release/Folklard-Android.json
           if-no-files-found: error
           retention-days: 30
       - name: Remove signing material
         if: always()
         run: rm -f android/release.keystore
+
+  publish:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: folklard-android-signed
+          path: signed-apk
+      - name: Publish signed Android download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: downloads-android
+          name: Folklard - Android
+          prerelease: true
+          make_latest: false
+          body: |
+            APK Android assinado do commit ${{ github.sha }}.
+            Android 7+, WebView 111+ e internet necessários.
+            Versão, tamanho, commit e SHA-256 em Folklard-Android.json.
+          files: signed-apk/*
+          fail_on_unmatched_files: true
+          overwrite_files: true
