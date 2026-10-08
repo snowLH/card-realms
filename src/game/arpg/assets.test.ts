@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { ARPG_DUNGEON_CONFIGS } from "./content/dungeons";
 import {
   ARPG_ASSET_MANIFEST,
   ARPG_ASSET_PATHS,
@@ -88,6 +89,24 @@ describe("ARPG runtime asset manifest", () => {
           : animation.endFrame;
         expect(firstFrame).toBeGreaterThanOrEqual(0);
         expect(lastFrame).toBeLessThan(sheet.frameCount);
+      }
+    }
+  });
+
+  it("gives every configured dungeon enemy a dedicated animated visual profile", () => {
+    for (const dungeon of Object.values(ARPG_DUNGEON_CONFIGS)) {
+      const enemyIds = Object.keys(dungeon.enemies);
+      const animationEntries = Object.entries(dungeon.enemyAnimations ?? {});
+      expect(animationEntries.map(([enemyId]) => enemyId).sort()).toEqual(enemyIds.sort());
+
+      for (const [enemyId, profile] of animationEntries) {
+        expect(profile, `${dungeon.id}:${enemyId}`).toBeTruthy();
+        const asset = ARPG_ASSET_MANIFEST.enemies[profile!];
+        expect(asset, `${dungeon.id}:${enemyId} -> ${profile}`).toBeDefined();
+        expect(asset.frameCount).toBe(24);
+        expect(asset.columns).toBe(4);
+        expect(asset.rows).toBe(6);
+        expect(Object.keys(asset.animations)).toEqual(expect.arrayContaining(["idle", "walk", "attack", "damage", "defeat"]));
       }
     }
   });
