@@ -63,16 +63,35 @@ export function createDungeonRuntimeTextures(scene: import("phaser").Scene) {
       graphics.generateTexture("arpg-pixel-pulse", 64, 64);
 
       graphics.clear();
-      graphics.fillStyle(0x64402a, 1);
-      graphics.fillRect(5, 8, 30, 28);
-      graphics.fillStyle(0xa96f3e, 1);
-      graphics.fillRect(8, 11, 24, 22);
-      graphics.fillStyle(0xd8a45d, 1);
-      graphics.fillRect(9, 12, 22, 3);
-      graphics.lineStyle(3, 0x59351f, 1);
-      graphics.strokeRect(5, 8, 30, 28);
-      graphics.lineBetween(9, 13, 31, 32);
-      graphics.lineBetween(31, 13, 9, 32);
+      // Hand-drawn reinforced supply chest with rim lighting and brass hardware.
+      graphics.fillStyle(0x251e24, 1);
+      graphics.fillRect(3, 10, 34, 27);
+      graphics.fillStyle(0x593a2b, 1);
+      graphics.fillRect(5, 7, 30, 26);
+      graphics.fillStyle(0x98603b, 1);
+      graphics.fillRect(7, 10, 26, 21);
+      graphics.fillStyle(0xc48b50, 1);
+      graphics.fillRect(8, 10, 24, 4);
+      graphics.fillRect(8, 17, 24, 2);
+      graphics.fillStyle(0xe7b66c, 1);
+      graphics.fillRect(9, 11, 21, 2);
+      graphics.fillStyle(0x3a2b2b, 1);
+      graphics.fillRect(6, 15, 4, 16);
+      graphics.fillRect(30, 15, 4, 16);
+      graphics.fillRect(7, 25, 26, 4);
+      graphics.fillStyle(0x67515a, 1);
+      graphics.fillRect(4, 13, 4, 4);
+      graphics.fillRect(32, 13, 4, 4);
+      graphics.fillRect(4, 29, 4, 4);
+      graphics.fillRect(32, 29, 4, 4);
+      graphics.fillStyle(0xf0cf82, 1);
+      graphics.fillRect(18, 16, 6, 12);
+      graphics.fillStyle(0x463331, 1);
+      graphics.fillRect(20, 20, 2, 4);
+      graphics.fillStyle(0xffe0a0, 1);
+      graphics.fillRect(18, 17, 6, 2);
+      graphics.fillRect(10, 20, 2, 3);
+      graphics.fillRect(27, 20, 2, 3);
       graphics.generateTexture("arpg-breakable-crate", 40, 40);
 
       graphics.clear();
