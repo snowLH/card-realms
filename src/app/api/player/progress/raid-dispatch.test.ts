@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   updateRaidLobby: vi.fn(),
 }));
 
-vi.mock("@/server/http-handlers/legacy/raids", () => ({
+vi.mock("@/server/http-handlers/arpg-raid-lobby", () => ({
   GET: mocks.getRaidLobby,
   POST: mocks.updateRaidLobby,
 }));
@@ -32,7 +32,7 @@ describe("shared endpoint raid dispatch", () => {
     mocks.updateRaidLobby.mockResolvedValue(new Response("post"));
   });
 
-  it("delegates GET to the legacy raid lobby handler", async () => {
+  it("delegates GET to the ARPG raid lobby handler", async () => {
     const request = raidRequest("GET");
     const response = await GET(request);
 
