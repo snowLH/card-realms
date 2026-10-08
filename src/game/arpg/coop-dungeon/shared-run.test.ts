@@ -3,7 +3,7 @@ import { DEFAULT_ARPG_LOADOUT } from "../content/mata-encantada";
 import { ARPG_ROC_RAID_BOSS } from "../raid/content";
 import { advanceArpgRaid, applyArpgRaidAction, createArpgRaidState } from "../raid/engine";
 import { ArpgRaidStateSchema } from "../raid/schema";
-import { ARPG_RAID_PLAYER_MARGIN } from "../raid/types";
+import { ARPG_RAID_INPUT_STALE_MS, ARPG_RAID_PLAYER_MARGIN } from "../raid/types";
 import type { ArpgRaidPlayerSetup } from "../raid/types";
 import { ARPG_SHARED_DUNGEON_MIN_DURATION_MS, attachArpgSharedDungeon, planArpgCoopRoomSequence, spawnArpgRaidDungeonWave } from "./shared-run";
 import { generateDungeon } from "../dungeon/generator";
@@ -146,6 +146,29 @@ describe("shared ARPG co-op dungeon", () => {
     expect(room.state).toBe("awaiting_exit");
     expect(room.nextRoomAtMs).toBeNull();
     expect(ArpgRaidStateSchema.safeParse(state).success).toBe(true);
+  });
+
+  it("stops stale movement after a connection gap and resumes on fresh input", () => {
+    let state = createSharedRun();
+    const player = state.players[0];
+    player.input = { moveX: 1, moveY: 0, aimX: 1, aimY: 0 };
+    player.lastInputAtMs = state.serverTimeMs - ARPG_RAID_INPUT_STALE_MS - 1;
+    const before = player.x;
+
+    state = advanceArpgRaid(state, state.serverTimeMs + 250).state;
+    expect(state.players[0].x).toBe(before);
+    expect(state.players[0].input.moveX).toBe(0);
+
+    const refreshed = applyArpgRaidAction(state, state.players[0].id, {
+      kind: "input",
+      actionId: "input-after-reconnect",
+      moveX: 1,
+      moveY: 0,
+      aimX: 1,
+      aimY: 0,
+    }, state.serverTimeMs + 50).state;
+    const resumed = advanceArpgRaid(refreshed, refreshed.serverTimeMs + 250).state;
+    expect(resumed.players[0].x).toBeGreaterThan(refreshed.players[0].x);
   });
 
   it("upgrades saved dungeon timers but not standalone boss raid timers", () => {
