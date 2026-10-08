@@ -6,19 +6,7 @@ import type {
 import { ARPG_ASSETS } from "../assets";
 
 export const MARES_WEAPONS: ArpgWeaponDefinition[] = [
-  {
-    id: "coral-ward-bow",
-    name: "Arco de Coral das Marés",
-    kind: "bow",
-    rarity: "epic",
-    element: "water",
-    damage: 26,
-    attackRateMs: 590,
-    projectileSpeed: 720,
-    range: 720,
-    effect: { id: "river-pierce", label: "Disparo de Coral", description: "Flechas de coral atravessam vários alvos alinhados." },
-    description: "Um arco preciso, de disparos lentos e penetrantes.",
-  },
+
   {
     id: "tide-blade",
     name: "Lâmina das Marés",
@@ -68,6 +56,19 @@ export const MARES_WEAPONS: ArpgWeaponDefinition[] = [
       description: "A cada quarto ataque básico, recupera 4 pontos de vida.",
     },
     description: "Relíquia rara inspirada no encanto aquático atribuído à Iara.",
+  },
+  {
+    id: "coral-ward-bow",
+    name: "Arco de Coral das Marés",
+    kind: "bow",
+    rarity: "epic",
+    element: "water",
+    damage: 26,
+    attackRateMs: 590,
+    projectileSpeed: 720,
+    range: 720,
+    effect: { id: "river-pierce", label: "Disparo de Coral", description: "Flechas de coral atravessam vários alvos alinhados." },
+    description: "Um arco preciso, de disparos lentos e penetrantes.",
   },
 ];
 
