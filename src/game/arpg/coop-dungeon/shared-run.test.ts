@@ -124,6 +124,7 @@ describe("shared ARPG co-op dungeon", () => {
     expect(waitingForParty.dungeon?.roomIndex).toBe(dungeon.roomIndex);
 
     waitingForParty.players[1].input = { moveX: 1, moveY: 0, aimX: 1, aimY: 0 };
+    waitingForParty.players[1].lastInputAtMs = waitingForParty.serverTimeMs;
     const stillInCorridor = advanceArpgRaid(waitingForParty, waitingForParty.serverTimeMs + 750).state;
     expect(stillInCorridor.dungeon?.roomIndex).toBe(dungeon.roomIndex);
 
