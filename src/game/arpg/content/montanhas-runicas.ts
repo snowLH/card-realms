@@ -7,6 +7,18 @@ import { ARPG_ASSETS } from "../assets";
 
 export const RUNIC_WEAPONS: ArpgWeaponDefinition[] = [
   {
+    id: "frostfall-sword",
+    name: "Espada da Nevasca",
+    kind: "sword",
+    rarity: "rare",
+    element: "water",
+    damage: 37,
+    attackRateMs: 600,
+    range: 94,
+    effect: { id: "tide-cleave", label: "Lâmina Congelada", description: "O impacto gera um corte secundário em área com 35% do dano." },
+    description: "Uma espada pesada que sacrifica velocidade por ataques amplos.",
+  },
+  {
     id: "runic-sabre",
     name: "Sabre Rúnico",
     kind: "sword",
@@ -184,6 +196,7 @@ export const RUNIC_ROOM_LOOT_POOLS = [
   [
     { kind: "weapon", id: "raiju-staff", label: "Cajado do Raijū" },
     { kind: "weapon", id: "alicanto-bow", label: "Arco do Rastro do Alicanto" },
+    { kind: "weapon", id: "frostfall-sword", label: "Espada da Nevasca" },
   ],
   [
     { kind: "weapon", id: "raiju-staff", label: "Cajado do Raijū" },
