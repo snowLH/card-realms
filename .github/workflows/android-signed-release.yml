@@ -19,6 +19,7 @@ jobs:
       - run: npm run verify:deploy
   release:
     needs: verify
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: android-release
     defaults:
