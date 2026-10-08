@@ -5,7 +5,8 @@ import { advanceArpgRaid, applyArpgRaidAction, createArpgRaidState } from "../ra
 import { ArpgRaidStateSchema } from "../raid/schema";
 import { ARPG_RAID_PLAYER_MARGIN } from "../raid/types";
 import type { ArpgRaidPlayerSetup } from "../raid/types";
-import { attachArpgSharedDungeon, spawnArpgRaidDungeonWave } from "./shared-run";
+import { attachArpgSharedDungeon, planArpgCoopRoomSequence, spawnArpgRaidDungeonWave } from "./shared-run";
+import { generateDungeon } from "../dungeon/generator";
 
 const START = 1_800_000_000_000;
 const ROOM_ID = "11111111-1111-4111-8111-111111111111";
@@ -28,13 +29,30 @@ function createSharedRun() {
 }
 
 describe("shared ARPG co-op dungeon", () => {
+  it.each(["mata-encantada", "arquipelago-das-mares", "montanhas-runicas"] as const)(
+    "visits all generated rooms in %s before the final boss",
+    (regionId) => {
+      for (let index = 0; index < 20; index += 1) {
+        const graph = generateDungeon({ seed: `coop-graph-${regionId}-${index}`, regionId, minRooms: 8, maxRooms: 12 });
+        const rooms = planArpgCoopRoomSequence(graph);
+        expect(rooms).toHaveLength(Object.keys(graph.rooms).length);
+        expect(rooms[0].id).toBe(graph.startRoomId);
+        expect(rooms.at(-1)?.id).toBe(graph.bossRoomId);
+        expect(new Set(rooms.map((room) => room.id)).size).toBe(rooms.length);
+        expect(rooms.some((room) => room.type === "treasure")).toBe(true);
+        expect(rooms.some((room) => room.type === "event")).toBe(true);
+        expect(rooms.some((room) => room.type === "elite")).toBe(true);
+      }
+    },
+  );
+
   it("persists one deterministic 8-room route for all party members", () => {
     const first = createSharedRun();
     const second = createSharedRun();
     const parsed = ArpgRaidStateSchema.parse(first);
     expect(parsed.dungeon?.seed).toBe(second.dungeon?.seed);
     expect(parsed.dungeon?.rooms.map((room) => room.id)).toEqual(second.dungeon?.rooms.map((room) => room.id));
-    expect(parsed.dungeon?.rooms.length).toBeGreaterThanOrEqual(6);
+    expect(parsed.dungeon?.rooms.length).toBe(8);
     expect(parsed.dungeon?.rooms.at(-1)?.type).toBe("boss");
     const activeRoom = parsed.dungeon!.rooms[parsed.dungeon!.roomIndex];
     if (activeRoom.type === "combat" || activeRoom.type === "elite") {

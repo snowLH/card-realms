@@ -2852,7 +2852,13 @@ export function createArpgDungeonScene(
       }
 
       const distance = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
-      const intent = getEnemyMovementIntent(role, distance);
+      const previousIntent = enemy.getData("movementIntent");
+      const intent = getEnemyMovementIntent(
+        role,
+        distance,
+        previousIntent === "approach" || previousIntent === "retreat" ? previousIntent : "hold",
+      );
+      enemy.setData("movementIntent", intent);
       if (intent === "approach") {
         this.physics.moveToObject(enemy, this.player, speed);
       } else if (intent === "retreat") {

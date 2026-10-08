@@ -7,6 +7,14 @@ describe("getEnemyMovementIntent", () => {
     expect(getEnemyMovementIntent(role, 90)).toBe("approach");
   });
 
+  it("keeps ranged combat stances stable at boundary distances", () => {
+    expect(getEnemyMovementIntent("ranged", 245, "retreat")).toBe("retreat");
+    expect(getEnemyMovementIntent("ranged", 370, "approach")).toBe("approach");
+    expect(getEnemyMovementIntent("ranged", 300, "retreat")).toBe("hold");
+    expect(getEnemyMovementIntent("ranged", 300, "approach")).toBe("hold");
+    expect(getEnemyMovementIntent("caster", Number.NaN)).toBe("hold");
+  });
+
   it.each([
     ["ranged", 200, 300, 450],
     ["caster", 180, 270, 400],

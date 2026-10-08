@@ -23,25 +23,29 @@ const ROOM_LABELS: Record<DungeonRoom["type"], string> = {
 
 export const ARPG_SHARED_DUNGEON_CORRIDOR_WIDTH = DUNGEON_TILE_SIZE * 8;
 
-function shortestRoute(graph: ReturnType<typeof generateDungeon>) {
-  const previous = new Map<string, string | null>([[graph.startRoomId, null]]);
+/** Each generated co-op arena must be accessible. We visit the graph in
+ * breadth-first order and reserve the final boss for last. The room corridor
+ * itself is linear because the multiplayer run advances as one party.
+ */
+export function planArpgCoopRoomSequence(graph: ReturnType<typeof generateDungeon>): DungeonRoom[] {
+  const visited = new Set([graph.startRoomId]);
   const queue = [graph.startRoomId];
-  while (queue.length) {
-    const roomId = queue.shift()!;
-    if (roomId === graph.bossRoomId) break;
-    for (const nextId of connectedRoomIds(graph.rooms[roomId])) {
-      if (previous.has(nextId)) continue;
-      previous.set(nextId, roomId);
-      queue.push(nextId);
+  const result: DungeonRoom[] = [];
+  for (let index = 0; index < queue.length; index += 1) {
+    const id = queue[index];
+    const room = graph.rooms[id];
+    if (id !== graph.bossRoomId) result.push(room);
+    for (const nextId of connectedRoomIds(room)) {
+      if (!visited.has(nextId)) {
+        visited.add(nextId);
+        queue.push(nextId);
+      }
     }
   }
-  const route: string[] = [];
-  let cursor: string | null = graph.bossRoomId;
-  while (cursor) {
-    route.unshift(cursor);
-    cursor = previous.get(cursor) ?? null;
+  if (visited.size !== Object.keys(graph.rooms).length) {
+    throw new Error("A dungeon cooperativa contém salas inacessíveis.");
   }
-  return route.map((id) => graph.rooms[id]);
+  return [...result, graph.rooms[graph.bossRoomId]];
 }
 
 function buildRoomEnemies(
@@ -110,7 +114,7 @@ export function attachArpgSharedDungeon(
 ): ArpgRaidState {
   const seed = `coop-${state.roomId}-${state.eventId}`;
   const graph = populateArpgDungeonContent(generateDungeon({ seed, regionId, minRooms: 8, maxRooms: 8 }));
-  const route = shortestRoute(graph);
+  const route = planArpgCoopRoomSequence(graph);
   const rooms: ArpgRaidDungeonRoomState[] = route.map((room) => {
     const tileData = buildRoomTileData(room.templateId, room.connections, seed);
     const roomWidth = tileData.width * DUNGEON_TILE_SIZE;

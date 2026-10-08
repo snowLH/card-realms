@@ -1,4 +1,5 @@
 import { CREATURE_BY_ID } from "@/game/catalog";
+import { ARPG_BASE_HP as PLAYER_BASE_HP, ARPG_BASE_SPEED as PLAYER_BASE_SPEED, ARPG_DASH_SPEED as DASH_SPEED, ARPG_DASH_DURATION_MS as DASH_DURATION_MS, ARPG_DASH_COOLDOWN_MS as DASH_COOLDOWN_MS } from "../domain/combat-config";
 import { elementMultiplier } from "@/game/domain/elements";
 import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
 import {
@@ -39,11 +40,6 @@ import {
 } from "./types";
 
 const WORLD_WIDTH = 1280;
-const PLAYER_BASE_HP = 120;
-const PLAYER_BASE_SPEED = 220;
-const DASH_SPEED = 610;
-const DASH_DURATION_MS = 170;
-const DASH_COOLDOWN_MS = 820;
 const MAX_ADVANCE_MS = 1_000;
 const SIMULATION_STEP_MS = 50;
 const BOSS_RADIUS = 58;
