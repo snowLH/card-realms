@@ -101,9 +101,9 @@ describe("fundação ARPG da Mata Encantada", () => {
     expect(MARES_ROOM_WAVES.at(-1)).toEqual(["boss"]);
     expect(MARES_ENEMIES.miniBoss.name).toBe("Ahuízotl");
     expect(MARES_ENEMIES.boss.name).toBe("Iara das Profundezas");
-    expect(MARES_WEAPONS).toHaveLength(3);
+    expect(MARES_WEAPONS).toHaveLength(4);
     expect(MARES_ARMORS).toHaveLength(3);
-    expect(ARPG_WEAPONS).toHaveLength(9);
+    expect(ARPG_WEAPONS).toHaveLength(12);
     expect(ARPG_ARMORS).toHaveLength(9);
   });
 
@@ -112,7 +112,7 @@ describe("fundação ARPG da Mata Encantada", () => {
     expect(RUNIC_ROOM_WAVES.at(-1)).toEqual(["boss"]);
     expect(RUNIC_ENEMIES.miniBoss.name).toBe("Yeti");
     expect(RUNIC_ENEMIES.boss.name).toBe("Amarok");
-    expect(RUNIC_WEAPONS).toHaveLength(3);
+    expect(RUNIC_WEAPONS).toHaveLength(4);
     expect(RUNIC_ARMORS).toHaveLength(3);
     expect(ARPG_DUNGEON_CONFIGS["montanhas-runicas"].enemyAtlas?.miniBoss).toBe("folklore-atlas-2");
   });
@@ -141,7 +141,7 @@ describe("fundação ARPG da Mata Encantada", () => {
 
   it("mantém o loadout pequeno e legível", () => {
     expect(MATA_CARDS).toHaveLength(2);
-    expect(MATA_WEAPONS).toHaveLength(3);
+    expect(MATA_WEAPONS).toHaveLength(4);
     expect(MATA_ARMORS).toHaveLength(3);
     expect(DEFAULT_ARPG_LOADOUT.abilityIds).toHaveLength(2);
     expect(DEFAULT_ARPG_LOADOUT.abilityIds).toEqual([...STARTER_ARPG_ABILITY_IDS]);
@@ -171,6 +171,18 @@ describe("fundação ARPG da Mata Encantada", () => {
     expect(getArmorRetaliationDamage(ahuizotlArmor)).toBe(0);
     expect(ARPG_WEAPONS.filter((item) => item.rarity !== "common").every((item) => item.effect)).toBe(true);
     expect(ARPG_WEAPONS.filter((item) => item.rarity === "common").every((item) => !item.effect)).toBe(true);
+  });
+
+  it("offers three new biome weapons with distinct high-impact cadence", () => {
+    for (const id of ["thorn-guard-blade", "coral-ward-bow", "frostfall-sword"]) {
+      const weapon = ARPG_WEAPONS.find((item) => item.id === id);
+      expect(weapon?.damage).toBeGreaterThan(24);
+      expect(weapon?.attackRateMs).toBeGreaterThan(490);
+      expect(weapon?.effect).toBeDefined();
+      expect(Object.values(ARPG_DUNGEON_CONFIGS).some((dungeon) =>
+        dungeon.roomLootPools.flat().some((loot) => loot.id === id))).toBe(true);
+    }
+    expect(new Set(ARPG_WEAPONS.map((weapon) => weapon.id)).size).toBe(ARPG_WEAPONS.length);
   });
 
   it("mantém uma relíquia equipada e três opções com efeitos distintos", () => {
