@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { LOCAL_MAPS } from "@/game/exploration/maps";
 import {
   getArpgExpeditionForAtlasRegion,
   getFirstAtlasCombatRoomId,
@@ -24,8 +25,15 @@ describe("Atlas action encounter routing", () => {
     const target = resolveAtlasEncounterTarget({ kind: "wild", regionId: "roots", id: "curupira" });
 
     expect(target).toMatchObject({ kind: "wild", id: "curupira", regionId: "roots", name: "Curupira" });
-    expect(target?.sprite).toMatchObject({ kind: "atlas", atlas: "folklore-atlas" });
+    expect(target?.sprite).toMatchObject({ kind: "portrait", sheet: "/art/legend-curupira-spritesheet-v5.webp", column: 0, row: 0 });
     expect(resolveAtlasEncounterTarget({ kind: "wild", regionId: "roots", id: "raiju" })).toBeNull();
+  });
+
+  it("keeps every existing wild Atlas encounter reachable after the portrait migration", () => {
+    for (const map of Object.values(LOCAL_MAPS)) for (const entry of map.creatures) {
+      expect(resolveAtlasEncounterTarget({ kind: "wild", regionId: map.regionId, id: entry.creatureId }), entry.creatureId)
+        .toMatchObject({ id: entry.creatureId, sprite: { kind: "portrait" } });
+    }
   });
 
   it("preserves the selected NPC ID and identifies its training sprite", () => {

@@ -3,11 +3,10 @@ import { CREATURES } from "./creatures";
 import { REGIONS } from "./regions";
 
 describe("expansão regional 2D", () => {
-  it("mantém o segundo atlas e incorpora a expansão solicitada sem duplicar espécies", () => {
+  it("preserva as 124 espécies e fornece retratos únicos na mesma família pixel art", () => {
     expect(CREATURES).toHaveLength(124);
-    const secondAtlas = CREATURES.filter((creature) => creature.sprite.sheet.includes("second-atlas"));
-    expect(secondAtlas).toHaveLength(25);
-    expect(new Set(secondAtlas.map((creature) => `${creature.sprite.row}:${creature.sprite.column}`)).size).toBe(25);
+    expect(CREATURES.every((creature) => creature.sprite.sheet.endsWith("-v5.webp"))).toBe(true);
+    expect(new Set(CREATURES.map((creature) => `${creature.sprite.sheet}:${creature.sprite.row}:${creature.sprite.column}`)).size).toBe(124);
   });
 
   it("oferece cinco áreas em cada uma das cinco regiões principais", () => {

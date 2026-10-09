@@ -8,6 +8,7 @@ import { DESERT_CREATURE_SEEDS } from "./creatures/desert";
 import { DEEP_SEA_CREATURE_SEEDS } from "./creatures/deep-sea";
 import { ECLIPSE_CREATURE_SEEDS } from "./creatures/eclipse";
 import { attachRequestedEvolutionLines, missingRequestedCreatureSeeds } from "./requested-expansion";
+import { CHARACTER_PORTRAITS } from "./character-portraits";
 
 const CREATURE_SEED_GROUPS = [
   ROOTS_CREATURE_SEEDS,
@@ -23,7 +24,16 @@ const baseSeeds = CREATURE_SEED_GROUPS.flat();
 const baseIds = new Set(baseSeeds.map((seed) => seed.id));
 const seeds = [...baseSeeds, ...missingRequestedCreatureSeeds(baseIds)];
 
-export const CREATURES: CreatureDefinition[] = attachRequestedEvolutionLines(materializeCreatureSeeds(seeds));
+export const CREATURES: CreatureDefinition[] = attachRequestedEvolutionLines(materializeCreatureSeeds(seeds)).map((creature) => {
+  const sprite = CHARACTER_PORTRAITS[creature.id] ?? creature.sprite;
+  return {
+    ...creature,
+    sprite,
+    evolutionLine: creature.evolutionLine
+      ? [creature.evolutionLine[0], creature.evolutionLine[1], { ...creature.evolutionLine[2], sprite }]
+      : undefined,
+  };
+});
 
 export const CREATURE_BY_ID = new Map(CREATURES.map((creature) => [creature.id, creature]));
 

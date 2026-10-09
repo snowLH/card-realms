@@ -47,7 +47,7 @@ type RaidAction =
 const WORLD_WIDTH = 1280;
 const WORLD_HEIGHT = 720;
 const GAMEPAD_ABILITY_HINTS = ["↑", "↓"] as const;
-const RAID_ROC_SPRITE_SHEET = "/art/monster-roc-raid-boss-spritesheet-v1.webp";
+const RAID_ROC_SPRITE_SHEET = "/art/monster-roc-boss-spritesheet-v5.webp";
 const RAID_BOSS_ANIMATION_ROWS = {
   idle: 0,
   walk: 1,

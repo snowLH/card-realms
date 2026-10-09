@@ -83,7 +83,7 @@ describe("ArpgLoadoutView", () => {
 
   it("shows playable folklore legends and a direct route back to the Guilda", () => {
     const { props } = renderLoadout({ focus: "legend" });
-    expect(screen.getByRole("heading", { level: 2, name: "Escolha sua lenda" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Escolha sua lenda" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 3, name: "Curupira" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Voltar à Guilda/i }));
     expect(props.onBack).toHaveBeenCalledTimes(1);

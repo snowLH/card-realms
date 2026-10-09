@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { Check, Coins, LockKeyhole, LoaderCircle, Star } from "lucide-react";
+import { ArrowLeft, Check, Coins, LockKeyhole, LoaderCircle, Star } from "lucide-react";
 import {
   getLegendAppearance,
   PLAYABLE_LEGENDS,
@@ -22,6 +22,7 @@ export type LegendSelectorProps = {
   onSelect: (legendId: PlayableLegendId) => void;
   onPurchase: (legendId: PlayableLegendId) => void | Promise<void>;
   onToggleFavorite: (legendId: PlayableLegendId) => void;
+  onBack: () => void;
 };
 
 export function LegendSelector({
@@ -34,6 +35,7 @@ export function LegendSelector({
   onSelect,
   onPurchase,
   onToggleFavorite,
+  onBack,
 }: LegendSelectorProps) {
   useEffect(() => {
     if (!focusLegendId) return;
@@ -64,12 +66,15 @@ export function LegendSelector({
       <header className={styles.header}>
         <div>
           <span className={styles.eyebrow}>HERÓIS DA GUILDA</span>
-          <h2 id="legend-selector-title">Escolha sua lenda</h2>
+          <h1 id="legend-selector-title">Escolha sua lenda</h1>
           <p id="legend-selector-description">Cada lenda leva seus dois ataques para a masmorra. Encontre armas e melhorias durante a aventura.</p>
         </div>
-        <div className={styles.wallet} aria-label={`${coins.toLocaleString("pt-BR")} moedas disponíveis`}>
-          <Coins aria-hidden="true" />
-          <span><small>SUAS MOEDAS</small><strong>{coins.toLocaleString("pt-BR")}</strong></span>
+        <div className={styles.headerActions}>
+          <div className={styles.wallet} aria-label={`${coins.toLocaleString("pt-BR")} moedas disponíveis`}>
+            <Coins aria-hidden="true" />
+            <span><small>SUAS MOEDAS</small><strong>{coins.toLocaleString("pt-BR")}</strong></span>
+          </div>
+          <button type="button" className={styles.back} onClick={onBack}><ArrowLeft aria-hidden="true" /> Voltar à Guilda</button>
         </div>
       </header>
 

@@ -19,6 +19,7 @@ The user explicitly authorized direct implementation on `main`. Do not create de
 - Never copy code/assets/map layouts of Soul Knight or any other proprietary title. Reuse abstract genre conventions and build original IP.
 - **Visual assets, spritesheets, UI art, animation, color and layout passes are reserved for ChatGPT Work.** Gameplay/API tasks may modify structural markup required to support interaction, but never block or rewrite art passes.
 - Preserve the detailed hero and NPC designs in the active sprite catalog. The user rejected the simplified 32px v3 character studies as a regression on 2026-10-09. Keep those studies archived; do not activate them again. Compare future art changes with the established designs inside the actual Guild and dungeons, preserving detail, personality and consistency with the scenery.
+- The user's later reference on 2026-10-09 defines ALL active characters: match Luzia the Naturalist's compact chibi pixel art, large expressive head, short limbs, stepped dark outlines and small color ramps. The reference is saved in `docs/folklard-character-style-reference.png`. Use the v5 catalog consistently in gameplay, portraits and co-op; archive unused v4 character studies. The original NPCs already follow this reference and keep their identities.
 
 ## Code quality and release safety
 - Keep domain and simulation functions pure/testable; avoid adding methods to the already-large Phaser DungeonScene when they belong in independent modules.

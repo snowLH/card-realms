@@ -101,13 +101,7 @@ export function ArpgLoadoutView({
     );
   };
 
-  const header = focus === "legend"
-    ? {
-        eyebrow: "HERÓIS DA GUILDA",
-        title: "Escolha sua lenda",
-        description: "Escolha um personagem jogável. Cada carta desbloqueia os dois ataques próprios daquela lenda.",
-      }
-    : focus === "cards"
+  const header = focus === "cards"
       ? {
           eyebrow: "TÉCNICAS DA LENDA",
           title: `Ataques de ${selectedLegend.name}`,
@@ -120,10 +114,10 @@ export function ArpgLoadoutView({
         };
 
   return (
-    <section className="content-view arpg-loadout-view" aria-labelledby="arpg-loadout-title">
-      <header className="arpg-loadout-hero">
-        <div style={focus === "legend" ? undefined : { display: "flex", alignItems: "center", gap: 14 }}>
-          {focus !== "legend" ? <CharacterAvatar2D config={avatarConfig} compact ariaLabel={selectedLegend.name} /> : null}
+    <section className="content-view arpg-loadout-view" aria-labelledby={focus === "legend" ? "legend-selector-title" : "arpg-loadout-title"}>
+      {focus !== "legend" ? <header className="arpg-loadout-hero">
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <CharacterAvatar2D config={avatarConfig} compact ariaLabel={selectedLegend.name} />
           <div>
             <small>{header.eyebrow}</small>
             <h1 id="arpg-loadout-title">{header.title}</h1>
@@ -135,7 +129,7 @@ export function ArpgLoadoutView({
         ) : (
           <button type="button" onClick={onBack}><ArrowLeft aria-hidden="true" /> Voltar à Guilda</button>
         )}
-      </header>
+      </header> : null}
 
       {focus === "legend" ? (
         <LegendSelector
@@ -148,6 +142,7 @@ export function ArpgLoadoutView({
           onSelect={onSelectLegend}
           onPurchase={onPurchaseLegend}
           onToggleFavorite={onToggleFavoriteLegend}
+          onBack={onBack}
         />
       ) : null}
 

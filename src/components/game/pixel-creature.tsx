@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { SpriteDefinition } from "@/game/types";
 import { cn } from "@/lib/utils";
 
-const PIXEL_ACTOR_SIZE = 32;
-const ACTOR_PADDING = 2;
+const PIXEL_ACTOR_SIZE = 64;
+const ACTOR_PADDING = 4;
 const ATLAS_IMAGES = new Map<string, Promise<HTMLImageElement>>();
 
 function loadAtlasImage(sheet: string) {
@@ -109,7 +109,10 @@ function drawPixelCreature(
     context.drawImage(sourceFrame, left, top, cropWidth, cropHeight, outputX, outputY, outputWidth, outputHeight);
   }
 
-  // Add a one-cluster ink edge around opaque pixels. Source colors are sampled
+  // v5 sprites have authored outlines and a native 64px grid. Preserve them.
+  if (sprite.sheet.endsWith("-v5.webp")) return true;
+
+  // Add a one-cluster ink edge around opaque compatibility pixels. Source colors are sampled
   // unchanged; no palette reduction, hue shift, or grayscale filter is applied.
   const pixels = context.getImageData(0, 0, PIXEL_ACTOR_SIZE, PIXEL_ACTOR_SIZE);
   const original = new Uint8ClampedArray(pixels.data);

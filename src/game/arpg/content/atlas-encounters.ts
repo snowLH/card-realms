@@ -1,7 +1,7 @@
 import type { ArpgExpeditionId } from "./expeditions";
 import { CREATURE_BY_ID } from "@/game/content/creatures";
 import { LOCAL_MAPS } from "@/game/exploration/maps";
-import { ARPG_ASSET_MANIFEST } from "../assets";
+import type { SpriteDefinition } from "@/game/types";
 
 export type AtlasEncounterReference = {
   kind: "wild" | "npc";
@@ -12,7 +12,7 @@ export type AtlasEncounterReference = {
 export type AtlasEncounterTarget = AtlasEncounterReference & {
   name: string;
   sprite:
-    | { kind: "atlas"; atlas: "folklore-atlas" | "folklore-atlas-2"; frame: number }
+    | ({ kind: "portrait" } & SpriteDefinition)
     | { kind: "npc"; actorId: "archivist" };
 };
 
@@ -47,16 +47,12 @@ export function resolveAtlasEncounterTarget(
     const mapCreature = map.creatures.find((entry) => entry.creatureId === encounter.id);
     const creature = CREATURE_BY_ID.get(encounter.id);
     if (!mapCreature || !creature) return null;
-    const atlasDefinitions = Object.entries(ARPG_ASSET_MANIFEST.characterAtlases);
-    const atlas = atlasDefinitions.find(([, definition]) => definition.path === creature.sprite.sheet)?.[1];
-    if (!atlas || (atlas.textureKey !== "folklore-atlas" && atlas.textureKey !== "folklore-atlas-2")) return null;
     return {
       ...encounter,
       name: creature.name,
       sprite: {
-        kind: "atlas",
-        atlas: atlas.textureKey,
-        frame: creature.sprite.column + creature.sprite.row * creature.sprite.columns,
+        kind: "portrait",
+        ...creature.sprite,
       },
     };
   }

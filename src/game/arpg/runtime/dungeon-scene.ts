@@ -400,16 +400,18 @@ export function createArpgDungeonScene(
         TREASURE_CHEST_ASSET_PATH,
         getArpgSpriteSheetFrameConfig(ARPG_ASSET_MANIFEST.props.treasureChest),
       );
-      this.load.spritesheet(
-        ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreatures.textureKey,
-        ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreatures.path,
-        getArpgSpriteSheetFrameConfig(ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreatures),
-      );
-      this.load.spritesheet(
-        ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreaturesSecond.textureKey,
-        ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreaturesSecond.path,
-        getArpgSpriteSheetFrameConfig(ARPG_ASSET_MANIFEST.characterAtlases.folkloreCreaturesSecond),
-      );
+      // Dedicated animated profiles cover all current enemies. Only load an old
+      // compatibility atlas when a future configuration actually requests it.
+      const fallbackAtlases = new Set(Object.keys(dungeon.enemies)
+        .filter((id) => !isArpgEnemyAnimationProfile(dungeon.enemyAnimations?.[id])
+          && !NATIVE_FALLBACK_ACTORS[dungeon.id]?.[id]
+          && typeof dungeon.enemyFrames[id] === "number")
+        .map((id) => dungeon.enemyAtlas?.[id] ?? "folklore-atlas"));
+      for (const atlas of Object.values(ARPG_ASSET_MANIFEST.characterAtlases)) {
+        if (fallbackAtlases.has(atlas.textureKey)) this.load.spritesheet(
+          atlas.textureKey, atlas.path, getArpgSpriteSheetFrameConfig(atlas),
+        );
+      }
     }
     create() {
       this.runClock = bindActiveSceneClock(this);

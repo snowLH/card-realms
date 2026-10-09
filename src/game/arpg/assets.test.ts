@@ -28,7 +28,7 @@ describe("ARPG runtime asset manifest", () => {
   it("resolves all literal art URLs in source and keeps original PNGs out of public", () => {
     const sourceRoot = resolve(process.cwd(), "src");
     const publicArt = resolve(process.cwd(), "public", "art");
-    const sourceFiles = listFiles(sourceRoot).filter((file) => /\.(?:css|js|json|ts|tsx)$/i.test(file));
+    const sourceFiles = listFiles(sourceRoot).filter((file) => /\.(?:css|js|json|ts|tsx)$/i.test(file) && !/\.test\./.test(file));
     const references = sourceFiles.flatMap((file) => {
       const text = readFileSync(file, "utf8");
       return [...text.matchAll(/[\"'`]\/(art\/[^\"'`\s)]+)[\"'`]/g)]

@@ -33,17 +33,6 @@ const GUILD_CHARACTER_SCALE = (NATIVE_PLAYER_FRAME_SIZE * NATIVE_PLAYER_SCALE) /
 // apparent character size.
 const GUILD_LEGEND_VISIBLE_HEIGHT = 50;
 const GUILD_LEGEND_GALLERY_SCALE_FALLBACK = 0.29;
-const GUILD_CHARACTER_SCALE_BY_ACTOR: Readonly<Partial<Record<NativePixelActorId, number>>> = {
-  curupira: 0.343,
-  iara: 0.297,
-  boto: 0.276,
-  kappa: 0.286,
-  raiju: 0.272,
-  blacksmith: 0.321,
-  merchant: 0.287,
-  archivist: 0.274,
-  bestiaryKeeper: 0.277,
-};
 const NATIVE_PLAYER_CYCLES = ["idle", "walk", "attack", "shoot", "damage", "defeat"] as const;
 const BLACKSMITH_ASSET = ARPG_ASSET_MANIFEST.guildNpcs.blacksmith;
 const BLACKSMITH_TEXTURE = getPixelArtTextureKey(BLACKSMITH_ASSET.textureKey);
@@ -86,10 +75,6 @@ function getNativePlayerTextureKey(actorId: NativePixelActorId) {
 
 function getGuildLegendTextureKey(actorId: NativePixelActorId) {
   return getPixelArtTextureKey(`folklard-guild-legend-${actorId}`);
-}
-
-function getGuildCharacterScale(actorId: NativePixelActorId) {
-  return GUILD_CHARACTER_SCALE_BY_ACTOR[actorId] ?? GUILD_CHARACTER_SCALE;
 }
 
 function getNativePlayerAnimationKey(actorId: NativePixelActorId, animation: NativePixelActorAnimation) {
@@ -267,7 +252,7 @@ export function createArpgHubScene(
 
       this.player = this.physics.add.sprite(HUB_WORLD.spawnX, HUB_WORLD.spawnY, playerTextureKey, 0);
       const playerScale = this.player.texture.getSourceImage().width === GENERATED_SPRITE_FRAME_SIZE * 4
-        ? getGuildCharacterScale(playerActorId)
+        ? GUILD_CHARACTER_SCALE
         : NATIVE_PLAYER_SCALE;
       this.player
         .setOrigin(0.5, 0.82)
@@ -453,7 +438,7 @@ export function createArpgHubScene(
 
       this.blacksmith = this.add.sprite(BLACKSMITH_HOME.x, BLACKSMITH_HOME.y, BLACKSMITH_TEXTURE, 0)
         .setOrigin(0.5, 0.82)
-        .setScale(getGuildCharacterScale("blacksmith"))
+        .setScale(GUILD_CHARACTER_SCALE)
         .setDepth(19);
       setGuildActorRestPose(this.blacksmith, "blacksmith");
       this.scheduleNpcBlink(this.blacksmith, "blacksmith", 4400);
@@ -464,7 +449,7 @@ export function createArpgHubScene(
 
       this.merchant = this.add.sprite(MERCHANT_HOME.x, MERCHANT_HOME.y, MERCHANT_TEXTURE, 0)
         .setOrigin(0.5, 0.82)
-        .setScale(getGuildCharacterScale("merchant"))
+        .setScale(GUILD_CHARACTER_SCALE)
         .setDepth(10);
       setGuildActorRestPose(this.merchant, "merchant");
       this.scheduleNpcBlink(this.merchant, "merchant", 5100);
@@ -475,7 +460,7 @@ export function createArpgHubScene(
 
       this.archivist = this.add.sprite(ARCHIVIST_HOME.x, ARCHIVIST_HOME.y, ARCHIVIST_TEXTURE, 0)
         .setOrigin(0.5, 0.82)
-        .setScale(getGuildCharacterScale("archivist"))
+        .setScale(GUILD_CHARACTER_SCALE)
         .setDepth(19);
       setGuildActorRestPose(this.archivist, "archivist");
       this.scheduleNpcBlink(this.archivist, "archivist", 4700);
@@ -491,7 +476,7 @@ export function createArpgHubScene(
         0,
       )
         .setOrigin(0.5, 0.82)
-        .setScale(getGuildCharacterScale("bestiaryKeeper"))
+        .setScale(GUILD_CHARACTER_SCALE)
         .setDepth(19);
       this.add.text(BESTIARY_KEEPER_HOME.x, BESTIARY_KEEPER_HOME.y - 59, "Luzia · Naturalista", {
         fontFamily: "monospace", fontSize: "10px", color: "#e4edbd",

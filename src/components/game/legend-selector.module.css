@@ -27,7 +27,7 @@
   padding: 9px 11px;
 }
 
-.header h2 {
+.header h1 {
   margin: 4px 0 3px;
   color: #fff0c7;
   font: 900 clamp(20px, 2.7vw, 30px)/1.05 var(--font-game), monospace;
@@ -71,6 +71,24 @@
 .wallet span { display: grid; gap: 2px; }
 .wallet small { color: #e4d39e; font: 900 7px/1.2 var(--font-game), monospace; letter-spacing: .08em; }
 .wallet strong { color: #fff0bb; font: 900 15px/1 var(--font-game), monospace; }
+
+.headerActions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.back {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 3px solid var(--legend-ink);
+  background: #e1b84f;
+  color: #211b0f;
+  font: 900 10px/1.4 var(--font-game), monospace;
+  cursor: pointer;
+}
+.back svg { width: 16px; height: 16px; }
+.back:hover { background: #f0cf72; }
+.back:focus-visible { outline: 3px solid #fff0bb; outline-offset: 3px; }
 
 .grid {
   display: grid;
@@ -236,28 +254,13 @@
 
 .preview :global(.character-avatar-2d) {
   z-index: 1;
-  width: 88px;
+  width: 128px;
   height: 102px;
   margin: 0 0 1px;
-  transform: scale(var(--legend-preview-scale, 1));
-  transform-origin: center bottom;
-  filter: drop-shadow(3px 0 #11170f) drop-shadow(0 3px #11170f);
 }
 
-/* Different sprite sheets have different transparent margins. Match their visible height. */
-.preview :global(.character-avatar-2d[data-legend-id="curupira"]) { --legend-preview-scale: .905; }
-.preview :global(.character-avatar-2d[data-legend-id="iara"]) { --legend-preview-scale: .779; }
-.preview :global(.character-avatar-2d[data-legend-id="boto"]) { --legend-preview-scale: .724; }
-.preview :global(.character-avatar-2d[data-legend-id="kappa"]) { --legend-preview-scale: .754; }
-.preview :global(.character-avatar-2d[data-legend-id="raiju"]) { --legend-preview-scale: .718; }
-.preview :global(.character-avatar-2d[data-legend-id="amarok"]) { --legend-preview-scale: 1.283; }
-.preview :global(.character-avatar-2d[data-legend-id="kelpie"]) { --legend-preview-scale: .761; }
-.preview :global(.character-avatar-2d[data-legend-id="mapinguari"]) { --legend-preview-scale: .867; }
-.preview :global(.character-avatar-2d[data-legend-id="ahuizotl"]) { --legend-preview-scale: .999; }
-.preview :global(.character-avatar-2d[data-legend-id="ratatoskr"]) { --legend-preview-scale: .799; }
-.preview :global(.character-avatar-2d[data-legend-id="carbunclo"]) { --legend-preview-scale: .791; }
-.preview :global(.character-avatar-2d[data-legend-id="alicanto"]) { --legend-preview-scale: .731; }
-.preview :global(.character-avatar-2d[data-legend-id="yeti"]) { --legend-preview-scale: .815; }
+/* The v5 sheets share one 64px logical grid and matching visible bounds.
+   A 128px preview keeps every authored pixel at an exact 2x scale. */
 
 .preview :global(.character-avatar-2d--idle-strip) > :global(.character-avatar-2d__sprite) {
   background-position: 0 0;
@@ -268,7 +271,7 @@
 .previewBase {
   position: absolute;
   z-index: 0;
-  bottom: 4px;
+  bottom: 14px;
   left: 50%;
   width: 43px;
   height: 6px;
@@ -429,17 +432,17 @@
 
 @media (max-width: 620px) {
   .header { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .headerActions { width: 100%; justify-content: space-between; }
   .wallet { min-width: 112px; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 172px), 1fr)); gap: 7px; }
-  .preview { min-height: 104px; }
+  .preview { min-height: 108px; }
 }
 
 @media (max-width: 440px) {
   .selector { padding: 7px; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 152px), 1fr)); }
   .cardTop { min-height: 54px; }
-  .preview { min-height: 100px; }
-  .preview :global(.character-avatar-2d) { width: 84px; height: 98px; }
+  .preview { min-height: 108px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
