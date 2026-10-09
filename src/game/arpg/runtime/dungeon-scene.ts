@@ -2766,6 +2766,7 @@ export function createArpgDungeonScene(
         const distance = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
         if (distance <= 500) {
           const damage = Number(enemy.getData("contactDamage")) || 18;
+          this.playEnemyProfileAction(enemy, "shoot", time, 620);
           this.telegraphAreaStrike(this.player.x, this.player.y, 104, damage, dungeon.colors.miniBoss, 620);
           bridge.emitMessage(dungeon.messages.miniBossWarning);
         }
@@ -2786,6 +2787,7 @@ export function createArpgDungeonScene(
           enemy.setData("chargeStartsAt", chargeStartsAt);
           enemy.setData("chargeEndsAt", chargeEndsAt);
           enemy.setData("nextSpecialAt", chargeEndsAt + 1850);
+          this.playEnemyProfileAction(enemy, "attack", time, 780);
           this.telegraphCharge(enemy, aim, tint);
         } else if (role === "ranged") {
           if (distance <= 580 && distance >= 100) {
@@ -2796,6 +2798,7 @@ export function createArpgDungeonScene(
           enemy.setData("nextSpecialAt", time + (distance > 580 ? 380 : 1750));
         } else if (role === "caster") {
           if (distance <= 470) {
+            this.playEnemyProfileAction(enemy, "shoot", time, 650);
             this.telegraphAreaStrike(this.player.x, this.player.y, 78, 9, tint, 650);
           }
           enemy.setData("nextSpecialAt", time + (distance > 470 ? 400 : 2750));
@@ -2820,6 +2823,7 @@ export function createArpgDungeonScene(
 
       if (definitionId === "miniBoss") {
         enemy.setData("nextSpecialAt", time + 2600);
+        this.playEnemyProfileAction(enemy, "attack", time, 520);
         this.telegraphAreaStrike(enemy.x, enemy.y, 165, 18, dungeon.colors.miniBoss, 520);
         bridge.emitMessage(dungeon.messages.miniBossWarning);
         return;
