@@ -100,6 +100,7 @@ import {
 } from "./enemy-sprites";
 import { getPixelArtTextureKey } from "./pixel-art-sheet";
 import { playActorIdle } from "./actor-idle";
+import { ActiveSceneClock, bindActiveSceneClock } from "./active-scene-clock";
 import { GENERATED_SPRITE_FRAME_SIZE, queueGeneratedLegendSpriteSheet } from "./legend-sprite-sheets";
 import {
   createNativePixelActorSheet,
@@ -338,6 +339,7 @@ export function createArpgDungeonScene(
     private activeCurupiraRootBarriers = 0;
     private chestAvailable = false;
     private chestOpening = false;
+    private runClock = new ActiveSceneClock();
     private nextAttackAt = 0;
     private basicAttackCounter = 0;
     private nextDashAt = 0;
@@ -407,6 +409,7 @@ export function createArpgDungeonScene(
       );
     }
     create() {
+      this.runClock = bindActiveSceneClock(this);
       this.clickToMoveEnabled = typeof window !== "undefined"
         && new URLSearchParams(window.location.search).get("clickToMove") === "1";
       this.cameras.main.setBackgroundColor("#102018");
@@ -607,9 +610,9 @@ export function createArpgDungeonScene(
         if (checkpoint) {
           const room = dungeonManager.getCurrentRoom();
           if (checkpoint.exitPortalAvailable) this.createExitPortal(room);
-          else if (checkpoint.rewardRoomId === room.id) this.spawnProceduralReward(room, this.time.now);
+          else if (checkpoint.rewardRoomId === room.id) this.spawnProceduralReward(room, this.runClock.now);
           else if (room.id !== dungeonManager.getGraph().startRoomId && room.state !== "cleared") {
-            this.activateProceduralRoom(room, this.time.now);
+            this.activateProceduralRoom(room, this.runClock.now);
           }
           bridge.emitMessage(`Run retomada em ${this.proceduralRoomLabel(room)}. WASD, joystick ou direcional movem sua Lenda; atravesse as portas para avançar.`);
         } else {
@@ -622,7 +625,8 @@ export function createArpgDungeonScene(
       this.emitHud(0);
       this.emitRunCheckpoint();
     }
-    update(time: number) {
+    update() {
+      const time = this.runClock.now;
       if (this.runEnded) return;
 
       if (this.visualReferenceEnabled && time - this.lastVisualReferenceAt >= 250) {
@@ -828,7 +832,7 @@ export function createArpgDungeonScene(
       });
       this.clickPath = path?.slice(1) ?? [];
       this.clickPathIndex = 0;
-      this.suppressDesktopAttackUntil = this.time.now + 180;
+      this.suppressDesktopAttackUntil = this.runClock.now + 180;
       return Boolean(path?.length);
     }
 
@@ -1553,7 +1557,7 @@ export function createArpgDungeonScene(
       projectile.setCircle(5, 1, 1);
       projectile.setVelocity(direction.x * speed, direction.y * speed);
       projectile.setData("damage", damage);
-      projectile.setData("expiresAt", this.time.now + lifeMs);
+      projectile.setData("expiresAt", this.runClock.now + lifeMs);
       projectile.setData("piercing", piercing);
       projectile.setData("hitIds", new Set<string>());
     }
@@ -1574,7 +1578,7 @@ export function createArpgDungeonScene(
       projectile.setCircle(5, 1, 1);
       projectile.setVelocity(direction.x * speed, direction.y * speed);
       projectile.setData("damage", damage);
-      projectile.setData("expiresAt", this.time.now + lifeMs);
+      projectile.setData("expiresAt", this.runClock.now + lifeMs);
     }
 
     private cleanupExpiredProjectiles(time: number) {
@@ -1611,7 +1615,7 @@ export function createArpgDungeonScene(
     }
     private handleEnemyProjectileHit(projectile: ArcadeSprite) {
       if (!this.enemyProjectiles.contains(projectile) || !projectile.active || this.runEnded) return;
-      const time = this.time.now;
+      const time = this.runClock.now;
       if (time < this.dashingUntil) {
         this.recycleProjectile(projectile);
         return;
@@ -1649,10 +1653,10 @@ export function createArpgDungeonScene(
       this.time.delayedCall(80, () => enemy.active && enemy.setAlpha(1));
 
       if (nextHp > 0) {
-        if (this.playEnemyProfileAction(enemy, "damage", this.time.now, 360)) return;
+        if (this.playEnemyProfileAction(enemy, "damage", this.runClock.now, 360)) return;
         const actorId = enemy.getData("nativeFallbackActorId") as NativePixelActorId | null;
         if (actorId) {
-          enemy.setData("actionAnimationUntil", this.time.now + 400);
+          enemy.setData("actionAnimationUntil", this.runClock.now + 400);
           this.playNativeFallbackAnimation(enemy, actorId, "damage", true);
         }
         return;
@@ -1755,10 +1759,10 @@ export function createArpgDungeonScene(
         if (next.state === "cleared") {
           const cleared = dungeonManager.clearRoom(room.id);
           this.proceduralController = null;
-          this.spawnProceduralReward(cleared, this.time.now);
+          this.spawnProceduralReward(cleared, this.runClock.now);
           return;
         }
-        this.spawnProceduralWave(room, next.waveIndex + 1, this.time.now);
+        this.spawnProceduralWave(room, next.waveIndex + 1, this.runClock.now);
       });
     }
 
@@ -1909,7 +1913,7 @@ export function createArpgDungeonScene(
       this.playSound("loot");
       bridge.emitMessage("Fragmento da run recolhido: +1.");
       this.emitRunCheckpoint();
-      this.emitHud(this.time.now);
+      this.emitHud(this.runClock.now);
     }
 
     private resolvePendingRoomChoice(choiceIdRaw: string, time: number) {
@@ -2111,8 +2115,8 @@ export function createArpgDungeonScene(
         worldOrigin: { x: layout.left, y: layout.top },
         applyState: (result) => {
           const previous = this.serverCombatState;
-          const confirmedAt = this.time.now;
-          this.applyServerCombatState(result.state, kind, time);
+          const confirmedAt = this.runClock.now;
+          this.applyServerCombatState(result.state, kind, confirmedAt);
           if (kind === "basic_attack" && result.state.attackCount > (previous?.attackCount ?? 0)) {
             this.playSound("attack");
             this.playPlayerAction("attack", confirmedAt, 360);
@@ -2183,7 +2187,7 @@ export function createArpgDungeonScene(
       }
       if (previousHp > state.playerHp) {
         this.playSound("player-hit");
-        this.playPlayerAction("damage", this.time.now, 420);
+        this.playPlayerAction("damage", this.runClock.now, 420);
         this.flashPlayer(0xff7a72, 160);
         this.shakeCameraForDamage();
       }
@@ -2211,7 +2215,7 @@ export function createArpgDungeonScene(
           && enemy.active
         ) {
           this.playSound("boss");
-          this.playEnemyAction(enemy, "attack", this.time.now, 760);
+          this.playEnemyAction(enemy, "attack", this.runClock.now, 760);
           if (serverEnemy.bossPattern?.startsWith("decoy")) this.summonCurupiraDecoys(enemy);
         }
         if (!serverEnemy.alive) {
@@ -2221,7 +2225,7 @@ export function createArpgDungeonScene(
         }
       }
       this.emitHud(time);
-      if (state.status === "defeat") this.finishRun(false, this.time.now);
+      if (state.status === "defeat") this.finishRun(false, this.runClock.now);
     }
 
     private syncServerProjectileVisuals(
@@ -2453,7 +2457,7 @@ export function createArpgDungeonScene(
       enemy.setData("tint", definition.tint);
       enemy.setData("radius", definition.radius);
       enemy.setData("nextContactAt", 0);
-      enemy.setData("nextSpecialAt", this.time.now + 1500);
+      enemy.setData("nextSpecialAt", this.runClock.now + 1500);
       enemy.setData("phase", 1);
       enemy.setData("bossPatternIndex", 0);
       enemy.setData("nextRootBarrierAt", 0);
@@ -2462,7 +2466,7 @@ export function createArpgDungeonScene(
       enemy.setData("animationProfile", animation ?? null);
       enemy.setData("nativeFallbackActorId", nativeFallbackActorId ?? null);
       enemy.setData("actionAnimationUntil", 0);
-      enemy.setData("movementReadyAt", this.time.now + 420);
+      enemy.setData("movementReadyAt", this.runClock.now + 420);
       enemy.setData("defeatPending", false);
       if (isArpgEnemyAnimationProfile(animation)) {
         this.playTrackedEnemyAnimation(enemy, animation, "idle", true);
@@ -2502,7 +2506,7 @@ export function createArpgDungeonScene(
       enemy.setData("spawnReady", false);
       if (enemy.body) enemy.body.enable = false;
       this.pendingEnemySpawns.set(enemy, {
-        activateAt: this.time.now + staggerMs + 310,
+        activateAt: this.runClock.now + staggerMs + 310,
         scaleX,
         scaleY,
       });
@@ -2581,13 +2585,13 @@ export function createArpgDungeonScene(
         enemy.setData("tint", definition.tint);
         enemy.setData("radius", definition.radius);
         enemy.setData("nextContactAt", 0);
-        enemy.setData("nextSpecialAt", this.time.now + 1500);
+        enemy.setData("nextSpecialAt", this.runClock.now + 1500);
         enemy.setData("phase", 1);
         enemy.setData("rootedUntil", 0);
         enemy.setData("animationProfile", animation ?? null);
         enemy.setData("nativeFallbackActorId", nativeFallbackActorId ?? null);
         enemy.setData("actionAnimationUntil", 0);
-        enemy.setData("movementReadyAt", this.time.now + 420);
+        enemy.setData("movementReadyAt", this.runClock.now + 420);
         enemy.setData("defeatPending", false);
         if (isArpgEnemyAnimationProfile(animation)) {
           this.playTrackedEnemyAnimation(enemy, animation, "idle", true);
@@ -2975,8 +2979,8 @@ export function createArpgDungeonScene(
         roots.forEach((root) => root.destroy());
         if (this.runEnded) return;
         this.spawnPulse(x, y, radius, dungeon.colors.phaseTwo);
-        if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) <= radius && this.time.now >= this.dashingUntil) {
-          this.applyPlayerDamage(damage, this.time.now);
+        if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) <= radius && this.runClock.now >= this.dashingUntil) {
+          this.applyPlayerDamage(damage, this.runClock.now);
         }
       });
     }
@@ -3082,8 +3086,8 @@ export function createArpgDungeonScene(
         if (this.runEnded) return;
         this.spawnPulse(x, y, radius, color);
         const distance = Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y);
-        if (distance <= radius && this.time.now >= this.dashingUntil) {
-          this.applyPlayerDamage(damage, this.time.now);
+        if (distance <= radius && this.runClock.now >= this.dashingUntil) {
+          this.applyPlayerDamage(damage, this.runClock.now);
         }
       });
     }
@@ -3196,7 +3200,7 @@ export function createArpgDungeonScene(
       this.chestOpening = true;
       openingChest.once("animationcomplete", () => {
         if (this.chest !== openingChest || !this.chestAvailable || !this.chestOpening) return;
-        this.beginChestLootPresentation(this.time.now);
+        this.beginChestLootPresentation(this.runClock.now);
       });
       openingChest.play(TREASURE_CHEST_OPEN_ANIMATION_KEY);
     }
@@ -3413,7 +3417,7 @@ export function createArpgDungeonScene(
       if (!this.isCurrentChestPresentation(presentation)) return;
       presentation.phase = presentation.kind === "loot" ? "waiting-choice" : "cache";
       presentation.resolved = true;
-      this.resolveOpenedChest(this.time.now, presentation);
+      this.resolveOpenedChest(this.runClock.now, presentation);
     }
 
     private resolveOpenedChest(time: number, presentation: ChestLootPresentation) {
@@ -3640,7 +3644,7 @@ export function createArpgDungeonScene(
       this.exitPortalAvailable = true;
       bridge.emitMessage("Loot recolhido. Aproxime-se do portal e pressione E para voltar à Guilda.");
       this.emitRunCheckpoint();
-      this.emitHud(this.time.now);
+      this.emitHud(this.runClock.now);
     }
 
     private tryUseExitPortal(time: number) {
@@ -3847,7 +3851,9 @@ export function createArpgDungeonScene(
         wave: this.proceduralController?.snapshot() ?? null,
         activeCurupiraRootBarriers: this.activeCurupiraRootBarriers,
         runtime: {
-          sceneTime: this.time?.now ?? null,
+          sceneTime: this.runClock.now,
+          engineTime: this.time?.now ?? null,
+          serverAuthoritative: bridge.isServerAuthoritativeCombat(),
           sceneActive: this.scene?.isActive(this.scene.key) ?? false,
           scenePaused: this.scene?.isPaused() ?? false,
           sceneStatus: this.sys?.settings.status ?? null,
@@ -3872,6 +3878,8 @@ export function createArpgDungeonScene(
             definitionId: String(enemy.getData("definitionId")),
             x: Math.round(enemy.x),
             y: Math.round(enemy.y),
+            hp: Number(enemy.getData("hp")),
+            maxHp: Number(enemy.getData("maxHp")),
             animation: enemy.anims.currentAnim?.key ?? null,
             defeatPending: Boolean(enemy.getData("defeatPending")),
           };
@@ -3886,6 +3894,8 @@ export function createArpgDungeonScene(
             definitionId: String(enemy.getData("definitionId")),
             x: Math.round(enemy.x),
             y: Math.round(enemy.y),
+            hp: Number(enemy.getData("hp")),
+            maxHp: Number(enemy.getData("maxHp")),
             animation: enemy.anims.currentAnim?.key ?? null,
             animationHistory: Array.isArray(enemy.getData("animationHistory"))
               ? [...enemy.getData("animationHistory") as string[]]
@@ -4041,7 +4051,7 @@ export function createArpgDungeonScene(
         const recordPlayerLifecycleEvent = (event: string) => {
           this.playerLifecycleEvents.push({
             event,
-            sceneTime: this.time?.now ?? 0,
+            sceneTime: this.runClock.now,
             stack: new Error().stack?.split("\n").slice(2, 7).join("\n"),
           });
           if (this.playerLifecycleEvents.length > 12) this.playerLifecycleEvents.shift();
@@ -4158,7 +4168,7 @@ export function createArpgDungeonScene(
         enemy.setData("hp", 1_000_000);
         enemy.setData("maxHp", 1_000_000);
         enemy.setData("contactDamage", 0);
-        enemy.setData("nextSpecialAt", this.time.now + 60_000);
+        enemy.setData("nextSpecialAt", this.runClock.now + 60_000);
       }
 
       for (let index = 0; index < requested.projectiles; index += 1) {
@@ -4174,7 +4184,7 @@ export function createArpgDungeonScene(
         projectile.setCircle(5, 1, 1);
         projectile.setVelocity(Math.cos(angle) * 92, Math.sin(angle) * 92);
         projectile.setData("damage", 0);
-        projectile.setData("expiresAt", this.time.now + 60_000);
+        projectile.setData("expiresAt", this.runClock.now + 60_000);
         projectile.setData("piercing", true);
         projectile.setData("hitIds", new Set<string>());
       }
