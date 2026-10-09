@@ -1,4 +1,5 @@
 import type { Scene } from "phaser";
+import { drawFolklardPixelActorFrame } from "./folklard-pixel-actors";
 
 /** Folklard's small, hand-built runtime actor set. */
 export const NATIVE_PIXEL_ACTORS = [
@@ -171,6 +172,7 @@ type PixelPainter = {
 function createPainter(context: CanvasRenderingContext2D): PixelPainter {
   return {
     rect(x, y, width, height, color, alpha = 1) {
+      if (width <= 0 || height <= 0) return;
       const snap = (value: number) => Math.round(value / ACTOR_PIXEL_BLOCK) * ACTOR_PIXEL_BLOCK;
       const left = Math.max(0, Math.min(GRID, snap(x)));
       const top = Math.max(0, Math.min(GRID, snap(y)));
@@ -1306,6 +1308,7 @@ function drawActorFrame(
   frame: number,
 ) {
   const p = createPainter(context);
+  if (drawFolklardPixelActorFrame(p, actor, row, frame)) return;
   const design = DESIGNS[actor];
 
   switch (design.kind) {

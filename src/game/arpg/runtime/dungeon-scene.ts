@@ -1025,7 +1025,7 @@ export function createArpgDungeonScene(
             ? 0x8fe4c2
             : 0xf4dc8e;
       const bodyRadius = Math.max(14, Math.min(24, Number(target.getData("radius")) || 14));
-      const pulse = locked ? (Math.sin(this.time.now / 95) + 1) * 1.25 : 0;
+      const pulse = locked ? (Math.sin(this.runClock.now / 95) + 1) * 1.25 : 0;
       const radius = bodyRadius + pulse;
       const arm = locked ? 7 : 5;
       const left = target.x - radius;
@@ -3519,7 +3519,7 @@ export function createArpgDungeonScene(
             : `${loot.label} equipado no slot ${decision === "replace-a" ? "A" : decision === "replace-b" ? "B" : this.weaponSlots.active}.`;
         if (room?.type === "boss") {
           this.createExitPortal(room);
-          bridge.emitMessage(`${choiceNote} O Curupira deixou uma recompensa. Entre no portal e pressione E para voltar à Guilda.`);
+          bridge.emitMessage(`${choiceNote} Recompensa do boss recolhida. Entre no portal e pressione E para voltar à Guilda.`);
           this.emitHud(time);
           return;
         }

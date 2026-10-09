@@ -1,4 +1,4 @@
-const CACHE_VERSION = "folklard-arpg-v21";
+const CACHE_VERSION = "folklard-arpg-v24";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DEVELOPMENT_ORIGIN = ["localhost", "127.0.0.1", "[::1]"].includes(self.location.hostname);
 const CORE_ASSETS = [
@@ -13,13 +13,26 @@ const CORE_ASSETS = [
   "/art/monster-curupira-ancestral-spritesheet-v2.webp",
   "/art/monster-amarok-elder-wolf-spritesheet-v2.webp",
   "/art/monster-iara-boss-spritesheet-v2.webp",
-  "/art/monster-sprout-spritesheet-v1.webp",
+  "/art/monster-sprout-spritesheet-v3.webp",
   "/art/monster-boto-enemy-spritesheet-v1.webp",
   "/art/monster-raiju-enemy-spritesheet-v1.webp",
-  "/art/guild-blacksmith-spritesheet-v1.webp",
-  "/art/guild-merchant-spritesheet-v1.webp",
-  "/art/guild-archivist-spritesheet-v1.webp",
-  "/art/guild-bestiary-keeper-spritesheet-v1.webp",
+  "/art/guild-blacksmith-spritesheet-v3.webp",
+  "/art/guild-merchant-spritesheet-v3.webp",
+  "/art/guild-archivist-spritesheet-v3.webp",
+  "/art/guild-bestiary-keeper-spritesheet-v3.webp",
+  "/art/legend-curupira-spritesheet-v3.webp",
+  "/art/legend-iara-spritesheet-v3.webp",
+  "/art/legend-boto-spritesheet-v3.webp",
+  "/art/legend-amarok-spritesheet-v3.webp",
+  "/art/legend-raiju-spritesheet-v3.webp",
+  "/art/legend-mapinguari-spritesheet-v3.webp",
+  "/art/legend-kappa-spritesheet-v3.webp",
+  "/art/legend-kelpie-spritesheet-v3.webp",
+  "/art/legend-ahuizotl-spritesheet-v3.webp",
+  "/art/legend-ratatoskr-spritesheet-v3.webp",
+  "/art/legend-carbunclo-spritesheet-v3.webp",
+  "/art/legend-alicanto-spritesheet-v3.webp",
+  "/art/legend-yeti-spritesheet-v3.webp",
   "/art/folklard-title-forest-portal-pixel-v3.webp",
   "/art/guild-room-wide-background-v2.webp",
   "/art/refuge-pixel-v2.webp",
