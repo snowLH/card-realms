@@ -1,0 +1,129 @@
+// @vitest-environment jsdom
+import "@testing-library/jest-dom/vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ArpgHudState } from "@/game/arpg/domain/types";
+import { ArpgBridge } from "@/game/arpg/runtime/bridge";
+import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
+import { ArpgGame } from "./arpg-game";
+
+const createGame = vi.hoisted(() => vi.fn());
+vi.mock("@/game/arpg/runtime/create-game", () => ({ createArpgGame: createGame }));
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((accept, decline) => { resolve = accept; reject = decline; });
+  return { promise, resolve, reject };
+}
+
+const startPayload = {
+  token: "test-run-token", runSeed: "test-run-seed", checkpoint: {},
+  persistent: true, resumed: false, revision: 0,
+};
+const completedRun: ArpgHudState = {
+  nowMs: 1000, hp: 0, maxHp: 120, room: 2, roomCount: 8,
+  enemiesRemaining: 0, weaponId: DEFAULT_ARPG_LOADOUT.weaponId,
+  armorId: DEFAULT_ARPG_LOADOUT.armorId, relicId: DEFAULT_ARPG_LOADOUT.relicId,
+  dungeonMap: null, runShards: 0, runMoveSpeedBonus: 0, runBasicDamageMultiplier: 1,
+  chestAvailable: false, pendingLoot: null, pendingRoomChoice: null, runLoot: [],
+  abilityIds: DEFAULT_ARPG_LOADOUT.abilityIds, dashReadyAt: 0,
+  abilityReadyAt: {}, xpEarned: 10, runEnded: true, victory: false,
+};
+const resultPayload = { persisted: true, reward: { coins: 0, xp: 0, victory: false, items: [] } };
+
+let runtimeBridge: ArpgBridge;
+const session = { destroy: vi.fn(), setPaused: vi.fn() };
+const fetchMock = vi.fn();
+
+beforeEach(() => {
+  window.localStorage.clear();
+  session.destroy.mockClear();
+  session.setPaused.mockClear();
+  createGame.mockReset().mockImplementation(async (_host, bridge: ArpgBridge) => {
+    runtimeBridge = bridge;
+    return session;
+  });
+  fetchMock.mockReset().mockImplementation(async () => Response.json(startPayload));
+  vi.stubGlobal("fetch", fetchMock);
+  Object.defineProperty(window, "matchMedia", { configurable: true, value: vi.fn(() => ({
+    matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+  })) });
+});
+
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); window.localStorage.clear(); });
+
+async function boot(onRunComplete = vi.fn()) {
+  const onExit = vi.fn();
+  const rendered = render(<ArpgGame onExit={onExit} onRunComplete={onRunComplete} />);
+  await waitFor(() => expect(createGame).toHaveBeenCalledOnce());
+  return { ...rendered, onExit, onRunComplete };
+}
+
+describe("ARPG run completion and recovery", () => {
+  it("allows an unsuccessful persistent completion to be retried without inventing a local reward", async () => {
+    const view = await boot();
+    fetchMock.mockRejectedValueOnce(new Error("Conexão interrompida."))
+      .mockResolvedValueOnce(Response.json(resultPayload));
+    act(() => runtimeBridge.emitRunEnd(completedRun));
+    const retry = await screen.findByRole("button", { name: "Tentar registrar novamente" });
+    expect(screen.getByText("Conexão interrompida.")).toBeVisible();
+    expect(view.onRunComplete).not.toHaveBeenCalled();
+    fireEvent.click(retry);
+    await waitFor(() => expect(view.onRunComplete).toHaveBeenCalledOnce());
+    expect(view.onRunComplete).toHaveBeenCalledWith(completedRun, resultPayload);
+    const completions = fetchMock.mock.calls.slice(1).map(([, options]) => JSON.parse(options.body));
+    expect(completions).toEqual([
+      { action: "complete", token: startPayload.token, victory: false },
+      { action: "complete", token: startPayload.token, victory: false },
+    ]);
+  });
+
+  it("keeps result exits disabled while the server is recording the outcome", async () => {
+    const view = await boot();
+    const pending = deferred<Response>();
+    fetchMock.mockReturnValueOnce(pending.promise);
+    act(() => runtimeBridge.emitRunEnd(completedRun));
+    await screen.findByText("Validando extração...");
+    expect(screen.getByRole("button", { name: "Registrando resultado..." })).toBeDisabled();
+    for (const exit of screen.getAllByRole("button", { name: "Voltar à Guilda" })) {
+      expect(exit).toBeDisabled();
+      fireEvent.click(exit);
+    }
+    expect(view.onExit).not.toHaveBeenCalled();
+    await act(async () => pending.resolve(Response.json(resultPayload)));
+    expect(screen.getAllByRole("button", { name: "Voltar à Guilda" }).every((b) => !b.hasAttribute("disabled"))).toBe(true);
+  });
+
+  it("starts a fresh expedition after a recorded defeat and destroys the previous scene", async () => {
+    await boot();
+    fetchMock.mockResolvedValueOnce(Response.json(resultPayload));
+    act(() => runtimeBridge.emitRunEnd(completedRun));
+    fireEvent.click(await screen.findByRole("button", { name: "Tentar outra vez" }));
+    await waitFor(() => expect(createGame).toHaveBeenCalledTimes(2));
+    expect(session.destroy).toHaveBeenCalledOnce();
+    expect(screen.queryByText("FIM DA EXPEDIÇÃO")).not.toBeInTheDocument();
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toMatchObject({ action: "start" });
+  });
+
+  it("delivers a run result once when the scene repeats its end event", async () => {
+    const view = await boot();
+    fetchMock.mockResolvedValueOnce(Response.json(resultPayload));
+    act(() => { runtimeBridge.emitRunEnd(completedRun); runtimeBridge.emitRunEnd(completedRun); });
+    await waitFor(() => expect(view.onRunComplete).toHaveBeenCalledOnce());
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not reactivate authoritative combat after unmounting during boot", async () => {
+    const pending = deferred<Response>();
+    fetchMock.mockReturnValueOnce(pending.promise);
+    const spy = vi.spyOn(ArpgBridge.prototype, "setServerAuthoritativeCombat");
+    const view = render(<ArpgGame onExit={vi.fn()} />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    view.unmount();
+    await act(async () => pending.resolve(Response.json(startPayload)));
+    expect(createGame).not.toHaveBeenCalled();
+    expect((spy.mock.contexts[0] as ArpgBridge).isServerAuthoritativeCombat()).toBe(false);
+    spy.mockRestore();
+  });
+});

@@ -8,6 +8,7 @@ import type { ArpgRunCheckpoint } from "../dungeon/run-checkpoint";
 import type { ArpgLoadout, ArpgRuntimeBridge } from "../domain/types";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
 import { ARPG_GAMEPLAY_VIEWPORT, ARPG_PIXEL_RENDER_SETTINGS } from "./render-config";
+import { createScenePauseControl } from "./scene-pause-control";
 
 export async function createArpgGame(
   parent: HTMLElement,
@@ -32,6 +33,7 @@ export async function createArpgGame(
   const Phaser = await import("phaser");
   const { createArpgDungeonScene } = await import("./dungeon-scene");
   const DungeonScene = createArpgDungeonScene(Phaser, bridge, dungeon, loadout, lootPlan, dungeonManager, checkpoint, avatarConfig);
+  const pauseControl = createScenePauseControl(bridge);
 
   const game = new Phaser.Game({
     type: Phaser.AUTO,
@@ -49,23 +51,18 @@ export async function createArpgGame(
       ...viewport,
     },
     scene: [DungeonScene],
+    callbacks: {
+      postBoot: (bootedGame) => pauseControl.attach(bootedGame.scene.getScenes(false)[0]),
+    },
   });
   return {
     game,
     dungeonGraph: dungeonManager?.getGraph(),
     setPaused(paused: boolean) {
-      const scene = game.scene.getScenes(false)[0];
-      if (!scene) return;
-      bridge.clearGameplayInput();
-      scene.input.keyboard?.resetKeys();
-      if (paused) {
-        scene.scene.pause();
-      } else {
-        scene.scene.resume();
-      }
+      pauseControl.setPaused(paused);
     },
     destroy() {
-      bridge.clearGameplayInput();
+      pauseControl.destroy();
       game.destroy(true);
     },
   };

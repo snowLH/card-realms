@@ -88,6 +88,8 @@ export function ArpgGame({
   const checkpointQueueRef = useRef<Promise<void>>(Promise.resolve());
   const onRunCompleteRef = useRef(onRunComplete);
   const runCompletedRef = useRef(false);
+  const extractionInFlightRef = useRef(false);
+  const retryExtractionRef = useRef<(() => Promise<void>) | null>(null);
   const [bridge] = useState(() => new ArpgBridge());
   const [soundEnabled, setSoundEnabled] = useState(() => bridge.getSoundEnabled());
   const portraitMobile = useSyncExternalStore(
@@ -102,10 +104,15 @@ export function ArpgGame({
   const [paused, setPaused] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
+  const [extractionStatus, setExtractionStatus] = useState<"idle" | "pending" | "error" | "complete">("idle");
   const [bootError, setBootError] = useState<string | null>(null);
   const [bootAttempt, setBootAttempt] = useState(0);
   const [atlasTarget, setAtlasTarget] = useState<AtlasEncounterTarget | null>(null);
   const hasDungeonMap = Boolean(hud?.dungeonMap);
+  const extractionPending = extractionStatus === "pending";
+  const requestExit = () => {
+    if (!extractionInFlightRef.current) onExit();
+  };
 
   useEffect(() => {
     onRunCompleteRef.current = onRunComplete;
@@ -169,7 +176,9 @@ export function ArpgGame({
     const onBack = (event: Event) => {
       event.preventDefault();
       bridge.clearGameplayInput();
-      if (runResult) onExit();
+      if (runResult) {
+        if (!extractionInFlightRef.current) onExit();
+      }
       else if (mapOpen) setMapOpen(false);
       else setPaused(true);
     };
@@ -249,10 +258,14 @@ export function ArpgGame({
       });
     };
 
-    const completeRun = async (state: ArpgHudState) => {
-      if (runCompletedRef.current) return;
+    const completeRun = async (state: ArpgHudState, retry = false) => {
+      if (disposed || extractionInFlightRef.current || (runCompletedRef.current && !retry)) return;
       runCompletedRef.current = true;
+      extractionInFlightRef.current = true;
+      setExtractionStatus("pending");
       setRunResult(state);
+      const persistent = persistentRunRef.current;
+      retryExtractionRef.current = persistent ? () => completeRun(state, true) : null;
       const localExtraction: ArpgExtractionResult = {
         persisted: false,
         reward: {
@@ -267,7 +280,10 @@ export function ArpgGame({
         setExtractionMessage(state.victory
           ? `Vitória local: +${localExtraction.reward.coins} moedas e +${localExtraction.reward.xp} XP.`
           : "Expedição local encerrada sem recompensa de vitória.");
-        onRunCompleteRef.current?.(state, persistentRunRef.current ? undefined : localExtraction);
+        extractionInFlightRef.current = false;
+        setExtractionStatus("complete");
+        retryExtractionRef.current = null;
+        onRunCompleteRef.current?.(state, persistent ? undefined : localExtraction);
         return;
       }
       setExtractionMessage("Validando extração...");
@@ -284,18 +300,23 @@ export function ArpgGame({
         );
         if (!response.ok) throw new Error(payload.error ?? "A extração não pôde ser validada.");
         setExtractionMessage(payload.persisted
-          ? "Extração registrada na conta."
+          ? state.victory ? "Extração registrada na conta." : "Resultado registrado na conta."
           : state.victory
             ? `Vitória local: +${payload.reward.coins} moedas e +${payload.reward.xp} XP.`
             : "Expedição local encerrada sem recompensa de vitória.");
+        retryExtractionRef.current = null;
+        setExtractionStatus("complete");
         onRunCompleteRef.current?.(state, payload);
       } catch (error) {
-        setExtractionMessage(persistentRunRef.current
+        setExtractionMessage(persistent
           ? error instanceof Error ? error.message : "Falha ao registrar extração."
           : state.victory
             ? `Vitória local: +${localExtraction.reward.coins} moedas e +${localExtraction.reward.xp} XP.`
             : "Expedição local encerrada sem recompensa de vitória.");
-        onRunCompleteRef.current?.(state, persistentRunRef.current ? undefined : localExtraction);
+        setExtractionStatus(persistent ? "error" : "complete");
+        if (!persistent) onRunCompleteRef.current?.(state, localExtraction);
+      } finally {
+        extractionInFlightRef.current = false;
       }
     };
 
@@ -307,6 +328,18 @@ export function ArpgGame({
         runTokenRef.current = null;
         persistentRunRef.current = false;
         runCompletedRef.current = false;
+        checkpointRevisionRef.current = 0;
+        checkpointQueueRef.current = Promise.resolve();
+        retryExtractionRef.current = null;
+        extractionInFlightRef.current = false;
+        bootStartedRef.current = false;
+        setReady(false);
+        setHud(null);
+        setRunResult(null);
+        setPaused(false);
+        setMapOpen(false);
+        setExtractionMessage(null);
+        setExtractionStatus("idle");
         setBootError(null);
         const response = await fetch("/api/arpg/run", {
           method: "POST",
@@ -333,6 +366,7 @@ export function ArpgGame({
         if (!response.ok || !payload.token || !payload.runSeed || !payload.checkpoint) {
           throw new Error(payload.error ?? "A sessão da run não pôde ser criada.");
         }
+        if (disposed) return;
         runTokenRef.current = payload.token;
         const resolvedTarget = resolveAtlasEncounterTarget(payload.atlasEncounter ?? null);
         if (atlasEncounter && !resolvedTarget) {
@@ -383,6 +417,7 @@ export function ArpgGame({
       offCheckpoint();
       offEncounter();
       bridge.setServerAuthoritativeCombat(false);
+      retryExtractionRef.current = null;
       gameControlRef.current = null;
       destroyGame?.();
       setReady(false);
@@ -456,7 +491,7 @@ export function ArpgGame({
             <button type="button" onClick={() => void requestFullscreen()} aria-label="Tela cheia">
               <Maximize2 />
             </button>
-            <button type="button" onClick={onExit} aria-label={exitLabel}>
+            <button type="button" disabled={extractionPending} onClick={requestExit} aria-label={exitLabel}>
               <X />
             </button>
           </div>
@@ -473,7 +508,7 @@ export function ArpgGame({
                   <button type="button" onClick={() => setBootAttempt((attempt) => attempt + 1)}>
                     Tentar novamente
                   </button>
-                  <button type="button" onClick={onExit}>{exitLabel}</button>
+                  <button type="button" onClick={requestExit}>{exitLabel}</button>
                 </div>
               ) : "Carregando motor ARPG..."}
             </div>
@@ -502,7 +537,7 @@ export function ArpgGame({
                 <h1 id="arpg-pause-title">Pausa</h1>
                 <p>Retome quando estiver pronto para continuar a jornada.</p>
                 <button type="button" autoFocus onClick={() => setPaused(false)}>Retomar</button>
-                <button type="button" onClick={onExit}>{exitLabel}</button>
+                <button type="button" disabled={extractionPending} onClick={requestExit}>{exitLabel}</button>
               </div>
             </section>
           ) : null}
@@ -536,11 +571,11 @@ export function ArpgGame({
           <Smartphone aria-hidden="true" />
           <strong>Gire o aparelho</strong>
           <span>A dungeon foi pausada. Jogue com a tela na horizontal para ter espaço para mover, atacar e usar seus poderes.</span>
-          <button type="button" onClick={onExit}>{exitLabel}</button>
+          <button type="button" disabled={extractionPending} onClick={requestExit}>{exitLabel}</button>
         </div>
       ) : null}
       {runResult ? (
-        <div className="arpg-run-result">
+        <div className="arpg-run-result" aria-busy={extractionPending}>
           <div>
             <small>{runResult.victory ? "RUN CONCLUÍDA" : "FIM DA EXPEDIÇÃO"}</small>
             <strong>{runResult.victory ? expedition.victoryTitle : `${expedition.name} venceu desta vez`}</strong>
@@ -551,8 +586,14 @@ export function ArpgGame({
                 : <span>Nenhum loot encontrado</span>}
             </div>
             <small>{runResult.victory ? "Loot elegível para extração." : "Loot da run ainda não foi extraído."}</small>
-            {extractionMessage ? <span className="arpg-run-result__extraction">{extractionMessage}</span> : null}
-            <button type="button" onClick={onExit}>{exitLabel}</button>
+            {extractionMessage ? <span className="arpg-run-result__extraction" role={extractionStatus === "error" ? "alert" : "status"}>{extractionMessage}</span> : null}
+            {extractionStatus === "error" ? (
+              <button type="button" onClick={() => void retryExtractionRef.current?.()}>Tentar registrar novamente</button>
+            ) : null}
+            {!runResult.victory && extractionStatus === "complete" ? (
+              <button type="button" onClick={() => setBootAttempt((attempt) => attempt + 1)}>Tentar outra vez</button>
+            ) : null}
+            <button type="button" disabled={extractionPending} onClick={requestExit}>{extractionPending ? "Registrando resultado..." : exitLabel}</button>
           </div>
         </div>
       ) : null}
