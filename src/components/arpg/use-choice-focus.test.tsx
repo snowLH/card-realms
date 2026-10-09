@@ -9,7 +9,7 @@ function Choices() {
   const ref = useChoiceFocus(true);
   return <div ref={ref} role="dialog"><button disabled>Comprar</button><button>Manter</button><button>Equipar</button></div>;
 }
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 describe("dungeon decision focus", () => {
   it("cycles only enabled choices with Tab and Shift+Tab", () => {
     render(<Choices />);
@@ -41,5 +41,30 @@ describe("dungeon decision focus", () => {
     view.unmount();
     expect(previous).toHaveFocus();
     previous.remove();
+  });
+  it("reveals a focused choice inside the list and adjusts after a smaller viewport", () => {
+    let paneHeight = 100;
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains("arpg-room-choice__options")) return new DOMRect(0, 100, 300, paneHeight);
+      const pane = this.closest<HTMLElement>(".arpg-room-choice__options");
+      const y = this.textContent === "Equipar" ? 300 : 100;
+      return new DOMRect(0, y - (pane?.scrollTop ?? 0), 300, 50);
+    });
+    function ScrolledChoices() {
+      const ref = useChoiceFocus(true);
+      return <div ref={ref}><div className="arpg-room-choice__options"><button disabled>Comprar</button><button>Manter</button><button>Equipar</button></div></div>;
+    }
+    const view = render(<ScrolledChoices />);
+    const pane = view.container.querySelector<HTMLElement>(".arpg-room-choice__options")!;
+    expect(pane.scrollTop).toBe(0);
+    fireEvent.keyDown(window, { key: "Tab" });
+    expect(screen.getByRole("button", { name: "Equipar" })).toHaveFocus();
+    expect(pane.scrollTop).toBe(150);
+    paneHeight = 50;
+    fireEvent(window, new Event("resize"));
+    expect(pane.scrollTop).toBe(200);
+    fireEvent.keyDown(window, { key: "Tab" });
+    expect(screen.getByRole("button", { name: "Manter" })).toHaveFocus();
+    expect(pane.scrollTop).toBe(0);
   });
 });

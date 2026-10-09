@@ -2180,12 +2180,22 @@
 }
 
 .arpg-room-choice .arpg-room-choice__panel {
-  width: min(610px, calc(100vw - 20px));
+  display: flex;
+  flex-direction: column;
+  width: min(610px, 100%);
+  overflow: hidden;
+}
+
+.arpg-room-choice .arpg-room-choice__panel > header,
+.arpg-room-choice .arpg-room-choice__wallet,
+.arpg-room-choice .arpg-room-choice__note {
+  flex: 0 0 auto;
 }
 
 .arpg-room-choice .arpg-room-choice__wallet {
   width: fit-content;
   justify-self: center;
+  align-self: center;
   min-height: 32px;
   border: 1px solid var(--choice-accent);
   border-radius: 3px;
@@ -2207,7 +2217,15 @@
 }
 
 .arpg-room-choice .arpg-room-choice__options {
+  flex: 1 1 auto;
+  min-height: 0;
   gap: 8px;
+  grid-auto-rows: min-content;
+  align-items: start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  scrollbar-color: #936431 #142118;
 }
 
 .arpg-room-choice .arpg-room-choice__options > button {
@@ -2305,6 +2323,7 @@
 .arpg-room-choice .arpg-room-choice__note {
   max-width: 58ch;
   justify-self: center;
+  align-self: center;
   color: #b6b99f;
   font-size: 9px;
   line-height: 1.55;
@@ -2360,6 +2379,12 @@
   .arpg-dungeon-reward .arpg-loot-choice__panel > header > span,
   .arpg-room-choice .arpg-room-choice__panel > header > span {
     display: none;
+  }
+
+  .arpg-room-choice .arpg-room-choice__panel > header > span {
+    display: block;
+    font-size: 10px;
+    line-height: 1.35;
   }
 
   .arpg-dungeon-reward .arpg-loot-choice__compare > article {
