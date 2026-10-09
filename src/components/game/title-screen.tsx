@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Download, Settings, UsersRound } from "lucide-react";
+import { Download, Play, Settings, ShieldCheck, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,6 +11,7 @@ import {
   setSoundEnabledPreference,
   subscribeSoundPreference,
 } from "@/game/arpg/runtime/sound-preference";
+import styles from "./title-screen.module.css";
 
 export function TitleScreen({
   loginEnabled,
@@ -26,6 +27,7 @@ export function TitleScreen({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const soundEnabled = useSyncExternalStore(subscribeSoundPreference, getSoundEnabledSnapshot, () => true);
   const audioRef = useRef<ArpgAudio | null>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const audio = new ArpgAudio("title-screen");
@@ -44,14 +46,30 @@ export function TitleScreen({
   };
 
   return (
-    <section className="title-screen" aria-labelledby="title-screen-heading">
-      <div className="title-screen__glow" aria-hidden="true" />
+    <section className={styles.screen} aria-labelledby="title-screen-heading" data-title-screen>
+      <header className={styles.toolbar}>
+        <span className={styles.worldNote}>13 Lendas <span aria-hidden="true">·</span> 3 biomas</span>
+        <nav className={styles.utility} aria-label="Conta e opções">
+          <LoginDialog label={loginEnabled ? "CONTA" : "ENTRAR"} className={styles.utilityButton} />
+          <button
+            ref={settingsButtonRef}
+            type="button"
+            className={styles.utilityButton}
+            onClick={() => setSettingsOpen(true)}
+            aria-label="CONFIGURAÇÕES"
+            title="Configurações"
+          >
+            <Settings aria-hidden="true" />
+            <span className={styles.settingsLabel}>Configurações</span>
+          </button>
+        </nav>
+      </header>
 
-      <div className="title-screen__content">
-        <div className="title-screen__brand">
-          <span className="title-screen__kicker"><span aria-hidden="true">✦</span> Uma jornada de folclore</span>
+      <div className={styles.content}>
+        <div className={styles.brand}>
+          <span className={styles.kicker}><span aria-hidden="true">✦</span> Uma jornada de folclore</span>
           <h1 id="title-screen-heading">
-            <span className="title-screen__logo-mark" aria-hidden="true">
+            <span className={styles.logoMark} aria-hidden="true">
               <svg viewBox="0 0 32 32" shapeRendering="crispEdges">
                 <path d="M10 2h12v4h4v4h4v16h-4v4H6v-4H2V10h4V6h4z" fill="currentColor" />
                 <path d="M12 8h8v4h4v12h-4v4h-8v-4H8V12h4z" fill="#10291f" />
@@ -63,55 +81,49 @@ export function TitleScreen({
           </h1>
           <p>Crônicas de Aurória</p>
         </div>
+
+        <p className={styles.description}>Explore masmorras, encontre armas e enfrente criaturas do folclore. Sua jornada começa na Guilda.</p>
+
+        <nav className={styles.menu} aria-label="Escolher modo de jogo">
+          <button type="button" className={`${styles.action} ${styles.play}`} onClick={onPlay}>
+            <span className={styles.playIcon}><Play aria-hidden="true" /></span>
+            <span className={styles.buttonCopy}>
+              <strong>JOGAR</strong>{" "}
+              <small>{signedIn ? "Entrar na Guilda" : "Começar como visitante"}</small>
+            </span>
+            <span className={styles.playArrow} aria-hidden="true">→</span>
+          </button>
+          <button type="button" className={`${styles.action} ${styles.cooperative}`} onClick={onCooperative} disabled={!onCooperative}>
+            <UsersRound aria-hidden="true" />
+            <span className={styles.buttonCopy}><strong>COOPERATIVO</strong>{" "}<small>Dungeons com amigos</small></span>
+          </button>
+          <Link href="/instalar" className={`${styles.action} ${styles.download}`} aria-label="Baixar Folklard para PC ou celular">
+            <Download aria-hidden="true" />
+            <span className={styles.buttonCopy}><strong>BAIXAR</strong>{" "}<small>PC e celular</small></span>
+          </Link>
+        </nav>
+
+        <p className={styles.saveNote}>
+          <ShieldCheck aria-hidden="true" />
+          <span>{signedIn
+            ? "Seu progresso está vinculado à sua conta."
+            : "Visitante · o progresso fica salvo neste aparelho."}</span>
+        </p>
       </div>
 
-      <nav className="title-screen__utility" aria-label="Conta e opções">
-        <LoginDialog
-          label={loginEnabled ? "CONTA" : "ENTRAR"}
-          className="title-screen__login title-screen__utility-login"
-        />
-        <button
-          type="button"
-          className="title-screen__menu-button title-screen__utility-settings"
-          onClick={() => setSettingsOpen(true)}
-          aria-label="CONFIGURAÇÕES"
-          title="Configurações"
-        >
-          <Settings aria-hidden="true" />
-        </button>
-      </nav>
-
-      <p className="title-screen__save-note">
-        {signedIn
-          ? "Seu progresso está vinculado à sua conta."
-          : "Visitante · o progresso fica salvo neste aparelho."}
-      </p>
-
-      <nav className="title-screen__menu" aria-label="Escolher modo de jogo">
-        <button type="button" className="title-screen__play" onClick={onPlay}>
-          <span aria-hidden="true">▶</span>
-          <span className="title-screen__button-copy">
-            JOGAR
-            <small>{signedIn ? "Entrar na Guilda" : "Começar como visitante"}</small>
-          </span>
-        </button>
-        <button type="button" className="title-screen__mode title-screen__mode--cooperative" onClick={onCooperative} disabled={!onCooperative}>
-          <UsersRound aria-hidden="true" />
-          <span>COOPERATIVO<small>Dungeons com amigos</small></span>
-        </button>
-        <Link href="/instalar" className="title-screen__download" aria-label="Baixar Folklard para PC ou celular">
-          <Download aria-hidden="true" />
-          <span>BAIXAR APLICATIVO</span>
-        </Link>
-      </nav>
-
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="title-screen__dialog">
+        <DialogContent
+          className={styles.dialog}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            settingsButtonRef.current?.focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Configurações</DialogTitle>
             <DialogDescription>Ajuste as opções da sua jornada.</DialogDescription>
           </DialogHeader>
-          <label className="title-screen__setting-row">
+          <label className={styles.settingRow}>
             <span><strong>Áudio do jogo</strong><small>Música e efeitos da aventura</small></span>
             <input
               type="checkbox"
