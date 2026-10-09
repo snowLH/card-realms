@@ -13,7 +13,11 @@ import { gridCellKey, worldToGridCell } from "../navigation/grid-path";
 describe("chest loot presentation", () => {
   it("uses the assigned weapon silhouette and its declared rarity", () => {
     expect(getChestLootVisualDetails({ kind: "weapon", id: "raiju-staff", label: "Cajado do Raijū" }))
-      .toMatchObject({ silhouette: "staff", rarity: "epic" });
+      .toMatchObject({
+        silhouette: "staff",
+        rarity: "epic",
+        textureKey: "arpg-weapon-raiju-staff",
+      });
   });
 
   it("keeps rarity feedback defined across the full rarity union", () => {
