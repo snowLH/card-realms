@@ -16,6 +16,23 @@ Atualizado em 9 de outubro de 2026. **As quatro fases da missão ainda não est�
 - Correção posterior de enquadramento: o grid CSS e as margens do Phaser centralizavam o canvas duas vezes. Em 1920×1080, a Guilda estava em (480,270); agora está em (320,180), com 1280×720, centralizada. A mesma regra corrige a dungeon.
 - Gate local desse grupo: **473 testes em 90 arquivos**, TypeScript, lint e build de produção aprovados. Publicação e workflows remotos desse grupo ainda devem ser conferidos após o envio.
 
+### Grupo posterior — inimigos originais da Mata
+
+- Sombra da Mata, Espinho Vivo, Guardião Corrompido e Mapinguari têm quatro folhas v3 originais, desenhadas em grade 32×32 e exportadas em escala inteira 8×. Cada uma contém 24 quadros em seis ações; juntas ocupam 8.058 bytes. Não são recolorações ou redução das folhas pintadas anteriores, nem reutilização da Lenda Mapinguari.
+- O manifesto e o carregador usam as novas folhas. Se a imagem falhar, o Canvas desenha os mesmos pixels originais. O Broto aponta explicitamente para sua folha v3 já existente; a folha de herói Mapinguari deixou de ser carregada inutilmente quando a animação própria do monstro está disponível.
+- Mapinguari usa 96 px de quadro e pixels de 3 px na escala lógica do jogo. O raio de colisão continua vindo da definição do inimigo; a mudança de escala não altera esse raio.
+- Nove testes novos verificam os WebPs reais, transparência binária, pixels 8×8 uniformes, margem dos quadros, seis ciclos distintos, silhuetas distintas e igualdade dos pixels exportados com o fallback executado. Foi corrigida uma pose de repouso estática do Espinho Vivo encontrada pelo teste, preservando a asserção.
+- Gate completo local: **482 testes em 92 arquivos**, TypeScript, lint e build de produção aprovados. As quatro imagens foram carregadas pelo Phaser e apareceram em combates reais. Sombra e Mapinguari: primeira sala concluída e baú aberto. Espinho Vivo, Sombra e Guardião: primeira onda da elite concluída; Mapinguari: segunda onda concluída. Uma tentativa anterior terminou em derrota após equipar uma espada e continuar atacando de longe. Não atribuir essa derrota ao balanceamento sem nova evidência, nem juntar seeds para declarar vitória.
+- Capturas: `inimigos-mata-v3-revisao.png`, `mata-inimigos-v3-no-jogo.png`, `mata-elite-v3-no-jogo.png`. Registros: `mata-inimigos-v3-percurso.json` e `mata-combate-v3-desempenho.json`. Amostras reais de combate nesse navegador ficaram próximas de 60 FPS; continuam pendentes medição sustentada e dispositivos físicos.
+- Revisão posterior do canvas: tracks do grid agora têm mínimo zero também em janelas com teclado/mouse. A validação pública anterior revelou que o modo 915×412 com ponteiro fino cortava a cena em 515 px de altura; o novo build local mostra 732×412, inteiro e centralizado. Captura: `guilda-janela-baixa-915x412.png`. Conferir esse ajuste após a nova publicação.
+- A fase visual continua parcial: outros inimigos, bosses, biomas, retratos, UI e VFX ainda precisam de passes próprios.
+
+### Resultado remoto da rotação e enquadramento
+
+`7e196cde4da2f34f83123b1f090106c8370cecb4`: Verify [37962076626](https://github.com/snowLH/card-realms/actions/runs/37962076626), desktop [37962076695](https://github.com/snowLH/card-realms/actions/runs/37962076695), Android [37962076618](https://github.com/snowLH/card-realms/actions/runs/37962076618) e simulador iOS [37962076713](https://github.com/snowLH/card-realms/actions/runs/37962076713) concluídos com sucesso. Android compilou e preservou o APK oficial; publicação pulada pela verificação de assinatura. Windows/Linux publicados com metadados desse SHA; `/instalar` exibiu a compilação correta e os três arquivos disponíveis.
+
+Deploy `dpl_2FBkAMeDHS6neigQiNRGhAxnCmMZ`: READY no SHA acima, alias oficial sem erro. Guilda pública conferida em portrait, landscape e desktop: mesmo canvas, posição e interação próxima ao Cartógrafo preservados; E abriu as expedições depois das rotações. Visitante continuou em 885 moedas/Nv. 3. Capturas/registro: `Folklard-publico-7e196cd.png`, `guilda-publicada-7e196cd.png`, `guilda-rotacao-publicada-7e196cd.json`. O ajuste posterior para janela baixa com ponteiro fino e as quatro novas artes ainda precisam de novo SHA e publicação.
+
 ### Evidência de gameplay e limites
 
 - Montanhas Rúnicas: sala comum, tesouro, evento, descanso, loja, elite, Yeti e arena do Amarok foram percorridos em tentativas reais. Uma run chegou ao Amarok e terminou em derrota com 41 HP restantes do boss; outra terminou em sala comum. **Ainda não há vitória, extração e persistência completas das Montanhas.** Não equiparar trechos de tentativas diferentes a uma run vencedora.
