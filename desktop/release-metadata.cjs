@@ -10,6 +10,7 @@ const { version } = require("./package.json");
 const platform = process.argv[2];
 const signing = process.argv[3] ?? "unsigned-test";
 if (!["Windows", "Linux"].includes(platform)) throw new Error("Unknown desktop target");
+if (!["signed-release", "unsigned-test"].includes(signing)) throw new Error("Unknown desktop signing classification");
 const extension = platform === "Windows" ? ".exe" : ".AppImage";
 const folder = path.join(__dirname, "dist");
 const file = `Folklard-${platform}${extension}`;

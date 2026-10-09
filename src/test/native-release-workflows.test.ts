@@ -97,6 +97,15 @@ describe("native release workflow hardening", () => {
     expect(source).toContain("contents: write");
   });
 
+  it("preserves installed Android progress when a signed APK has a different or unverifiable certificate", () => {
+    const source = workflow(".github/workflows/android-signed-release.yml");
+    expect(source).toContain("update-compatible: ${{ steps.signing.outputs.compatible }}");
+    expect(source).toContain("compatible=false");
+    expect(source).toContain('if [ -n "$previous" ] && [ "$previous" = "$current" ]; then compatible=true; fi');
+    expect(source).toContain("if: github.ref == 'refs/heads/main' && needs.release.outputs.update-compatible == 'true'");
+    expect(source.indexOf("Check update signature")).toBeLessThan(source.indexOf("Upload signed release"));
+  });
+
   it("never downgrades a signed Windows download from the automatic desktop workflow", () => {
     const source = workflow(".github/workflows/desktop-app.yml");
     expect(source).toContain("Preserve a signed Windows download");
