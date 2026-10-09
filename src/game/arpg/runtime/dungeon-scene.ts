@@ -1567,7 +1567,9 @@ export function createArpgDungeonScene(
       projectile.setActive(true).setVisible(true).setTint(tint).setDepth(11);
       projectile.setRotation(rotateWithVelocity ? Math.atan2(direction.y, direction.x) : 0);
       projectile.body!.enable = true;
-      projectile.setCircle(5, 1, 1);
+      // Arrow and magic textures have different bounds. Keep the original
+      // collision radius centered on the projectile's world position.
+      projectile.setCircle(5, projectile.width / 2 - 5, projectile.height / 2 - 5);
       projectile.setVelocity(direction.x * speed, direction.y * speed);
       projectile.setData("damage", damage);
       projectile.setData("expiresAt", this.runClock.now + lifeMs);
