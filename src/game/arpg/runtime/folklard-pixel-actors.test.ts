@@ -4,11 +4,15 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { PLAYABLE_LEGEND_IDS } from "../content/legends";
 import { FOLKLARD_PIXEL_ACTORS, getFolklardPixelActorFrame } from "./folklard-pixel-actors";
-import { getGeneratedLegendSpriteSheet } from "./legend-sprite-sheets";
 
-describe("original Folklard pixel assets", () => {
+describe("retained experimental Folklard pixel assets", () => {
   it.each(FOLKLARD_PIXEL_ACTORS)("keeps %s on an opaque 32px grid without blur or frame bleed", async (actor) => {
-    const file = resolve(process.cwd(), "public", getGeneratedLegendSpriteSheet(actor)!.slice(1));
+    // Validate the preserved studies themselves. They are not the active hero
+    // catalog after the user rejected their loss of character detail.
+    const prefix = ["blacksmith", "merchant", "archivist", "bestiaryKeeper"].includes(actor)
+      ? `guild-${actor === "bestiaryKeeper" ? "bestiary-keeper" : actor}`
+      : actor === "sprout" ? "monster-sprout" : `legend-${actor}`;
+    const file = resolve(process.cwd(), "public/art", `${prefix}-spritesheet-v3.webp`);
     const { data, info } = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     expect([info.width, info.height]).toEqual([1024, 1536]);
     const palette = new Set<string>();

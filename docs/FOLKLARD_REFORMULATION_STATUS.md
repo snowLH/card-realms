@@ -49,6 +49,15 @@ Deploy `dpl_2FBkAMeDHS6neigQiNRGhAxnCmMZ`: READY no SHA acima, alias oficial sem
 3. Revisar habilidades, variedade, recompensas, progressão e utilidade dos NPCs, preservando autoridade e compatibilidade.
 4. Validar co-op com contas autorizadas quando disponíveis; atualizar/conferir builds Windows, Linux, Android e simulador iOS e downloads reais. Sem App Store/TestFlight nesta missão.
 
+## Correção da regressão artística dos personagens — 09/10/2026
+
+O usuário rejeitou a substituição dos heróis e NPCs pelas folhas simplificadas de 32 px v3. Os testes de grade/paleta passaram, mas isso **não comprovava melhoria artística**: o resultado perdeu detalhe, expressão e coerência com a Guilda. A versão v3 dos personagens não deve ser descrita como reforma visual bem-sucedida nem voltar ao catálogo ativo.
+
+- O catálogo compartilhado da seleção, Guilda e dungeon voltou às 13 folhas detalhadas preservadas, incluindo as versões com quadros seguros de Curupira, Amarok e Ahuízotl. Os quatro NPCs também usam novamente suas folhas detalhadas. Nenhum arquivo de arte anterior foi apagado ou redesenhado nessa recuperação.
+- As folhas experimentais continuam preservadas; seus testes agora inspecionam os arquivos de estudo diretamente, sem confundi-los com o catálogo ativo. Os ciclos de animação, controles, colisões, pausa, rotação, saves, downloads e autoridade do servidor permanecem nos sistemas atuais.
+- A verificação deve comparar o personagem real no mesmo cenário e no tamanho de jogo, além de testar as animações. Somente trocar caminhos e passar testes não basta para comprovar qualidade visual. A publicação desta recuperação depende do gate completo e da comparação visual local/pública.
+- Atualização da run das Montanhas: após o registro anterior, uma única seed `montanhas-runicas:encounters-v2:677e2f5e-ad09-401b-bce5-4c927def0623` venceu Amarok e extraiu +120 moedas/+240 XP local. Após recarga: 410 moedas, 660 XP e nível 2. Evidência completa em `outputs/FOLKLARD_PUBLICACAO_EAA582A.md`. Isso não comprova persistência autenticada ou conclusão das quatro fases.
+
 ## Base preservada
 
 - Trabalho direto em `main`, sem force push. As mudanças recentes até `32feadf` foram lidas e preservadas, incluindo auto-aim com retenção de alvo, neutralização de inputs cooperativos ao perder foco, PWA direta e hardening de CI.
