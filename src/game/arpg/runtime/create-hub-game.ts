@@ -4,6 +4,7 @@ import type { ArpgBridge } from "./bridge";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
 import { ARPG_LOGICAL_VIEWPORT, ARPG_PIXEL_RENDER_SETTINGS } from "./render-config";
 import { bindInputLifecycle } from "./input-lifecycle";
+import { createHubViewportControl } from "./hub-viewport-control";
 
 export async function createArpgHubGame(
   parent: HTMLElement,
@@ -20,6 +21,14 @@ export async function createArpgHubGame(
     ? { width: Math.max(1, parent.clientWidth), height: Math.max(1, parent.clientHeight) }
     : ARPG_LOGICAL_VIEWPORT;
 
+  const viewportControl = createHubViewportControl(parent, {
+    portrait: Phaser.Scale.RESIZE, landscape: Phaser.Scale.FIT,
+    centered: Phaser.Scale.CENTER_BOTH, uncentered: Phaser.Scale.NO_CENTER,
+  }, portraitMobile, () => {
+    bridge.clearGameplayInput();
+    game.scene.getScenes(false)[0]?.input.keyboard?.resetKeys();
+  });
+
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent,
@@ -33,11 +42,18 @@ export async function createArpgHubGame(
       ...viewport,
     },
     scene: [HubScene],
+    callbacks: {
+      postBoot: (bootedGame) => viewportControl.attach(bootedGame.scale),
+    },
   });
 
   const releaseInput = bindInputLifecycle(bridge, () => {
     const scene = game.scene.getScenes(false)[0];
     scene?.input.keyboard?.resetKeys();
   });
-  return { game, destroy: () => { releaseInput(); game.destroy(true); } };
+  return {
+    game,
+    setPortraitMode: viewportControl.setPortraitMode,
+    destroy: () => { viewportControl.destroy(); releaseInput(); game.destroy(true); },
+  };
 }

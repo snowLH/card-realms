@@ -39,6 +39,7 @@ export function ArpgHub({
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const navigateRef = useRef(onNavigate);
+  const gameControlRef = useRef<{ setPortraitMode: (portrait: boolean) => void } | null>(null);
   const [bridge] = useState(() => new ArpgBridge());
   const [soundEnabled, setSoundEnabled] = useState(() => bridge.getSoundEnabled());
   const [ready, setReady] = useState(false);
@@ -46,6 +47,10 @@ export function ArpgHub({
   const [prompt, setPrompt] = useState("Carregando Guilda dos Cartógrafos...");
   const [portraitMobile, setPortraitMobile] = useState(false);
   const [touchDevice, setTouchDevice] = useState(false);
+
+  useEffect(() => {
+    gameControlRef.current?.setPortraitMode(portraitMobile);
+  }, [portraitMobile, ready]);
 
   useEffect(() => {
     navigateRef.current = onNavigate;
@@ -92,22 +97,25 @@ export function ArpgHub({
       hostRef.current,
       bridge,
       (destination, legendId) => navigateRef.current(destination, legendId),
-      (message) => setPrompt(formatHubPrompt(message, touchDevice || portraitMobile)),
+      (message) => { if (!disposed) setPrompt(message); },
       avatarConfig,
     ).then((session) => {
       if (disposed) return session.destroy();
       destroyGame = session.destroy;
+      gameControlRef.current = session;
       setReady(true);
     }).catch((reason) => {
+      if (disposed) return;
       setError(reason instanceof Error ? reason.message : "Não foi possível abrir o HUB jogável.");
     });
 
     return () => {
       disposed = true;
+      gameControlRef.current = null;
       destroyGame?.();
       bridge.setMove(0, 0);
     };
-  }, [avatarConfig, bridge, portraitMobile, touchDevice]);
+  }, [avatarConfig, bridge]);
 
   return (
     <section
@@ -141,12 +149,12 @@ export function ArpgHub({
         <div ref={hostRef} className="arpg-hub-stage__canvas" />
         {!ready && !error ? <div className="arpg-hub-loading">Abrindo a Guilda...</div> : null}
         {error ? <div className="arpg-hub-error">{error}</div> : null}
-        <div className="arpg-hub-prompt">{prompt}</div>
+        <div className="arpg-hub-prompt">{formatHubPrompt(prompt, touchDevice || portraitMobile)}</div>
         <HubTouchControls bridge={bridge} />
       </div>
 
       <div className="arpg-hub-help">
-        <span>WASD / joystick: mover</span>
+        <span>WASD / setas / joystick: mover</span>
         <span>E / RB / Interagir: entrar</span>
         <span>Chegue perto de uma estação para interagir.</span>
       </div>

@@ -4220,6 +4220,8 @@ export function createArpgDungeonScene(
           particles: this.benchmarkParticleEmitter?.getAliveParticleCount() ?? 0,
         },
         rendererType: this.game.renderer.type,
+        actualFps: this.game.loop.actualFps,
+        sceneObjects: this.children.length,
         physicsFps: this.physics.world.fps,
       };
     }
