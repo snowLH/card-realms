@@ -1,6 +1,36 @@
 # Folklard — continuidade da reformulação
 
-Atualizado em 8 de outubro de 2026, após a validação local desta rodada. **As quatro fases da missão ainda não estão concluídas.** Este registro distingue mudanças implementadas, evidência real e trabalho pendente; títulos de commits anteriores não comprovam a conclusão da missão.
+Atualizado em 9 de outubro de 2026. **As quatro fases da missão ainda não estão concluídas.** Este registro distingue mudanças implementadas, evidência real e trabalho pendente; títulos de commits anteriores não comprovam a conclusão da missão.
+
+## Estado atual — estabilidade e apresentação
+
+- `1d74539`: tela de apresentação reconstruída com estilos isolados e pixel art existente; 11 tamanhos de tela conferidos, incluindo portrait, landscape e desktop. Publicada e reaberta no endereço oficial, com menus acessíveis. A identidade visual restante ainda precisa de trabalho.
+- `c2b8be5`: morte oferece uma nova tentativa real; resultado aguarda confirmação antes de liberar a saída; falha de extração permite repetir o mesmo token. A intenção de pausa durante o carregamento é aplicada quando a cena realmente inicia.
+- `90434e5`: falha de checkpoint ou combate interrompe a cena, neutraliza os controles e oferece recuperação pelo checkpoint do servidor. Ações já enfileiradas não continuam com uma revisão antiga. Testado com respostas controladas; reconexão de uma conta real continua pendente.
+- `7bfe0d2`: novos seeds identificam a versão das regras de encontros. Chefes finais ficam na arena final; seeds antigos preservam suas ondas e limites de recompensa. Testes cobrem 100 mapas por bioma, compatibilidade anterior e criação cooperativa.
+- `4155329a67d7669851b72c3075b5f5df5d684014`: setas funcionam na Guilda e na dungeon; Shift e Espaço acionam dash sem duplicar um acionamento simultâneo. Golpes de área locais respeitam a mesma proteção de 260 ms usada pelo servidor; não acumulam vários danos no mesmo instante.
+- Gate local completo desse último código: **467 testes em 89 arquivos**, TypeScript, lint e build de produção aprovados no Node 22.23.3. Verify [37928480477](https://github.com/snowLH/card-realms/actions/runs/37928480477) concluído com sucesso no mesmo SHA.
+- Deploy `dpl_83Q8V1vrJZysBs8HGFoMGhEYQ93c`: READY, SHA `4155329a67d7669851b72c3075b5f5df5d684014`, alias `card-realms.vercel.app` sem erro. No navegador público: apresentação, configurações, entrada na Guilda, acesso ao Cartógrafo usando setas, nova dungeon, Shift, pausa e retorno à Guilda; visitante preservado em 885 moedas/Nv. 3. Sem erro de console observado nesse fluxo.
+- `1cc1beb`: rotação da Guilda ajusta a escala do mesmo canvas, preservando cenário e posição. ResizeObserver e controles são liberados ao sair; callbacks tardios não recriam a cena. Quatro testes do controlador e um de regressão do componente cobrem esse ciclo.
+- `6ab7f64`: alterações em gameplay, componentes do jogo e arte agora acionam os builds Windows/Linux, Android e simulador iOS. Os filtros anteriores ignoravam esses arquivos. A proteção do certificado Android e a restrição a simulador iOS permanecem.
+- Correção posterior de enquadramento: o grid CSS e as margens do Phaser centralizavam o canvas duas vezes. Em 1920×1080, a Guilda estava em (480,270); agora está em (320,180), com 1280×720, centralizada. A mesma regra corrige a dungeon.
+- Gate local desse grupo: **473 testes em 90 arquivos**, TypeScript, lint e build de produção aprovados. Publicação e workflows remotos desse grupo ainda devem ser conferidos após o envio.
+
+### Evidência de gameplay e limites
+
+- Montanhas Rúnicas: sala comum, tesouro, evento, descanso, loja, elite, Yeti e arena do Amarok foram percorridos em tentativas reais. Uma run chegou ao Amarok e terminou em derrota com 41 HP restantes do boss; outra terminou em sala comum. **Ainda não há vitória, extração e persistência completas das Montanhas.** Não equiparar trechos de tentativas diferentes a uma run vencedora.
+- Foi reproduzida a derrota seguida de “Tentar outra vez”, com novo seed, vida 120 e sem transportar o loot antigo. Na revisão `4155329`, as setas moveram a personagem e Shift aplicou velocidade real de dash de 610 px/s, por inputs de teclado. Sem alterar HP, loot, kills ou posições por código.
+- Registros e capturas reais em `outputs/` do workspace: `controles-teclado-4155329.json`, `controles-publicados-4155329.png`, `montanhas-percurso-4155329.json`, `montanhas-v2-derrota-arena-final.png` e `Folklard-publico-7bfe0d2.png`.
+- Ainda faltam testes com duas sessões autenticadas, reconexão e extração persistente reais, instalações físicas, multitoque em aparelhos e medição sustentada de desempenho/leaks. FPS configurado da física não comprova FPS real.
+- Guilda local conferida em 360×800, 393×873, 800×360, 854×393, 915×412, 1280×720 e 1920×1080: o mesmo canvas permaneceu conectado e a interação próxima ao Cartógrafo permaneceu disponível sem mover novamente a personagem. E abriu a seleção após as sete rotações. Evidência: `guilda-rotacao-validada.json`, `guilda-rotacao-corrigida-393x873.png`, `guilda-1920-enquadramento-corrigido.png`.
+- Três ciclos reais de entrada/saída da dungeon voltaram a **um canvas e 81 elementos DOM** na Guilda; o leitor da dungeon foi removido em cada retorno. Amostras curtas do primeiro ciclo ficaram em 59,46–60,29 FPS; outro ciclo ainda aquecendo marcou 45,63–47,50. O segundo foi medido durante carregamento e não é uma medida de gameplay. Heap aproximado variou com coleta automática; essas amostras não comprovam ausência de leaks, desempenho sustentado em combate ou desempenho físico. Registro: `ciclos-guilda-dungeon-desempenho.json`.
+
+### Sequência de continuidade
+
+1. Publicar e conferir as correções validadas de rotação/enquadramento; ampliar a medição de desempenho em combate e concluir o ciclo das Montanhas.
+2. Continuar arte original 2D dos inimigos, elites, minibosses e bosses; depois biomas, Guilda, UI e VFX. As 18 folhas v3 anteriores não concluem essa fase.
+3. Revisar habilidades, variedade, recompensas, progressão e utilidade dos NPCs, preservando autoridade e compatibilidade.
+4. Validar co-op com contas autorizadas quando disponíveis; atualizar/conferir builds Windows, Linux, Android e simulador iOS e downloads reais. Sem App Store/TestFlight nesta missão.
 
 ## Base preservada
 
@@ -33,7 +63,7 @@ Atualizado em 8 de outubro de 2026, após a validação local desta rodada. **As
 Este registro é criado **antes** de enviar e publicar a revisão. Confirmar a revisão exata e as conclusões dos novos jobs no GitHub Actions; não tratar este texto como evidência de sucesso remoto futuro.
 
 - A publicação web requer o gate completo e inspeção do deploy exato. Auto-deploy Vercel permanece desabilitado.
-- Alterações em `mobile/` e `desktop/` acionam builds reais Android, iOS Simulator, Windows e Linux. APK com assinatura incompatível deve preservar o download oficial.
+- Alterações em `mobile/`, `desktop/`, gameplay e arte acionam builds reais Android, iOS Simulator, Windows e Linux. APK com assinatura incompatível deve preservar o download oficial.
 - Apple nesta execução: **PWA via Safari → Adicionar à Tela de Início**. Não executar App Store/TestFlight nem workflows Apple assinados. O build de simulador é permitido e não representa instalação física.
 - Não houve teste físico de APK, EXE, AppImage ou PWA instalada em iPhone/iPad nesta rodada. Não declarar assinatura, instalação ou certificação sem evidência.
 
