@@ -1,8 +1,20 @@
 import type { NextConfig } from "next";
+import { execFile } from "node:child_process";
+import { join } from "node:path";
+import { promisify } from "node:util";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  compiler: {
+    async runAfterProductionCompile({ projectDir, distDir }) {
+      // Generate public files before the hosting adapter collects build output.
+      const { stdout } = await promisify(execFile)(process.execPath, [
+        join(projectDir, "scripts/build-offline-manifest.mjs"), projectDir, distDir,
+      ]);
+      console.log(stdout.trim());
+    },
+  },
   async rewrites() {
     return [
       { source: "/api/raids", destination: "/api/player/progress?handler=raids" },
