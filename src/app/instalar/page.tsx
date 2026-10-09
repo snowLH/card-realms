@@ -5,8 +5,8 @@ import type { Metadata } from "next";
 import { getDownloadReleases, type DownloadRelease, type DownloadPlatform } from "@/server/downloads/releases";
 
 export const metadata: Metadata = {
-  title: "Baixar Folklard — Windows, Android e Linux",
-  description: "Baixe Folklard — Crônicas de Aurória. Downloads oficiais, requisitos e instruções de instalação.",
+  title: "Baixar Folklard — PC e celular, sem lojas",
+  description: "Baixe Folklard diretamente pelo site no Windows, Android e Linux, ou instale no iPhone e iPad pela tela de início.",
 };
 
 const platforms: { key: DownloadPlatform; title: string; button: string; requirements: string; steps: string[] }[] = [
@@ -69,10 +69,10 @@ export default async function InstallPage() {
     <main className="folklard-install">
       <div className="folklard-install__hero">
         <span className="folklard-install__eyebrow"><Gamepad2 size={18} aria-hidden="true" /> CRÔNICAS DE AURÓRIA</span>
-        <h1>Aurória, onde você estiver.</h1>
-        <p>Treze lendas. Três biomas. Uma nova expedição a cada partida. Leve Folklard para uma janela própria no computador ou para a tela do seu celular.</p>
+        <h1>Baixe e jogue sem depender de lojas.</h1>
+        <p>Instale Folklard diretamente pelo site. Windows e Linux recebem o aplicativo de computador, Android recebe o APK, e iPhone/iPad instala o jogo pela tela de início em modo de aplicativo.</p>
         <Link href="/">← Voltar ao jogo</Link>
-        <div className="folklard-install__connection">Conexão com a internet necessária para carregar o jogo e sincronizar o progresso da conta.</div>
+        <div className="folklard-install__connection"><strong>Sem App Store, Play Store ou Microsoft Store por enquanto.</strong> Conexão com a internet é necessária para carregar o jogo e sincronizar o progresso da conta.</div>
       </div>
       <div className="folklard-install__grid">
         {platforms.map((platform) => {
@@ -99,20 +99,20 @@ export default async function InstallPage() {
         <article className="folklard-install__card">
           <Apple aria-hidden="true" />
           <h2>iPhone e iPad</h2>
-          <span className="folklard-install__status is-available">Disponível pela tela de início</span>
-          <p className="folklard-install__requirements">Safari atualizado · internet</p>
-          <p>Abra Folklard no Safari e adicione o jogo à tela de início. Seu acesso ganha um ícone próprio.</p>
-          <Link className="folklard-install__button" href="/">ABRIR O JOGO</Link>
+          <span className="folklard-install__status is-available">Instalação sem App Store</span>
+          <p className="folklard-install__requirements">iPhone ou iPad · Safari atualizado · internet</p>
+          <p>No iPhone e iPad, instale Folklard diretamente pela opção <strong>Adicionar à Tela de Início</strong>. Ele ganha ícone próprio e abre em uma janela dedicada, sem a interface normal do Safari.</p>
+          <Link className="folklard-install__button" href="/">ABRIR E INSTALAR NO IPHONE</Link>
           <details className="folklard-install__instructions" open>
             <summary>Como adicionar à tela de início</summary>
             <ol><li>No Safari, abra o jogo.</li><li>Toque em Compartilhar e em Adicionar à Tela de Início.</li><li>Confirme o nome e toque em Adicionar.</li></ol>
           </details>
-          <small>Distribuição nativa por TestFlight e App Store ainda indisponível. Esta opção usa o navegador.</small>
+          <small>O iOS não permite instalar um IPA genérico baixado pelo navegador como acontece com um APK no Android. Por isso, sem usar lojas, a instalação pela Tela de Início é a opção compatível para iPhone e iPad.</small>
         </article>
       </div>
       <div className="folklard-install__note">
         <ShieldCheck aria-hidden="true" />
-        <p>Os botões apontam diretamente para arquivos das releases oficiais do projeto. A disponibilidade é conferida periodicamente. As edições atuais são de teste; requisitos de memória e desempenho ainda dependem da homologação em aparelhos reais.</p>
+        <p>Os botões de Windows, Android e Linux baixam os arquivos diretamente das releases do projeto. No iPhone/iPad, a instalação é feita pelo próprio Safari na Tela de Início. Nenhuma dessas opções exige uma loja de aplicativos. As edições atuais continuam em teste.</p>
       </div>
     </main>
   );
