@@ -65,6 +65,7 @@ import {
 import { ArpgAudio, type ArpgSoundCue } from "./arpg-audio";
 import { acceptServerConfirmedCombatResponse } from "./visual-events";
 import { createDungeonRuntimeTextures } from "./dungeon-runtime-textures";
+import { createWeaponRuntimeTextures } from "./weapon-runtime-textures";
 import { getEnemyMovementIntent, type EnemyCombatRole } from "./enemy-behavior";
 import { indexRuntimeEntities } from "./entity-index";
 import { selectNearestTarget, selectStableTarget, resolveCombatDirection } from "./combat-targeting";
@@ -114,6 +115,12 @@ import {
   type NativePixelActorId,
 } from "./native-pixel-actors";
 import { getFloatingWeaponPose, getFloatingWeaponReach } from "./floating-weapon";
+import {
+  getSnappedWeaponAngle,
+  getWeaponMotionFrame,
+  getWeaponProjectileVisual,
+  getWeaponVisualDefinition,
+} from "./weapon-visuals";
 import {
   createWeaponSlots,
   pickUpWeapon,
@@ -254,7 +261,8 @@ export function createArpgDungeonScene(
 
   return class ArpgDungeonScene extends Phaser.Scene {
     private player!: ArcadeSprite;
-    private floatingWeapon: import("phaser").GameObjects.Graphics | null = null;
+    private floatingWeapon: import("phaser").GameObjects.Image | null = null;
+    private floatingWeaponTextureKey: string | null = null;
     private targetMarker: import("phaser").GameObjects.Graphics | null = null;
     private autoAimTarget: ArcadeSprite | null = null;
     private enemies!: import("phaser").Physics.Arcade.Group;
@@ -345,6 +353,8 @@ export function createArpgDungeonScene(
     private runClock = new ActiveSceneClock();
     private nextAttackAt = 0;
     private basicAttackCounter = 0;
+    private lastWeaponAttackAt = Number.NEGATIVE_INFINITY;
+    private lastWeaponAttackId: string | null = null;
     private nextDashAt = 0;
     private nextPlayerDamageAt = 0;
     private dashingUntil = 0;
@@ -435,6 +445,7 @@ export function createArpgDungeonScene(
       this.events.once("shutdown", () => this.clearServerHazardVisuals());
       this.events.once("destroy", () => this.clearServerHazardVisuals());
       createDungeonRuntimeTextures(this);
+      createWeaponRuntimeTextures(this);
       if (!this.textures.exists(playerTextureKey)) {
         createNativePixelActorSheet(
           this,
@@ -543,7 +554,14 @@ export function createArpgDungeonScene(
       this.events.once("shutdown", () => this.clearEntityGroundShadows());
       this.events.once("destroy", () => this.clearEntityGroundShadows());
       setNativePlayerRestPose(this.player, this.prefersReducedMotion);
-      this.floatingWeapon = this.add.graphics().setDepth(11);
+      const initialWeapon = ARPG_WEAPON_BY_ID.get(this.currentWeaponId) ?? ARPG_WEAPONS[0];
+      const initialWeaponVisual = getWeaponVisualDefinition(initialWeapon.id);
+      this.floatingWeapon = this.add.image(
+        this.player.x,
+        this.player.y,
+        initialWeaponVisual.textureKey,
+      ).setOrigin(0.5, 0.5).setScale(initialWeaponVisual.displayScale).setDepth(11);
+      this.floatingWeaponTextureKey = initialWeaponVisual.textureKey;
       this.targetMarker = this.add.graphics().setDepth(18);
       this.events.once("shutdown", () => this.clearFloatingWeapon());
       this.events.once("destroy", () => this.clearFloatingWeapon());
@@ -903,6 +921,8 @@ export function createArpgDungeonScene(
       this.facePlayer(aim);
       if (bridge.isServerAuthoritativeCombat() && this.proceduralController && this.proceduralRoomId) {
         if (!this.serverActionPending) {
+          this.lastWeaponAttackAt = time;
+          this.lastWeaponAttackId = weapon.id;
           this.playPlayerAction("attack", time, 360);
           this.submitServerCombatCommand(this.proceduralRoomId, "basic_attack", time);
         }
@@ -915,6 +935,8 @@ export function createArpgDungeonScene(
       const proc = getWeaponAttackProc(weapon, this.basicAttackCounter);
       const basicDamage = Math.max(1, Math.round(weapon.damage * this.runBasicDamageMultiplier));
       this.nextAttackAt = time + getWeaponAttackIntervalMs(weapon, moving);
+      this.lastWeaponAttackAt = time;
+      this.lastWeaponAttackId = weapon.id;
       this.playPlayerAction("attack", time, 360);
       if (weapon.kind === "sword") {
         const x = this.player.x + aim.x * 42;
@@ -936,7 +958,17 @@ export function createArpgDungeonScene(
       }
 
       const tint = weapon.element === "spirit" ? 0xc9a9ff : weapon.element === "water" ? 0x73d8ff : 0xe7d48b;
-      this.fireProjectile(aim, basicDamage, weapon.projectileSpeed ?? 560, tint, 900, proc.piercing);
+      const projectileVisual = getWeaponProjectileVisual(weapon.kind);
+      this.fireProjectile(
+        aim,
+        basicDamage,
+        weapon.projectileSpeed ?? 560,
+        tint,
+        900,
+        proc.piercing,
+        projectileVisual.textureKey,
+        projectileVisual.rotateWithVelocity,
+      );
 
       if (proc.echoMultiplier > 0) {
         this.fireProjectile(
@@ -946,6 +978,8 @@ export function createArpgDungeonScene(
           0xdfc7ff,
           900,
           false,
+          projectileVisual.textureKey,
+          projectileVisual.rotateWithVelocity,
         );
         bridge.emitMessage(`${weapon.name}: Eco Espiritual.`);
       }
@@ -998,15 +1032,44 @@ export function createArpgDungeonScene(
     private updateFloatingWeapon() {
       if (!this.floatingWeapon || !this.player?.active) return;
       const weapon = ARPG_WEAPON_BY_ID.get(this.currentWeaponId) ?? ARPG_WEAPONS[0];
+      const visual = getWeaponVisualDefinition(weapon.id);
       const enemy = this.autoAimTarget?.active ? this.autoAimTarget : this.findNearestEnemy(560);
       this.drawTargetMarker(enemy);
       const pose = getFloatingWeaponPose({
         player: this.player,
         target: enemy,
         fallbackDirection: this.aimVector,
-        distance: getFloatingWeaponReach(weapon.kind),
+        distance: getFloatingWeaponReach(weapon.kind) + visual.holdDistanceOffset,
       });
-      this.drawFloatingWeapon(pose, weapon.kind, weapon.element);
+
+      if (this.floatingWeaponTextureKey !== visual.textureKey) {
+        this.floatingWeapon.setTexture(visual.textureKey);
+        this.floatingWeaponTextureKey = visual.textureKey;
+      }
+
+      const attackElapsed = this.lastWeaponAttackId === weapon.id
+        ? this.runClock.now - this.lastWeaponAttackAt
+        : Number.POSITIVE_INFINITY;
+      const motion = getWeaponMotionFrame(visual, attackElapsed, this.prefersReducedMotion);
+      const direction = pose.direction;
+      const perpendicular = { x: -direction.y, y: direction.x };
+      const idleBob = this.prefersReducedMotion
+        ? 0
+        : Math.sin(this.runClock.now / 180) * visual.idleBob;
+      const x = pose.x
+        + direction.x * motion.distanceOffset
+        + perpendicular.x * (motion.sideOffset + idleBob);
+      const y = pose.y
+        + direction.y * motion.distanceOffset
+        + perpendicular.y * (motion.sideOffset + idleBob);
+      const angle = getSnappedWeaponAngle(direction, motion.angleOffset, 16);
+
+      this.floatingWeapon
+        .setPosition(Math.round(x), Math.round(y))
+        .setRotation(angle)
+        .setScale(visual.displayScale * motion.scaleMultiplier)
+        .setAlpha(motion.alpha)
+        .setDepth(this.player.depth + (direction.y >= 0 ? 2 : -1));
     }
 
     private drawTargetMarker(target: ArcadeSprite | null) {
@@ -1050,67 +1113,10 @@ export function createArpgDungeonScene(
       marker.fillStyle(accent, locked ? 1 : 0.82).fillCircle(target.x, target.y, locked ? 2 : 1.5);
     }
 
-    private drawFloatingWeapon(
-      pose: ReturnType<typeof getFloatingWeaponPose>,
-      kind: typeof ARPG_WEAPONS[number]["kind"],
-      element: typeof ARPG_WEAPONS[number]["element"],
-    ) {
-      const graphic = this.floatingWeapon;
-      if (!graphic) return;
-      const direction = pose.direction;
-      const perpendicular = { x: -direction.y, y: direction.x };
-      const ink = 0x17151c;
-      const color = element === "fire" ? 0xff7545
-        : element === "water" ? 0x72d8ff
-          : element === "nature" ? 0x97ca62
-            : element === "storm" ? 0xe1d56f
-              : 0xd8adff;
-      const block = (x: number, y: number, size: number, fill: number) => {
-        graphic.fillStyle(fill, 1).fillRect(Math.round(x - size / 2), Math.round(y - size / 2), size, size);
-      };
-      const along = (distance: number, sideways = 0) => ({
-        x: pose.x + direction.x * distance + perpendicular.x * sideways,
-        y: pose.y + direction.y * distance + perpendicular.y * sideways,
-      });
-
-      graphic.clear();
-      if (kind === "bow") {
-        for (const sideways of [-8, -4, 0, 4, 8]) {
-          const curve = 7 - Math.abs(sideways) * 0.7;
-          const point = along(0, sideways);
-          block(point.x - direction.x * curve, point.y - direction.y * curve, 5, ink);
-          block(point.x - direction.x * (curve - 2), point.y - direction.y * (curve - 2), 3, color);
-        }
-        const stringStart = along(-5, -9);
-        const stringEnd = along(-5, 9);
-        graphic.lineStyle(2, 0xf8efd0, 0.95).lineBetween(stringStart.x, stringStart.y, stringEnd.x, stringEnd.y);
-        const arrowTail = along(-11);
-        const arrowTip = along(14);
-        graphic.lineStyle(3, ink, 1).lineBetween(arrowTail.x, arrowTail.y, arrowTip.x, arrowTip.y);
-        block(arrowTip.x, arrowTip.y, 6, color);
-        return;
-      }
-
-      const handleEnd = along(kind === "staff" ? -14 : -10);
-      const tip = along(kind === "staff" ? 15 : 18);
-      graphic.lineStyle(kind === "staff" ? 7 : 6, ink, 1).lineBetween(handleEnd.x, handleEnd.y, tip.x, tip.y);
-      graphic.lineStyle(kind === "staff" ? 3 : 3, kind === "staff" ? 0x8a603d : color, 1)
-        .lineBetween(handleEnd.x, handleEnd.y, tip.x, tip.y);
-      if (kind === "staff") {
-        block(tip.x, tip.y, 10, ink);
-        block(tip.x, tip.y, 6, color);
-      } else {
-        const guardLeft = along(-5, -8);
-        const guardRight = along(-5, 8);
-        graphic.lineStyle(4, ink, 1).lineBetween(guardLeft.x, guardLeft.y, guardRight.x, guardRight.y);
-        graphic.lineStyle(2, 0xe9c569, 1).lineBetween(guardLeft.x, guardLeft.y, guardRight.x, guardRight.y);
-        block(tip.x, tip.y, 7, 0xf5e7bb);
-      }
-    }
-
     private clearFloatingWeapon() {
       this.floatingWeapon?.destroy();
       this.floatingWeapon = null;
+      this.floatingWeaponTextureKey = null;
       this.targetMarker?.destroy();
       this.targetMarker = null;
     }
@@ -1550,10 +1556,14 @@ export function createArpgDungeonScene(
       tint: number,
       lifeMs: number,
       piercing: boolean,
+      textureKey = "arpg-projectile",
+      rotateWithVelocity = false,
     ) {
-      const projectile = this.projectiles.get(this.player.x, this.player.y, "arpg-projectile") as ArcadeSprite | null;
+      const projectile = this.projectiles.get(this.player.x, this.player.y, textureKey) as ArcadeSprite | null;
       if (!projectile) return;
+      projectile.setTexture(textureKey);
       projectile.setActive(true).setVisible(true).setTint(tint).setDepth(11);
+      projectile.setRotation(rotateWithVelocity ? Math.atan2(direction.y, direction.x) : 0);
       projectile.body!.enable = true;
       projectile.setCircle(5, 1, 1);
       projectile.setVelocity(direction.x * speed, direction.y * speed);
@@ -3280,7 +3290,7 @@ export function createArpgDungeonScene(
       this.chestPresentation = presentation;
       if (!claimChestLootVisualSlot(presentation.visualSlot)) return;
       presentation.itemSpawnCount += 1;
-      const texture = details ? `arpg-loot-${details.silhouette}` : "arpg-run-fragment";
+      const texture = details?.textureKey ?? "arpg-run-fragment";
       presentation.item = this.add.image(chest.x, chest.y - 28, texture)
         .setDisplaySize(loot ? 32 : 24, loot ? 32 : 24)
         .setAlpha(0)

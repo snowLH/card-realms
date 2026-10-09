@@ -1,5 +1,6 @@
 import type { DungeonLoot } from "../content/dungeons";
 import { ARPG_ARMOR_BY_ID, ARPG_WEAPON_BY_ID } from "../content/equipment";
+import { getWeaponVisualDefinition } from "./weapon-visuals";
 import type { Rarity } from "../../domain/creatures";
 import { gridCellKey, gridCellToWorld, worldToGridCell, type GridNavigation, type WorldPoint } from "../navigation/grid-path";
 
@@ -26,23 +27,27 @@ export function getChestLootVisualDetails(loot: DungeonLoot) {
   if (loot.kind === "weapon") {
     const definition = ARPG_WEAPON_BY_ID.get(loot.id);
     if (!definition) throw new Error(`A arma atribuída ${loot.id} não possui definição ARPG.`);
+    const visual = getWeaponVisualDefinition(definition.id);
     return {
       id: definition.id,
       label: loot.label,
       rarity: definition.rarity,
       silhouette: definition.kind,
+      textureKey: visual.textureKey,
     } as const;
   }
 
   const definition = ARPG_ARMOR_BY_ID.get(loot.id);
   if (!definition) throw new Error(`A armadura atribuída ${loot.id} não possui definição ARPG.`);
+  const silhouette = /\b(manto|cloak|casaco)\b/i.test(definition.name)
+    ? "mantle" as const
+    : "breastplate" as const;
   return {
     id: definition.id,
     label: loot.label,
     rarity: definition.rarity,
-    silhouette: /\b(manto|cloak|casaco)\b/i.test(definition.name)
-      ? "mantle" as const
-      : "breastplate" as const,
+    silhouette,
+    textureKey: `arpg-loot-${silhouette}`,
   };
 }
 
