@@ -3,6 +3,12 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - "src/game/arpg/**"
+      - "src/components/arpg/**"
+      - "src/components/game/**"
+      - "src/app/arpg.css"
+      - "src/app/folklard-art-pass.css"
+      - "public/art/**"
       - "desktop/**"
       - "src/server/downloads/**"
       - "src/app/instalar/**"
@@ -11,6 +17,12 @@ on:
     branches:
       - main
     paths:
+      - "src/game/arpg/**"
+      - "src/components/arpg/**"
+      - "src/components/game/**"
+      - "src/app/arpg.css"
+      - "src/app/folklard-art-pass.css"
+      - "public/art/**"
       - "desktop/**"
       - "src/server/downloads/**"
       - "src/app/instalar/**"

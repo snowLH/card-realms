@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { matchesGlob, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const workflowPaths = [
@@ -79,6 +79,34 @@ describe("native release workflow hardening", () => {
       const source = workflow(path);
       expect(source.match(/"src\/server\/downloads\/\*\*"/g), path).toHaveLength(2);
       expect(source.match(/"src\/app\/instalar\/\*\*"/g), path).toHaveLength(2);
+    }
+  });
+
+  it("triggers every native target for real gameplay and art changes on PRs and main", () => {
+    const changedFiles = [
+      "src/game/arpg/runtime/dungeon-scene.ts",
+      "src/components/arpg/arpg-hub.tsx",
+      "src/components/game/title-screen.module.css",
+      "src/app/arpg.css",
+      "src/app/folklard-art-pass.css",
+      "public/art/legend-iara-spritesheet-v3.webp",
+    ];
+    for (const path of [
+      ".github/workflows/android-app.yml",
+      ".github/workflows/desktop-app.yml",
+      ".github/workflows/ios-simulator.yml",
+    ] as const) {
+      const source = workflow(path);
+      const prStart = source.indexOf("  pull_request:");
+      const pushStart = source.indexOf("  push:");
+      const headerEnd = source.indexOf("\npermissions:");
+      for (const section of [source.slice(prStart, pushStart), source.slice(pushStart, headerEnd)]) {
+        const patterns = [...section.matchAll(/^\s+- "([^"]+)"$/gm)].map((match) => match[1]);
+        for (const file of changedFiles) {
+          expect(patterns.some((pattern) => matchesGlob(file, pattern)), `${path}: ${file}`).toBe(true);
+        }
+        expect(patterns.some((pattern) => matchesGlob("docs/FOLKLARD_REFORMULATION_STATUS.md", pattern))).toBe(false);
+      }
     }
   });
 
