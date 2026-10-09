@@ -582,10 +582,10 @@ export function ArpgGame({
         </div>
 
       <div className="arpg-help">
-        <span>WASD mover</span>
+        <span>WASD / setas mover</span>
         <span>Mouse mirar</span>
         <span>Click atacar</span>
-        <span>SPACE dash</span>
+        <span>ESPAÇO / SHIFT dash</span>
         <span>1 / 2 ataques</span>
         <span>E interagir/abrir baú</span>
         <span>M mapa</span>

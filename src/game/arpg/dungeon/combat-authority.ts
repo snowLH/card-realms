@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ARPG_BASE_SPEED as PLAYER_BASE_SPEED, ARPG_DASH_SPEED as PLAYER_DASH_SPEED, ARPG_DASH_DURATION_MS as PLAYER_DASH_DURATION_MS, ARPG_DASH_COOLDOWN_MS as PLAYER_DASH_COOLDOWN_MS } from "../domain/combat-config";
+import { ARPG_BASE_SPEED as PLAYER_BASE_SPEED, ARPG_DASH_SPEED as PLAYER_DASH_SPEED, ARPG_DASH_DURATION_MS as PLAYER_DASH_DURATION_MS, ARPG_DASH_COOLDOWN_MS as PLAYER_DASH_COOLDOWN_MS, ARPG_DAMAGE_INVULNERABILITY_MS } from "../domain/combat-config";
 import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
 import { ARPG_DUNGEON_CONFIGS } from "../content/dungeons";
 import { ARPG_ARMOR_BY_ID, ARPG_WEAPON_BY_ID, getArmorAbilityCooldownMs, getArmorDashCooldownMs, getArmorMovingDefenseBonus, getWeaponAttackIntervalMs, getWeaponAttackProc, normalizeArmorlessHealth } from "../content/equipment";
@@ -624,7 +624,7 @@ function resolveBossHazards(
     ) {
       const damage = Math.max(1, hazard.damage - armor.defenseBonus - getArmorMovingDefenseBonus(armor, moving));
       state.playerHp = Math.max(0, state.playerHp - damage);
-      state.nextDamageAtMs = atMs + 260;
+      state.nextDamageAtMs = atMs + ARPG_DAMAGE_INVULNERABILITY_MS;
       if (state.playerHp <= 0) state.status = "defeat";
     }
     return false;
@@ -727,7 +727,7 @@ function advanceState(
         ) {
           const damage = Math.max(1, definition.contactDamage - armor.defenseBonus - getArmorMovingDefenseBonus(armor, moving));
           state.playerHp = Math.max(0, state.playerHp - damage);
-          state.nextDamageAtMs = atMs + 260;
+          state.nextDamageAtMs = atMs + ARPG_DAMAGE_INVULNERABILITY_MS;
           enemy.nextContactAtMs = atMs + contactInterval;
           const retaliation = armor.effect?.id === "ahuizotl-retaliation" ? 10 : 0;
           if (retaliation > 0) damageInRadius(state, config, state.playerX, state.playerY, 96, retaliation, atMs);
@@ -792,7 +792,7 @@ function advanceState(
           : false;
         const damage = Math.max(1, projectile.damage - armor.defenseBonus - getArmorMovingDefenseBonus(armor, moving));
         state.playerHp = Math.max(0, state.playerHp - damage);
-        state.nextDamageAtMs = atMs + 260;
+        state.nextDamageAtMs = atMs + ARPG_DAMAGE_INVULNERABILITY_MS;
         if (state.playerHp <= 0) state.status = "defeat";
         return false;
       }

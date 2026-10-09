@@ -2,6 +2,7 @@ import { buildHubNavigation, HUB_STATIONS, HUB_WORLD, findNearestHubStation, typ
 import { PLAYABLE_LEGEND_BY_ID, type PlayableLegendId } from "../content/legends";
 import { findGridPath, type GridNavigation, type WorldPoint } from "../navigation/grid-path";
 import { readBrowserGamepad, type GamepadFrame } from "./gamepad";
+import { ARPG_MOVEMENT_KEY_BINDINGS, readKeyboardMovement, type ArpgMovementKeys } from "./keyboard-controls";
 import type { ArpgBridge } from "./bridge";
 import { ArpgAudio } from "./arpg-audio";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
@@ -171,7 +172,7 @@ export function createArpgHubScene(
   const idleMotionQuery = typeof window === "undefined" ? null : window.matchMedia("(prefers-reduced-motion: reduce)");
   return class ArpgHubScene extends Phaser.Scene {
     private player!: ArcadeSprite;
-    private keys!: { up: Key; down: Key; left: Key; right: Key; interact: Key };
+    private keys!: ArpgMovementKeys<Key> & { interact: Key };
     private gamepadPressedButtons = new Set<number>();
     private gamepad: GamepadFrame = {
       connected: false, moveX: 0, moveY: 0, aimX: 0, aimY: 0,
@@ -286,13 +287,10 @@ export function createArpgHubScene(
       this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
 
       if (!this.input.keyboard) throw new Error("Teclado indisponível no HUB ARPG.");
-      this.keys = {
-        up: this.input.keyboard.addKey("W"),
-        down: this.input.keyboard.addKey("S"),
-        left: this.input.keyboard.addKey("A"),
-        right: this.input.keyboard.addKey("D"),
-        interact: this.input.keyboard.addKey("E"),
-      };
+      this.keys = this.input.keyboard.addKeys({
+        ...ARPG_MOVEMENT_KEY_BINDINGS,
+        interact: "E",
+      }) as ArpgMovementKeys<Key> & { interact: Key };
       if (this.clickToMoveEnabled) {
         this.input.on("pointerdown", this.setClickDestination, this);
         this.events.once("shutdown", () => this.input.off("pointerdown", this.setClickDestination, this));
@@ -902,12 +900,9 @@ export function createArpgHubScene(
     }
 
     private handleMovement() {
-      let x = 0;
-      let y = 0;
-      if (this.keys.left.isDown) x -= 1;
-      if (this.keys.right.isDown) x += 1;
-      if (this.keys.up.isDown) y -= 1;
-      if (this.keys.down.isDown) y += 1;
+      const keyboard = readKeyboardMovement(this.keys);
+      let x = keyboard.x;
+      let y = keyboard.y;
 
       const touch = bridge.getInput();
       x += touch.moveX + this.gamepad.moveX;

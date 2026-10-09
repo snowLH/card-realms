@@ -124,8 +124,8 @@ export function TouchControls({
             type="button"
             className="arpg-touch__dash"
             disabled={dashCooling}
-            aria-label={dashCooling ? `Dash em recarga por ${(dashRemaining / 1000).toFixed(1)} segundos` : "Usar dash. Tecla Shift"}
-            aria-keyshortcuts="Shift"
+            aria-label={dashCooling ? `Dash em recarga por ${(dashRemaining / 1000).toFixed(1)} segundos` : "Usar dash. Teclas Espaço ou Shift"}
+            aria-keyshortcuts="Space Shift"
             action={() => bridge.queueDash()}
           >
             <Footprints />

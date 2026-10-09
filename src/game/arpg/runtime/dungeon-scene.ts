@@ -1,4 +1,5 @@
 import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
+import { resolveLocalPlayerHit } from "../domain/player-damage";
 import { ARPG_BASE_HP as PLAYER_BASE_HP, ARPG_BASE_SPEED as PLAYER_BASE_SPEED, ARPG_DASH_SPEED as DASH_SPEED, ARPG_DASH_DURATION_MS as DASH_MS, ARPG_DASH_COOLDOWN_MS as DASH_COOLDOWN_MS } from "../domain/combat-config";
 import { ARPG_ASSET_MANIFEST, getArpgSpriteSheetFrameConfig, registerArpgSpriteSheetAnimations } from "../assets";
 import type { ArpgDungeonRuntimeConfig, DungeonLoot } from "../content/dungeons";
@@ -70,6 +71,7 @@ import { selectNearestTarget, selectStableTarget, resolveCombatDirection } from 
 import { getCurupiraBossPattern, getCurupiraBossPhase } from "./boss-patterns";
 import { getRegionalBossPattern } from "../dungeon/region-boss-patterns";
 import { readBrowserGamepad, type GamepadFrame } from "./gamepad";
+import { ARPG_MOVEMENT_KEY_BINDINGS, consumeKeyboardDash, readKeyboardMovement, type ArpgMovementKeys } from "./keyboard-controls";
 import { pickGroupMember } from "./group-member";
 import {
   findGridPath,
@@ -131,12 +133,9 @@ type PhaserModule = typeof import("phaser");
 type ArcadeSprite = import("phaser").Physics.Arcade.Sprite;
 type Key = import("phaser").Input.Keyboard.Key;
 
-type KeyMap = {
-  up: Key;
-  down: Key;
-  left: Key;
-  right: Key;
+type KeyMap = ArpgMovementKeys<Key> & {
   dash: Key;
+  dashAlternate: Key;
   interact: Key;
   one: Key;
   two: Key;
@@ -586,8 +585,8 @@ export function createArpgDungeonScene(
       );
 
       this.keys = this.input.keyboard!.addKeys({
-        up: "W", down: "S", left: "A", right: "D",
-        dash: "SPACE", interact: "E",
+        ...ARPG_MOVEMENT_KEY_BINDINGS,
+        dash: "SPACE", dashAlternate: "SHIFT", interact: "E",
         one: "ONE", two: "TWO", switchWeapon: "Q",
       }) as KeyMap;
 
@@ -738,13 +737,9 @@ export function createArpgDungeonScene(
 
     private handleMovement(time: number) {
       const touch = bridge.getInput();
-      let moveX = touch.moveX + this.gamepad.moveX;
-      let moveY = touch.moveY + this.gamepad.moveY;
-
-      if (this.keys.left.isDown) moveX -= 1;
-      if (this.keys.right.isDown) moveX += 1;
-      if (this.keys.up.isDown) moveY -= 1;
-      if (this.keys.down.isDown) moveY += 1;
+      const keyboard = readKeyboardMovement(this.keys);
+      const moveX = touch.moveX + this.gamepad.moveX + keyboard.x;
+      const moveY = touch.moveY + this.gamepad.moveY + keyboard.y;
 
       const move = this.moveVector.set(moveX, moveY);
       if (move.lengthSq() > 0.01) {
@@ -765,7 +760,7 @@ export function createArpgDungeonScene(
       }
       if (move.lengthSq() > 1) move.normalize();
 
-      const dashPressed = Phaser.Input.Keyboard.JustDown(this.keys.dash)
+      const dashPressed = consumeKeyboardDash(this.keys.dash, this.keys.dashAlternate, Phaser.Input.Keyboard.JustDown)
         || bridge.consumeDash()
         || this.gamepad.dashPressed;
       if (dashPressed && time >= this.nextDashAt) {
@@ -3094,14 +3089,19 @@ export function createArpgDungeonScene(
 
     private applyPlayerDamage(rawDamage: number, time: number) {
       if (bridge.isServerAuthoritativeCombat() && this.proceduralController) return;
-      this.playSound("player-hit");
       const armor = ARPG_ARMOR_BY_ID.get(this.currentArmorId) ?? ARPG_ARMORS[0];
       const body = this.player.body as import("phaser").Physics.Arcade.Body | null;
       const moving = (body?.velocity.lengthSq() ?? 0) > 64;
       const armorReduction = getArmorMovingDefenseBonus(armor, moving);
-      const damage = Math.max(1, rawDamage - armor.defenseBonus - armorReduction);
-      this.hp = Math.max(0, this.hp - damage);
-      this.nextPlayerDamageAt = time + 260;
+      const hit = resolveLocalPlayerHit({
+        hp: this.hp, runEnded: this.runEnded, timeMs: time,
+        nextDamageAtMs: this.nextPlayerDamageAt, dashUntilMs: this.dashingUntil,
+        rawDamage, defense: armor.defenseBonus + armorReduction,
+      });
+      if (!hit) return;
+      this.hp = hit.hp;
+      this.nextPlayerDamageAt = hit.nextDamageAtMs;
+      this.playSound("player-hit");
       this.playPlayerAction("damage", time, 420);
       this.flashPlayer(0xff7a72, 160);
       this.shakeCameraForDamage();
