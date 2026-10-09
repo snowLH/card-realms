@@ -13,7 +13,7 @@ const workflowPaths = [
 ] as const;
 
 function workflow(path: (typeof workflowPaths)[number]) {
-  return readFileSync(resolve(process.cwd(), path), "utf8");
+  return readFileSync(resolve(process.cwd(), path), "utf8").replace(/\r\n/g, "\n");
 }
 
 describe("native release workflow hardening", () => {

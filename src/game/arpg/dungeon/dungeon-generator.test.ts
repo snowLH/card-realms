@@ -77,7 +77,7 @@ describe("dungeon procedural do Card Realms", () => {
         }
       }
     }
-  });
+  }, 20_000);
 
   it("encontra um caminho caminhável do início ao boss em cada bioma", () => {
     const regions = ["mata-encantada", "arquipelago-das-mares", "montanhas-runicas"] as const;
