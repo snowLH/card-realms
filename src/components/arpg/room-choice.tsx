@@ -3,6 +3,7 @@
 import { Coins, Heart, Sparkles, Store } from "lucide-react";
 import type { ArpgHudState } from "@/game/arpg/domain/types";
 import { ArpgBridge } from "@/game/arpg/runtime/bridge";
+import { useChoiceFocus } from "./use-choice-focus";
 
 function ChoiceIcon({ type }: { type: "rest" | "event" | "shop" }) {
   if (type === "rest") return <Heart />;
@@ -18,10 +19,12 @@ const roomTypeLabel: Record<"rest" | "event" | "shop", string> = {
 
 export function RoomChoice({ state, bridge }: { state: ArpgHudState | null; bridge: ArpgBridge }) {
   const encounter = state?.pendingRoomChoice;
+  const choiceRef = useChoiceFocus(Boolean(encounter));
   if (!state || !encounter) return null;
 
   return (
     <div
+      ref={choiceRef}
       className="arpg-loot-choice arpg-room-choice"
       role="dialog"
       aria-modal="true"

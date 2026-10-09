@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { Sparkles, Swords } from "lucide-react";
 import { ARPG_WEAPON_BY_ID } from "@/game/arpg/content/equipment";
 import type { ArpgHudState, ArpgWeaponDefinition } from "@/game/arpg/domain/types";
 import { ArpgBridge } from "@/game/arpg/runtime/bridge";
 import { ArpgItemPixelIcon } from "./item-pixel-icon";
+import { useChoiceFocus } from "./use-choice-focus";
 
 const rarityLabel: Record<string, string> = {
   common: "Comum",
@@ -46,51 +46,8 @@ function WeaponDetails({ item }: { item: ArpgWeaponDefinition }) {
 
 export function LootChoice({ state, bridge }: { state: ArpgHudState | null; bridge: ArpgBridge }) {
   const pending = state?.pendingLoot;
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const choiceRef = useChoiceFocus(pending?.kind === "weapon", true);
   const weaponSlots = state?.weaponSlots ?? { A: state?.weaponId ?? "", B: null, active: "A" as const };
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const buttons = () => Array.from(dialog.querySelectorAll<HTMLButtonElement>(".arpg-loot-choice__actions button:not(:disabled)"));
-    const choices = buttons();
-    const preferred = dialog.querySelector<HTMLButtonElement>(".arpg-loot-choice__actions .is-primary:not(:disabled)") ?? choices[0];
-    preferred?.focus({ preventScroll: true });
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      const available = buttons();
-      if (!available.length) return;
-      const activeIndex = available.indexOf(document.activeElement as HTMLButtonElement);
-
-      if (event.key === "Tab") {
-        if (event.shiftKey && (activeIndex <= 0)) {
-          event.preventDefault();
-          available[available.length - 1]?.focus({ preventScroll: true });
-        } else if (!event.shiftKey && activeIndex === available.length - 1) {
-          event.preventDefault();
-          available[0]?.focus({ preventScroll: true });
-        }
-        return;
-      }
-
-      if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
-      event.preventDefault();
-      if (event.key === "Home") {
-        available[0]?.focus({ preventScroll: true });
-        return;
-      }
-      if (event.key === "End") {
-        available[available.length - 1]?.focus({ preventScroll: true });
-        return;
-      }
-      const step = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
-      const base = activeIndex >= 0 ? activeIndex : 0;
-      available[(base + step + available.length) % available.length]?.focus({ preventScroll: true });
-    };
-
-    dialog.addEventListener("keydown", onKeyDown);
-    return () => dialog.removeEventListener("keydown", onKeyDown);
-  }, [pending?.id, weaponSlots.A, weaponSlots.B, weaponSlots.active]);
 
   if (!pending || pending.kind !== "weapon" || !state) return null;
   const current = ARPG_WEAPON_BY_ID.get(weaponSlots[weaponSlots.active] ?? state.weaponId);
@@ -99,7 +56,7 @@ export function LootChoice({ state, bridge }: { state: ArpgHudState | null; brid
 
   return (
     <div
-      ref={dialogRef}
+      ref={choiceRef}
       className="arpg-loot-choice arpg-dungeon-reward"
       role="dialog"
       aria-modal="true"

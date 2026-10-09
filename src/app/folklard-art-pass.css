@@ -1912,6 +1912,30 @@
   scrollbar-color: #936431 #142118;
 }
 
+/* Keep reward decisions visible while long equipment descriptions scroll. */
+.arpg-dungeon-reward .arpg-loot-choice__panel {
+  display: flex;
+  flex-direction: column;
+  width: min(680px, 100%);
+  overflow: hidden;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__panel > header,
+.arpg-dungeon-reward .arpg-loot-choice__slots,
+.arpg-dungeon-reward .arpg-loot-choice__actions {
+  flex: 0 0 auto;
+}
+
+.arpg-dungeon-reward .arpg-loot-choice__compare {
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-auto-rows: min-content;
+  align-items: start;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #936431 #142118;
+}
+
 .arpg-dungeon-reward .arpg-loot-choice__panel::before,
 .arpg-room-choice .arpg-room-choice__panel::before {
   position: absolute;
@@ -2343,7 +2367,7 @@
   }
 
   .arpg-dungeon-reward .arpg-loot-choice__actions > button {
-    min-height: 40px;
+    min-height: 44px;
   }
 }
 
