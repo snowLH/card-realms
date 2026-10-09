@@ -9,6 +9,7 @@ import type { ArpgLoadout, ArpgRuntimeBridge } from "../domain/types";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
 import { ARPG_GAMEPLAY_VIEWPORT, ARPG_PIXEL_RENDER_SETTINGS } from "./render-config";
 import { createScenePauseControl } from "./scene-pause-control";
+import { createArpgDungeonSeed } from "../dungeon/encounter-seed";
 
 export async function createArpgGame(
   parent: HTMLElement,
@@ -26,7 +27,7 @@ export async function createArpgGame(
 
   const lootPlan = resolveDungeonLootPlan(expeditionId, lootItemIds);
   const dungeonGraph = populateArpgDungeonContent(generateDungeon({
-    seed: runSeed ?? `${expeditionId}:${globalThis.crypto.randomUUID()}`,
+    seed: runSeed ?? createArpgDungeonSeed(expeditionId, globalThis.crypto.randomUUID()),
     regionId: expeditionId,
   }));
   const dungeonManager = new DungeonManager(dungeonGraph, checkpoint);

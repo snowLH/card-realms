@@ -30,6 +30,19 @@ function createSharedRun() {
 
 describe("shared ARPG co-op dungeon", () => {
   it.each(["mata-encantada", "arquipelago-das-mares", "montanhas-runicas"] as const)(
+    "does not spawn the final boss in ordinary %s co-op arenas",
+    (regionId) => {
+      const state = attachArpgSharedDungeon(
+        createArpgRaidState(ROOM_ID, EVENT_ID, createPlayers(), ARPG_ROC_RAID_BOSS, START), regionId,
+      );
+      expect(state.dungeon?.seed).toContain(`${regionId}:encounters-v2:`);
+      for (const room of state.dungeon!.rooms) {
+        if (room.type !== "boss") expect(room.waves.flat()).not.toContain("boss");
+      }
+    },
+  );
+
+  it.each(["mata-encantada", "arquipelago-das-mares", "montanhas-runicas"] as const)(
     "visits all generated rooms in %s before the final boss",
     (regionId) => {
       for (let index = 0; index < 20; index += 1) {

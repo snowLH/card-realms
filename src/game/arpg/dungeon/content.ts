@@ -3,6 +3,7 @@ import { MATA_ROOM_WAVES } from "../content/mata-encantada";
 import { RUNIC_ROOM_WAVES } from "../content/montanhas-runicas";
 import type { DungeonGraph, DungeonRoom } from "./types";
 import { createSeededRandom } from "./rng";
+import { hasCurrentArpgEncounterRules } from "./encounter-seed";
 
 /** Stable encounter variety: identical seed+room yields identical waves client/server.
  * Prevents easy memorization of the same three waves by graph distance.
@@ -25,9 +26,13 @@ export function populateArpgDungeonContent(graph: DungeonGraph) {
   const mares = graph.regionId === "arquipelago-das-mares";
   const runic = graph.regionId === "montanhas-runicas";
   const waves = mares ? MARES_ROOM_WAVES : runic ? RUNIC_ROOM_WAVES : MATA_ROOM_WAVES;
+  // Existing checkpoints retain their exact enemies and reward ceilings.
+  const combatWaves = hasCurrentArpgEncounterRules(graph.seed, graph.regionId)
+    ? waves.filter((wave) => !wave.includes("boss"))
+    : waves;
   for (const room of Object.values(graph.rooms)) {
     if (room.type === "combat") {
-      room.waves = commonWaves(graph, room, waves);
+      room.waves = commonWaves(graph, room, combatWaves);
     } else if (room.type === "elite") {
       room.waves = mares
         ? [["guardian", "skirmisher", "elite"], ["miniBoss"]]

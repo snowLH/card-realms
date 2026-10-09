@@ -224,7 +224,7 @@ describe("/api/arpg/run durable run endpoints", () => {
     const run = await beginPersistedRun();
 
     expect(run.persistent).toBe(true);
-    expect(run.runSeed).toContain("mata-encantada:");
+    expect(run.runSeed).toContain("mata-encantada:encounters-v2:");
     expect(run.checkpoint.currentRoomId).toBe("room-0");
     expect(rpcMock).toHaveBeenCalledWith("begin_or_resume_arpg_run", expect.objectContaining({
       target_player_id: PLAYER_ID,

@@ -1,12 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { generateDungeon } from "./generator";
 import { populateArpgDungeonContent } from "./content";
+import { createArpgDungeonSeed } from "./encounter-seed";
 
 const regions = ["mata-encantada", "arquipelago-das-mares", "montanhas-runicas"] as const;
 
 describe("deterministic encounter variety", () => {
+  it.each(regions)("reserves the boss for the final arena in new %s runs", (regionId) => {
+    for (let index = 0; index < 100; index += 1) {
+      const seed = createArpgDungeonSeed(regionId, `boss-room-${index}`);
+      const dungeon = populateArpgDungeonContent(generateDungeon({ seed, regionId }));
+      for (const room of Object.values(dungeon.rooms)) {
+        if (room.type !== "boss") expect(room.waves.flat()).not.toContain("boss");
+      }
+      expect(dungeon.rooms[dungeon.bossRoomId].waves).toEqual([["boss"]]);
+    }
+  });
+
+  it("keeps the encounter of an existing checkpoint unchanged", () => {
+    const seed = "montanhas-runicas:2e45b268-8921-4441-911b-19da9ee2159b";
+    const graph = populateArpgDungeonContent(generateDungeon({ seed, regionId: "montanhas-runicas" }));
+    expect(graph.rooms["room-4"].type).toBe("combat");
+    expect(graph.rooms["room-4"].waves.at(-1)).toEqual(["boss"]);
+  });
+
   it.each(regions)("generates the same %s encounters for the same seed", (regionId) => {
-    const seed = `stable-${regionId}`;
+    const seed = createArpgDungeonSeed(regionId, `stable-${regionId}`);
     const left = populateArpgDungeonContent(generateDungeon({ seed, regionId }));
     const right = populateArpgDungeonContent(generateDungeon({ seed, regionId }));
     expect(Object.entries(left.rooms).map(([id, room]) => [id, room.waves]))

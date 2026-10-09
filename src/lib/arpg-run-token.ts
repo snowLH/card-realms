@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { isDungeonLootPlanValid } from "@/game/arpg/content/dungeons";
+import { createArpgDungeonSeed } from "@/game/arpg/dungeon/encounter-seed";
 import { ArpgLoadoutSchema } from "@/game/arpg/domain/loadout-schema";
 import type { ArpgLoadout } from "@/game/arpg/domain/types";
 import {
@@ -104,7 +105,7 @@ export function createArpgRunToken(
     playerId,
     regionId,
     lootItemIds: [...lootItemIds],
-    dungeonSeed: `${regionId}:${runId}`,
+    dungeonSeed: createArpgDungeonSeed(regionId, runId),
     startedAt: now,
     expiresAt: now + 1000 * 60 * 60 * 24 * 7,
   };

@@ -4,6 +4,7 @@ import { DUNGEON_TILE_SIZE } from "../dungeon/layout";
 import { connectedRoomIds } from "../dungeon/graph";
 import { populateArpgDungeonContent } from "../dungeon/content";
 import { generateDungeon } from "../dungeon/generator";
+import { createArpgDungeonSeed } from "../dungeon/encounter-seed";
 import { createSeededRandom } from "../dungeon/rng";
 import { scaleCoopEnemyHealth } from "./scaling";
 import { ARPG_ROOM_TEMPLATE_BY_ID } from "../dungeon/templates";
@@ -113,7 +114,7 @@ export function attachArpgSharedDungeon(
   state: ArpgRaidState,
   regionId: ArpgExpeditionId = "mata-encantada",
 ): ArpgRaidState {
-  const seed = `coop-${state.roomId}-${state.eventId}`;
+  const seed = createArpgDungeonSeed(regionId, `coop-${state.roomId}-${state.eventId}`);
   const graph = populateArpgDungeonContent(generateDungeon({ seed, regionId, minRooms: 8, maxRooms: 8 }));
   const route = planArpgCoopRoomSequence(graph);
   const rooms: ArpgRaidDungeonRoomState[] = route.map((room) => {
