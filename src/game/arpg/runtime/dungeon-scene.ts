@@ -104,6 +104,8 @@ import { getPixelArtTextureKey } from "./pixel-art-sheet";
 import { playActorIdle } from "./actor-idle";
 import { ActiveSceneClock, bindActiveSceneClock } from "./active-scene-clock";
 import { GENERATED_SPRITE_FRAME_SIZE, queueGeneratedLegendSpriteSheet } from "./legend-sprite-sheets";
+import { getOriginalPixelEnemyId } from "./folklard-pixel-enemies";
+import { createOriginalPixelEnemySheet } from "./original-enemy-sheet";
 import {
   createNativePixelActorSheet,
   NATIVE_PIXEL_ACTOR_ANIMATION_MAP,
@@ -198,9 +200,11 @@ const NATIVE_ACTOR_ANIMATIONS = {
   ...NATIVE_FALLBACK_ANIMATIONS,
 };
 
-function getNativeDungeonFallbackActors(dungeonId: string) {
+function getNativeDungeonFallbackActors(dungeon: ArpgDungeonRuntimeConfig) {
   return new Set(
-    Object.values(NATIVE_FALLBACK_ACTORS[dungeonId] ?? {})
+    Object.entries(NATIVE_FALLBACK_ACTORS[dungeon.id] ?? {})
+      .filter(([enemyId]) => !isArpgEnemyAnimationProfile(dungeon.enemyAnimations?.[enemyId]))
+      .map(([, actorId]) => actorId)
       .filter((actorId): actorId is NativePixelActorId => Boolean(actorId)),
   );
 }
@@ -383,7 +387,7 @@ export function createArpgDungeonScene(
           this.load.spritesheet(textureKey, definition.path, getArpgSpriteSheetFrameConfig(definition));
         }
       }
-      for (const actorId of getNativeDungeonFallbackActors(dungeon.id)) {
+      for (const actorId of getNativeDungeonFallbackActors(dungeon)) {
         queueGeneratedLegendSpriteSheet(
           this,
           actorId,
@@ -462,6 +466,8 @@ export function createArpgDungeonScene(
         const definition = getArpgEnemyAnimationProfile(profile);
         const textureKey = getPixelArtTextureKey(definition.textureKey);
         if (!this.textures.exists(textureKey)) {
+          const originalEnemy = getOriginalPixelEnemyId(profile);
+          if (originalEnemy) createOriginalPixelEnemySheet(this, originalEnemy, textureKey);
           const actorId = NATIVE_ENEMY_ACTORS_BY_PROFILE[profile];
           if (actorId) {
             createNativePixelActorSheet(
@@ -481,7 +487,7 @@ export function createArpgDungeonScene(
           keyPrefix: definition.animationKeyPrefix!,
         });
       }
-      const nativeFallbackActors = getNativeDungeonFallbackActors(dungeon.id);
+      const nativeFallbackActors = getNativeDungeonFallbackActors(dungeon);
       for (const actorId of nativeFallbackActors) {
         const textureKey = getPixelArtTextureKey(`folklard-native-${actorId}`);
         if (!this.textures.exists(textureKey)) {

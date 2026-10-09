@@ -130,7 +130,7 @@ export const ARPG_ASSET_MANIFEST = {
     "sprout-enemy": {
       textureKey: "folklard-sprout-enemy",
       animationKeyPrefix: "sprout-enemy",
-      path: "/art/monster-sprout-spritesheet-v1.webp",
+      path: "/art/monster-sprout-spritesheet-v3.webp",
       frameWidth: 256,
       frameHeight: 256,
       frameCount: 24,
@@ -166,7 +166,7 @@ export const ARPG_ASSET_MANIFEST = {
     "shade-enemy": {
       textureKey: "folklard-shade-enemy",
       animationKeyPrefix: "shade-enemy",
-      path: "/art/monster-shade-spritesheet-v1.webp",
+      path: "/art/monster-shade-spritesheet-v3.webp",
       frameWidth: 256,
       frameHeight: 256,
       frameCount: 24,
@@ -178,7 +178,7 @@ export const ARPG_ASSET_MANIFEST = {
     "thorn-enemy": {
       textureKey: "folklard-thorn-enemy",
       animationKeyPrefix: "thorn-enemy",
-      path: "/art/monster-thorn-spritesheet-v1.webp",
+      path: "/art/monster-thorn-spritesheet-v3.webp",
       frameWidth: 256,
       frameHeight: 256,
       frameCount: 24,
@@ -190,7 +190,7 @@ export const ARPG_ASSET_MANIFEST = {
     "corrupted-guardian-enemy": {
       textureKey: "folklard-corrupted-guardian-enemy",
       animationKeyPrefix: "corrupted-guardian-enemy",
-      path: "/art/monster-corrupted-guardian-spritesheet-v1.webp",
+      path: "/art/monster-corrupted-guardian-spritesheet-v3.webp",
       frameWidth: 256,
       frameHeight: 256,
       frameCount: 24,
@@ -202,13 +202,13 @@ export const ARPG_ASSET_MANIFEST = {
     "mapinguari-enemy": {
       textureKey: "folklard-mapinguari-enemy",
       animationKeyPrefix: "mapinguari-enemy",
-      path: "/art/monster-mapinguari-spritesheet-v1.webp",
+      path: "/art/monster-mapinguari-spritesheet-v3.webp",
       frameWidth: 256,
       frameHeight: 256,
       frameCount: 24,
       columns: 4,
       rows: 6,
-      scale: 0.32,
+      scale: 0.375,
       animations: GENERATED_PIXEL_ENEMY_ANIMATIONS,
     },
     "carbunclo-enemy": {
