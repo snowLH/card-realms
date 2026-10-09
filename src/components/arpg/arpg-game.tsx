@@ -67,6 +67,7 @@ export function ArpgGame({
   expeditionId = DEFAULT_ARPG_EXPEDITION_ID,
   avatarConfig = DEFAULT_AVATAR_CONFIG,
   atlasEncounter = null,
+  sessionMode = "online",
 }: {
   onExit: () => void;
   exitLabel?: string;
@@ -75,6 +76,7 @@ export function ArpgGame({
   expeditionId?: ArpgExpeditionId;
   avatarConfig?: AvatarConfig;
   atlasEncounter?: AtlasEncounterReference | null;
+  sessionMode?: "online" | "offline";
 }) {
   const expedition = getArpgExpedition(expeditionId);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -361,6 +363,21 @@ export function ArpgGame({
         setExtractionStatus("idle");
         setBootError(null);
         setSyncError(null);
+        if (sessionMode === "offline") {
+          bridge.setServerAuthoritativeCombat(false);
+          setAtlasTarget(resolveAtlasEncounterTarget(atlasEncounter));
+          setMessage(`Aventura offline em ${expedition.name}.`);
+          bootStartedRef.current = true;
+          const session = await createArpgGame(
+            host, bridge, loadoutForBootRef.current, expeditionId,
+            undefined, undefined, undefined, avatarConfig,
+          );
+          if (disposed) { session.destroy(); return; }
+          destroyGame = session.destroy;
+          gameControlRef.current = session;
+          setReady(true);
+          return;
+        }
         const response = await fetch("/api/arpg/run", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -442,7 +459,7 @@ export function ArpgGame({
       destroyGame?.();
       setReady(false);
     };
-  }, [atlasEncounter, avatarConfig, bootAttempt, bridge, expedition, expeditionId]);
+  }, [atlasEncounter, avatarConfig, bootAttempt, bridge, expedition, expeditionId, sessionMode]);
 
   const requestFullscreen = async () => {
     try {

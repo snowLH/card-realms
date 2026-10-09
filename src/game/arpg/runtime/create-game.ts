@@ -31,8 +31,7 @@ export async function createArpgGame(
     regionId: expeditionId,
   }));
   const dungeonManager = new DungeonManager(dungeonGraph, checkpoint);
-  const Phaser = await import("phaser");
-  const { createArpgDungeonScene } = await import("./dungeon-scene");
+  const [Phaser, { createArpgDungeonScene }] = await Promise.all([import("phaser"), import("./dungeon-scene")]);
   const DungeonScene = createArpgDungeonScene(Phaser, bridge, dungeon, loadout, lootPlan, dungeonManager, checkpoint, avatarConfig);
   const pauseControl = createScenePauseControl(bridge);
 

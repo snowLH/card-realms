@@ -3356,3 +3356,7 @@
   transform: translate3d(var(--stick-x, 0px), var(--stick-y, 0px), 0);
   transition: transform 45ms linear;
 }
+.offline-launch { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.offline-launch a, .offline-launch button { min-height:44px; border:2px solid #597663; padding:10px 14px; color:#fff2d2; background:#0b211a; font:700 12px/1.4 var(--font-game),monospace; text-decoration:none; }
+.offline-launch button:disabled { opacity:.7; }
+.offline-launch p { flex-basis:100%; margin:0; color:#c7d6c8; font:12px/1.6 var(--font-game),monospace; }

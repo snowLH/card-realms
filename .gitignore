@@ -8,6 +8,7 @@
 
 # next.js
 /.next/
+/public/offline-pack.json
 /out/
 
 # production

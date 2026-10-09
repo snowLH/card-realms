@@ -13,8 +13,7 @@ export async function createArpgHubGame(
   onPrompt: (message: string) => void,
   avatarConfig: AvatarConfig = DEFAULT_AVATAR_CONFIG,
 ) {
-  const Phaser = await import("phaser");
-  const { createArpgHubScene } = await import("./hub-scene");
+  const [Phaser, { createArpgHubScene }] = await Promise.all([import("phaser"), import("./hub-scene")]);
   const HubScene = createArpgHubScene(Phaser, bridge, onNavigate, onPrompt, avatarConfig);
   const portraitMobile = window.matchMedia("(max-width: 900px) and (orientation: portrait)").matches;
   const viewport = portraitMobile

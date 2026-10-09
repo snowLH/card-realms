@@ -49,16 +49,18 @@ import { cn } from "@/lib/utils";
 import { connectNativeApp, NATIVE_BACK_EVENT, setNativeLandscape } from "@/lib/native-app";
 import { ArpgExpeditionSelect } from "@/components/arpg/expedition-select";
 import { ArpgLoadoutView, type ArpgLoadoutFocus } from "@/components/arpg/loadout-view";
-import { CollectionView } from "./collection-view";
 import { GameMenu, type GameMenuAction } from "./game-menu";
-import { RefugeView } from "./refuge-view";
-import { RaidView } from "./raid-view";
-import { ProfileView } from "./profile-view";
-import { VillageView } from "./village-view";
-import { WorldMap } from "./world-map";
-import { WelcomeView } from "./welcome-view";
 import { TitleScreen } from "./title-screen";
 import { runAfterPersistingLoadout } from "./loadout-navigation";
+
+// The entrance must not download the map, housing and multiplayer screens.
+const CollectionView = dynamic(() => import("./collection-view").then((m) => m.CollectionView));
+const RefugeView = dynamic(() => import("./refuge-view").then((m) => m.RefugeView));
+const RaidView = dynamic(() => import("./raid-view").then((m) => m.RaidView));
+const ProfileView = dynamic(() => import("./profile-view").then((m) => m.ProfileView));
+const VillageView = dynamic(() => import("./village-view").then((m) => m.VillageView));
+const WorldMap = dynamic(() => import("./world-map").then((m) => m.WorldMap));
+const WelcomeView = dynamic(() => import("./welcome-view").then((m) => m.WelcomeView));
 
 const ArpgRaidArena = dynamic(
   () => import("@/components/arpg/arpg-raid-arena").then((module) => module.ArpgRaidArena),
@@ -115,7 +117,7 @@ async function mutateRemoteProgress(body: Record<string, unknown>) {
   return payload.result;
 }
 
-export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
+export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: PlayerBootstrap; offlineMode?: boolean }) {
   const router = useRouter();
   const remoteSnapshot = bootstrap.snapshot;
   const [titleOpen, setTitleOpen] = useState(true);
@@ -616,7 +618,7 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
       CREATURES.filter((creature) => creature.regionId === region.id && visibleIds.has(creature.id)).length,
     ]));
   }, [visibleOwnedCatalogIds]);
-  const showWelcome = isSupabaseConfigured() && !bootstrap.identity && !guestPreview;
+  const showWelcome = !offlineMode && isSupabaseConfigured() && !bootstrap.identity && !guestPreview;
   const beginTitleMode = (nextView: View) => {
     if (showWelcome) setGuestPreview(true);
     setTitleOpen(false);
@@ -671,10 +673,11 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
     <main className={cn("game-app", showWelcome && "game-app--welcome", titleOpen && "game-app--title")}>
       {titleOpen ? (
         <TitleScreen
-          loginEnabled={isSupabaseConfigured()}
+          loginEnabled={!offlineMode && isSupabaseConfigured()}
           signedIn={Boolean(bootstrap.identity)}
+          offlineMode={offlineMode}
           onPlay={() => beginTitleMode("hub")}
-          onCooperative={() => beginTitleMode("raid")}
+          onCooperative={offlineMode ? undefined : () => beginTitleMode("raid")}
         />
       ) : null}
 
@@ -700,10 +703,11 @@ export function GameShell({ bootstrap }: { bootstrap: PlayerBootstrap }) {
           />
         ) : null}
         {!showWelcome && view === "expeditions" ? (
-          <ArpgExpeditionSelect onSelect={(id) => void handleStartArpg(id)} />
+          <ArpgExpeditionSelect restoreRemoteRun={bootstrap.source === "supabase"} onSelect={(id) => void handleStartArpg(id)} />
         ) : null}
         {!showWelcome && view === "play" ? (
           <ArpgGame
+            sessionMode={offlineMode || !bootstrap.identity ? "offline" : "online"}
             loadout={playableArpgLoadout}
             avatarConfig={activeAvatar}
             expeditionId={selectedExpeditionId}

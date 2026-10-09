@@ -20,12 +20,15 @@ type ActiveRunSummary = {
 
 export function ArpgExpeditionSelect({
   onSelect,
+  restoreRemoteRun = true,
 }: {
   onSelect: (id: ArpgExpeditionId) => void;
+  restoreRemoteRun?: boolean;
 }) {
   const [activeRun, setActiveRun] = useState<ActiveRunSummary | null>(null);
 
   useEffect(() => {
+    if (!restoreRemoteRun) return;
     const controller = new AbortController();
     void fetch("/api/arpg/run", { signal: controller.signal })
       .then(async (response) => {
@@ -41,7 +44,7 @@ export function ArpgExpeditionSelect({
       })
       .catch(() => {});
     return () => controller.abort();
-  }, []);
+  }, [restoreRemoteRun]);
 
   const activeExpedition = activeRun ? getArpgExpedition(activeRun.expeditionId) : null;
 
