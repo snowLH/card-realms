@@ -4,12 +4,16 @@ on:
   pull_request:
     paths:
       - "mobile/**"
+      - "src/server/downloads/**"
+      - "src/app/instalar/**"
       - ".github/workflows/android-app.yml"
   push:
     branches:
       - main
     paths:
       - "mobile/**"
+      - "src/server/downloads/**"
+      - "src/app/instalar/**"
       - ".github/workflows/android-app.yml"
 permissions:
   contents: read

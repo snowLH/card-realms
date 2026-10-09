@@ -33,7 +33,7 @@ async function readBuildMetadata(platform: DownloadPlatform, release: Release | 
   if (!release.assets.some((candidate) => candidate.name === file && candidate.state === "uploaded"
     && candidate.size > 0 && candidate.size <= 4096 && candidate.browser_download_url === url)) return empty;
   try {
-    const response = await fetcher(url, { next: { revalidate: 300 }, signal: AbortSignal.timeout(6500) });
+    const response = await fetcher(url, { cache: "no-store", signal: AbortSignal.timeout(6500) });
     if (!response.ok) return empty;
     const metadata = await response.json();
     if (metadata.file !== asset.name || metadata.size !== asset.size
@@ -59,7 +59,7 @@ async function readRelease(tag: string, fetcher: typeof fetch): Promise<Release 
   try {
     const response = await fetcher(`https://api.github.com/repos/${REPOSITORY}/releases/tags/${tag}`, {
       headers: { Accept: "application/vnd.github+json" },
-      next: { revalidate: 300 }, signal: AbortSignal.timeout(6500),
+      cache: "no-store", signal: AbortSignal.timeout(6500),
     });
     if (!response.ok) return null;
     const release = await response.json() as Release;
@@ -71,7 +71,7 @@ async function readRelease(tag: string, fetcher: typeof fetch): Promise<Release 
 async function checkBinary(url: string, expectedSize: number | null, fetcher: typeof fetch) {
   try {
     const response = await fetcher(url, {
-      method: "HEAD", redirect: "follow", next: { revalidate: 300 }, signal: AbortSignal.timeout(6500),
+      method: "HEAD", redirect: "follow", cache: "no-store", signal: AbortSignal.timeout(6500),
     });
     const mime = response.headers.get("content-type")?.split(";")[0].trim();
     const binary = mime === "application/octet-stream" || mime === "application/vnd.android.package-archive"
@@ -106,8 +106,10 @@ export async function getDownloadReleases(fetcher: typeof fetch = fetch): Promis
       available: check.available, url, tag: spec.tag, name: release?.name ?? null,
       size: asset?.size ?? check.size,
       updatedAt: asset?.updated_at && Number.isFinite(Date.parse(asset.updated_at)) ? asset.updated_at : null,
-      sha256: digest,
-      ...metadata,
+      // Release filenames are replaced in-place. Cached metadata can describe a
+      // previous installer; do not publish its identity after a failed live check.
+      sha256: check.available ? digest : null,
+      ...(check.available ? metadata : { version: null, commit: null, signing: null }),
     }] as const;
   }));
   return Object.fromEntries(results) as Record<DownloadPlatform, DownloadRelease>;

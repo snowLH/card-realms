@@ -70,6 +70,18 @@ describe("native release workflow hardening", () => {
     }
   });
 
+  it("builds every native target when the direct download catalog changes", () => {
+    for (const path of [
+      ".github/workflows/android-app.yml",
+      ".github/workflows/desktop-app.yml",
+      ".github/workflows/ios-simulator.yml",
+    ] as const) {
+      const source = workflow(path);
+      expect(source.match(/"src\/server\/downloads\/\*\*"/g), path).toHaveLength(2);
+      expect(source.match(/"src\/app\/instalar\/\*\*"/g), path).toHaveLength(2);
+    }
+  });
+
   it("never publishes automatic native downloads from feature branches", () => {
     const android = workflow(".github/workflows/android-app.yml");
     const desktop = workflow(".github/workflows/desktop-app.yml");

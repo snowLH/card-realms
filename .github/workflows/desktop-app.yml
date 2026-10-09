@@ -4,12 +4,16 @@ on:
   pull_request:
     paths:
       - "desktop/**"
+      - "src/server/downloads/**"
+      - "src/app/instalar/**"
       - ".github/workflows/desktop-app.yml"
   push:
     branches:
       - main
     paths:
       - "desktop/**"
+      - "src/server/downloads/**"
+      - "src/app/instalar/**"
       - ".github/workflows/desktop-app.yml"
 permissions:
   contents: read

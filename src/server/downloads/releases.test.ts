@@ -25,6 +25,33 @@ describe("official installer availability", () => {
     expect(fetcher).toHaveBeenCalledTimes(5); // two releases, three files
     expect(fetcher).toHaveBeenCalledWith(downloadUrl("windows"), expect.objectContaining({ method: "HEAD", redirect: "follow" }));
   });
+  it("checks mutable release files live instead of reusing a previous installer snapshot", async () => {
+    const fetcher = mockFetch();
+    await getDownloadReleases(fetcher);
+    for (const [, options] of fetcher.mock.calls) {
+      expect(options?.cache).toBe("no-store");
+      expect(options?.next?.revalidate).toBeUndefined();
+    }
+  });
+
+  it("hides the previous build identity and checksum when the binary is replaced during a release", async () => {
+    const base = mockFetch(new Response(null, { headers: { "content-type": "application/octet-stream", "content-length": "256" } }));
+    const fetcher = vi.fn<typeof fetch>(async (url, options) => {
+      if (String(url).endsWith("Folklard-Windows.json")) {
+        return Response.json({ file: DOWNLOADS.windows.file, size: 128, version: "0.2.0",
+          commit: "b".repeat(40), sha256: "a".repeat(64), signing: "unsigned-test" });
+      }
+      const response = await base(url, options);
+      if (!String(url).endsWith("/downloads-desktop")) return response;
+      const release = await response.json();
+      release.assets.push({ name: "Folklard-Windows.json", state: "uploaded", size: 287,
+        browser_download_url: "https://github.com/snowLH/card-realms/releases/download/downloads-desktop/Folklard-Windows.json" });
+      return Response.json(release);
+    });
+    expect((await getDownloadReleases(fetcher)).windows).toMatchObject({
+      available: false, sha256: null, version: null, commit: null, signing: null,
+    });
+  });
   it.each([
     ["an unfollowed redirect", new Response(null, { status: 302 })],
     ["an HTML error page", new Response(null, { headers: { "content-type": "text/html", "content-length": "128" } })],
