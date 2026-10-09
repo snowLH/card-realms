@@ -106,6 +106,7 @@ export function ArpgGame({
   const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
   const [extractionStatus, setExtractionStatus] = useState<"idle" | "pending" | "error" | "complete">("idle");
   const [bootError, setBootError] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [bootAttempt, setBootAttempt] = useState(0);
   const [atlasTarget, setAtlasTarget] = useState<AtlasEncounterTarget | null>(null);
   const hasDungeonMap = Boolean(hud?.dungeonMap);
@@ -146,7 +147,7 @@ export function ArpgGame({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat || !ready || runResult || event.defaultPrevented) return;
+      if (event.repeat || !ready || runResult || syncError || event.defaultPrevented) return;
       const target = event.target;
       if (target instanceof HTMLElement && (target.isContentEditable || target.matches("input, textarea, select"))) return;
       if (event.code === "KeyM") {
@@ -162,11 +163,11 @@ export function ArpgGame({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [ready, runResult, mapOpen, paused, hasDungeonMap]);
+  }, [ready, runResult, syncError, mapOpen, paused, hasDungeonMap]);
 
   useEffect(() => {
-    gameControlRef.current?.setPaused(paused || mapOpen || portraitMobile === true);
-  }, [paused, mapOpen, portraitMobile, ready]);
+    gameControlRef.current?.setPaused(paused || mapOpen || portraitMobile === true || Boolean(syncError));
+  }, [paused, mapOpen, portraitMobile, ready, syncError]);
 
   useEffect(() => bindInputLifecycle(bridge, () => {
     if (ready && !runResult) setPaused(true);
@@ -190,6 +191,21 @@ export function ArpgGame({
     if (!hostRef.current) return;
     let disposed = false;
     let destroyGame: (() => void) | null = null;
+    let synchronizationError: Error | null = null;
+
+    const assertSynchronized = () => {
+      if (disposed) throw new Error("A sessão desta expedição foi encerrada.");
+      if (synchronizationError) throw synchronizationError;
+    };
+    const interruptSynchronization = (error: unknown) => {
+      if (disposed || synchronizationError) return;
+      synchronizationError = error instanceof Error ? error : new Error("A expedição não pôde ser sincronizada.");
+      bridge.clearGameplayInput();
+      gameControlRef.current?.setPaused(true);
+      setMapOpen(false);
+      setPaused(true);
+      setSyncError(synchronizationError.message);
+    };
 
     const host = hostRef.current;
     const offHud = bridge.onHud((state) => setHud(state));
@@ -198,6 +214,7 @@ export function ArpgGame({
       const token = runTokenRef.current;
       if (!token || !persistentRunRef.current) return null;
       const submit = async () => {
+        assertSynchronized();
         const response = await fetch("/api/arpg/run", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -217,13 +234,12 @@ export function ArpgGame({
         if (!response.ok || typeof payload.revision !== "number" || !payload.state) {
           throw new Error(payload.error ?? "O combate não pôde ser sincronizado com o servidor.");
         }
+        assertSynchronized();
         checkpointRevisionRef.current = payload.revision;
         return { revision: payload.revision, state: payload.state };
       };
       const queued = checkpointQueueRef.current.then(submit);
-      checkpointQueueRef.current = queued.then(() => undefined).catch((error: unknown) => {
-        setExtractionMessage(error instanceof Error ? error.message : "Falha ao validar o combate.");
-      });
+      checkpointQueueRef.current = queued.then(() => undefined).catch(interruptSynchronization);
       return queued;
     });
 
@@ -231,6 +247,7 @@ export function ArpgGame({
       const token = runTokenRef.current;
       if (!token || !persistentRunRef.current) return;
       const save = async () => {
+        assertSynchronized();
         const response = await fetch("/api/arpg/run", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -249,13 +266,12 @@ export function ArpgGame({
         if (!response.ok || typeof payload.revision !== "number") {
           throw new Error(payload.error ?? "O checkpoint não pôde ser salvo.");
         }
+        assertSynchronized();
         checkpointRevisionRef.current = payload.revision;
       };
 
       const queued = checkpointQueueRef.current.then(save);
-      checkpointQueueRef.current = queued.catch((error: unknown) => {
-        setExtractionMessage(error instanceof Error ? error.message : "Falha ao salvar o checkpoint.");
-      });
+      checkpointQueueRef.current = queued.catch(interruptSynchronization);
     };
 
     const completeRun = async (state: ArpgHudState, retry = false) => {
@@ -289,6 +305,7 @@ export function ArpgGame({
       setExtractionMessage("Validando extração...");
       try {
         await checkpointQueueRef.current;
+        assertSynchronized();
         const response = await fetch("/api/arpg/run", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -298,6 +315,7 @@ export function ArpgGame({
           response,
           "O servidor enviou uma resposta inválida ao registrar a extração.",
         );
+        if (disposed) return;
         if (!response.ok) throw new Error(payload.error ?? "A extração não pôde ser validada.");
         setExtractionMessage(payload.persisted
           ? state.victory ? "Extração registrada na conta." : "Resultado registrado na conta."
@@ -308,6 +326,7 @@ export function ArpgGame({
         setExtractionStatus("complete");
         onRunCompleteRef.current?.(state, payload);
       } catch (error) {
+        if (disposed) return;
         setExtractionMessage(persistent
           ? error instanceof Error ? error.message : "Falha ao registrar extração."
           : state.victory
@@ -316,7 +335,7 @@ export function ArpgGame({
         setExtractionStatus(persistent ? "error" : "complete");
         if (!persistent) onRunCompleteRef.current?.(state, localExtraction);
       } finally {
-        extractionInFlightRef.current = false;
+        if (!disposed) extractionInFlightRef.current = false;
       }
     };
 
@@ -341,6 +360,7 @@ export function ArpgGame({
         setExtractionMessage(null);
         setExtractionStatus("idle");
         setBootError(null);
+        setSyncError(null);
         const response = await fetch("/api/arpg/run", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -470,7 +490,7 @@ export function ArpgGame({
               type="button"
               aria-label={paused ? "Retomar jogo" : "Pausar jogo"}
               aria-pressed={paused}
-              disabled={!ready || Boolean(runResult)}
+              disabled={!ready || Boolean(runResult) || Boolean(syncError)}
               onClick={() => {
                 setMapOpen(false);
                 setPaused((current) => !current);
@@ -530,13 +550,22 @@ export function ArpgGame({
           ) : null}
           <LootChoice state={hud} bridge={bridge} />
           <RoomChoice state={hud} bridge={bridge} />
-          {paused ? (
+          {paused && !runResult ? (
             <section className="arpg-pause" role="dialog" aria-modal="true" aria-labelledby="arpg-pause-title">
               <div className="arpg-pause__panel">
                 <small>EXPEDIÇÃO INTERROMPIDA</small>
                 <h1 id="arpg-pause-title">Pausa</h1>
-                <p>Retome quando estiver pronto para continuar a jornada.</p>
-                <button type="button" autoFocus onClick={() => setPaused(false)}>Retomar</button>
+                {syncError ? (
+                  <>
+                    <p role="alert">{syncError} Reabra o último checkpoint confirmado para continuar.</p>
+                    <button type="button" autoFocus onClick={() => setBootAttempt((attempt) => attempt + 1)}>Reabrir checkpoint</button>
+                  </>
+                ) : (
+                  <>
+                    <p>Retome quando estiver pronto para continuar a jornada.</p>
+                    <button type="button" autoFocus onClick={() => setPaused(false)}>Retomar</button>
+                  </>
+                )}
                 <button type="button" disabled={extractionPending} onClick={requestExit}>{exitLabel}</button>
               </div>
             </section>
@@ -588,7 +617,9 @@ export function ArpgGame({
             <small>{runResult.victory ? "Loot elegível para extração." : "Loot da run ainda não foi extraído."}</small>
             {extractionMessage ? <span className="arpg-run-result__extraction" role={extractionStatus === "error" ? "alert" : "status"}>{extractionMessage}</span> : null}
             {extractionStatus === "error" ? (
-              <button type="button" onClick={() => void retryExtractionRef.current?.()}>Tentar registrar novamente</button>
+              syncError
+                ? <button type="button" onClick={() => setBootAttempt((attempt) => attempt + 1)}>Reabrir checkpoint</button>
+                : <button type="button" onClick={() => void retryExtractionRef.current?.()}>Tentar registrar novamente</button>
             ) : null}
             {!runResult.victory && extractionStatus === "complete" ? (
               <button type="button" onClick={() => setBootAttempt((attempt) => attempt + 1)}>Tentar outra vez</button>
