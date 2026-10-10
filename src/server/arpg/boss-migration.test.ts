@@ -94,7 +94,7 @@ describe("corrupted legend migration on embedded PostgreSQL", () => {
     expect(rows.find((row) => row.user_id === ALLY)?.unlocked_legend_ids).toEqual(["king-arthur"]);
     expect(rows.find((row) => row.user_id === SPECTATOR)?.unlocked_legend_ids).toEqual([]);
     expect(rows.find((row) => row.user_id === SPECTATOR)?.seen_boss_intro_ids).toEqual(["king-arthur"]);
-    expect((await db.query("select * from public.inventory_items where user_id = any($1::uuid[])", [[PLAYER, ALLY]])).rows).toHaveLength(6);
+    expect((await db.query("select * from public.inventory_items where user_id in ($1,$2)", [PLAYER, ALLY])).rows).toHaveLength(6);
   });
   it("restricts entitlement mutation to the service role and retains loadout checks", async () => {
     const result = await db.query<{ authenticated: boolean; service: boolean }>("select has_function_privilege('authenticated','public.record_corrupted_legend_progress(uuid,uuid,uuid,boolean)','execute') as authenticated, has_function_privilege('service_role','public.record_corrupted_legend_progress(uuid,uuid,uuid,boolean)','execute') as service");
