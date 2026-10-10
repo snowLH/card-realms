@@ -5,8 +5,10 @@ import { beforeAll, afterAll, describe, expect, it } from "vitest";
 const PLAYER = "11111111-1111-4111-8111-111111111111";
 const ALLY = "22222222-2222-4222-8222-222222222222";
 const SPECTATOR = "33333333-3333-4333-8333-333333333333";
+const IARA_PLAYER = "66666666-6666-4666-8666-666666666666";
 const RUN = "44444444-4444-4444-8444-444444444444";
 const ROOM = "55555555-5555-4555-8555-555555555555";
+const IARA_RUN = "77777777-7777-4777-8777-777777777777";
 let db: PGlite;
 const proof = (state: string, hp = 0) => ({ bossId: "king-arthur", participantIds: [PLAYER, ALLY, SPECTATOR], state, hp, enteredAtMs: 1000, stateAtMs: 20000 });
 async function runProof(state: string, hp = 0) {
@@ -29,15 +31,16 @@ describe("corrupted legend migration on embedded PostgreSQL", () => {
       create table public.raid_participants(room_id uuid, user_id uuid);
       create table public.player_arpg_loadouts(user_id uuid primary key, weapon_id text, armor_id text, relic_id text, ability_ids text[], updated_at timestamptz, constraint player_arpg_loadouts_ability_ids_check check(cardinality(ability_ids)=2));
     `);
-    await db.query("insert into public.profiles(id) values($1),($2),($3)", [PLAYER, ALLY, SPECTATOR]);
+    await db.query("insert into public.profiles(id) values($1),($2),($3),($4)", [PLAYER, ALLY, SPECTATOR, IARA_PLAYER]);
     await db.exec(readFileSync("supabase/migrations/20261010004944_corrupted_legend_restoration.sql", "utf8"));
     await db.query("insert into private.arpg_runs values($1,$2,'montanhas-runicas','boss-room','{}')", [RUN, PLAYER]);
+    await db.query("insert into private.arpg_runs values($1,$2,\'arquipelago-das-mares\',\'boss-room\',\'{}\')", [IARA_RUN, IARA_PLAYER]);
   }, 30000);
   afterAll(async () => db?.close());
 
   it("migrates existing accounts without inventing purified legends", async () => {
     const rows = await db.query<{ purified_boss_ids: string[]; unlocked_legend_ids: string[] }>("select * from public.player_boss_progress");
-    expect(rows.rows).toHaveLength(3);
+    expect(rows.rows).toHaveLength(4);
     expect(rows.rows.every((row) => !row.purified_boss_ids.length && !row.unlocked_legend_ids.length)).toBe(true);
   });
   it("rejects HP zero and incomplete purification, retaining inventory", async () => {
@@ -58,6 +61,24 @@ describe("corrupted legend migration on embedded PostgreSQL", () => {
     expect(items).toHaveLength(3);
     expect(items.every((item) => item.quantity === 1)).toBe(true);
   });
+  it("restores Iara with her own legend and signature abilities", async () => {
+    const encounter = { bossId: "deep-iara", participantIds: [IARA_PLAYER], state: "RESTORED", hp: 0, enteredAtMs: 1000, stateAtMs: 20000 };
+    await db.query("update private.arpg_runs set checkpoint=$1::jsonb where run_id=$2", [
+      JSON.stringify({ serverCombatState: { roomId: "boss-room", bossEncounter: encounter } }),
+      IARA_RUN,
+    ]);
+    const result = await db.query<{ receipt: { progress: { unlockedLegendIds: string[] } } }>(
+      "select public.record_corrupted_legend_progress($1,$2,null,true) as receipt",
+      [IARA_PLAYER, IARA_RUN],
+    );
+    expect(result.rows[0].receipt.progress.unlockedLegendIds).toContain("iara");
+    const items = (await db.query<{ item_key: string }>(
+      "select item_key from public.inventory_items where user_id=$1 order by item_key",
+      [IARA_PLAYER],
+    )).rows.map((row) => row.item_key);
+    expect(items).toEqual(["iara-enchanting-song", "iara-living-spring", "legend-iara"]);
+  });
+
   it("does not trust another user's run or a forged boss ID", async () => {
     await expect(db.query("select public.record_corrupted_legend_progress($1,$2,null,true)", [ALLY, RUN])).rejects.toThrow("não confirmado");
     await db.query("update private.arpg_runs set checkpoint=jsonb_set(checkpoint,'{serverCombatState,bossEncounter,bossId}','\"deep-iara\"') where run_id=$1", [RUN]);
