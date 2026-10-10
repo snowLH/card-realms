@@ -274,6 +274,7 @@ export function createArpgDungeonScene(
     private player!: ArcadeSprite;
     private floatingWeapon: import("phaser").GameObjects.Image | null = null;
     private floatingWeaponTextureKey: string | null = null;
+    private floatingWeaponFrame: number | null = null;
     private targetMarker: import("phaser").GameObjects.Graphics | null = null;
     private autoAimTarget: ArcadeSprite | null = null;
     private enemies!: import("phaser").Physics.Arcade.Group;
@@ -388,6 +389,14 @@ export function createArpgDungeonScene(
     }
 
     preload() {
+      const externalWeaponSheet = ARPG_ASSET_MANIFEST.weapons.bennyboiHack;
+      if (!this.textures.exists(externalWeaponSheet.textureKey)) {
+        this.load.spritesheet(
+          externalWeaponSheet.textureKey,
+          externalWeaponSheet.path,
+          getArpgSpriteSheetFrameConfig(externalWeaponSheet),
+        );
+      }
       this.load.spritesheet(
         DUNGEON_BIOME_PROPS_TEXTURE_KEY,
         DUNGEON_BIOME_PROPS_ASSET_PATH,
@@ -577,8 +586,12 @@ export function createArpgDungeonScene(
         this.player.x,
         this.player.y,
         initialWeaponVisual.textureKey,
-      ).setOrigin(0.5, 0.5).setScale(initialWeaponVisual.displayScale).setDepth(11);
+        initialWeaponVisual.frame,
+      ).setOrigin(initialWeaponVisual.originX, initialWeaponVisual.originY)
+        .setTint(initialWeaponVisual.tint)
+        .setScale(initialWeaponVisual.displayScale).setDepth(11);
       this.floatingWeaponTextureKey = initialWeaponVisual.textureKey;
+      this.floatingWeaponFrame = initialWeaponVisual.frame;
       this.targetMarker = this.add.graphics().setDepth(18);
       this.events.once("shutdown", () => this.clearFloatingWeapon());
       this.events.once("destroy", () => this.clearFloatingWeapon());
@@ -1076,10 +1089,12 @@ export function createArpgDungeonScene(
         distance: getFloatingWeaponReach(weapon.kind) + visual.holdDistanceOffset,
       });
 
-      if (this.floatingWeaponTextureKey !== visual.textureKey) {
-        this.floatingWeapon.setTexture(visual.textureKey);
+      if (this.floatingWeaponTextureKey !== visual.textureKey || this.floatingWeaponFrame !== visual.frame) {
+        this.floatingWeapon.setTexture(visual.textureKey, visual.frame);
         this.floatingWeaponTextureKey = visual.textureKey;
+        this.floatingWeaponFrame = visual.frame;
       }
+      this.floatingWeapon.setOrigin(visual.originX, visual.originY).setTint(visual.tint);
 
       const attackElapsed = this.lastWeaponAttackId === weapon.id
         ? this.runClock.now - this.lastWeaponAttackAt
@@ -1096,7 +1111,7 @@ export function createArpgDungeonScene(
       const y = pose.y
         + direction.y * motion.distanceOffset
         + perpendicular.y * (motion.sideOffset + idleBob);
-      const angle = getSnappedWeaponAngle(direction, motion.angleOffset, 16);
+      const angle = getSnappedWeaponAngle(direction, motion.angleOffset, 16) + visual.baseRotation;
 
       this.floatingWeapon
         .setPosition(Math.round(x), Math.round(y))
@@ -1151,6 +1166,7 @@ export function createArpgDungeonScene(
       this.floatingWeapon?.destroy();
       this.floatingWeapon = null;
       this.floatingWeaponTextureKey = null;
+      this.floatingWeaponFrame = null;
       this.targetMarker?.destroy();
       this.targetMarker = null;
     }
@@ -3411,19 +3427,25 @@ export function createArpgDungeonScene(
       if (!claimChestLootVisualSlot(presentation.visualSlot)) return;
       presentation.itemSpawnCount += 1;
       const texture = details?.textureKey ?? "arpg-run-fragment";
-      presentation.item = this.add.image(chest.x, chest.y - 28, texture)
+      presentation.item = this.add.image(
+        chest.x, chest.y - 28, texture,
+        details && "frame" in details ? details.frame : undefined,
+      )
+        .setTint(details && "tint" in details ? details.tint : 0xffffff)
         .setDisplaySize(loot ? 32 : 24, loot ? 32 : 24)
         .setAlpha(0)
         .setDepth(12);
       if (details) this.audio?.playLootReveal(details.rarity);
 
       const item = presentation.item;
+      // A 16px external weapon frame is shown at 32px throughout the reveal.
+      const revealScale = details && "frame" in details ? 2 : 1;
       const rise = this.tweens.add({
         targets: item,
         y: chest.y - 84,
         alpha: 1,
-        scaleX: 1,
-        scaleY: 1,
+        scaleX: revealScale,
+        scaleY: revealScale,
         duration: 260,
         ease: "Quad.easeOut",
         onComplete: () => {

@@ -14,6 +14,7 @@ export type ArpgSpriteSheetDefinition = {
   frameWidth: number;
   frameHeight: number;
   frameCount: number;
+  spacing?: number;
   columns?: number;
   rows?: number;
   scale: number;
@@ -41,6 +42,19 @@ const STANDARD_GUILD_NPC_ANIMATIONS = {
 export const ARPG_ASSET_MANIFEST = {
   runtimeTextureKeys: {
     dungeonBackground: "dungeon-arena",
+  },
+  weapons: {
+    bennyboiHack: {
+      textureKey: "folklard-external-weapons-bennyboi-hack",
+      path: "/art/vendor/opengameart/bennyboi-hack/weaponpack.png",
+      frameWidth: 16,
+      frameHeight: 16,
+      spacing: 1,
+      frameCount: 70,
+      columns: 10,
+      rows: 7,
+      scale: 2.2,
+    },
   },
   environments: {
     mataEncounter: { path: "/art/dungeon-forest-background-v3.webp" },
@@ -409,11 +423,12 @@ export const ARPG_ASSETS = {
 } as const;
 
 /** Shared Phaser loader config for manifest-backed sprite sheets. */
-export function getArpgSpriteSheetFrameConfig(sheet: Pick<ArpgSpriteSheetDefinition, "frameWidth" | "frameHeight" | "frameCount">) {
+export function getArpgSpriteSheetFrameConfig(sheet: Pick<ArpgSpriteSheetDefinition, "frameWidth" | "frameHeight" | "frameCount" | "spacing">) {
   return {
     frameWidth: sheet.frameWidth,
     frameHeight: sheet.frameHeight,
     endFrame: sheet.frameCount - 1,
+    ...(sheet.spacing === undefined ? {} : { spacing: sheet.spacing }),
   };
 }
 

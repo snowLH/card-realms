@@ -19,16 +19,18 @@ function fakeScene(alreadyPresent: boolean) {
 }
 
 describe("weapon runtime textures", () => {
-  it("rasterizes a dedicated texture for every weapon plus ranged projectiles", () => {
+  it("rasterizes only projectile helpers, never equipable weapons", () => {
     const { scene, graphics } = fakeScene(false);
     createWeaponRuntimeTextures(scene);
     const keys = graphics.generateTexture.mock.calls.map(([key]) => key);
     expect(keys.sort()).toEqual([...WEAPON_RUNTIME_TEXTURE_KEYS].sort());
     expect(new Set(keys).size).toBe(keys.length);
+    expect(keys.every((key) => key.includes("projectile"))).toBe(true);
+    expect(keys).toHaveLength(2);
     expect(graphics.destroy).toHaveBeenCalledOnce();
   });
 
-  it("does not redraw the arsenal when every generated texture is cached", () => {
+  it("does not redraw projectile helpers when they are cached", () => {
     const { scene, graphics } = fakeScene(true);
     createWeaponRuntimeTextures(scene);
     expect(graphics.generateTexture).not.toHaveBeenCalled();

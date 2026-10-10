@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ARPG_WEAPONS } from "../content/equipment";
+import { ARPG_ASSET_MANIFEST } from "../assets";
 import {
   ARPG_WEAPON_VISUALS,
   getSnappedWeaponAngle,
@@ -15,9 +16,20 @@ describe("weapon visual registry", () => {
     expect(visualIds).toEqual(weaponIds);
   });
 
-  it("uses a unique runtime texture for every weapon", () => {
-    const keys = ARPG_WEAPON_VISUALS.map((visual) => visual.textureKey);
-    expect(new Set(keys).size).toBe(keys.length);
+  it("uses valid external frames and unique visual identities for all 12 weapons", () => {
+    const sheet = ARPG_ASSET_MANIFEST.weapons.bennyboiHack;
+    const identities = ARPG_WEAPON_VISUALS.map((visual) => {
+      expect(visual.textureKey).toBe(sheet.textureKey);
+      expect(visual.frame).toBeGreaterThanOrEqual(0);
+      expect(visual.frame).toBeLessThan(sheet.frameCount);
+      expect(visual.displayScale).toBeGreaterThan(0);
+      expect(visual.originX).toBeGreaterThanOrEqual(0);
+      expect(visual.originX).toBeLessThanOrEqual(1);
+      expect(visual.originY).toBeGreaterThanOrEqual(0);
+      expect(visual.originY).toBeLessThanOrEqual(1);
+      return `${visual.textureKey}:${visual.frame}:${visual.tint}`;
+    });
+    expect(new Set(identities).size).toBe(identities.length);
   });
 
   it("keeps attack motion bounded and returns to a neutral pose", () => {

@@ -16,7 +16,9 @@ describe("chest loot presentation", () => {
       .toMatchObject({
         silhouette: "staff",
         rarity: "epic",
-        textureKey: "arpg-weapon-raiju-staff",
+        textureKey: "folklard-external-weapons-bennyboi-hack",
+        frame: 67,
+        tint: 0xffec8d,
       });
   });
 
