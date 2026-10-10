@@ -8,6 +8,10 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: vendor-cc0-weapon-art
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -29,5 +33,14 @@ jobs:
           git add public/art/vendor/opengameart/bennyboi-hack/weaponpack.png
           if ! git diff --cached --quiet; then
             git commit -m "chore(art): vendor original Bennyboi_hack CC0 weapon sprites"
-            git push origin HEAD:feat/external-weapon-sprites-cc0
+            for attempt in 1 2 3 4 5; do
+              git fetch origin feat/external-weapon-sprites-cc0
+              git rebase origin/feat/external-weapon-sprites-cc0
+              if git push origin HEAD:feat/external-weapon-sprites-cc0; then
+                exit 0
+              fi
+              sleep 3
+            done
+            echo "Failed to push vendored PNG after five attempts" >&2
+            exit 1
           fi
