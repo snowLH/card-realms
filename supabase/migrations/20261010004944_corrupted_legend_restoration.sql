@@ -243,3 +243,19 @@ alter table public.player_arpg_loadouts
       'arthur-camelot-cut', 'arthur-round-table-oath'
     ]::text[]
   );
+
+
+-- Boss-restored legends cannot be bought by calling the public shop RPC directly.
+create or replace function public.purchase_playable_legend(target_legend_id text)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if target_legend_id = any(array['iara','king-arthur']::text[]) then
+    raise exception 'Esta Lenda é desbloqueada por restauração, não pela loja' using errcode = '22023';
+  end if;
+  return private.purchase_playable_legend(target_legend_id);
+end;
+$$;
