@@ -6,6 +6,21 @@ As dimensões de quadro, contagens, grades e escalas abaixo são os metadados re
 
 As 58 imagens ativas foram codificadas com Sharp/WebP (`lossless: true`, `effort: 6`, `exact: false`). As dimensões e todos os valores de alpha são idênticos às fontes; cada canal RGB em pixels com alpha maior que zero também permaneceu idêntico. RGB oculto sob alpha zero pode diferir sem alterar a renderização. Os 96 PNGs originais permanecem arquivados em `../artifacts/archive/public-art/`; `scripts/verify-art-webp.mjs` reproduz essa comparação.
 
+## Arthur e Camelot — base visual da Naturalista v5
+
+| Asset | Autoria/fonte | Licença | Uso |
+| --- | --- | --- | --- |
+| `/art/legend-king-arthur-spritesheet-v5.webp` | Codex para snowLH/card-realms via image_gen; [prompts e referências](king-arthur-art-prompts.md), [exportador](../scripts/generate-king-arthur-art.mjs) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/); [aviso local](../public/art/licenses/king-arthur-original-art.txt) | Arthur restaurado/jogável: cabeça grande, membros curtos, contorno em degraus e detalhe na base da Naturalista. 1024 × 1536 px, 24 poses em grade 4 × 6, quadro lógico de 64 px, 48 cores e alpha binário. Repouso/caminhada sem arma nas mãos preservam o sistema flutuante. |
+| `/art/monster-king-arthur-corrupted-spritesheet-v5.webp` | Mesma autoria/pipeline; Naturalista v5 e Arthur restaurado como referências | CC0 1.0, mesmo aviso local | Mesmo personagem, proporções e paleta-base, ampliado somente na renderização. 24 poses: sentado, despertar, caminhada, espada, guarda, fraqueza, ajoelhar vivo e purificação. Phaser/co-op compartilham a folha e a seleção de quadro pelo relógio autoritativo. |
+| Salão de Camelot procedural | Codex para snowLH/card-realms; [apresentação](../src/game/arpg/bosses/king-arthur/presentation.ts) | CC0 1.0, mesmo aviso local | Decoração temporária: trono, pilares, estandartes e memórias de batalha desenhados no cenário. Separada das folhas de personagem v5. |
+
+Reexportação: `node scripts/generate-king-arthur-art.mjs [diretório-dos-PNGs]`.
+As fontes criativas estão no arquivo de trabalho `outputs/art-sources-v5`;
+o exportador é o mesmo dos outros personagens v5. As referências são os assets
+aprovados do próprio projeto; nenhuma arte externa foi incorporada.
+Arthur é o boss atual das Montanhas Rúnicas; o asset antigo de Amarok
+abaixo permanece para compatibilidade com runs anteriores.
+
 ## Ilustração da tela inicial — fora do manifesto Phaser
 
 | Asset | Caminho | Metadados | Uso |

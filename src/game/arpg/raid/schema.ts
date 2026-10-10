@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ArthurOathsSchema } from "../bosses/king-arthur/playable-kit";
 import { ARPG_ABILITY_CARD_IDS } from "../content/ability-cards";
 
 const VersionedRaidAction = {
@@ -29,6 +30,9 @@ const ContributionSchema = z.strictObject({
   damageTaken: z.number().int().nonnegative(),
 });
 const PlayerSchema = z.strictObject({
+  arthurOaths: ArthurOathsSchema.optional(),
+  seenBossIntroIds: z.array(z.string()).max(500).optional(),
+  nextBossDamageAtMs: z.number().nonnegative().optional(),
   id: z.string().uuid().transform((id) => id.toLowerCase()),
   name: z.string().min(1),
   seat: z.number().int().min(1).max(4),
@@ -159,6 +163,7 @@ const RaidEventSchema = z.strictObject({
 });
 
 export const ArpgRaidStateSchema = z.strictObject({
+  bossEncounter: BossEncounterSchema.optional(),
   version: z.literal(2),
   roomId: z.string().uuid(),
   eventId: z.string().uuid(),
@@ -178,6 +183,7 @@ export const ArpgRaidStateSchema = z.strictObject({
 export const ArpgRaidEventSchema = RaidEventSchema;
 
 export const ArpgRaidActionRequestSchema = z.discriminatedUnion("action", [
+  z.strictObject({ ...VersionedRaidAction, action: z.literal("skip_intro") }),
   z.strictObject({
     ...VersionedRaidAction,
     action: z.literal("input"),
@@ -202,3 +208,4 @@ export const ArpgRaidActionRequestSchema = z.discriminatedUnion("action", [
 ]);
 
 export type ArpgRaidActionRequest = z.infer<typeof ArpgRaidActionRequestSchema>;
+import { BossEncounterSchema } from "../bosses/boss-encounter-controller";

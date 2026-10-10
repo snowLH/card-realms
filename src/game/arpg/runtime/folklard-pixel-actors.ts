@@ -1,7 +1,7 @@
 /** Original 32px actor drawings. Every rectangle is one intentional pixel cluster. */
 export const FOLKLARD_PIXEL_ACTORS = [
   "curupira", "iara", "boto", "amarok", "raiju", "mapinguari", "kappa", "kelpie",
-  "ahuizotl", "ratatoskr", "carbunclo", "alicanto", "yeti", "sprout",
+  "ahuizotl", "ratatoskr", "carbunclo", "alicanto", "yeti", "sprout", "king-arthur",
   "blacksmith", "merchant", "archivist", "bestiaryKeeper",
 ] as const;
 export type FolklardPixelActorId = typeof FOLKLARD_PIXEL_ACTORS[number];
@@ -12,6 +12,7 @@ const INK = "#221f2c";
 const WHITE = "#fff1ce";
 const WATER = "#68d8d1";
 const PALETTES: Record<FolklardPixelActorId, Palette> = {
+  "king-arthur": { dark: "#344459", main: "#92a5b4", light: "#dee3d9", accent: "#d7b368", skin: "#c7a18d", shade: "#426582" },
   curupira: { dark: "#663b32", main: "#ca7244", light: "#efaa65", accent: "#ef5035", skin: "#c77f4e", shade: "#497047" },
   iara: { dark: "#233d66", main: "#3264a4", light: "#68b5c9", accent: WATER, skin: "#cb8759", shade: "#a95f42" },
   boto: { dark: "#873f61", main: "#c9758a", light: "#e9abb0", accent: "#e9c57b", skin: "#d68b83", shade: "#597587" },
@@ -416,6 +417,12 @@ export function drawFolklardPixelActorFrame(p: Painter, actor: string, row: numb
     case "curupira": curupira(p, d, row, frame); break;
     case "iara": iara(p, d, row, frame); break;
     case "boto": boto(p, d, row, frame); break;
+    case "king-arthur":
+      boto(p, d, row, frame);
+      p.rect(10, 3, 13, 3, d.accent); p.rect(10, 1, 3, 3, d.accent);
+      p.rect(16, 0, 3, 4, d.accent); p.rect(21, 2, 3, 3, d.accent);
+      p.rect(14, 18, 7, 4, d.main); p.rect(18, 18, 1, 4, d.dark);
+      break;
     case "amarok": case "raiju": case "kelpie": case "ahuizotl": case "carbunclo": quadruped(p, id, d, row, frame); break;
     case "mapinguari": case "yeti": giant(p, id, d, row, frame); break;
     case "kappa": kappa(p, d, row, frame); break;

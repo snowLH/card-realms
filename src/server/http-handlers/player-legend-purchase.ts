@@ -24,6 +24,9 @@ export async function POST(request: Request) {
   try {
     const { legendId } = requestSchema.parse(await request.json());
     const legend = PLAYABLE_LEGEND_BY_ID.get(legendId);
+    if (legend?.unlockBossId) {
+      return NextResponse.json({ error: "Esta Lenda é desbloqueada ao concluir sua purificação." }, { status: 409 });
+    }
     if (!legend) {
       return NextResponse.json({ error: "Personagem desconhecido." }, { status: 400 });
     }

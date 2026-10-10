@@ -7355,3 +7355,9 @@ button.creature-card:disabled {
   .arpg-map-overlay__panel { max-height: 92dvh; overflow-y: auto; }
   .arpg-room-choice__option { min-height: 58px; }
 }
+
+/* Forgotten Legends use the shared room projection and authority clock. */
+.forgotten-legend-effects { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; }
+.forgotten-legend-title { position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:8; max-width:85%; text-align:center; padding:6px 12px; background:#252734e8; color:#eadfbf; font:600 13px monospace; pointer-events:none; }
+.forgotten-legend-title small { display:block; padding-top:6px; }
+.forgotten-legend-title button { display:block; margin:6px auto 0; pointer-events:auto; padding:6px 12px; border:1px solid #bbaa79; background:#354459; color:#fff2cd; }

@@ -70,6 +70,9 @@ function startBossState(regionId: "mata-encantada" | "arquipelago-das-mares" | "
   const boss = created.enemies.find((enemy) => enemy.definitionId === "boss")!;
   const state = {
     ...created,
+    // Historical snapshots keep their original regional attack vocabulary.
+    // New cinematic encounters have dedicated integration coverage.
+    bossEncounter: undefined,
     waveIndex: boss.waveIndex,
     enemies: [{ ...boss, nextContactAtMs: 100_000 }],
   } satisfies ArpgDungeonCombatState;

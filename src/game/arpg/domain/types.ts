@@ -210,6 +210,9 @@ export type ArpgInputState = {
 };
 
 export type ArpgRuntimeBridge = {
+  getSeenBossIntroIds?(): readonly string[];
+  markBossIntroSeen?(bossId: string): void;
+  persistBossRestoration?(encounter: import("../bosses/boss-encounter-controller").BossEncounterSnapshot): Promise<boolean>;
   getSoundEnabled(): boolean;
   setSoundEnabled(enabled: boolean): void;
   onSoundEnabled(listener: (enabled: boolean) => void): () => void;

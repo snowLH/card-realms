@@ -4,10 +4,10 @@ import { LEGEND_ABILITY_DEFINITIONS } from "./legend-abilities";
 import { PLAYABLE_LEGENDS } from "./legends";
 import { SIGNATURE_TUNING } from "./legend-balance";
 
-describe("balance of the thirteen playable folklore legends", () => {
+describe("balance of the playable folklore legends", () => {
   it("defines exactly one bounded profile for each signature power", () => {
-    expect(PLAYABLE_LEGENDS).toHaveLength(13);
-    expect(LEGEND_ABILITY_DEFINITIONS).toHaveLength(26);
+    expect(PLAYABLE_LEGENDS).toHaveLength(14);
+    expect(LEGEND_ABILITY_DEFINITIONS).toHaveLength(28);
     expect(Object.keys(SIGNATURE_TUNING).sort())
       .toEqual(LEGEND_ABILITY_DEFINITIONS.map((power) => power.id).sort());
     for (const [id, [damage, cooldown, radius, healing]] of Object.entries(SIGNATURE_TUNING)) {

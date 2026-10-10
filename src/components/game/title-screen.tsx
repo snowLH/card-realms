@@ -51,7 +51,7 @@ export function TitleScreen({
   return (
     <section className={styles.screen} aria-labelledby="title-screen-heading" data-title-screen>
       <header className={styles.toolbar}>
-        <span className={styles.worldNote}>13 Lendas <span aria-hidden="true">·</span> 3 biomas</span>
+        <span className={styles.worldNote}>14 Lendas <span aria-hidden="true">·</span> 3 biomas</span>
         <nav className={styles.utility} aria-label="Conta e opções">
           {!offlineMode ? <LoginDialog label={loginEnabled ? "CONTA" : "ENTRAR"} className={styles.utilityButton} /> : null}
           <button

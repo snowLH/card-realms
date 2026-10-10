@@ -11,11 +11,12 @@ const characterPaths = [...new Set([
   ...Object.values(ARPG_ASSET_MANIFEST.guildNpcs).map((sheet) => sheet.path),
   ...Object.values(ARPG_ASSET_MANIFEST.enemies).map((sheet) => sheet.path),
   "/art/monster-roc-boss-spritesheet-v5.webp",
+  "/art/monster-king-arthur-corrupted-spritesheet-v5.webp",
 ])];
 
 describe("Naturalist pixel art family", () => {
   it("uses the same active generation for all playable heroes, NPCs and dungeon enemies", () => {
-    expect(characterPaths).toHaveLength(35);
+    expect(characterPaths).toHaveLength(37);
     expect(characterPaths.every((path) => path.endsWith("-v5.webp"))).toBe(true);
   });
 

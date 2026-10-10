@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BossProgressSchema, EMPTY_BOSS_PROGRESS } from "../arpg/bosses/boss-unlocks";
 import { PLAYABLE_LEGEND_IDS } from "@/game/arpg/content/legends";
 import { DEFAULT_REFUGE_FURNITURE, REFUGE_FURNITURE_KEYS, REFUGE_THEMES } from "@/game/refuge";
 
@@ -48,6 +49,7 @@ const DEFAULT_LOCAL_REFUGE = {
 };
 
 const LocalProgressSchema = z.object({
+  ...BossProgressSchema.shape,
   version: z.literal(4),
   coins: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
   xp: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
@@ -77,6 +79,7 @@ const LocalProgressSchema = z.object({
 export type LocalProgress = z.infer<typeof LocalProgressSchema>;
 
 export const DEFAULT_LOCAL_PROGRESS: LocalProgress = {
+  ...EMPTY_BOSS_PROGRESS,
   version: 4,
   coins: 500,
   xp: 0,
@@ -143,7 +146,7 @@ export function loadLocalProgress(
 
 export function saveLocalProgress(
   storage: Pick<Storage, "setItem">,
-  progress: LocalProgress,
+  progress: z.input<typeof LocalProgressSchema>,
   accountId?: string | null,
 ) {
   const validated = LocalProgressSchema.parse({

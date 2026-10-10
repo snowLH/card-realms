@@ -1,0 +1,28 @@
+KING ARTHUR — ORIGINAL NATURALIST-BASE V5 PIXEL ART
+
+Assets:
+/art/legend-king-arthur-spritesheet-v5.webp
+/art/monster-king-arthur-corrupted-spritesheet-v5.webp
+Also covers Camelot procedural decoration in king-arthur/presentation.ts.
+
+Author: Codex, created for snowLH/card-realms, 2026-10-09.
+Source: https://github.com/snowLH/card-realms
+Generation: integrated image_gen, with the user-approved Naturalist reference,
+the project's active Naturalist/Curupira v5 spritesheets, and restored Arthur
+as the corrupted version's identity reference. No external art was downloaded.
+Exact prompts and reference paths: docs/king-arthur-art-prompts.md
+Creative PNG sources: workspace outputs/art-sources-v5/king-arthur.png and
+king-arthur-corrupted.png (archived outside public distribution).
+Reexport: node scripts/generate-king-arthur-art.mjs [PNG source directory]
+The shared v5 exporter handles 64px logical cells, 48 colours and binary alpha.
+
+License: CC0 1.0 Universal
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+These newly created Arthur drawings and procedural decorations are dedicated
+to the public domain under CC0 1.0, to the extent applicable.
+This notice does not relicense any pre-existing reference asset or source file.
+
+Usage: restored playable Arthur with empty idle/walk hands for floating weapons;
+corrupted boss seated, awakening, sword combat, kneeling alive and purification;
+throne, banners, pillars, battlefield memories and royal hall decoration.
+Character art follows the approved Naturalist v5 base; scenery is temporary.

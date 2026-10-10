@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { ArpgRaidRoomAccessError, loadArpgRaidRoom } from "@/server/raid/arpg-rooms";
+import { readBossProgress } from "@/server/arpg/boss-progress";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,6 +70,7 @@ export async function GET(
         contribution: participant.contribution,
       })),
       state: room.state,
+      bossProgress: room.state?.bossEncounter?.state === "CLEARED" ? await readBossProgress(admin, actorId) : undefined,
       events: (roomEvents ?? []).slice().reverse(),
       eventReward: {
         obtained: Boolean(eventReward),

@@ -1,4 +1,13 @@
+import { hasBossCombatStrategy } from "../bosses/boss-combat-strategies";
 import { CREATURE_BY_ID } from "@/game/catalog";
+import { createBossEncounter, advanceBossEncounter, damageBossEncounter, voteBossIntroSkip } from "../bosses/boss-encounter-controller";
+import { bossForRegion } from "../bosses/registry";
+import { isBossInputLocked } from "../bosses/cinematic-input-lock";
+import { insideBossHazard } from "../bosses/king-arthur/patterns";
+import { purificationPosition, approachPurification } from "../bosses/boss-purification-controller";
+import { arthurProtectedDamage, emptyArthurOaths, grantRoundTableWard, ARTHUR_WARD_RADIUS } from "../bosses/king-arthur/playable-kit";
+import { ARPG_DUNGEON_CONFIGS } from "../content/dungeons";
+import { scaleCoopEnemyHealth } from "../coop-dungeon/scaling";
 import { ARPG_BASE_HP as PLAYER_BASE_HP, ARPG_BASE_SPEED as PLAYER_BASE_SPEED, ARPG_DASH_SPEED as DASH_SPEED, ARPG_DASH_DURATION_MS as DASH_DURATION_MS, ARPG_DASH_COOLDOWN_MS as DASH_COOLDOWN_MS } from "../domain/combat-config";
 import { elementMultiplier } from "@/game/domain/elements";
 import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
@@ -170,9 +179,10 @@ function finishIfNeeded(state: ArpgRaidState, atMs: number, events: ArpgRaidEven
   const currentDungeonRoom = activeArpgRaidDungeonRoom(state);
   const bossEncounter = !state.dungeon || currentDungeonRoom?.type === "boss";
   if (bossEncounter && state.boss.hp <= 0) {
+    if (state.bossEncounter && state.bossEncounter.state !== "CLEARED") return;
     state.boss.hp = 0;
     state.status = "victory";
-    events.push(appendEvent(state, atMs, "system", "raid_victory", `${state.boss.name} foi derrotado. RAID ARPG CONCLUÍDA!`));
+    events.push(appendEvent(state, atMs, "system", "raid_victory", state.bossEncounter ? `${state.boss.name} foi restaurado. A história foi recordada.` : `${state.boss.name} foi derrotado. RAID ARPG CONCLUÍDA!`));
     return;
   }
   if (!state.players.some((player) => player.alive)) {
@@ -198,7 +208,8 @@ function applyPlayerDamage(
   if (!player.alive || atMs < player.dashingUntilMs) return;
   const armor = armorFor(player);
   const movingReduction = getArmorMovingDefenseBonus(armor, isMoving(player));
-  const damage = Math.max(1, Math.round(rawDamage - armor.defenseBonus - movingReduction));
+  player.arthurOaths ??= emptyArthurOaths();
+  const damage = arthurProtectedDamage(player.arthurOaths, Math.max(1, Math.round(rawDamage - armor.defenseBonus - movingReduction)), player.hp, player.maxHp, atMs, player, player.loadout.abilityIds.includes("arthur-camelot-cut"));
   player.hp = Math.max(0, player.hp - damage);
   player.contribution.damageTaken += damage;
   events.push(appendEvent(
@@ -212,8 +223,8 @@ function applyPlayerDamage(
 
   const retaliationDamage = allowBossRetaliation ? getArmorRetaliationDamage(armor) : 0;
   if (retaliationDamage > 0 && distance(player.x, player.y, state.boss.x, state.boss.y) <= 125) {
-    const applied = Math.min(retaliationDamage, state.boss.hp);
-    state.boss.hp = Math.max(0, state.boss.hp - applied);
+    const applied = state.bossEncounter ? damageBossEncounter(state.bossEncounter, retaliationDamage, atMs) : Math.min(retaliationDamage, state.boss.hp);
+    state.boss.hp = state.bossEncounter ? state.bossEncounter.hp : Math.max(0, state.boss.hp - applied);
     player.contribution.damage += applied;
   }
 
@@ -415,6 +426,12 @@ function enterNextDungeonRoom(state: ArpgRaidState, atMs: number, events: ArpgRa
   state.boss.y = next.worldHeight / 2 - 110;
   state.boss.nextAttackAtMs = atMs + 1_500;
   if (next.type === "boss") {
+    const definition = bossForRegion(dungeon.regionId);
+    const bossEnemy = ARPG_DUNGEON_CONFIGS[dungeon.regionId].enemies.boss;
+    state.boss.name = definition.corruptedTitle;
+    state.boss.hp = state.boss.maxHp = scaleCoopEnemyHealth(bossEnemy.maxHp, true, state.players.length);
+    state.boss.x = next.roomWidth / 2; state.boss.y = 144;
+    state.bossEncounter = createBossEncounter(definition.id, atMs, state.players.map((player) => player.id), state.boss.maxHp, state.boss, state.players.every((player) => player.seenBossIntroIds?.includes(definition.id)));
     events.push(appendEvent(state, atMs, "system", "dungeon_room_entered", `${next.label}: ${state.boss.name} surgiu no caminho.`, { targetIds: [next.id] }));
   } else {
     spawnArpgRaidDungeonWave(dungeon, next, 0, state.players.length, atMs);
@@ -496,6 +513,7 @@ export function createArpgRaidState(
         abilityReadyAtMs: Object.fromEntries(setup.loadout.abilityIds.map((id) => [id, nowMs])),
         basicAttackCounter: 0,
         contribution: { actions: 0, damage: 0, healing: 0, damageTaken: 0 },
+        seenBossIntroIds: setup.seenBossIntroIds ?? [],
       };
     });
 
@@ -558,11 +576,38 @@ export function advanceArpgRaid(input: ArpgRaidState, requestedNowMs: number): A
         ));
       }
     }
-    advancePlayers(state, cursor, stepEnd);
+    const encounter = state.bossEncounter;
+    if (encounter) {
+      advanceBossEncounter(encounter, stepEnd, state.players, activeArpgRaidDungeonWorld(state));
+      for (const player of state.players) {
+        if (isBossInputLocked(encounter.state)) {
+          player.input.moveX = 0; player.input.moveY = 0; player.dashingUntilMs = 0;
+          if (encounter.state === "PURIFICATION") {
+            const position = purificationPosition(encounter, player.seat - 1, state.players.length);
+            const next = approachPurification(player, position, stepEnd - cursor);
+            player.x = next.x; player.y = next.y;
+          }
+        }
+        if (encounter.state === "COMBAT" && stepEnd >= (player.nextBossDamageAtMs ?? 0)) {
+          const hazard = encounter.hazards.find((h) => stepEnd >= h.impactAtMs && stepEnd <= h.endsAtMs && insideBossHazard(player, h));
+          if (hazard) {
+            applyPlayerDamage(state, player, hazard.damage, stepEnd, events, "forgotten-legend", false);
+            player.nextBossDamageAtMs = stepEnd + 750;
+          }
+        }
+      }
+      state.boss.hp = encounter.hp; state.boss.phase = encounter.phase;
+      if (hasBossCombatStrategy(encounter.bossId) || encounter.state !== "COMBAT") {
+        state.boss.x = encounter.x; state.boss.y = encounter.y;
+      } else { encounter.x = state.boss.x; encounter.y = state.boss.y; }
+    }
+    if (!isBossInputLocked(encounter?.state)) advancePlayers(state, cursor, stepEnd);
     const room = activeArpgRaidDungeonRoom(state);
     if (!state.dungeon || room?.type === "boss") {
-      advanceBoss(state, cursor, stepEnd);
-      if (stepEnd >= state.boss.nextAttackAtMs) bossAttack(state, stepEnd, events);
+      if (!encounter || (encounter.state === "COMBAT" && !hasBossCombatStrategy(encounter.bossId))) {
+        advanceBoss(state, cursor, stepEnd);
+        if (stepEnd >= state.boss.nextAttackAtMs) bossAttack(state, stepEnd, events);
+      }
     } else {
       advanceDungeonEnemies(state, cursor, stepEnd, events);
       advanceDungeonProgress(state, stepEnd, events);
@@ -649,9 +694,9 @@ function damageBoss(
   events: ArpgRaidEvent[],
   message: string,
 ) {
-  const applied = Math.max(0, Math.min(state.boss.hp, Math.round(damage)));
+  const applied = state.bossEncounter ? damageBossEncounter(state.bossEncounter, damage, atMs) : Math.max(0, Math.min(state.boss.hp, Math.round(damage)));
   if (applied <= 0) return 0;
-  state.boss.hp -= applied;
+  state.boss.hp = state.bossEncounter ? state.bossEncounter.hp : state.boss.hp - applied;
   player.contribution.damage += applied;
   events.push(appendEvent(state, atMs, player.id, "player_attack", message, {
     damage: applied,
@@ -793,6 +838,12 @@ function castAbility(
     }
   } else if (card.behavior === "renewal") {
     healPlayer(state, player, player, card.restoreHp ?? 40, atMs, events);
+    if (card.id === "arthur-round-table-oath") {
+      for (const ally of state.players.filter((ally) => ally.alive && distance(player.x, player.y, ally.x, ally.y) <= ARTHUR_WARD_RADIUS)) {
+        ally.arthurOaths ??= emptyArthurOaths(); grantRoundTableWard(ally.arthurOaths, player, atMs);
+        if (ally.id !== player.id) healPlayer(state, player, ally, card.restoreHp ?? 40, atMs, events);
+      }
+    }
   } else if (card.behavior === "self-area") {
     if (distance(player.x, player.y, state.boss.x, state.boss.y) <= (card.radius ?? 150) + BOSS_RADIUS) {
       damageBoss(state, player, card.damage, atMs, events, `${player.name} ativou ${card.name} contra ${state.boss.name}.`);
@@ -856,10 +907,14 @@ export function applyArpgRaidAction(
   const events = [...advanced.events];
   if (state.status !== "active") throw new ArpgRaidRuleError("A Raid ARPG já terminou.");
   const player = playerFor(state, playerId);
-  if (!player.alive) throw new ArpgRaidRuleError("Jogadores derrotados permanecem como espectadores.");
+  if (!player.alive && !isBossInputLocked(state.bossEncounter?.state)) throw new ArpgRaidRuleError("Jogadores derrotados permanecem como espectadores.");
   const atMs = state.serverTimeMs;
 
-  if (action.kind === "input") {
+  if (action.kind === "skip_intro") {
+    if (state.bossEncounter) voteBossIntroSkip(state.bossEncounter, player.id, atMs);
+  } else if (isBossInputLocked(state.bossEncounter?.state)) {
+    player.input.moveX = 0; player.input.moveY = 0; player.dashingUntilMs = 0;
+  } else if (action.kind === "input") {
     const movement = normalize(action.moveX, action.moveY);
     const aim = normalize(action.aimX, action.aimY);
     player.input = { moveX: movement.x, moveY: movement.y, aimX: aim.x, aimY: aim.y };

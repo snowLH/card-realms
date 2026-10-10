@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { recordStoredBossProgress } from "@/server/arpg/boss-progress";
+import { confirmBossRestoration } from "@/game/arpg/bosses/boss-encounter-controller";
+import { advanceArpgRaid } from "@/game/arpg/raid";
 import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
 import {
@@ -17,6 +20,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function toEngineAction(action: z.infer<typeof ArpgRaidActionRequestSchema>): ArpgRaidAction {
+  if (action.action === "skip_intro") return { kind: "skip_intro", actionId: action.actionId };
   if (action.action === "input") {
     return {
       kind: "input",
@@ -91,7 +95,26 @@ export async function POST(request: Request) {
       );
     }
 
-    const resolved = applyArpgRaidAction(
+    let restorationError: string | undefined;
+    let bossProgress: unknown;
+    const rememberedEncounter = room.state.bossEncounter;
+    if (rememberedEncounter && ["COMBAT", "DEFEATED", "PURIFICATION"].includes(rememberedEncounter.state)
+      && room.state.players.some((player) => !player.seenBossIntroIds?.includes(rememberedEncounter.bossId))) {
+      const receipt = await recordStoredBossProgress(admin, { playerId: actorId, roomId: room.id }, false);
+      if (receipt.confirmed) {
+        bossProgress = receipt.progress;
+        for (const player of room.state.players) if (rememberedEncounter.participantIds.includes(player.id)) {
+          player.seenBossIntroIds = [...new Set([...(player.seenBossIntroIds ?? []), rememberedEncounter.bossId])];
+        }
+      }
+    }
+    if (room.state.bossEncounter?.state === "RESTORED") {
+      const receipt = await recordStoredBossProgress(admin, { playerId: actorId, roomId: room.id }, true);
+      if (receipt.confirmed) confirmBossRestoration(room.state.bossEncounter, room.state.bossEncounter.bossId, true, Date.now());
+      bossProgress = receipt.progress;
+      restorationError = receipt.error;
+    }
+    const resolved = room.state.bossEncounter?.state === "CLEARED" ? advanceArpgRaid(room.state, Date.now()) : applyArpgRaidAction(
       room.state,
       actorId,
       toEngineAction(action),
@@ -118,7 +141,6 @@ export async function POST(request: Request) {
         { status: conflict ? 409 : 503 },
       );
     }
-
     let reward: unknown = null;
     if (finalState.status === "victory") {
       const { data: rewardData, error: rewardError } = await admin.rpc("grant_raid_mythic_rewards", {
@@ -136,6 +158,8 @@ export async function POST(request: Request) {
       events: storedEvents,
       version: stored?.version ?? room.version + 1,
       reward,
+      bossProgress,
+      restorationError,
       authority: "server",
       gameplayMode: "arpg",
     });

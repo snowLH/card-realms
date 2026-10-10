@@ -1,6 +1,7 @@
 import { computeRoomDistances, DIRECTION_VECTOR, DUNGEON_DIRECTIONS, OPPOSITE_DIRECTION, roomCoordinateKey, validateDungeonGraph } from "./graph";
 import { createSeededRandom, type SeededRandom } from "./rng";
 import { pickDungeonTemplate } from "./templates";
+import { usesLegacyDungeonLayout } from "./encounter-seed";
 import type { DungeonDirection, DungeonGraph, DungeonRoom } from "./types";
 
 export type DungeonGeneratorOptions = {
@@ -93,6 +94,10 @@ function finalizeRooms(graph: DungeonGraph, random: SeededRandom) {
     room.distanceFromStart = distances.get(room.id) ?? 0;
     room.size = roomTemplate.size;
     room.templateId = roomTemplate.id;
+    if (room.type === "boss" && usesLegacyDungeonLayout(graph.seed, graph.regionId)) {
+      room.size = "large";
+      room.templateId += "-legacy";
+    }
     room.rewardTableId = `${graph.regionId}-${room.type}`;
     room.state = room.type === "start" ? "active" : "unvisited";
   }
@@ -125,6 +130,25 @@ function generateAttempt(options: Required<DungeonGeneratorOptions>, attempt: nu
     if (!parent) return null;
     const directions = random.shuffle(availableDirections(parent, mutable));
     addRoom(mutable, parent, directions[0], options.floor);
+  }
+
+  // Reserve an exterior terminal for the monumental arena AFTER branches exist.
+  // Only its final connection changes; ordinary rooms retain compact grid cells.
+  if (!usesLegacyDungeonLayout(options.seed, options.regionId)) {
+  const boss = mutable.rooms[bossId];
+  for (const [direction, parentId] of Object.entries(boss.connections)) {
+    delete mutable.rooms[parentId!].connections[OPPOSITE_DIRECTION[direction as DungeonDirection]];
+  }
+  const ordinaryRooms = Object.values(mutable.rooms).filter((room) => room.id !== bossId);
+  const northRow = Math.min(...ordinaryRooms.map((room) => room.gridY));
+  const routeDistances = computeRoomDistances({ rooms: mutable.rooms, startRoomId: start.id } as DungeonGraph);
+  const exterior = ordinaryRooms.filter((room) => room.gridY === northRow && (routeDistances.get(room.id) ?? 0) >= 3)
+    .sort((a, b) => (routeDistances.get(b.id) ?? 0) - (routeDistances.get(a.id) ?? 0) || a.gridX - b.gridX)[0];
+  if (!exterior) return null;
+  boss.gridX = exterior.gridX;
+  boss.gridY = exterior.gridY - 1;
+  boss.connections = { south: exterior.id };
+  exterior.connections.north = bossId;
   }
 
   const graph: DungeonGraph = {

@@ -26,7 +26,7 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
     id: subject,
     email: typeof claims?.email === "string" ? claims.email : null,
   };
-  const [snapshotResult, profileResult, worldResult, evolutionResult, missionResult, arpgLoadoutResult] = await Promise.all([
+  const [snapshotResult, profileResult, worldResult, evolutionResult, missionResult, arpgLoadoutResult, bossProgressResult] = await Promise.all([
     supabase.rpc("get_my_player_snapshot"),
     supabase.from("profiles").select("avatar_config").single(),
     supabase.from("player_world_state").select("current_area_id,visited_area_ids,map_positions").single(),
@@ -37,6 +37,7 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
       .select("weapon_id,armor_id,relic_id,ability_ids")
       .eq("user_id", subject)
       .maybeSingle(),
+    supabase.from("player_boss_progress").select("purified_boss_ids,unlocked_legend_ids,seen_boss_intro_ids").eq("user_id", subject).maybeSingle(),
   ]);
   const { data, error } = snapshotResult;
   if (error) {
@@ -78,6 +79,11 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
   const enriched = raw
     ? {
         ...raw,
+        bossProgress: bossProgressResult.data ? {
+          purifiedBossIds: bossProgressResult.data.purified_boss_ids,
+          unlockedLegendIds: bossProgressResult.data.unlocked_legend_ids,
+          seenBossIntroIds: bossProgressResult.data.seen_boss_intro_ids,
+        } : undefined,
         profile: {
           ...(raw.profile && typeof raw.profile === "object" ? raw.profile : {}),
           avatarConfig: profileResult.data?.avatar_config,

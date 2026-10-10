@@ -75,7 +75,7 @@ describe("folklore enemy spritesheets", () => {
     expect(ARPG_DUNGEON_CONFIGS["mata-encantada"].enemyAnimations?.boss).toBe("curupira-boss");
   });
 
-  it("loads the original transparent Amarok sheet as the Rúnicas boss animation", async () => {
+  it("retains Amarok art while Rúnicas uses Arthur's authored presentation", async () => {
     const metadata = await readMetadata(ARPG_ASSET_MANIFEST.enemies["amarok-boss"].path);
     const width = metadata.width ?? 0;
     const height = metadata.height ?? 0;
@@ -94,7 +94,7 @@ describe("folklore enemy spritesheets", () => {
       ["damage", 4],
       ["defeat", 5],
     ]);
-    expect(ARPG_DUNGEON_CONFIGS["montanhas-runicas"].enemyAnimations?.boss).toBe("amarok-boss");
+    expect(ARPG_DUNGEON_CONFIGS["montanhas-runicas"].bossPresentation).toBe("king-arthur");
   });
 
   it("loads the original transparent Iara sheet as the Marés boss animation", async () => {

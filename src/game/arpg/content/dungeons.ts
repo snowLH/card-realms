@@ -68,6 +68,7 @@ const LEGACY_ARMOR_LOOT: Record<ArpgExpeditionId, readonly (readonly DungeonLoot
 };
 
 export type ArpgDungeonRuntimeConfig = {
+  bossPresentation?: "king-arthur";
   id: ArpgExpeditionId;
   sceneKey: string;
   name: string;
@@ -217,12 +218,13 @@ const MARES_DUNGEON: ArpgDungeonRuntimeConfig = {
 };
 
 const RUNIC_DUNGEON: ArpgDungeonRuntimeConfig = {
+  bossPresentation: "king-arthur",
   id: "montanhas-runicas",
   sceneKey: "MontanhasRunicas",
   name: RUNIC_REGION_META.name,
-  bossName: RUNIC_REGION_META.bossName,
+  bossName: "Rei Arthur Corrompido",
   background: RUNIC_REGION_META.background,
-  enemies: RUNIC_ENEMIES,
+  enemies: { ...RUNIC_ENEMIES, boss: { ...RUNIC_ENEMIES.boss, name: "Rei Arthur Corrompido", maxHp: 2400, moveSpeed: 95, contactDamage: 0, tint: 0xa4a0ba, radius: 30 } },
   roomLootPools: RUNIC_ROOM_LOOT_POOLS,
   createLootPlan: (random) => pickLootPlan(RUNIC_ROOM_LOOT_POOLS, random),
   createRoomPlan: () => shuffledRoomPlan(RUNIC_ROOM_WAVES),
@@ -234,16 +236,15 @@ const RUNIC_DUNGEON: ArpgDungeonRuntimeConfig = {
     treasureLight: "carbunclo-enemy",
     elite: "alicanto-enemy",
     miniBoss: "yeti-enemy",
-    boss: "amarok-boss",
   },
   messages: {
     intro: "Montanhas Rúnicas iniciadas. Suba pelas passagens antes que a tempestade feche o caminho.",
-    bossIntro: "Um uivo atravessa o cume: Amarok iniciou a caçada.",
+    bossIntro: "Além do cume, Camelot ainda repete sua última guerra.",
     miniBossWarning: "Yeti golpeia o chão e prepara um impacto de altitude.",
-    phaseTwo: "Amarok acelera a caçada e começa a fechar as rotas de fuga.",
-    phaseThree: "Amarok entra na fase final e avança em investidas imprevisíveis.",
-    bossVolley: "Amarok lança estilhaços de gelo e vento pela arena.",
-    victory: "Amarok derrotado. A travessia das Montanhas Rúnicas foi concluída.",
+    phaseTwo: "Camlann Não Terminou.",
+    phaseThree: "O Rei Que Não Pode Ser Esquecido.",
+    bossVolley: "Arthur recorda seu Último Juramento.",
+    victory: "Arthur foi restaurado. Sua história continua.",
     defeat: "A caçada terminou nas Montanhas Rúnicas.",
   },
   colors: { miniBoss: 0xc7d9e8, phase: 0x88b8d8, phaseTwo: 0x79c4ee, phaseThree: 0xb7a2f0, projectile: 0xa8e4ff },

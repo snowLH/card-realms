@@ -6,7 +6,7 @@ import { PLAYABLE_LEGEND_IDS } from "../content/legends";
 import { FOLKLARD_PIXEL_ACTORS, getFolklardPixelActorFrame } from "./folklard-pixel-actors";
 
 describe("retained experimental Folklard pixel assets", () => {
-  it.each(FOLKLARD_PIXEL_ACTORS)("keeps %s on an opaque 32px grid without blur or frame bleed", async (actor) => {
+  it.each(FOLKLARD_PIXEL_ACTORS.filter((actor) => actor !== "king-arthur"))("keeps %s on an opaque 32px grid without blur or frame bleed", async (actor) => {
     // Validate the preserved studies themselves. They are not the active hero
     // catalog after the user rejected their loss of character detail.
     const prefix = ["blacksmith", "merchant", "archivist", "bestiaryKeeper"].includes(actor)

@@ -1,4 +1,5 @@
 import { connectedRoomIds } from "./graph";
+import { isBossRoomUnlocked, unclearedRoomsBeforeBoss } from "./boss-access";
 import {
   applyArpgRunCheckpoint,
   getArpgVisitedRoomIds,
@@ -62,6 +63,14 @@ export class DungeonManager {
     return [...this.visitedRoomIds].sort();
   }
 
+  isBossRoomUnlocked() {
+    return isBossRoomUnlocked(this.graph);
+  }
+
+  getUnclearedBossPrerequisiteRoomIds() {
+    return unclearedRoomsBeforeBoss(this.graph);
+  }
+
   enterRoom(roomId: string) {
     const next = this.graph.rooms[roomId];
     if (!next) throw new Error(`Sala inexistente: ${roomId}.`);
@@ -69,6 +78,10 @@ export class DungeonManager {
     if (current.state === "combat") throw new Error("Não é possível sair durante o combate.");
     if (roomId !== current.id && !connectedRoomIds(current).includes(roomId)) {
       throw new Error("A sala escolhida não é adjacente à sala atual.");
+    }
+    if (roomId === this.graph.bossRoomId && roomId !== current.id && !this.isBossRoomUnlocked()) {
+      const remaining = this.getUnclearedBossPrerequisiteRoomIds().length;
+      throw new Error(`A Lenda Esquecida permanece selada. Conclua as ${remaining} salas restantes antes do confronto final.`);
     }
     if (current.id !== roomId && current.state === "active") {
       current.state = current.type === "start" ? "cleared" : "discovered";

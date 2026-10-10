@@ -2,6 +2,8 @@ import type { Element } from "@/game/types";
 
 /** Two permanent, exclusive attacks per legend. Legacy IDs only select combat templates. */
 export const LEGEND_ABILITY_DEFINITIONS = [
+  { legendId: "king-arthur", id: "arthur-camelot-cut", templateId: "boitata-flame", name: "Corte de Camelot", description: "Arthur projeta uma grande lâmina espectral na direção da mira.", element: "spirit" },
+  { legendId: "king-arthur", id: "arthur-round-table-oath", templateId: "simurgh-renewal", name: "Juramento da Távola", description: "Arthur recorda seu juramento, restaurando o vigor e protegendo aliados próximos.", element: "spirit" },
   { legendId: "curupira", id: "curupira-root-snare", templateId: "ancestral-roots", name: "Raízes do Curupira", description: "Curupira ergue raízes no ponto mirado para ferir e prender os invasores.", element: "nature" },
   { legendId: "curupira", id: "curupira-ember-arrow", templateId: "boitata-flame", name: "Flecha de Brasa", description: "Curupira dispara uma flecha de brasa que atravessa os inimigos em linha reta.", element: "fire" },
   { legendId: "iara", id: "iara-enchanting-song", templateId: "iara-song", name: "Canto Encantado da Iara", description: "Iara canta uma melodia que fere e interrompe inimigos próximos.", element: "water" },

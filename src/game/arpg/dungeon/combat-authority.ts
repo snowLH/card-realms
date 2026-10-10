@@ -1,4 +1,11 @@
+import { hasBossCombatStrategy } from "../bosses/boss-combat-strategies";
 import { z } from "zod";
+import { BossEncounterSchema, createBossEncounter, advanceBossEncounter, damageBossEncounter, voteBossIntroSkip } from "../bosses/boss-encounter-controller";
+import { bossForRegion } from "../bosses/registry";
+import { isBossInputLocked } from "../bosses/cinematic-input-lock";
+import { insideBossHazard } from "../bosses/king-arthur/patterns";
+import { purificationPosition, approachPurification } from "../bosses/boss-purification-controller";
+import { ArthurOathsSchema, arthurProtectedDamage, emptyArthurOaths, grantRoundTableWard } from "../bosses/king-arthur/playable-kit";
 import { ARPG_BASE_SPEED as PLAYER_BASE_SPEED, ARPG_DASH_SPEED as PLAYER_DASH_SPEED, ARPG_DASH_DURATION_MS as PLAYER_DASH_DURATION_MS, ARPG_DASH_COOLDOWN_MS as PLAYER_DASH_COOLDOWN_MS, ARPG_DAMAGE_INVULNERABILITY_MS } from "../domain/combat-config";
 import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
 import { ARPG_DUNGEON_CONFIGS } from "../content/dungeons";
@@ -65,6 +72,8 @@ const CombatHazardSchema = z.strictObject({
 });
 
 export const ArpgDungeonCombatStateSchema = z.strictObject({
+  arthurOaths: ArthurOathsSchema.optional(),
+  bossEncounter: BossEncounterSchema.optional(),
   version: z.literal(1),
   roomId: z.string().min(1).max(40),
   status: z.enum(["combat", "wave_complete", "victory", "defeat"]),
@@ -101,7 +110,7 @@ export const ArpgDungeonCombatStateSchema = z.strictObject({
   hazards: z.array(CombatHazardSchema).max(MAX_HAZARDS_PER_ROOM).default([]),
 }).superRefine((state, context) => {
   if (state.playerHp > state.maxHp) context.addIssue({ code: "custom", path: ["playerHp"], message: "HP excede o máximo." });
-  if (state.enemies.some((enemy) => enemy.hp > enemy.maxHp || enemy.alive !== (enemy.hp > 0))) {
+  if (state.enemies.some((enemy) => enemy.hp > enemy.maxHp || (enemy.alive !== (enemy.hp > 0) && !(enemy.definitionId === "boss" && state.bossEncounter && state.bossEncounter.state !== "CLEARED" && enemy.hp === 0 && enemy.alive)))) {
     context.addIssue({ code: "custom", path: ["enemies"], message: "Estado de inimigos inconsistente." });
   }
   if (state.waveIndex >= state.waveCount) context.addIssue({ code: "custom", path: ["waveIndex"], message: "Onda inválida." });
@@ -116,7 +125,7 @@ export type ArpgDungeonCombatState = z.infer<typeof ArpgDungeonCombatStateSchema
 
 export type ArpgDungeonCombatCommand = {
   actionId: string;
-  kind: "sync" | "basic_attack" | "ability" | "dash";
+  kind: "sync" | "basic_attack" | "ability" | "dash" | "skip_intro";
   playerX: number;
   playerY: number;
   aimX: number;
@@ -238,6 +247,7 @@ export function createArpgDungeonCombatState(options: {
   baseXpEarned: number;
   baseRunShards: number;
   nowMs: number;
+  seenBossIntro?: boolean;
 }): ArpgDungeonCombatState {
   const { graph, roomId, loadout } = options;
   const { room } = getCombatRoom(graph, roomId);
@@ -277,6 +287,14 @@ export function createArpgDungeonCombatState(options: {
     projectiles: [],
     hazards: [],
   };
+  if (room.type === "boss") {
+    const boss = state.enemies.find((enemy) => enemy.definitionId === "boss");
+    if (boss) {
+      boss.x = tiles.width * 16;
+      boss.y = 144;
+      state.bossEncounter = createBossEncounter(bossForRegion(graph.regionId).id, options.nowMs, ["solo"], boss.maxHp, boss, options.seenBossIntro);
+    }
+  }
   return ArpgDungeonCombatStateSchema.parse(state);
 }
 
@@ -309,6 +327,7 @@ export function isValidArpgCombatEntryPosition(
 
 function setWaveState(state: ArpgDungeonCombatState, room: DungeonRoom, atMs: number) {
   if (state.status === "defeat" || state.status === "victory") return;
+  if (state.bossEncounter && state.bossEncounter.state !== "CLEARED") return;
   const currentWaveEnemies = state.enemies.filter((enemy) => enemy.waveIndex === state.waveIndex);
   if (currentWaveEnemies.some((enemy) => enemy.alive)) return;
   if (state.waveIndex + 1 >= state.waveCount) {
@@ -623,12 +642,18 @@ function resolveBossHazards(
       && !pendingDashAtFinalStep
     ) {
       const damage = Math.max(1, hazard.damage - armor.defenseBonus - getArmorMovingDefenseBonus(armor, moving));
-      state.playerHp = Math.max(0, state.playerHp - damage);
+      applyLegendDamage(state, damage, atMs);
       state.nextDamageAtMs = atMs + ARPG_DAMAGE_INVULNERABILITY_MS;
       if (state.playerHp <= 0) state.status = "defeat";
     }
     return false;
   });
+}
+
+function applyLegendDamage(state: ArpgDungeonCombatState, damage: number, atMs: number) {
+  const isArthur = state.nextAbilityAtMs["arthur-camelot-cut"] !== undefined;
+  state.arthurOaths ??= emptyArthurOaths();
+  state.playerHp = Math.max(0, state.playerHp - arthurProtectedDamage(state.arthurOaths, damage, state.playerHp, state.maxHp, atMs, { x: state.playerX, y: state.playerY }, isArthur));
 }
 
 function advanceState(
@@ -646,6 +671,7 @@ function advanceState(
   const boundedTimeMs = Math.min(targetTimeMs, previousTimeMs + MAX_ADVANCE_MS);
   const tiles = roomTiles(graph, room);
   const initialPosition = { x: state.playerX, y: state.playerY };
+  if (isBossInputLocked(state.bossEncounter?.state)) targetPlayerPosition = undefined;
   const requestedPosition = targetPlayerPosition ?? initialPosition;
   const dtMs = Math.max(0, boundedTimeMs - previousTimeMs);
   const maxTravel = (PLAYER_BASE_SPEED + armor.moveSpeedBonus + state.runMoveSpeedBonus) * dtMs / 1000;
@@ -661,7 +687,23 @@ function advanceState(
     const t = dtMs <= 0 ? 1 : Math.min(1, step * SIMULATION_STEP_MS / dtMs);
     const stepStartMs = previousTimeMs + (step - 1) * SIMULATION_STEP_MS;
     const atMs = Math.min(boundedTimeMs, previousTimeMs + step * SIMULATION_STEP_MS);
-    if (targetPlayerPosition) {
+    const encounter = state.bossEncounter;
+    if (encounter) {
+      advanceBossEncounter(encounter, atMs, [{ id: "solo", x: state.playerX, y: state.playerY, alive: state.playerHp > 0 }], { width: tiles.width * 32, height: tiles.height * 32 });
+      if (encounter.state === "PURIFICATION") {
+        const position = approachPurification({ x: state.playerX, y: state.playerY }, purificationPosition(encounter, 0, 1), atMs - stepStartMs);
+        state.playerX = position.x; state.playerY = position.y;
+      }
+      if (encounter.state === "COMBAT" && atMs >= state.nextDamageAtMs && atMs >= state.dashUntilMs) {
+        const hit = encounter.hazards.find((hazard) => atMs >= hazard.impactAtMs && atMs <= hazard.endsAtMs && insideBossHazard({ x: state.playerX, y: state.playerY }, hazard));
+        if (hit) {
+          applyLegendDamage(state, hit.damage, atMs);
+          state.nextDamageAtMs = atMs + ARPG_DAMAGE_INVULNERABILITY_MS;
+          if (state.playerHp === 0) state.status = "defeat";
+        }
+      }
+    }
+    if (targetPlayerPosition && !isBossInputLocked(encounter?.state)) {
       const nextPosition = {
         x: initialPosition.x + (requestedPosition.x - initialPosition.x) * t,
         y: initialPosition.y + (requestedPosition.y - initialPosition.y) * t,
@@ -685,6 +727,19 @@ function advanceState(
         if (!enemy.alive || enemy.waveIndex !== state.waveIndex || atMs < enemy.rootedUntilMs) continue;
         const definition = config.enemies[enemy.definitionId];
         if (!definition) continue;
+        if (enemy.definitionId === "boss" && encounter) {
+          if (hasBossCombatStrategy(encounter.bossId) || encounter.state !== "COMBAT") {
+            enemy.x = encounter.x; enemy.y = encounter.y;
+            enemy.bossPhase = encounter.phase; enemy.bossPatternIndex = encounter.patternIndex; enemy.bossPattern = encounter.pattern;
+            if (encounter.state === "CLEARED" && enemy.alive) {
+              enemy.alive = false;
+              state.xpEarned += Math.round(definition.rewardXp * state.xpMultiplier);
+              state.runShards += getRunShardReward(definition.rewardXp);
+            }
+            continue;
+          }
+          encounter.x = enemy.x; encounter.y = enemy.y;
+        }
         const dx = state.playerX - enemy.x;
         const dy = state.playerY - enemy.y;
         const range = Math.hypot(dx, dy);
@@ -726,7 +781,7 @@ function advanceState(
           && !(pendingDashAtFinalStep && atMs === boundedTimeMs)
         ) {
           const damage = Math.max(1, definition.contactDamage - armor.defenseBonus - getArmorMovingDefenseBonus(armor, moving));
-          state.playerHp = Math.max(0, state.playerHp - damage);
+          applyLegendDamage(state, damage, atMs);
           state.nextDamageAtMs = atMs + ARPG_DAMAGE_INVULNERABILITY_MS;
           enemy.nextContactAtMs = atMs + contactInterval;
           const retaliation = armor.effect?.id === "ahuizotl-retaliation" ? 10 : 0;
@@ -791,7 +846,7 @@ function advanceState(
           ? distance(initialPosition.x, initialPosition.y, requestedPosition.x, requestedPosition.y) > 4
           : false;
         const damage = Math.max(1, projectile.damage - armor.defenseBonus - getArmorMovingDefenseBonus(armor, moving));
-        state.playerHp = Math.max(0, state.playerHp - damage);
+        applyLegendDamage(state, damage, atMs);
         state.nextDamageAtMs = atMs + ARPG_DAMAGE_INVULNERABILITY_MS;
         if (state.playerHp <= 0) state.status = "defeat";
         return false;
@@ -812,6 +867,12 @@ function advanceState(
 
 function applyDamage(state: ArpgDungeonCombatState, config: (typeof ARPG_DUNGEON_CONFIGS)[keyof typeof ARPG_DUNGEON_CONFIGS], enemy: ArpgDungeonCombatState["enemies"][number], damage: number) {
   if (!enemy.alive) return;
+  if (enemy.definitionId === "boss" && state.bossEncounter) {
+    damageBossEncounter(state.bossEncounter, damage, state.serverTimeMs);
+    enemy.hp = state.bossEncounter.hp;
+    if (state.bossEncounter.state !== "COMBAT") { state.projectiles = []; state.hazards = []; }
+    return;
+  }
   const applied = Math.max(0, Math.min(enemy.hp, Math.round(damage)));
   enemy.hp -= applied;
   if (enemy.hp > 0) return;
@@ -887,6 +948,10 @@ function performAbility(state: ArpgDungeonCombatState, config: (typeof ARPG_DUNG
   );
   if (card.behavior === "renewal") {
     state.playerHp = Math.min(state.maxHp, state.playerHp + (card.restoreHp ?? 40));
+    if (card.id === "arthur-round-table-oath") {
+      state.arthurOaths ??= emptyArthurOaths();
+      grantRoundTableWard(state.arthurOaths, { x: state.playerX, y: state.playerY }, state.serverTimeMs);
+    }
   } else if (card.behavior === "self-area") {
     damageInRadius(state, config, state.playerX, state.playerY, card.radius ?? 140, card.damage, card.kind === "control" ? state.serverTimeMs + (card.durationMs ?? 1_400) : 0);
   } else if (card.behavior === "targeted-control") {
@@ -943,6 +1008,7 @@ export function applyArpgDungeonCombatCommand(options: {
   if (current.weaponId !== options.loadout.weaponId) throw new ArpgDungeonCombatRuleError("A arma do encontro não corresponde ao loadout validado.");
   if (current.armorId !== options.loadout.armorId) throw new ArpgDungeonCombatRuleError("A armadura do encontro não corresponde ao loadout validado.");
   const nextServerTimeMs = Math.min(options.nowMs, current.serverTimeMs + MAX_ADVANCE_MS);
+  if (command.kind === "skip_intro" && current.bossEncounter) voteBossIntroSkip(current.bossEncounter, "solo", nextServerTimeMs);
   if (command.kind === "dash" && nextServerTimeMs < current.nextDashAtMs) {
     throw new ArpgDungeonCombatRuleError("A esquiva ainda está em recarga.");
   }
@@ -960,7 +1026,7 @@ export function applyArpgDungeonCombatCommand(options: {
   );
   const moving = distance(previousPosition.x, previousPosition.y, current.playerX, current.playerY) > 4;
 
-  if (current.status === "combat") {
+  if (current.status === "combat" && !isBossInputLocked(current.bossEncounter?.state)) {
     if (command.kind === "basic_attack") {
       performBasicAttack(current, config, options.loadout, aim.x, aim.y, moving);
     } else if (command.kind === "ability") {

@@ -228,6 +228,7 @@ export const ARPG_ABILITY_CARDS: ArpgAbilityCardDefinition[] = LEGEND_ABILITY_DE
   const template = legacyCardById.get(definition.templateId)!;
   return tuneSignaturePower({
     ...template,
+    ...(definition.id === "arthur-round-table-oath" ? { radius: 180 } : {}),
     id: definition.id,
     visualEffectId: definition.templateId,
     name: definition.name,

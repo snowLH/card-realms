@@ -1,4 +1,8 @@
 "use client";
+import { BossEncounterView, ForgottenLegendActor, RoundTableWardView } from "./boss-encounter-view";
+import { isBossInputLocked } from "@/game/arpg/bosses/cinematic-input-lock";
+import { BossProgressSchema, bossProgressInventory, type BossProgress } from "@/game/arpg/bosses/boss-unlocks";
+import { getLegendSignatureAbilityIds } from "@/game/arpg/content/legends";
 
 import {
   Crosshair,
@@ -36,11 +40,12 @@ type RaidPayload = {
     xpAwarded: number;
   };
   error?: string;
+  bossProgress?: BossProgress;
 };
 
 type RaidAction =
   | { action: "input"; clientSeq: number; moveX: number; moveY: number; aimX: number; aimY: number }
-  | { action: "attack" | "dash" }
+  | { action: "attack" | "dash" | "skip_intro" }
   | { action: "ability"; slot: 0 | 1 }
   | { action: "revive"; targetPlayerId: string };
 
@@ -293,15 +298,23 @@ export function ArpgRaidArena({
   roomId,
   playerId,
   onClose,
+  onBossProgress,
 }: {
   roomId: string;
   playerId: string;
   onClose: () => void;
+  onBossProgress?: (progress: BossProgress, inventory: string[]) => void;
 }) {
   const [payload, setPayload] = useState<RaidPayload | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const progressCallbackRef = useRef(onBossProgress);
+  useEffect(() => { progressCallbackRef.current = onBossProgress; }, [onBossProgress]);
+  const applyBossProgress = useCallback((value: unknown) => {
+    const parsed = BossProgressSchema.safeParse(value);
+    if (parsed.success) progressCallbackRef.current?.(parsed.data, [...bossProgressInventory(parsed.data), ...parsed.data.unlockedLegendIds.flatMap(getLegendSignatureAbilityIds)]);
+  }, []);
   const stateRef = useRef<ArpgRaidState | null>(null);
   const versionRef = useRef(1);
   const actionBusyRef = useRef(false);
@@ -327,12 +340,13 @@ export function ArpgRaidArena({
       return next;
     }
     setPayload(next);
+    if (next.bossProgress) applyBossProgress(next.bossProgress);
     if (next.state) stateRef.current = next.state;
     versionRef.current = next.room.version;
     setLoading(false);
     setError("");
     return next;
-  }, []);
+  }, [applyBossProgress]);
 
   const localAvatar = useMemo(
     () => typeof window === "undefined"
@@ -352,6 +366,7 @@ export function ArpgRaidArena({
     const inputAction = action.action === "input";
     const busy = inputAction ? inputBusyRef : actionBusyRef;
     const currentState = stateRef.current;
+    if (isBossInputLocked(currentState?.bossEncounter?.state) && action.action !== "input" && action.action !== "skip_intro") return false;
     if (busy.current || !currentState || currentState.status !== "active"
       || !currentState.players.some((entry) => entry.id === playerId && entry.alive)) return false;
     busy.current = true;
@@ -375,6 +390,8 @@ export function ArpgRaidArena({
           state?: ArpgRaidState;
           version?: number;
           error?: string;
+          bossProgress?: BossProgress;
+          restorationError?: string;
         };
 
         if (response.status === 409 && attempt + 1 < attempts) {
@@ -387,13 +404,14 @@ export function ArpgRaidArena({
         }
 
         stateRef.current = result.state;
+        if (result.bossProgress) applyBossProgress(result.bossProgress);
         versionRef.current = result.version;
         setPayload((current) => current ? {
           ...current,
           room: { ...current.room, status: result.state!.status, version: result.version! },
           state: result.state!,
         } : current);
-        setError("");
+        setError(result.restorationError ?? "");
         if (result.state.status !== "active") void refresh();
         return true;
       }
@@ -405,7 +423,7 @@ export function ArpgRaidArena({
       busy.current = false;
       if (!inputAction) setSending(false);
     }
-  }, [playerId, refresh, roomId]);
+  }, [applyBossProgress, playerId, refresh, roomId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -593,6 +611,7 @@ export function ArpgRaidArena({
   }, [sendAction]);
 
   const state = payload?.state ?? null;
+  const bossLocked = isBossInputLocked(state?.bossEncounter?.state);
   const currentDungeonRoom = state?.dungeon?.rooms[state.dungeon.roomIndex] ?? null;
   const worldWidth = currentDungeonRoom?.worldWidth ?? WORLD_WIDTH;
   const worldHeight = currentDungeonRoom?.worldHeight ?? WORLD_HEIGHT;
@@ -610,6 +629,7 @@ export function ArpgRaidArena({
   const recentLog = state?.log.slice(-4).reverse() ?? [];
 
   const setTouchMovement = (x: number, y: number) => {
+    if (bossLocked) { movementRef.current.x = 0; movementRef.current.y = 0; return; }
     movementRef.current = {
       ...movementRef.current,
       x,
@@ -674,6 +694,8 @@ export function ArpgRaidArena({
         </section>
       ) : null}
       <section className="arpg-raid-world" aria-label={currentDungeonRoom ? `${currentDungeonRoom.label}, dungeon cooperativa` : "Arena cooperativa"}>
+        {state.bossEncounter ? <BossEncounterView encounter={state.bossEncounter} width={worldWidth} height={worldHeight} players={state.players} onSkip={() => void sendAction({ action: "skip_intro" })} /> : null}
+        <RoundTableWardView players={state.players} width={worldWidth} height={worldHeight} nowMs={state.serverTimeMs} />
         {hasDungeonCorridor && currentDungeonRoom ? (
           <>
             <div
@@ -706,14 +728,14 @@ export function ArpgRaidArena({
             style={{ left: percent(state.boss.x, worldWidth), top: percent(state.boss.y, worldHeight) }}
           >
             <span className="arpg-raid-boss__aura" />
-            <RaidBossSprite
+            {state.bossEncounter ? <ForgottenLegendActor encounter={state.bossEncounter} /> : <RaidBossSprite
               action={bossAction}
               active={state.status === "active"}
               x={state.boss.x}
               y={state.boss.y}
               label={bossDefinition.name}
               fallbackSprite={bossDefinition.sprite}
-            />
+            />}
             <strong>{state.boss.name}</strong>
             <small>Fase {state.boss.phase}</small>
           </div>
@@ -803,10 +825,10 @@ export function ArpgRaidArena({
         </div>
 
         <div className="arpg-raid-actions">
-          <button type="button" disabled={!player.alive || state.status !== "active"} onClick={() => void sendAction({ action: "attack" })}>
+          <button type="button" disabled={bossLocked || !player.alive || state.status !== "active"} onClick={() => void sendAction({ action: "attack" })}>
             <Crosshair /><strong>ATACAR</strong><small>Espaço · A</small>
           </button>
-          <button type="button" disabled={!player.alive || state.status !== "active"} onClick={() => void sendAction({ action: "dash" })}>
+          <button type="button" disabled={bossLocked || !player.alive || state.status !== "active"} onClick={() => void sendAction({ action: "dash" })}>
             <Zap /><strong>DASH</strong><small>Shift · B</small>
           </button>
           {downedTeammates.map((ally) => (
@@ -831,7 +853,7 @@ export function ArpgRaidArena({
               <button
                 type="button"
                 key={card?.id ?? index}
-                disabled={!card || !player.alive || state.status !== "active" || remaining > 0}
+                disabled={bossLocked || !card || !player.alive || state.status !== "active" || remaining > 0}
                 onClick={() => void sendAction({ action: "ability", slot: index as 0 | 1 })}
               >
                 <span>{index + 1}</span>
@@ -847,7 +869,7 @@ export function ArpgRaidArena({
         <div className={cn("arpg-raid-result", state.status === "victory" ? "is-victory" : "is-defeat")}>
           <Sparkles />
           <span className="view-eyebrow">RAID ARPG ENCERRADA</span>
-          <h2>{state.status === "victory" ? `${state.boss.name} derrotado` : "O grupo foi derrotado"}</h2>
+          <h2>{state.status === "victory" ? state.bossEncounter ? "Lenda restaurada — " + state.boss.name : `${state.boss.name} derrotado` : "O grupo foi derrotado"}</h2>
           <p>
             {state.status === "victory"
               ? "O servidor confirmou a vitória e processou as moedas e o XP do evento para os participantes elegíveis."

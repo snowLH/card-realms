@@ -1,6 +1,9 @@
 "use client";
 
 import { NATIVE_BACK_EVENT } from "@/lib/native-app";
+import { BossProgressSchema, EMPTY_BOSS_PROGRESS, restoreBossProgress, bossProgressInventory, type BossProgress } from "@/game/arpg/bosses/boss-unlocks";
+import { getLegendSignatureAbilityIds } from "@/game/arpg/content/legends";
+import { loadLocalProgress, saveLocalProgress } from "@/game/save/local-progress";
 
 import { Map as MapIcon, Maximize2, Pause, Play, Smartphone, Volume2, VolumeX, X } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -60,6 +63,9 @@ function getPortraitModeServerSnapshot() {
 }
 
 export function ArpgGame({
+  bossProgress = EMPTY_BOSS_PROGRESS,
+  accountId = null,
+  onBossProgress,
   onExit,
   exitLabel = "Voltar à Guilda",
   onRunComplete,
@@ -69,6 +75,9 @@ export function ArpgGame({
   atlasEncounter = null,
   sessionMode = "online",
 }: {
+  bossProgress?: BossProgress;
+  accountId?: string | null;
+  onBossProgress?: (progress: BossProgress, inventory: string[]) => void;
   onExit: () => void;
   exitLabel?: string;
   onRunComplete?: (state: ArpgHudState, extraction?: ArpgExtractionResult) => void;
@@ -79,6 +88,9 @@ export function ArpgGame({
   sessionMode?: "online" | "offline";
 }) {
   const expedition = getArpgExpedition(expeditionId);
+  const progressRef = useRef(bossProgress);
+  const progressCallbackRef = useRef(onBossProgress);
+  useEffect(() => { progressRef.current = bossProgress; progressCallbackRef.current = onBossProgress; }, [bossProgress, onBossProgress]);
   const hostRef = useRef<HTMLDivElement>(null);
   const mapButtonRef = useRef<HTMLButtonElement>(null);
   const gameControlRef = useRef<{ setPaused: (paused: boolean) => void } | null>(null);
@@ -212,6 +224,31 @@ export function ArpgGame({
     const host = hostRef.current;
     const offHud = bridge.onHud((state) => setHud(state));
     const offMessage = bridge.onMessage((next) => setMessage(next));
+    bridge.setSeenBossIntroIds(progressRef.current.seenBossIntroIds);
+    const persistProgress = (progress: BossProgress, serverConfirmed = false) => {
+      const inventory = [...bossProgressInventory(progress), ...progress.unlockedLegendIds.flatMap(getLegendSignatureAbilityIds)];
+      try {
+        const saved = loadLocalProgress(window.localStorage, accountId);
+        saveLocalProgress(window.localStorage, { ...saved, ...progress, equipmentIds: [...new Set([...saved.equipmentIds, ...inventory])] }, accountId);
+      } catch (error) {
+        if (!serverConfirmed) throw error;
+      }
+      progressRef.current = progress;
+      progressCallbackRef.current?.(progress, inventory);
+      return inventory;
+    };
+    const offBossProgress = bridge.setBossProgressHandlers(async (encounter) => {
+      if (persistentRunRef.current) return false; // Only a server receipt can clear online encounters.
+      persistProgress(restoreBossProgress(progressRef.current, encounter));
+      return true;
+    }, (bossId) => {
+      if (persistentRunRef.current || progressRef.current.seenBossIntroIds.includes(bossId)) return;
+      try {
+        persistProgress({ ...progressRef.current, seenBossIntroIds: [...progressRef.current.seenBossIntroIds, bossId] });
+      } catch {
+        bridge.emitMessage("Não foi possível guardar a recordação desta entrada. O combate pode continuar.");
+      }
+    });
     const offEncounter = bridge.setEncounterActionHandler(async (roomId, command) => {
       const token = runTokenRef.current;
       if (!token || !persistentRunRef.current) return null;
@@ -231,6 +268,8 @@ export function ArpgGame({
         const payload = await readJsonResponse<{
           revision?: number;
           state?: ArpgDungeonCombatState;
+          bossProgress?: BossProgress;
+          restorationError?: string;
           error?: string;
         }>(response, "O servidor enviou uma resposta inválida para o combate.");
         if (!response.ok || typeof payload.revision !== "number" || !payload.state) {
@@ -238,6 +277,8 @@ export function ArpgGame({
         }
         assertSynchronized();
         checkpointRevisionRef.current = payload.revision;
+        if (payload.bossProgress) persistProgress(BossProgressSchema.parse(payload.bossProgress), true);
+        if (payload.restorationError) setMessage(payload.restorationError);
         return { revision: payload.revision, state: payload.state };
       };
       const queued = checkpointQueueRef.current.then(submit);
@@ -450,6 +491,7 @@ export function ArpgGame({
       disposed = true;
       offHud();
       offMessage();
+      offBossProgress();
       offEnd();
       offCheckpoint();
       offEncounter();
@@ -459,7 +501,7 @@ export function ArpgGame({
       destroyGame?.();
       setReady(false);
     };
-  }, [atlasEncounter, avatarConfig, bootAttempt, bridge, expedition, expeditionId, sessionMode]);
+  }, [accountId, atlasEncounter, avatarConfig, bootAttempt, bridge, expedition, expeditionId, sessionMode]);
 
   const requestFullscreen = async () => {
     try {

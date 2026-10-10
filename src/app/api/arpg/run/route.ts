@@ -1,4 +1,10 @@
 import { randomInt } from "node:crypto";
+import { readBossProgress, recordStoredBossProgress } from "@/server/arpg/boss-progress";
+import { confirmBossRestoration } from "@/game/arpg/bosses/boss-encounter-controller";
+import { bossForRegion } from "@/game/arpg/bosses/registry";
+import { isBossInputLocked } from "@/game/arpg/bosses/cinematic-input-lock";
+import { getRunShardReward } from "@/game/arpg/dungeon/special-rooms";
+import { ARPG_DUNGEON_CONFIGS } from "@/game/arpg/content/dungeons";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createDungeonLootPlan } from "@/game/arpg/content/dungeons";
@@ -107,7 +113,7 @@ const RequestSchema = z.discriminatedUnion("action", [
     roomId: z.string().min(1).max(40),
     command: z.strictObject({
       actionId: z.string().min(1).max(100),
-      kind: z.enum(["sync", "basic_attack", "ability", "dash"]),
+      kind: z.enum(["sync", "basic_attack", "ability", "dash", "skip_intro"]),
       playerX: z.number().finite().min(0).max(4_096),
       playerY: z.number().finite().min(0).max(4_096),
       aimX: z.number().finite().min(-1).max(1),
@@ -465,6 +471,7 @@ export async function POST(request: Request) {
         armorId: previous.armorId,
       };
       const nowMs = Date.now();
+      const bossProgress = room.type === "boss" ? await readBossProgress(admin, playerId) : undefined;
       if (
         (!existingCombat || existingCombat.roomId !== parsed.roomId)
         && !isValidArpgCombatEntryPosition(
@@ -502,7 +509,24 @@ export async function POST(request: Request) {
           baseXpEarned: previous.xpEarned,
           baseRunShards: previous.runShards,
           nowMs,
+          seenBossIntro: bossProgress?.seenBossIntroIds.includes(bossForRegion(session.regionId).id),
         });
+      let confirmedProgress = bossProgress;
+      let restorationError: string | undefined;
+      if (combatState.bossEncounter?.state === "RESTORED") {
+        const receipt = await recordStoredBossProgress(admin, { playerId, runId: session.runId }, true);
+        if (receipt.confirmed) {
+          confirmBossRestoration(combatState.bossEncounter, combatState.bossEncounter.bossId, true, nowMs);
+          const enemy = combatState.enemies.find((enemy) => enemy.definitionId === "boss");
+          if (enemy?.alive) {
+            enemy.alive = false;
+            const definition = ARPG_DUNGEON_CONFIGS[session.regionId].enemies.boss;
+            combatState.xpEarned += Math.round(definition.rewardXp * combatState.xpMultiplier);
+            combatState.runShards += getRunShardReward(definition.rewardXp);
+          }
+          confirmedProgress = receipt.progress;
+        } else restorationError = receipt.error;
+      }
       try {
         combatState = applyArpgDungeonCombatCommand({
           state: combatState,
@@ -552,8 +576,15 @@ export async function POST(request: Request) {
           revision: saveResult.data.revision,
         }, { status: 409 });
       }
+      if (combatState.bossEncounter && ["COMBAT", "DEFEATED", "PURIFICATION"].includes(combatState.bossEncounter.state)
+        && !bossProgress?.seenBossIntroIds.includes(combatState.bossEncounter.bossId)) {
+        const seen = await recordStoredBossProgress(admin, { playerId, runId: session.runId }, false);
+        if (seen.confirmed) confirmedProgress = seen.progress;
+      }
       return NextResponse.json({
         authoritative: true,
+        bossProgress: confirmedProgress,
+        restorationError,
         revision: saveResult.data.revision,
         state: combatState,
       });
@@ -606,6 +637,8 @@ export async function POST(request: Request) {
         || activeRun.data.dungeonSeed !== session.dungeonSeed
         || !previousCheckpoint?.success
         || !nextCheckpoint
+        || (isBossInputLocked(previousCheckpoint?.success ? previousCheckpoint.data.serverCombatState?.bossEncounter?.state : undefined)
+          && (parsed.checkpoint.weaponId !== previousCheckpoint?.data?.weaponId || parsed.checkpoint.armorId !== previousCheckpoint?.data?.armorId))
         || !isValidArpgRunCheckpoint(graph, previousCheckpoint.data, session.lootItemIds)
         || !isValidArpgRunCheckpointTransition(
           graph,

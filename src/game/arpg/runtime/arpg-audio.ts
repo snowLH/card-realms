@@ -64,7 +64,7 @@ export class ArpgAudio {
   private ambientOscillators: OscillatorNode[] = [];
   private themeTimer: number | null = null;
   private themeStep = 0;
-  private musicMode: "exploration" | "boss" = "exploration";
+  private musicMode: "exploration" | "boss" | "intro" | "purification" = "exploration";
   private enabled = true;
   private removeGestureListeners: (() => void) | null = null;
 
@@ -89,7 +89,7 @@ export class ArpgAudio {
     }
   }
 
-  setMusicMode(mode: "exploration" | "boss") {
+  setMusicMode(mode: "exploration" | "boss" | "intro" | "purification") {
     if (this.musicMode === mode) return;
     this.musicMode = mode;
     if (!THEME_NOTES[this.regionId] || !this.context || this.context.state !== "running") return;
@@ -207,7 +207,9 @@ export class ArpgAudio {
   private startTheme() {
     const context = this.context;
     const master = this.master;
-    const notes = this.musicMode === "boss"
+    const notes = this.musicMode === "intro" ? [110, 0, 0, 164.81, 0, 0, 123.47, 0]
+      : this.musicMode === "purification" ? [261.63, 0, 329.63, 392, 0, 523.25, 392, 0]
+      : this.musicMode === "boss"
       ? BOSS_THEME_NOTES[this.regionId] ?? THEME_NOTES[this.regionId]
       : THEME_NOTES[this.regionId];
     if (!this.enabled || !context || !master || !notes || context.state !== "running" || this.themeTimer !== null) return;

@@ -21,7 +21,7 @@ describe("native pixel walk cycle", () => {
 
 describe("folklore pixel actor animation coverage", () => {
   it("provides six four-frame animation cycles for every hero, enemy and guild NPC", () => {
-    expect(NATIVE_PIXEL_ACTORS.length).toBe(18);
+    expect(NATIVE_PIXEL_ACTORS.length).toBe(19);
     for (const actor of NATIVE_PIXEL_ACTORS) {
       expect(NATIVE_PIXEL_ACTOR_ANIMATION_MAP[actor]).toEqual({
         idle: 0, walk: 1, attack: 2, shoot: 3, damage: 4, defeat: 5,
