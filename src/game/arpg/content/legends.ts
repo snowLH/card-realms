@@ -58,6 +58,7 @@ export const PLAYABLE_LEGENDS: readonly PlayableLegend[] = [
     folklore: "Brasil",
     description: "Encanta adversários e abre espaço para contra-atacar com magia líquida.",
     price: 180,
+    unlockBossId: "deep-iara",
     appearance: { skin: "rose", hair: "waves", outfit: "scholar", accent: "azure" },
     signatureAbilityIds: ["iara-enchanting-song", "iara-living-spring"],
   },
