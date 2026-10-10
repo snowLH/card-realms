@@ -17,6 +17,7 @@ DEST = (
 )
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 EXPECTED_DIMENSIONS = (170, 119)
+EXPECTED_SHA256 = "37f4ce4a3e875b8e7f23897e583c1991253788eff271a1c283498e38629e45d3"
 
 
 def validate_png(data: bytes) -> None:
@@ -24,6 +25,8 @@ def validate_png(data: bytes) -> None:
         raise ValueError(f"Unexpected weaponpack.png length: {len(data)}")
     if data[:8] != PNG_SIGNATURE or data[12:16] != b"IHDR":
         raise ValueError("Downloaded file is not a PNG with a valid IHDR header")
+    if hashlib.sha256(data).hexdigest() != EXPECTED_SHA256:
+        raise ValueError("Downloaded weaponpack.png SHA256 differs from verified CC0 original")
     dimensions = struct.unpack(">II", data[16:24])
     if dimensions != EXPECTED_DIMENSIONS:
         raise ValueError(f"Expected {EXPECTED_DIMENSIONS}, got {dimensions}")
