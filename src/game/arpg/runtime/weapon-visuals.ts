@@ -1,24 +1,18 @@
 import type { WeaponKind } from "../domain/types";
+import { ARPG_ASSET_MANIFEST } from "../assets";
 
 export type WeaponVisualMotion = "swing" | "recoil" | "cast";
-export type WeaponVisualDesign =
-  | "iron-straight"
-  | "forest-longbow"
-  | "ritual-orb"
-  | "thorn-guardian"
-  | "tide-wave"
-  | "river-recurve"
-  | "iara-song"
-  | "coral-ward"
-  | "runic-sabre"
-  | "alicanto-mineral"
-  | "raiju-thunder"
-  | "frostfall-greatsword";
+/** One frame from Bennyboi_hack's original CC0 16x16 pixel-art sheet. */
+const EXTERNAL_WEAPON_SHEET = ARPG_ASSET_MANIFEST.weapons.bennyboiHack;
 
 export type WeaponVisualDefinition = Readonly<{
   id: string;
   textureKey: string;
-  design: WeaponVisualDesign;
+  frame: number;
+  originX: number;
+  originY: number;
+  baseRotation: number;
+  tint: number;
   motion: WeaponVisualMotion;
   displayScale: number;
   motionDurationMs: number;
@@ -46,10 +40,14 @@ const neutralMotion: WeaponMotionFrame = {
 export const ARPG_WEAPON_VISUALS: readonly WeaponVisualDefinition[] = [
   {
     id: "iron-sword",
-    textureKey: "arpg-weapon-iron-sword",
-    design: "iron-straight",
+    textureKey: EXTERNAL_WEAPON_SHEET.textureKey,
+    frame: 26,
+    originX: 0.3,
+    originY: 0.7,
+    baseRotation: Math.PI / 4,
+    tint: 0xffffff,
     motion: "swing",
-    displayScale: 1.16,
+    displayScale: 2.20,
     motionDurationMs: 175,
     motionIntensity: 0.92,
     holdDistanceOffset: 0,
@@ -57,10 +55,14 @@ export const ARPG_WEAPON_VISUALS: readonly WeaponVisualDefinition[] = [
   },
   {
     id: "forest-bow",
-    textureKey: "arpg-weapon-forest-bow",
-    design: "forest-longbow",
+    textureKey: EXTERNAL_WEAPON_SHEET.textureKey,
+    frame: 12,
+    originX: 0.5,
+    originY: 0.5,
+    baseRotation: 0,
+    tint: 0xb9e89a,
     motion: "recoil",
-    displayScale: 1.12,
+    displayScale: 2.10,
     motionDurationMs: 150,
     motionIntensity: 0.82,
     holdDistanceOffset: 2,
@@ -68,10 +70,14 @@ export const ARPG_WEAPON_VISUALS: readonly WeaponVisualDefinition[] = [
   },
   {
     id: "ritual-staff",
-    textureKey: "arpg-weapon-ritual-staff",
-    design: "ritual-orb",
+    textureKey: EXTERNAL_WEAPON_SHEET.textureKey,
+    frame: 7,
+    originX: 0.3,
+    originY: 0.7,
+    baseRotation: Math.PI / 4,
+    tint: 0xc9b0f4,
     motion: "cast",
-    displayScale: 1.18,
+    displayScale: 2.20,
     motionDurationMs: 230,
     motionIntensity: 0.88,
     holdDistanceOffset: 2,
@@ -79,10 +85,14 @@ export const ARPG_WEAPON_VISUALS: readonly WeaponVisualDefinition[] = [
   },
   {
     id: "thorn-guard-blade",
-    textureKey: "arpg-weapon-thorn-guard-blade",
-    design: "thorn-guardian",
+    textureKey: EXTERNAL_WEAPON_SHEET.textureKey,
+    frame: 47,
+    originX: 0.3,
+    originY: 0.7,
+    baseRotation: Math.PI / 4,
+    tint: 0x9ed68b,
     motion: "swing",
-    displayScale: 1.22,
+    displayScale: 2.32,
     motionDurationMs: 205,
     motionIntensity: 1.08,
     holdDistanceOffset: 2,
@@ -90,10 +100,14 @@ export const ARPG_WEAPON_VISUALS: readonly WeaponVisualDefinition[] = [
   },
   {
     id: "tide-blade",
-    textureKey: "arpg-weapon-tide-blade",
-    design: "tide-wave",
+    textureKey: EXTERNAL_WEAPON_SHEET.textureKey,
+    frame: 25,
+    originX: 0.3,
+    originY: 0.7,
+    baseRotation: Math.PI / 4,
+    tint: 0x8be2ed,
     motion: "swing",
-    displayScale: 1.18,
+    displayScale: 2.22,
     motionDurationMs: 170,
     motionIntensity: 0.98,
     holdDistanceOffset: 1,
@@ -101,10 +115,14 @@ export const ARPG_WEAPON_VISUALS: readonly WeaponVisualDefinition[] = [
   },
   {
     id: "river-bow",
-    textureKey: "arpg-weapon-river-bow",
-    design: "river-recurve",
+    textureKey: EXTERNAL_WEAPON_SHEET.textureKey,
+    frame: 32,
+    originX: 0.5,
+    originY: 0.5,
+    baseRotation: 0,
+    tint: 0xa0e6ed,
     motion: "recoil",
-    displayScale: 1.13,
+    displayScale: 2.12,
     motionDurationMs: 145,
     motionIntensity: 0.9,
     holdDistanceOffset: 3,
@@ -112,10 +130,14 @@ export const ARPG_WEAPON_VISUALS: readonly WeaponVisualDefinition[] = [
   },
   {
     id: "iara-song-staff",
-    textureKey: "arpg-weapon-iara-song-staff",
-    design: "iara-song",
+    textureKey: EXTERNAL_WEAPON_SHEET.textureKey,
+    frame: 63,
+    originX: 0.3,
+    originY: 0.7,
+    baseRotation: Math.PI / 4,
+    tint: 0x8eead9,
     motion: "cast",
-    displayScale: 1.21,
+    displayScale: 2.28,
     motionDurationMs: 245,
     motionIntensity: 1,
     holdDistanceOffset: 3,
@@ -123,10 +145,14 @@ export const ARPG_WEAPON_VISUALS: readonly WeaponVisualDefinition[] = [
   },
   {
     id: "coral-ward-bow",
-    textureKey: "arpg-weapon-coral-ward-bow",
-    design: "coral-ward",
+    textureKey: EXTERNAL_WEAPON_SHEET.textureKey,
+    frame: 12,
+    originX: 0.5,
+    originY: 0.5,
+    baseRotation: 0,
+    tint: 0xf3ac99,
     motion: "recoil",
-    displayScale: 1.16,
+    displayScale: 2.18,
     motionDurationMs: 165,
     motionIntensity: 1,
     holdDistanceOffset: 4,
@@ -134,10 +160,14 @@ export const ARPG_WEAPON_VISUALS: readonly WeaponVisualDefinition[] = [
   },
   {
     id: "runic-sabre",
-    textureKey: "arpg-weapon-runic-sabre",
-    design: "runic-sabre",
+    textureKey: EXTERNAL_WEAPON_SHEET.textureKey,
+    frame: 45,
+    originX: 0.3,
+    originY: 0.7,
+    baseRotation: Math.PI / 4,
+    tint: 0xabc9ff,
     motion: "swing",
-    displayScale: 1.17,
+    displayScale: 2.20,
     motionDurationMs: 165,
     motionIntensity: 0.94,
     holdDistanceOffset: 1,
@@ -145,10 +175,14 @@ export const ARPG_WEAPON_VISUALS: readonly WeaponVisualDefinition[] = [
   },
   {
     id: "alicanto-bow",
-    textureKey: "arpg-weapon-alicanto-bow",
-    design: "alicanto-mineral",
+    textureKey: EXTERNAL_WEAPON_SHEET.textureKey,
+    frame: 32,
+    originX: 0.5,
+    originY: 0.5,
+    baseRotation: 0,
+    tint: 0xf5da88,
     motion: "recoil",
-    displayScale: 1.14,
+    displayScale: 2.14,
     motionDurationMs: 150,
     motionIntensity: 0.92,
     holdDistanceOffset: 3,
@@ -156,10 +190,14 @@ export const ARPG_WEAPON_VISUALS: readonly WeaponVisualDefinition[] = [
   },
   {
     id: "raiju-staff",
-    textureKey: "arpg-weapon-raiju-staff",
-    design: "raiju-thunder",
+    textureKey: EXTERNAL_WEAPON_SHEET.textureKey,
+    frame: 67,
+    originX: 0.3,
+    originY: 0.7,
+    baseRotation: Math.PI / 4,
+    tint: 0xffec8d,
     motion: "cast",
-    displayScale: 1.23,
+    displayScale: 2.30,
     motionDurationMs: 220,
     motionIntensity: 1.08,
     holdDistanceOffset: 4,
@@ -167,10 +205,14 @@ export const ARPG_WEAPON_VISUALS: readonly WeaponVisualDefinition[] = [
   },
   {
     id: "frostfall-sword",
-    textureKey: "arpg-weapon-frostfall-sword",
-    design: "frostfall-greatsword",
+    textureKey: EXTERNAL_WEAPON_SHEET.textureKey,
+    frame: 21,
+    originX: 0.3,
+    originY: 0.7,
+    baseRotation: Math.PI / 4,
+    tint: 0xc5edff,
     motion: "swing",
-    displayScale: 1.28,
+    displayScale: 2.42,
     motionDurationMs: 240,
     motionIntensity: 1.16,
     holdDistanceOffset: 3,
