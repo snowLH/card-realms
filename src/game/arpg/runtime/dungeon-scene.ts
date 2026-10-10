@@ -3322,12 +3322,14 @@ export function createArpgDungeonScene(
       if (details) this.audio?.playLootReveal(details.rarity);
 
       const item = presentation.item;
+      // A 16px external weapon frame is shown at 32px throughout the reveal.
+      const revealScale = details && "frame" in details ? 2 : 1;
       const rise = this.tweens.add({
         targets: item,
         y: chest.y - 84,
         alpha: 1,
-        scaleX: 1,
-        scaleY: 1,
+        scaleX: revealScale,
+        scaleY: revealScale,
         duration: 260,
         ease: "Quad.easeOut",
         onComplete: () => {
