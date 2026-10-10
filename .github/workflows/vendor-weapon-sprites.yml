@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - feat/external-weapon-sprites-cc0
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -10,12 +13,13 @@ permissions:
 
 jobs:
   vendor:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && (github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feat/external-weapon-sprites-cc0'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: true
+          ref: feat/external-weapon-sprites-cc0
       - name: Download and validate original CC0 PNG
         run: python3 scripts/vendor-weapon-sprites.py
       - name: Commit original PNG to implementation branch
