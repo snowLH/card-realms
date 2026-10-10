@@ -14,6 +14,7 @@ export type ArpgSpriteSheetDefinition = {
   frameWidth: number;
   frameHeight: number;
   frameCount: number;
+  spacing?: number;
   columns?: number;
   rows?: number;
   scale: number;
@@ -48,6 +49,7 @@ export const ARPG_ASSET_MANIFEST = {
       path: "/art/vendor/opengameart/bennyboi-hack/weaponpack.png",
       frameWidth: 16,
       frameHeight: 16,
+      spacing: 1,
       frameCount: 70,
       columns: 10,
       rows: 7,
@@ -421,11 +423,12 @@ export const ARPG_ASSETS = {
 } as const;
 
 /** Shared Phaser loader config for manifest-backed sprite sheets. */
-export function getArpgSpriteSheetFrameConfig(sheet: Pick<ArpgSpriteSheetDefinition, "frameWidth" | "frameHeight" | "frameCount">) {
+export function getArpgSpriteSheetFrameConfig(sheet: Pick<ArpgSpriteSheetDefinition, "frameWidth" | "frameHeight" | "frameCount" | "spacing">) {
   return {
     frameWidth: sheet.frameWidth,
     frameHeight: sheet.frameHeight,
     endFrame: sheet.frameCount - 1,
+    ...(sheet.spacing === undefined ? {} : { spacing: sheet.spacing }),
   };
 }
 
