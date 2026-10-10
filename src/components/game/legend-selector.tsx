@@ -144,7 +144,7 @@ export function LegendSelector({
                     <li key={legend.signatureAbilityIds[index]}>{name}</li>
                   ))}
                 </ol>
-                <small>{isOwned ? "Os dois ataques estão desbloqueados." : "A compra desta lenda libera os dois ataques."}</small>
+                <small>{isOwned ? "Os dois ataques estão desbloqueados." : legend.unlockBossId ? "Purifique esta Lenda em sua expedição para liberar os dois ataques." : "A compra desta lenda libera os dois ataques."}</small>
               </section>
 
               <div className={styles.cardBottom}>
@@ -174,7 +174,7 @@ export function LegendSelector({
                     aria-busy={isPending}
                     onClick={() => { void onPurchase(legend.id); }}
                   >
-                    {legend.unlockBossId ? "Restaurar em Camelot" : isPending
+                    {legend.unlockBossId ? "Restaurar na expedição" : isPending
                       ? <><LoaderCircle className={styles.spinner} aria-hidden="true" /> Comprando</>
                       : <><Coins aria-hidden="true" /> Comprar</>}
                   </button>
