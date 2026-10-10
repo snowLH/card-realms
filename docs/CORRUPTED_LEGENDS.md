@@ -173,3 +173,18 @@ do runtime Phaser. Arthur usa a base da Naturalista no boss, no personagem
 jogável e no co-op, com fontes de geração arquivadas e exportação reproduzível.
 O cenário procedural de Camelot continua temporário. Balanceamento e animações
 ainda merecem uma rodada de playtest humano.
+
+
+## Regra de progressão final da dungeon
+
+Em dungeons `encounters-v3`, a Lenda Esquecida é sempre o confronto final. A conexão física para a arena monumental permanece selada até **todas as outras salas geradas** estarem em estado `cleared`. Isso inclui ramificações, salas de combate, elite, tesouro e encontros especiais; o jogador pode voltar livremente para concluir o que deixou para trás. Checkpoints legados mantêm a rota histórica para evitar soft-lock.
+
+No cooperativo, a sequência compartilhada já visita todas as salas uma única vez e coloca o boss por último. No modo procedural, `boss-access.ts`, `DungeonManager` e o selo direcional do `DungeonWorldRuntime` aplicam a mesma regra.
+
+## Lendas restauradas por região
+
+- Mata Encantada: **Curupira Ancestral — O Guardião que Esqueceu a Floresta** → restaura Curupira.
+- Arquipélago das Marés: **Iara das Profundezas — A Canção que Ninguém Mais Ouve** → desbloqueia Iara e seus dois poderes de assinatura.
+- Montanhas Rúnicas: **Rei Arthur — O Rei que se Recusou a Terminar** → desbloqueia Rei Arthur e seus dois poderes de assinatura.
+
+Os três usam a mesma máquina de estados de introdução, combate, derrota sem morte, purificação, restauração e confirmação persistente. A arte regional reutiliza os sprites pixel-art v5 já licenciados do projeto; Arthur mantém sua apresentação dedicada de Camelot.
