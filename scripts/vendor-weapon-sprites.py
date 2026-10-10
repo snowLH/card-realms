@@ -16,7 +16,7 @@ DEST = (
     / "public/art/vendor/opengameart/bennyboi-hack/weaponpack.png"
 )
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-EXPECTED_DIMENSIONS = (160, 112)
+EXPECTED_DIMENSIONS = (170, 119)
 
 
 def validate_png(data: bytes) -> None:
