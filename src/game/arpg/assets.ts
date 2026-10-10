@@ -42,6 +42,18 @@ export const ARPG_ASSET_MANIFEST = {
   runtimeTextureKeys: {
     dungeonBackground: "dungeon-arena",
   },
+  weapons: {
+    bennyboiHack: {
+      textureKey: "folklard-external-weapons-bennyboi-hack",
+      path: "/art/vendor/opengameart/bennyboi-hack/weaponpack.png",
+      frameWidth: 16,
+      frameHeight: 16,
+      frameCount: 70,
+      columns: 10,
+      rows: 7,
+      scale: 2.2,
+    },
+  },
   environments: {
     mataEncounter: { path: "/art/dungeon-forest-background-v3.webp" },
     archipelago: { path: "/art/dungeon-archipelago-background-v3.webp" },
