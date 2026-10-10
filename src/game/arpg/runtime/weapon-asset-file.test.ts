@@ -10,8 +10,8 @@ describe("vendored external CC0 weapon spritesheet", () => {
     const png = readFileSync(file);
     expect([...png.subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
     expect(png.toString("ascii", 12, 16)).toBe("IHDR");
-    expect(png.readUInt32BE(16)).toBe(sheet.columns * sheet.frameWidth);
-    expect(png.readUInt32BE(20)).toBe(sheet.rows * sheet.frameHeight);
+    expect(png.readUInt32BE(16)).toBe(sheet.columns * (sheet.frameWidth + sheet.spacing));
+    expect(png.readUInt32BE(20)).toBe(sheet.rows * (sheet.frameHeight + sheet.spacing));
     expect(sheet.frameCount).toBe(sheet.columns * sheet.rows);
   });
 });
