@@ -41,17 +41,32 @@ describe("final forgotten-legend gate", () => {
     const manager = new DungeonManager(graph);
     const bossId = manager.getGraph().bossRoomId;
     const parentId = bossGateParentId(manager.getGraph())!;
-    const route = manager.getGraph().rooms[parentId];
+
+    const queue = [[manager.getGraph().startRoomId]];
+    let route: string[] = [];
+    while (queue.length) {
+      const path = queue.shift()!;
+      const id = path.at(-1)!;
+      if (id === parentId) { route = path; break; }
+      const room = manager.getGraph().rooms[id];
+      for (const next of Object.values(room.connections)) {
+        if (next && !path.includes(next) && next !== bossId) queue.push([...path, next]);
+      }
+    }
+    expect(route.at(-1)).toBe(parentId);
+    for (const nextId of route.slice(1)) {
+      manager.clearRoom();
+      manager.enterRoom(nextId);
+    }
+    manager.clearRoom(parentId);
+
+    expect(unclearedRoomsBeforeBoss(manager.getGraph()).length).toBeGreaterThan(0);
+    expect(() => manager.enterRoom(bossId)).toThrow(/permanece selada/i);
 
     for (const room of Object.values(manager.getGraph().rooms)) {
-      if (room.id !== bossId && room.id !== parentId) manager.clearRoom(room.id);
+      if (room.id !== bossId) manager.clearRoom(room.id);
     }
-    // Move manager state directly through a legal path is irrelevant to the
-    // access rule; leaving the parent unresolved must still keep the seal.
-    expect(isBossRoomUnlocked(manager.getGraph())).toBe(false);
-    expect(route.state).not.toBe("cleared");
-
-    manager.clearRoom(parentId);
-    expect(isBossRoomUnlocked(manager.getGraph())).toBe(true);
+    expect(manager.isBossRoomUnlocked()).toBe(true);
+    expect(manager.enterRoom(bossId).id).toBe(bossId);
   });
 });
