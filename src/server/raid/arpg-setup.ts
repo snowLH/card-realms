@@ -1,4 +1,5 @@
 import "server-only";
+import { readBossProgress } from "../arpg/boss-progress";
 
 import {
   ArpgRaidLoadoutSchema,
@@ -46,6 +47,7 @@ export async function startArpgRaidRoom(roomId: string, actorId: string) {
       loadout: parsed.data,
     };
   });
+  for (const setup of setups) setup.seenBossIntroIds = (await readBossProgress(loaded.admin, setup.id)).seenBossIntroIds;
 
   const bossConfig = event.boss_config && typeof event.boss_config === "object" && !Array.isArray(event.boss_config)
     ? event.boss_config as Record<string, unknown>

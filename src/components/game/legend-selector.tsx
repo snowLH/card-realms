@@ -170,11 +170,11 @@ export function LegendSelector({
                   <button
                     type="button"
                     className={styles.purchaseButton}
-                    disabled={!canAfford || purchaseBusy}
+                    disabled={Boolean(legend.unlockBossId) || !canAfford || purchaseBusy}
                     aria-busy={isPending}
                     onClick={() => { void onPurchase(legend.id); }}
                   >
-                    {isPending
+                    {legend.unlockBossId ? "Restaurar em Camelot" : isPending
                       ? <><LoaderCircle className={styles.spinner} aria-hidden="true" /> Comprando</>
                       : <><Coins aria-hidden="true" /> Comprar</>}
                   </button>

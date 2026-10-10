@@ -6,6 +6,18 @@ As dimensões de quadro, contagens, grades e escalas abaixo são os metadados re
 
 As 58 imagens ativas foram codificadas com Sharp/WebP (`lossless: true`, `effort: 6`, `exact: false`). As dimensões e todos os valores de alpha são idênticos às fontes; cada canal RGB em pixels com alpha maior que zero também permaneceu idêntico. RGB oculto sob alpha zero pode diferir sem alterar a renderização. Os 96 PNGs originais permanecem arquivados em `../artifacts/archive/public-art/`; `scripts/verify-art-webp.mjs` reproduz essa comparação.
 
+## Arthur e Camelot — assets originais temporários
+
+| Asset | Autoria/fonte | Licença | Uso |
+| --- | --- | --- | --- |
+| `/art/legend-king-arthur-spritesheet-v5.webp` | Codex para snowLH/card-realms; [fonte editável](../src/game/arpg/bosses/king-arthur/pixel-art.ts), [gerador](../scripts/generate-king-arthur-art.mjs) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/); [aviso local](../public/art/licenses/king-arthur-original-placeholder.txt) | Arthur jogável restaurado; 1024 × 1536 px, grade 4 × 6, quadro lógico de 64 px com padding compatível com v5. Placeholder original, preserva cicatrizes e arma flutuante. |
+| Arthur corrompido/restaurado e salão de Camelot procedural | Codex para snowLH/card-realms; [poses](../src/game/arpg/bosses/king-arthur/pixel-art.ts), [apresentação](../src/game/arpg/bosses/king-arthur/presentation.ts) | CC0 1.0, mesmo aviso local | Desenho interno por retângulos de pixels: coroa, armadura marcada, manto, Excalibur, trono, pilares, bandeiras e memórias espectrais. Placeholder temporário; nenhuma imagem externa incorporada. |
+
+Reprodução: `node scripts/generate-king-arthur-art.mjs`. O pipeline usa desenho
+original e rasterização lossless, sem sprites de jogos comerciais ou imagens
+baixadas. Arthur é o boss atual das Montanhas Rúnicas; o asset antigo de Amarok
+abaixo permanece para compatibilidade com runs anteriores.
+
 ## Ilustração da tela inicial — fora do manifesto Phaser
 
 | Asset | Caminho | Metadados | Uso |

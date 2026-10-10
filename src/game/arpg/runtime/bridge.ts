@@ -18,6 +18,26 @@ type EncounterActionHandler = (
 ) => Promise<{ state: ArpgDungeonCombatState; revision: number } | null>;
 
 export class ArpgBridge implements ArpgRuntimeBridge {
+  private seenBossIntroIds: string[] = [];
+  private restorationHandler: ((encounter: import("../bosses/boss-encounter-controller").BossEncounterSnapshot) => Promise<boolean>) | null = null;
+  private introSeenHandler: ((bossId: string) => void) | null = null;
+  getSeenBossIntroIds() { return this.seenBossIntroIds; }
+  setSeenBossIntroIds(ids: readonly string[]) { this.seenBossIntroIds = [...ids]; }
+  markBossIntroSeen(bossId: string) {
+    if (!this.seenBossIntroIds.includes(bossId)) this.seenBossIntroIds.push(bossId);
+    this.introSeenHandler?.(bossId);
+  }
+  setBossProgressHandlers(
+    restore: (encounter: import("../bosses/boss-encounter-controller").BossEncounterSnapshot) => Promise<boolean>,
+    seen: (bossId: string) => void,
+  ) {
+    this.restorationHandler = restore;
+    this.introSeenHandler = seen;
+    return () => { this.restorationHandler = null; this.introSeenHandler = null; };
+  }
+  persistBossRestoration(encounter: import("../bosses/boss-encounter-controller").BossEncounterSnapshot) {
+    return this.restorationHandler?.(encounter) ?? Promise.resolve(false);
+  }
   private soundEnabled = true;
   private serverAuthoritativeCombat = false;
   private encounterActionHandler: EncounterActionHandler | null = null;

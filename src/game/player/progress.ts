@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BossProgressSchema, EMPTY_BOSS_PROGRESS } from "../arpg/bosses/boss-unlocks";
 import { getLegendSignatureAbilityIds, hasExactLegendPowers } from "../arpg/content/legends";
 import { ELEMENTS } from "../domain/elements";
 import { AvatarConfigSchema, DEFAULT_AVATAR_CONFIG } from "../save/local-progress";
@@ -120,6 +121,7 @@ const ArpgLoadoutSchema = z.object({
 });
 
 export const RemotePlayerSnapshotSchema = z.object({
+  bossProgress: BossProgressSchema.default(EMPTY_BOSS_PROGRESS),
   version: z.literal(1),
   profile: ProfileSchema,
   world: WorldStateSchema,

@@ -52,10 +52,11 @@ function doorCenter(layout: Omit<RoomPixelLayout, "doorCenters">, direction: Dun
 
 export function buildDungeonPixelLayout(graph: DungeonGraph): DungeonPixelLayout {
   const roomList = Object.values(graph.rooms);
-  const minGridX = Math.min(...roomList.map((room) => room.gridX));
-  const maxGridX = Math.max(...roomList.map((room) => room.gridX));
-  const minGridY = Math.min(...roomList.map((room) => room.gridY));
-  const maxGridY = Math.max(...roomList.map((room) => room.gridY));
+  const ordinary = roomList.filter((room) => room.type !== "boss");
+  const monumental = graph.rooms[graph.bossRoomId].size === "boss";
+  const gridRooms = monumental ? ordinary : roomList;
+  const minGridX = Math.min(...gridRooms.map((room) => room.gridX));
+  const minGridY = Math.min(...gridRooms.map((room) => room.gridY));
   const rooms: Record<string, RoomPixelLayout> = {};
 
   for (const room of roomList) {
@@ -74,6 +75,31 @@ export function buildDungeonPixelLayout(graph: DungeonGraph): DungeonPixelLayout
     rooms[room.id] = { ...base, doorCenters: {} };
     for (const direction of DUNGEON_DIRECTIONS) {
       if (room.connections[direction]) rooms[room.id].doorCenters[direction] = doorCenter(base, direction);
+    }
+  }
+
+  if (monumental) {
+    const boss = rooms[graph.bossRoomId];
+    const parentId = graph.rooms[graph.bossRoomId].connections.south;
+    if (!boss || !parentId) throw new Error("A arena exige uma antecâmara ao sul.");
+    const northEdge = Math.min(...ordinary.map((room) => rooms[room.id].top));
+    boss.centerX = rooms[parentId].centerX;
+    boss.top = northEdge - 288 - boss.height;
+    boss.left = boss.centerX - boss.width / 2;
+    boss.centerY = boss.top + boss.height / 2;
+    // Translate once to keep every room inside positive world bounds, including
+    // a boss extending beyond the ordinary grid's left edge. No cell is enlarged.
+    const offsetX = Math.max(0, DUNGEON_WORLD_MARGIN - Math.min(...Object.values(rooms).map((room) => room.left)));
+    const offsetY = Math.max(0, DUNGEON_WORLD_MARGIN - Math.min(...Object.values(rooms).map((room) => room.top)));
+    for (const room of roomList) {
+      const layout = rooms[room.id];
+      layout.left += offsetX;
+      layout.top += offsetY;
+      layout.centerX += offsetX;
+      layout.centerY += offsetY;
+      for (const direction of DUNGEON_DIRECTIONS) {
+        if (room.connections[direction]) layout.doorCenters[direction] = doorCenter(layout, direction);
+      }
     }
   }
 
@@ -108,8 +134,8 @@ export function buildDungeonPixelLayout(graph: DungeonGraph): DungeonPixelLayout
   }
 
   return {
-    width: (maxGridX - minGridX + 1) * DUNGEON_CELL_SIZE_X + DUNGEON_WORLD_MARGIN * 2,
-    height: (maxGridY - minGridY + 1) * DUNGEON_CELL_SIZE_Y + DUNGEON_WORLD_MARGIN * 2,
+    width: Math.max(...Object.values(rooms).map((room) => room.left + room.width)) + DUNGEON_WORLD_MARGIN,
+    height: Math.max(...Object.values(rooms).map((room) => room.top + room.height)) + DUNGEON_WORLD_MARGIN,
     rooms,
     corridors,
   };

@@ -15,7 +15,7 @@ const characterPaths = [...new Set([
 
 describe("Naturalist pixel art family", () => {
   it("uses the same active generation for all playable heroes, NPCs and dungeon enemies", () => {
-    expect(characterPaths).toHaveLength(35);
+    expect(characterPaths).toHaveLength(36);
     expect(characterPaths.every((path) => path.endsWith("-v5.webp"))).toBe(true);
   });
 

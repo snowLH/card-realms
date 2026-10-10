@@ -28,6 +28,9 @@ export type ArpgRaidContribution = {
 };
 
 export type ArpgRaidPlayerState = {
+  arthurOaths?: import("../bosses/king-arthur/playable-kit").ArthurOaths;
+  seenBossIntroIds?: string[];
+  nextBossDamageAtMs?: number;
   id: string;
   name: string;
   seat: number;
@@ -144,6 +147,7 @@ export type ArpgRaidEvent = {
 };
 
 export type ArpgRaidState = {
+  bossEncounter?: import("../bosses/boss-encounter-controller").BossEncounterSnapshot;
   version: typeof ARPG_RAID_STATE_VERSION;
   roomId: string;
   eventId: string;
@@ -163,6 +167,7 @@ export type ArpgRaidState = {
 };
 
 export type ArpgRaidPlayerSetup = {
+  seenBossIntroIds?: string[];
   id: string;
   name: string;
   seat: number;
@@ -177,6 +182,7 @@ export type ArpgRaidBossSetup = {
 };
 
 export type ArpgRaidAction =
+  | { kind: "skip_intro"; actionId: string }
   | { kind: "input"; actionId: string; moveX: number; moveY: number; aimX: number; aimY: number }
   | { kind: "attack"; actionId: string }
   | { kind: "dash"; actionId: string }

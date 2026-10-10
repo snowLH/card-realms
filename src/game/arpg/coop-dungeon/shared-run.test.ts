@@ -35,7 +35,7 @@ describe("shared ARPG co-op dungeon", () => {
       const state = attachArpgSharedDungeon(
         createArpgRaidState(ROOM_ID, EVENT_ID, createPlayers(), ARPG_ROC_RAID_BOSS, START), regionId,
       );
-      expect(state.dungeon?.seed).toContain(`${regionId}:encounters-v2:`);
+      expect(state.dungeon?.seed).toContain(`${regionId}:encounters-v3:`);
       for (const room of state.dungeon!.rooms) {
         if (room.type !== "boss") expect(room.waves.flat()).not.toContain("boss");
       }

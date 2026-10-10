@@ -373,6 +373,7 @@ export class DungeonWorldRuntime {
   private drawRooms() {
     const textureKey = this.tileTextureKey;
     for (const room of Object.values(this.graph.rooms)) {
+      const camelot = room.type === "boss" && room.size === "boss" && this.graph.regionId === "montanhas-runicas";
       const tileData = buildRoomTileData(room.templateId, room.connections, this.graph.seed);
       const map = this.scene.make.tilemap({
         data: this.createFloorVariantData(tileData.data, room.id),
@@ -382,7 +383,7 @@ export class DungeonWorldRuntime {
       const tileset = map.addTilesetImage(textureKey, textureKey, DUNGEON_TILE_SIZE, DUNGEON_TILE_SIZE, 0, 0);
       if (!tileset) throw new Error(`Tileset procedural ausente para ${room.id}.`);
       const layout = this.layout.rooms[room.id];
-      if (this.hasArenaArtwork) {
+      if (this.hasArenaArtwork && !camelot) {
         this.scene.add.image(
           layout.centerX,
           layout.centerY,
@@ -393,7 +394,7 @@ export class DungeonWorldRuntime {
       if (!layer) throw new Error(`Não foi possível criar o tilemap da sala ${room.id}.`);
       layer.setDepth(1);
       layer.setCollision([ROOM_WALL_TILE, ROOM_OBSTACLE_TILE]);
-      if (this.hasArenaArtwork) {
+      if (this.hasArenaArtwork && !camelot) {
         // Keep the seeded collision grid intact. Only its visible floor is
         // replaced by the authored arena; solid tiles still mark real walls.
         layer.forEachTile((tile) => {
@@ -410,7 +411,7 @@ export class DungeonWorldRuntime {
         this.drawBiomeFloorMarks(room, tileData.data, layout);
         this.drawMataStartRoomDressing(room, tileData.data, layout);
       }
-      this.drawAmbientDetails(room, tileData.data, layout);
+      if (!camelot) this.drawAmbientDetails(room, tileData.data, layout);
     }
   }
 

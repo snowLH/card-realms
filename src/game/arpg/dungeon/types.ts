@@ -1,6 +1,6 @@
 export type DungeonDirection = "north" | "south" | "east" | "west";
 export type DungeonRoomType = "start" | "combat" | "treasure" | "event" | "elite" | "rest" | "shop" | "boss";
-export type DungeonRoomSize = "small" | "medium" | "large";
+export type DungeonRoomSize = "small" | "medium" | "large" | "boss";
 export type DungeonRoomState = "unvisited" | "discovered" | "active" | "combat" | "cleared";
 export type CombatRoomState = "idle" | "entering" | "locked" | "spawning" | "combat" | "wave_complete" | "cleared";
 

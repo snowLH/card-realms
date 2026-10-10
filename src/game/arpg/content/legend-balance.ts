@@ -8,6 +8,8 @@ type SignatureId = (typeof LEGEND_ABILITY_DEFINITIONS)[number]["id"];
  * Values here are deliberately modest pending real-user playtesting.
  */
 export const SIGNATURE_TUNING = {
+  "arthur-camelot-cut": [1.08, 1.1, 1, 1],
+  "arthur-round-table-oath": [1, 1.05, 1, 0.85],
   "curupira-root-snare": [1.00, 1.00, 1.08, 1],
   "curupira-ember-arrow": [0.98, 0.97, 1, 1],
   "iara-enchanting-song": [0.98, 0.93, 1.08, 1],

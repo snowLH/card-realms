@@ -14,6 +14,7 @@ export const PLAYABLE_LEGEND_IDS = [
   "carbunclo",
   "alicanto",
   "yeti",
+  "king-arthur",
 ] as const;
 
 export type PlayableLegendId = (typeof PLAYABLE_LEGEND_IDS)[number];
@@ -26,12 +27,20 @@ export type PlayableLegend = {
   folklore: string;
   description: string;
   price: number;
+  unlockBossId?: string;
   appearance: LegendAppearance;
   signatureAbilityIds: readonly [string, string];
 };
 
 /** Original Folklard heroes inspired by folklore across several traditions. */
 export const PLAYABLE_LEGENDS: readonly PlayableLegend[] = [
+  {
+    id: "king-arthur", name: "Rei Arthur", epithet: "O Rei Outrora e Futuro",
+    folklore: "Tradição arturiana", price: 0, unlockBossId: "king-arthur",
+    description: "Restaurado pela recordação. Uma lâmina espectral e o juramento da Távola protegem aliados; o Último Juramento concede resistência breve quando a vida fica crítica.",
+    appearance: { skin: "rose", hair: "waves", outfit: "traveler", accent: "gold" },
+    signatureAbilityIds: ["arthur-camelot-cut", "arthur-round-table-oath"],
+  },
   {
     id: "curupira",
     name: "Curupira",

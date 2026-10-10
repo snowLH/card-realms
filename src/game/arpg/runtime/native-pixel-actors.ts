@@ -21,6 +21,7 @@ export const NATIVE_PIXEL_ACTORS = [
   "carbunclo",
   "alicanto",
   "yeti",
+  "king-arthur",
 ] as const;
 
 export type NativePixelActorId = (typeof NATIVE_PIXEL_ACTORS)[number];
@@ -91,6 +92,10 @@ type ActorDesign = Readonly<{
 }>;
 
 const DESIGNS: Readonly<Record<NativePixelActorId, ActorDesign>> = {
+  "king-arthur": {
+    kind: "npc", ink: "#221f2c", body: "#7790a6", bodyLight: "#d7e1df", bodyDark: "#344459",
+    face: "#c7a18d", hair: "#715b50", accent: "#d7b368", metal: "#b4c4cc", eye: "#221f2c",
+  },
   blacksmith: {
     kind: "npc", ink: "#211b20", body: "#8f4c32", bodyLight: "#c77740", bodyDark: "#58352e",
     face: "#d99b6a", hair: "#30252b", accent: "#f0bd51", metal: "#9fb4b2", eye: "#211b20",

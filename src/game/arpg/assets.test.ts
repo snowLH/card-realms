@@ -97,7 +97,8 @@ describe("ARPG runtime asset manifest", () => {
     for (const dungeon of Object.values(ARPG_DUNGEON_CONFIGS)) {
       const enemyIds = Object.keys(dungeon.enemies);
       const animationEntries = Object.entries(dungeon.enemyAnimations ?? {});
-      expect(animationEntries.map(([enemyId]) => enemyId).sort()).toEqual(enemyIds.sort());
+      expect(animationEntries.map(([enemyId]) => enemyId).sort()).toEqual(enemyIds.filter((id) => id !== "boss" || !dungeon.bossPresentation).sort());
+      if (dungeon.bossPresentation) expect(dungeon.bossPresentation).toBe("king-arthur");
 
       for (const [enemyId, profile] of animationEntries) {
         expect(profile, `${dungeon.id}:${enemyId}`).toBeTruthy();

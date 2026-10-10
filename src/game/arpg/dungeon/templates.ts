@@ -21,7 +21,7 @@ export type RoomPattern =
   | "flooded-ruins" | "tempest" | "grotto" | "singing-pool" | "whirlpool" | "sandbar"
   | "deep-lagoon" | "frost-pass" | "rune-ruins" | "glacier" | "crystal-cave"
   | "rune-shrine" | "wind-sanctum" | "frost-hollow" | "stone-shelter" | "mountain-market"
-  | "summit-arena";
+  | "summit-arena" | "camelot-hall";
 
 const ALL_DOORS: readonly DungeonDirection[] = ["north", "east", "south", "west"];
 const BASE_LAYERS = [
@@ -33,6 +33,7 @@ const ROOM_TILE_DIMENSIONS: Record<DungeonRoomSize, { widthTiles: number; height
   small: { widthTiles: 21, heightTiles: 11 },
   medium: { widthTiles: 31, heightTiles: 15 },
   large: { widthTiles: 37, heightTiles: 17 },
+  boss: { widthTiles: 61, heightTiles: 31 },
 };
 
 function template(id: string, type: DungeonRoomType, size: DungeonRoomSize, pattern: RoomPattern, spawns: number, rewards = 1): RoomTemplateDefinition {
@@ -52,7 +53,7 @@ export const MATA_ROOM_TEMPLATES: readonly RoomTemplateDefinition[] = [
   template("mata-elite-hollow", "elite", "medium", "hollow", 10, 2),
   template("mata-rest-camp", "rest", "small", "camp", 0, 1),
   template("mata-shop-hermit", "shop", "small", "market", 0, 3),
-  template("mata-boss-ancestral", "boss", "large", "ancestral-arena", 14, 3),
+  template("mata-boss-ancestral", "boss", "boss", "ancestral-arena", 14, 3),
 ];
 
 export const MATA_ROOM_TEMPLATE_BY_ID = new Map(MATA_ROOM_TEMPLATES.map((item) => [item.id, item]));
@@ -81,7 +82,7 @@ export const MARES_ROOM_TEMPLATES: readonly RoomTemplateDefinition[] = [
   maresTemplate("mares-elite-whirlpool", "elite", "medium", "whirlpool", 10, 2),
   maresTemplate("mares-rest-sandbar", "rest", "small", "sandbar", 0, 1),
   maresTemplate("mares-shop-floating-market", "shop", "small", "market", 0, 3),
-  maresTemplate("mares-boss-deep-lagoon", "boss", "large", "deep-lagoon", 14, 3),
+  maresTemplate("mares-boss-deep-lagoon", "boss", "boss", "deep-lagoon", 14, 3),
 ];
 
 export const MARES_ROOM_TEMPLATE_BY_ID = new Map(MARES_ROOM_TEMPLATES.map((item) => [item.id, item]));
@@ -104,7 +105,7 @@ export const RUNIC_ROOM_TEMPLATES: readonly RoomTemplateDefinition[] = [
   runicTemplate("runic-elite-frost-hollow", "elite", "medium", "frost-hollow", 10, 2),
   runicTemplate("runic-rest-stone-shelter", "rest", "small", "stone-shelter", 0, 1),
   runicTemplate("runic-shop-mountain-market", "shop", "small", "mountain-market", 0, 3),
-  runicTemplate("runic-boss-summit-arena", "boss", "large", "summit-arena", 14, 3),
+  runicTemplate("runic-boss-summit-arena", "boss", "boss", "camelot-hall", 14, 3),
 ];
 
 export const RUNIC_ROOM_TEMPLATE_BY_ID = new Map(RUNIC_ROOM_TEMPLATES.map((item) => [item.id, item]));
@@ -116,6 +117,11 @@ export const ARPG_ROOM_TEMPLATES = [
 ] as const;
 
 export const ARPG_ROOM_TEMPLATE_BY_ID = new Map(ARPG_ROOM_TEMPLATES.map((item) => [item.id, item]));
+
+// Frozen templates only for pre-v3 checkpoints; never selected for a new run.
+for (const arena of ARPG_ROOM_TEMPLATES.filter((item) => item.type === "boss")) {
+  ARPG_ROOM_TEMPLATE_BY_ID.set(arena.id + "-legacy", { ...arena, id: arena.id + "-legacy", pattern: arena.pattern === "camelot-hall" ? "summit-arena" : arena.pattern, size: "large", widthTiles: 37, heightTiles: 17 });
+}
 
 export function pickDungeonTemplate(regionId: string, type: DungeonRoomType, random: SeededRandom) {
   const source = regionId === "arquipelago-das-mares"

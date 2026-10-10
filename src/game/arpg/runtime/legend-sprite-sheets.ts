@@ -9,6 +9,7 @@ export const GENERATED_SPRITE_FRAME_COUNT = 24;
 // The rejected 32px v3 studies remain archived. Selection cards, the Guild and
 // dungeon actors must use this same catalog to preserve character identity.
 const GENERATED_LEGEND_SPRITE_SHEETS: Partial<Record<NativePixelActorId, string>> = {
+  "king-arthur": "/art/legend-king-arthur-spritesheet-v5.webp",
   curupira: "/art/legend-curupira-spritesheet-v5.webp",
   iara: "/art/legend-iara-spritesheet-v5.webp",
   boto: "/art/legend-boto-spritesheet-v5.webp",

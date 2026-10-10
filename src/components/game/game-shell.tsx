@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREATURES, REGIONS } from "@/game/catalog";
 import { ARPG_ABILITY_CARD_IDS } from "@/game/arpg/content/ability-cards";
+import { EMPTY_BOSS_PROGRESS, type BossProgress } from "@/game/arpg/bosses/boss-unlocks";
 import {
   getLegendAppearance,
   getLegendSignatureAbilityIds,
@@ -120,6 +121,7 @@ async function mutateRemoteProgress(body: Record<string, unknown>) {
 export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: PlayerBootstrap; offlineMode?: boolean }) {
   const router = useRouter();
   const remoteSnapshot = bootstrap.snapshot;
+  const [bossProgress, setBossProgress] = useState<BossProgress>(remoteSnapshot?.bossProgress ?? EMPTY_BOSS_PROGRESS);
   const [titleOpen, setTitleOpen] = useState(true);
   const [view, setView] = useState<View>("hub");
   const [loadoutFocus, setLoadoutFocus] = useState<ArpgLoadoutFocus>("all");
@@ -183,6 +185,7 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
     if (bootstrap.source === "supabase") return;
     try {
       const parsed = loadLocalProgress(window.localStorage, cacheAccountId);
+      setBossProgress({ purifiedBossIds: parsed.purifiedBossIds, unlockedLegendIds: parsed.unlockedLegendIds, seenBossIntroIds: parsed.seenBossIntroIds });
       setCoins(parsed.coins);
       setXp(parsed.xp);
       setOpenedTreasures(parsed.openedTreasures);
@@ -218,6 +221,7 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
     if (!progressLoaded) return;
     try {
       saveLocalProgress(window.localStorage, {
+        ...bossProgress,
         version: 4,
         coins,
         xp,
@@ -234,7 +238,7 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
     } catch (error) {
       console.error("Não foi possível salvar o progresso local.", error);
     }
-  }, [avatar, cacheAccountId, coins, currentAreaId, energy, equipmentIds, localRefuge, mapPositions, openedTreasures, playerRegionId, progressLoaded, visitedAreaIds, xp]);
+  }, [avatar, bossProgress, cacheAccountId, coins, currentAreaId, energy, equipmentIds, localRefuge, mapPositions, openedTreasures, playerRegionId, progressLoaded, visitedAreaIds, xp]);
 
   useEffect(() => {
     if (!progressLoaded) return;
@@ -707,6 +711,12 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
         ) : null}
         {!showWelcome && view === "play" ? (
           <ArpgGame
+            bossProgress={bossProgress}
+            accountId={cacheAccountId}
+            onBossProgress={(progress, inventory) => {
+              setBossProgress(progress);
+              setEquipmentIds((current) => [...new Set([...current, ...inventory])]);
+            }}
             sessionMode={offlineMode || !bootstrap.identity ? "offline" : "online"}
             loadout={playableArpgLoadout}
             avatarConfig={activeAvatar}
@@ -873,6 +883,10 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
           <ArpgRaidArena
             roomId={raidRoomId}
             playerId={bootstrap.identity.id}
+            onBossProgress={(progress, inventory) => {
+              setBossProgress(progress);
+              setEquipmentIds((current) => [...new Set([...current, ...inventory])]);
+            }}
             onClose={() => {
               setDismissedRaidRoomId(raidRoomId);
               setRaidRoomId(null);

@@ -1,0 +1,22 @@
+KING ARTHUR — ORIGINAL TEMPORARY PIXEL ART
+
+Asset: /art/legend-king-arthur-spritesheet-v5.webp
+Also covers the original Arthur pixel drawing and Camelot procedural decoration
+in src/game/arpg/bosses/king-arthur/pixel-art.ts and presentation.ts.
+
+Author: Codex, created for snowLH/card-realms, 2026-10-09.
+Source: https://github.com/snowLH/card-realms
+Editable source: src/game/arpg/bosses/king-arthur/pixel-art.ts
+Reproduction: node scripts/generate-king-arthur-art.mjs
+License: CC0 1.0 Universal
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+
+These new drawings are dedicated to the public domain under CC0 1.0, to the
+extent applicable. They were authored internally from geometric pixel shapes.
+No commercial-game sprite, modern copyrighted character, downloaded image,
+Google/Pinterest result, or third-party art was used as a source.
+
+Usage: temporary playable Arthur spritesheet; corrupted/restored boss poses;
+throne, broken banners, pillars, fossilized battle memories and royal hall.
+The art remains a placeholder, with the existing 64px logical chibi footprint.
+This notice does not relicense any pre-existing project asset or source file.
