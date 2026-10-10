@@ -66,6 +66,17 @@ async function boot(onRunComplete = vi.fn()) {
 }
 
 describe("ARPG run completion and recovery", () => {
+  it("uses compact floating controls and replaces notifications without a permanent topbar", async () => {
+    const view = await boot();
+    expect(view.container.querySelector(".arpg-shell__topbar")).toBeNull();
+    expect(screen.getByRole("navigation", { name: "Controles da expedição" }).querySelectorAll("button")).toHaveLength(5);
+    act(() => runtimeBridge.emitMessage("Primeira mensagem."));
+    expect(screen.getByText("Primeira mensagem.")).toBeInTheDocument();
+    act(() => runtimeBridge.emitMessage("Segunda mensagem."));
+    expect(screen.queryByText("Primeira mensagem.")).not.toBeInTheDocument();
+    expect(screen.getByText("Segunda mensagem.")).toBeInTheDocument();
+    expect(view.container.querySelectorAll(".arpg-toast")).toHaveLength(1);
+  });
   it("starts offline without any server request and grants only the local completion reward", async () => {
     fetchMock.mockRejectedValue(new TypeError("No internet"));
     const onComplete = vi.fn();

@@ -25,8 +25,8 @@ run já salva é essencial para a recuperação de checkpoints.
 Arthur substitui o encontro final de Amarok nas **Montanhas Rúnicas**. Amarok
 continua no catálogo jogável e seus assets antigos permanecem disponíveis.
 Curupira Ancestral e Iara das Profundezas recebem arena monumental e o ciclo
-comum de restauração, conservando suas estratégias de combate regionais. Sua
-restauração não concede personagens que continuam sujeitos à progressão existente.
+comum de restauração, conservando suas estratégias de combate regionais. A
+confirmação da restauração concede sua lenda e habilidades de assinatura.
 
 ## Componentes e contratos
 
@@ -40,6 +40,9 @@ restauração não concede personagens que continuam sujeitos à progressão exi
 | `boss-purification-controller.ts` | Formação, aproximação e cores por lenda ativa |
 | `boss-unlocks.ts` | Validação/migração de progresso e concessão idempotente |
 | `boss-presentations.ts` | Registro de apresentações Phaser específicas |
+| `boss-room-art.ts` | Background, overlays, props, colisões, spawn e posição do trono |
+| `boss-room-presentation.ts` | Imagens do cenário, pertencentes ao mundo e preservadas após cleanup |
+| `boss-encounter-completion.ts` | Finalização idempotente por sala, após confirmação |
 | `boss-encounter-runtime.ts` | Adaptador Phaser: câmera, áudio, VFX e confirmação |
 | `registry.ts` | Definições e seleção por região |
 | `king-arthur/` | Definição, padrões, estratégia, arte, falas e kit jogável |
@@ -51,9 +54,27 @@ PURIFICATION → RESTORED → UNLOCK → CLEARED`.
 
 HP zero entra em `DEFEATED`, desabilita dano e remove ataques pendentes. O ator
 permanece na cena, sem o caminho normal de morte/despawn. Após 1200 ms começa a
-purificação de 6500 ms. `RESTORED` espera uma confirmação persistente: falha de
-save mantém a cena em espera e repete a tentativa; somente uma confirmação
-permite `UNLOCK/CLEARED`, liberar portas e conceder XP/recompensas da run.
+purificação de 6500 ms. Ao chegar a `RESTORED`, `purificationVisualFinished`
+devolve imediatamente input e câmera; a Scene continua funcionando durante o
+save. `restorationPersisted` só ocorre após confirmação e permite
+`UNLOCK/CLEARED`, abertura das portas e concessão de XP/recompensas da run.
+Falha ou atraso de save produz toast e retry, sem repetir a coreografia. No
+offline, uma tentativa sem resposta expira em 12 s; callbacks atrasados de
+tentativas substituídas ou cenas destruídas são ignorados. No servidor, o RPC
+idempotente tem limite de espera de 4 s e devolve um recibo não confirmado para
+retry, preservando a prova autoritativa já gravada.
+
+`completeBossEncounter(room, actor)` concentra destruição/null do runtime,
+remoção do ator, título, efeitos, hazards e projéteis; velocidade zero, câmera
+seguindo jogador, avanço procedural, sala concluída, portas abertas, um portal,
+checkpoint e HUD. A proteção por ID de sala impede duplicação de XP/shards e
+portal. O selo final respeita `room.state === "combat"`: concluir os pré-requisitos
+não pode reabrir a conexão durante a luta ou a espera do recibo.
+
+Ao receber o golpe final dentro de um callback de física, projéteis são
+desativados e reciclados sem destruir seus bodies durante a iteração. A remoção
+final ocorre no update da Scene. Isso evita uma exceção de `setVelocity` que foi
+reproduzida no navegador e interrompia o ciclo após HP zero.
 
 O lock cinematográfico zera velocidade e limpa movimento, ataque, dash,
 habilidades, troca de arma e interação. A Scene continua ativa: física, câmera,
@@ -112,12 +133,13 @@ pelo serviço. O checkpoint ignora tentativa de injetar boss state e não permit
 trocar loadout durante lock. O servidor calcula movimento, dano, hazards e
 coreografia durante o lock; não aceita ações ofensivas dos clientes.
 
-**A migração `supabase/migrations/20261010004944_corrupted_legend_restoration.sql`
-deve ser aplicada ao ambiente escolhido antes de usar a restauração online.**
-Ela foi executada em PostgreSQL local via PGlite nos testes, incluindo funções,
-permissões, prova de autoridade, loadout e idempotência. Não foi aplicada a uma
-base remota nesta entrega. Se ausente, o servidor retém a restauração para retry.
-Nenhum deploy ou ajuste de configuração Vercel faz parte da implementação.
+O ambiente online precisa da migração existente
+`supabase/migrations/20261010004944_corrupted_legend_restoration.sql`. Os testes
+executam suas funções, permissões, prova de autoridade, loadout e idempotência
+em PostgreSQL local via PGlite. Este passe de correção não adiciona ou altera
+migrações. Se a função estiver ausente em um ambiente, o servidor retém o unlock
+para retry, com movimento liberado após a purificação. Nenhum deploy ou ajuste
+de configuração Vercel faz parte deste passe.
 
 ## Adicionar a próxima Lenda Esquecida
 
@@ -132,8 +154,14 @@ Nenhum deploy ou ajuste de configuração Vercel faz parte da implementação.
 4. Registrar uma apresentação e suas folhas em `boss-presentations.ts`; o preload
    carrega os assets registrados. Compartilhar a seleção de pose com o co-op em
    `src/components/arpg/boss-encounter-view.tsx`, como `king-arthur/art.ts`.
-   Usar a base v5 da Naturalista e o exportador comum. Desenhar a arena sem
-   impedir corredores/portas ou ocupar os espaços necessários para esquiva.
+   Usar a base v5 da Naturalista e o exportador comum. Registrar a arte de arena
+   em `BOSS_ROOM_ART`: background de 1952 × 992, foreground/props opcionais,
+   colisões em pixels locais alinhadas a tiles de 32, spawn e thronePosition.
+   O preload carrega todas as imagens declaradas; Phaser e co-op usam o mesmo
+   background, e os motores compartilham a posição do trono. O builder de tiles
+   lê as colisões do boss da região. Preservar a abertura sul de três tiles e
+   um centro livre para esquiva. Não desenhar árvores, tronos, mesas ou ruínas
+   com Graphics; reservar Graphics para telegraphs, partículas, magia e sombras.
 5. Para novo personagem jogável, atualizar enum/catálogo, habilidades, sprite
    manifest, avatar e loadout. Criar **nova migração SQL** com a allowlist
    região/boss, IDs de inventário e assinatura das habilidades. Nunca editar uma
@@ -147,7 +175,7 @@ Nenhum deploy ou ajuste de configuração Vercel faz parte da implementação.
 ## Evidência e limites da verificação
 
 Foram aprovados `npm run typecheck`, `npm run lint`, `npm test` e
-`npm run build`. A suíte tem 568 testes em 109 arquivos; cobre 900 layouts nas
+`npm run build`. A suíte atual tem 605 testes em 116 arquivos; cobre 900 layouts nas
 três regiões, estados, thresholds, HP zero, save antigo, intro/skip, co-op de
 dois/quatro participantes e seis testes que executam a migração SQL real.
 
@@ -171,8 +199,16 @@ Supabase autenticado nesta execução. A UI co-op existente apresenta a arena
 inteira com poses do mesmo atlas v5 e hazards SVG; o pan da câmera é específico
 do runtime Phaser. Arthur usa a base da Naturalista no boss, no personagem
 jogável e no co-op, com fontes de geração arquivadas e exportação reproduzível.
-O cenário procedural de Camelot continua temporário. Balanceamento e animações
-ainda merecem uma rodada de playtest humano.
+As três arenas agora usam arte original em WebP lossless e paleta de 128 cores,
+com pixels lógicos de 2 × 2. O mundo mantém as imagens quando o encontro é
+destruído; a purificação remove o tint de corrupção, recuperando a paleta sem
+apagar cicatrizes ou ruínas. Prompts, exportação e licença estão documentados em
+`boss-room-art-prompts.md` e `public/art/licenses/boss-room-original-art.txt`.
+Balanceamento e animações ainda merecem uma rodada de playtest humano.
+
+O passe de correção de arte/HUD/pós-boss está registrado em
+[BOSS_ROOM_QA.md](BOSS_ROOM_QA.md), com screenshots reais em 1536 × 708,
+falha/atraso de save e limites explícitos da verificação.
 
 
 ## Regra de progressão final da dungeon

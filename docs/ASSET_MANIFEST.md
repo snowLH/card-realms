@@ -59,7 +59,24 @@ abaixo permanece para compatibilidade com runs anteriores.
 
 Os estados contínuos de idle/walk/work/talk repetem; ataque e derrota dos inimigos são animações de execução única. A escala e a colisão usam o footprint de gameplay, independente das áreas transparentes do quadro.
 
-## Objeto da dungeon
+## Arenas das Lendas Esquecidas
+
+| Asset | Caminho | Formato | Uso |
+| --- | --- | --- | --- |
+| Clareira esquecida do Curupira | `/art/boss-rooms/curupira/arena.webp` | WebP lossless RGB, 1952 × 992, paleta 128 cores, pixels lógicos 2 × 2 | Arena monumental da Mata |
+| Templo aquático da Iara | `/art/boss-rooms/iara/arena.webp` | Mesmo contrato | Arena monumental do Arquipélago |
+| Salão arruinado de Camelot | `/art/boss-rooms/arthur/arena.webp` | Mesmo contrato | Arena monumental das Montanhas |
+
+Arte original criada com ImageGen a partir da direção visual do próprio projeto
+e da base Naturalista v5. Autoria, licença e URL do repositório:
+[`boss-room-original-art.txt`](../public/art/licenses/boss-room-original-art.txt).
+Prompts e exportação: [`boss-room-art-prompts.md`](boss-room-art-prompts.md).
+`BOSS_ROOM_ART` registra imagens, overlays/props opcionais, colisões invisíveis,
+spawn e trono. Os três cenários não usam primitivas visíveis como decoração;
+Graphics continua nos VFX. Após a purificação, a paleta original volta e o
+cenário permanece quando o runtime do boss é removido.
+
+## Baú da dungeon
 
 | Asset | Caminho | Metadados documentados | Uso no jogo |
 | --- | --- | --- | --- |

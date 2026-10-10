@@ -30,22 +30,15 @@ export function BossEncounterView({ encounter, width, height, players, onSkip }:
   encounter: BossEncounterSnapshot; width: number; height: number;
   players: readonly ArpgRaidPlayerState[]; onSkip: () => void;
 }) {
+  if (encounter.state === "CLEARED") return null;
   const definition = bossById(encounter.bossId);
   const intro = ["ROOM_ENTERED", "INTRO_LOCK", "AWAKENING"].includes(encounter.state);
   const restored = ["RESTORED", "UNLOCK", "CLEARED"].includes(encounter.state);
   const title = restored ? "LENDA RESTAURADA • " + definition.title
     : encounter.state === "PURIFICATION" ? "Não viemos destruir as histórias esquecidas. Viemos fazê-las lembrar."
-      : encounter.state === "DEFEATED" ? "RECORDAÇÃO" : intro ? definition.corruptedTitle : definition.phases[encounter.phase - 1].title;
+      : encounter.state === "DEFEATED" ? "RECORDAÇÃO" : intro ? definition.corruptedTitle : definition.title.split(" — ")[0];
   return <>
     <svg className="forgotten-legend-effects" viewBox={"0 0 " + width + " " + height} preserveAspectRatio="none" aria-hidden="true">
-      {encounter.bossId === "king-arthur" ? <g fill="#515664">
-        <rect x={width / 2 - 64} y={40} width={128} height={140} />
-        <rect x={width / 2 - 90} y={180} width={180} height={12} fill="#ac9a72" />
-        {[80, width - 120].flatMap((x) => [160, 420, 680].map((y) => <g key={x + ":" + y}>
-          <rect x={x} y={y} width={35} height={80} /><rect x={x + 10} y={y + 24} width={6} height={20} fill="#262f3e" />
-          <rect x={x + 48} y={y} width={32} height={64} fill="#3e5575" />
-        </g>))}
-      </g> : null}
       {encounter.hazards.map((hazard) => {
         const color = encounter.serverTimeMs >= hazard.impactAtMs ? "#f1e6c7" : "#c7b6d9";
         const start = hazard.angle - hazard.arc / 2, end = hazard.angle + hazard.arc / 2;
@@ -59,10 +52,10 @@ export function BossEncounterView({ encounter, width, height, players, onSkip }:
         return <line key={player.id} x1={player.x} y1={player.y} x2={encounter.x} y2={encounter.y} stroke={"#" + purificationColor(legend?.id ?? "").toString(16)} strokeWidth={5} />;
       }) : null}
     </svg>
-    <div className="forgotten-legend-title" role="status">
+    <div className={`forgotten-legend-title${intro ? " forgotten-legend-title--intro" : ""}`} role="status">
       {title}
-      {encounter.state === "RESTORED" ? <small>Confirmando restauração…</small> : null}
-      {encounter.state === "CLEARED" ? <small>{definition.unlock.label}</small> : null}
+      {encounter.state === "COMBAT" ? <small>{definition.phases[encounter.phase - 1].title} · {Math.ceil(encounter.hp)}/{encounter.maxHp} HP</small> : null}
+      {encounter.state === "RESTORED" ? <small>Salvando progresso… Você já pode se mover.</small> : null}
       {intro && encounter.seenByAll ? <button type="button" onClick={onSkip}>Pular recordação ({encounter.skipVotes.length}/{encounter.participantIds.length})</button> : null}
       {encounter.state === "PURIFICATION" && encounter.serverTimeMs - encounter.stateAtMs > 3400 ? <small>{definition.purification.dialogue[encounter.serverTimeMs - encounter.stateAtMs > 5000 ? 1 : 0]}</small> : null}
     </div>

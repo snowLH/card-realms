@@ -1,5 +1,6 @@
 "use client";
 import { BossEncounterView, ForgottenLegendActor, RoundTableWardView } from "./boss-encounter-view";
+import { BOSS_ROOM_ART } from "@/game/arpg/bosses/boss-room-art";
 import { isBossInputLocked } from "@/game/arpg/bosses/cinematic-input-lock";
 import { BossProgressSchema, bossProgressInventory, type BossProgress } from "@/game/arpg/bosses/boss-unlocks";
 import { getLegendSignatureAbilityIds } from "@/game/arpg/content/legends";
@@ -665,6 +666,7 @@ export function ArpgRaidArena({
   const livingPlayers = state.players.filter((entry) => entry.alive);
   const playersAtExit = livingPlayers.filter((entry) => entry.x >= exitX).length;
   const corridorOpen = currentDungeonRoom?.state === "awaiting_exit";
+  const bossRoomArt = state.bossEncounter ? BOSS_ROOM_ART[state.bossEncounter.bossId] : null;
 
   return (
     <div className={cn("arpg-raid-arena", state.boss.phase === 3 && "is-enraged")}>
@@ -683,7 +685,7 @@ export function ArpgRaidArena({
         </div>
       </header>
 
-      {isBossRoom ? (
+      {isBossRoom && !state.bossEncounter ? (
         <section className="arpg-raid-arena__boss-hud">
           <div className="arpg-raid-arena__boss-title">
             <Sparkles />
@@ -694,6 +696,7 @@ export function ArpgRaidArena({
         </section>
       ) : null}
       <section className="arpg-raid-world" aria-label={currentDungeonRoom ? `${currentDungeonRoom.label}, dungeon cooperativa` : "Arena cooperativa"}>
+        {bossRoomArt ? <div className={`forgotten-legend-arena${["RESTORED", "UNLOCK", "CLEARED"].includes(state.bossEncounter!.state) ? " is-restored" : ""}`} style={{ backgroundImage: `url(${bossRoomArt.background.path})` }} aria-hidden="true" /> : null}
         {state.bossEncounter ? <BossEncounterView encounter={state.bossEncounter} width={worldWidth} height={worldHeight} players={state.players} onSkip={() => void sendAction({ action: "skip_intro" })} /> : null}
         <RoundTableWardView players={state.players} width={worldWidth} height={worldHeight} nowMs={state.serverTimeMs} />
         {hasDungeonCorridor && currentDungeonRoom ? (
@@ -722,7 +725,7 @@ export function ArpgRaidArena({
             </div>
           </>
         ) : null}
-        {currentDungeonRoom?.type === "boss" ? (
+        {currentDungeonRoom?.type === "boss" && state.bossEncounter?.state !== "CLEARED" ? (
           <div
             className="arpg-raid-boss"
             style={{ left: percent(state.boss.x, worldWidth), top: percent(state.boss.y, worldHeight) }}

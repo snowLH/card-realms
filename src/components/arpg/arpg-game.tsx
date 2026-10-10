@@ -6,7 +6,7 @@ import { getLegendSignatureAbilityIds } from "@/game/arpg/content/legends";
 import { loadLocalProgress, saveLocalProgress } from "@/game/save/local-progress";
 
 import { Map as MapIcon, Maximize2, Pause, Play, Smartphone, Volume2, VolumeX, X } from "lucide-react";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   DEFAULT_ARPG_EXPEDITION_ID,
   getArpgExpedition,
@@ -20,10 +20,12 @@ import { getLocalDungeonCompletionReward } from "@/game/arpg/dungeon/rewards";
 import { ArpgBridge } from "@/game/arpg/runtime/bridge";
 import { createArpgGame } from "@/game/arpg/runtime/create-game";
 import { bindInputLifecycle } from "@/game/arpg/runtime/input-lifecycle";
+import { createBossSaveQaDelay } from "@/game/arpg/runtime/boss-save-qa";
 import { LootChoice } from "./loot-choice";
 import { RoomChoice } from "./room-choice";
 import { DungeonMapOverlay, RunHud } from "./run-hud";
 import { TouchControls } from "./touch-controls";
+import { ArpgToast } from "./arpg-toast";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
 import { readJsonResponse } from "@/lib/http/read-json-response";
 import {
@@ -112,7 +114,8 @@ export function ArpgGame({
     getPortraitModeServerSnapshot,
   );
   const [hud, setHud] = useState<ArpgHudState | null>(null);
-  const [message, setMessage] = useState(() => `Entrando em ${expedition.name}...`);
+  const [notice, setNotice] = useState(() => ({ id: 0, text: `Entrando em ${expedition.name}...` }));
+  const setMessage = useCallback((text: string) => setNotice((current) => ({ id: current.id + 1, text })), []);
   const [ready, setReady] = useState(false);
   const [runResult, setRunResult] = useState<ArpgHudState | null>(null);
   const [paused, setPaused] = useState(false);
@@ -122,7 +125,7 @@ export function ArpgGame({
   const [bootError, setBootError] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [bootAttempt, setBootAttempt] = useState(0);
-  const [atlasTarget, setAtlasTarget] = useState<AtlasEncounterTarget | null>(null);
+  const [, setAtlasTarget] = useState<AtlasEncounterTarget | null>(null);
   const hasDungeonMap = Boolean(hud?.dungeonMap);
   const extractionPending = extractionStatus === "pending";
   const requestExit = () => {
@@ -237,8 +240,10 @@ export function ArpgGame({
       progressCallbackRef.current?.(progress, inventory);
       return inventory;
     };
+    const beforeLocalBossSave = process.env.NODE_ENV === "development" ? createBossSaveQaDelay(window.location.search) : null;
     const offBossProgress = bridge.setBossProgressHandlers(async (encounter) => {
       if (persistentRunRef.current) return false; // Only a server receipt can clear online encounters.
+      await beforeLocalBossSave?.();
       persistProgress(restoreBossProgress(progressRef.current, encounter));
       return true;
     }, (bossId) => {
@@ -501,7 +506,7 @@ export function ArpgGame({
       destroyGame?.();
       setReady(false);
     };
-  }, [accountId, atlasEncounter, avatarConfig, bootAttempt, bridge, expedition, expeditionId, sessionMode]);
+  }, [accountId, atlasEncounter, avatarConfig, bootAttempt, bridge, expedition, expeditionId, sessionMode, setMessage]);
 
   const requestFullscreen = async () => {
     try {
@@ -525,17 +530,7 @@ export function ArpgGame({
   return (
     <section className={`arpg-shell${portraitMobile === true ? " arpg-shell--portrait-mobile" : ""}`}>
       <div className="arpg-playfield" inert={portraitMobile === true}>
-        <div className="arpg-shell__topbar">
-          <div>
-            <strong>{expedition.name}</strong>
-            <span>{message}</span>
-            {atlasTarget ? (
-              <em className="arpg-shell__atlas-target">
-                {atlasTarget.kind === "npc" ? "Duelo com" : "Alvo do Atlas"}: {atlasTarget.name}
-              </em>
-            ) : null}
-          </div>
-          <div>
+        <nav className="arpg-game-controls" aria-label="Controles da expedição">
             <button
               type="button"
               onClick={() => bridge.setSoundEnabled(!soundEnabled)}
@@ -573,8 +568,8 @@ export function ArpgGame({
             <button type="button" disabled={extractionPending} onClick={requestExit} aria-label={exitLabel}>
               <X />
             </button>
-          </div>
-        </div>
+        </nav>
+        {ready ? <ArpgToast key={notice.id} text={notice.text} durationMs={/Não foi possível|selada|restaurada/i.test(notice.text) ? 4000 : 2500} /> : null}
 
         <div className="arpg-stage">
           <div ref={hostRef} className="arpg-stage__canvas" />

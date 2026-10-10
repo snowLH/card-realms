@@ -25,6 +25,12 @@ export function isBossRoomUnlocked(graph: DungeonGraph) {
   return unclearedRoomsBeforeBoss(graph).length === 0;
 }
 
+/** The prerequisite seal and the encounter door share a connection. Releasing
+ * the former must never override the latter while restoration is pending. */
+export function isFinalBossConnectionLocked(graph: DungeonGraph) {
+  return !isBossRoomUnlocked(graph) || graph.rooms[graph.bossRoomId]?.state === "combat";
+}
+
 export function bossGateParentId(graph: DungeonGraph) {
   const boss = graph.rooms[graph.bossRoomId];
   if (!boss) return null;

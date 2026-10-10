@@ -1,6 +1,9 @@
 import { hasBossCombatStrategy } from "../bosses/boss-combat-strategies";
 import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
 import { BossEncounterRuntime } from "../bosses/boss-encounter-runtime";
+import { BossEncounterCompletion } from "../bosses/boss-encounter-completion";
+import { BOSS_ROOM_ART, bossRoomThronePosition } from "../bosses/boss-room-art";
+import { clearProjectilePool, recycleArcadeProjectile } from "./projectile-recycling";
 import { createBossEncounter } from "../bosses/boss-encounter-controller";
 import { bossForRegion } from "../bosses/registry";
 import { queueBossPresentationAssets } from "../bosses/boss-presentations";
@@ -43,7 +46,7 @@ import type {
   ArpgRuntimeBridge,
 } from "../domain/types";
 import type { ArpgDungeonCombatCommand, ArpgDungeonCombatState } from "../dungeon/combat-authority";
-import { bossGateParentId } from "../dungeon/boss-access";
+import { bossGateParentId, isFinalBossConnectionLocked } from "../dungeon/boss-access";
 import type { DungeonManager } from "../dungeon/manager";
 import { DUNGEON_CORRIDOR_WIDTH } from "../dungeon/layout";
 import { buildDungeonNavigation } from "../dungeon/navigation";
@@ -269,6 +272,7 @@ export function createArpgDungeonScene(
 
   return class ArpgDungeonScene extends Phaser.Scene {
     private bossEncounterRuntime: BossEncounterRuntime | null = null;
+    private readonly bossCompletion = new BossEncounterCompletion();
     private arthurOaths = emptyArthurOaths();
     private wardPresentation: ArthurWardPresentation | null = null;
     private player!: ArcadeSprite;
@@ -1647,8 +1651,7 @@ export function createArpgDungeonScene(
     }
 
     private recycleProjectile(projectile: ArcadeSprite) {
-      projectile.setActive(false).setVisible(false).setVelocity(0, 0);
-      if (projectile.body) projectile.body.enable = false;
+      recycleArcadeProjectile(projectile);
     }
 
     private clearEnemyProjectiles() {
@@ -1704,7 +1707,7 @@ export function createArpgDungeonScene(
         enemy.setData("hp", this.bossEncounterRuntime.snapshot.hp);
         if (this.bossEncounterRuntime.snapshot.state === "DEFEATED") {
           this.clearEnemyProjectiles();
-          this.projectiles.clear(true, true);
+          clearProjectilePool(this.projectiles.getChildren() as ArcadeSprite[]);
           enemy.setData("damageEnabled", false).setVelocity(0, 0);
         }
         return;
@@ -1835,21 +1838,21 @@ export function createArpgDungeonScene(
       const graph = dungeonManager.getGraph();
       const parentId = bossGateParentId(graph);
       if (!parentId) return;
-      const locked = !dungeonManager.isBossRoomUnlocked();
-      const changed = this.dungeonWorld.setConnectionLocked(parentId, graph.bossRoomId, locked);
+      const sealed = !dungeonManager.isBossRoomUnlocked();
+      const changed = this.dungeonWorld.setConnectionLocked(parentId, graph.bossRoomId, isFinalBossConnectionLocked(graph));
       const current = dungeonManager.getCurrentRoom();
-      if (locked && current.id === parentId && this.finalBossGateNoticeRoomId !== current.id) {
+      if (sealed && current.id === parentId && this.finalBossGateNoticeRoomId !== current.id) {
         const remaining = dungeonManager.getUnclearedBossPrerequisiteRoomIds().length;
         bridge.emitMessage(`A passagem final está selada. Conclua as ${remaining} salas restantes antes de enfrentar a Lenda Esquecida.`);
         this.finalBossGateNoticeRoomId = current.id;
       } else if (current.id !== parentId) {
         this.finalBossGateNoticeRoomId = null;
       }
-      if (!locked && (this.finalBossGateLocked || changed)) {
+      if (!sealed && (this.finalBossGateLocked || (changed && current.id !== graph.bossRoomId))) {
         bridge.emitMessage("Todas as salas foram concluídas. O selo da arena final se rompeu.");
         this.playSound("door-open");
       }
-      this.finalBossGateLocked = locked;
+      this.finalBossGateLocked = sealed;
     }
 
     private activateProceduralRoom(room: DungeonRoom, time: number) {
@@ -1888,21 +1891,12 @@ export function createArpgDungeonScene(
             this.bossEncounterRuntime?.destroy();
             this.bossEncounterRuntime = new BossEncounterRuntime({
               scene: this, bridge, actor, player: this.player, arena,
-              snapshot: saved ?? createBossEncounter(definition.id, time, ["solo"], dungeon.enemies.boss.maxHp, { x: arena.width / 2, y: 144 }, bridge.getSeenBossIntroIds?.().includes(definition.id)),
+              snapshot: saved ?? createBossEncounter(definition.id, time, ["solo"], dungeon.enemies.boss.maxHp, bossRoomThronePosition(definition.id, arena.width), bridge.getSeenBossIntroIds?.().includes(definition.id)),
               reducedMotion: this.prefersReducedMotion, legendId: avatarConfig.legendId, audio: this.audio,
               requestSkip: () => this.submitServerCombatCommand(room.id, "skip_intro", this.runClock.now),
+              onPurificationVisualFinished: () => this.dungeonWorld?.restoreBossRoomArt(room.id),
               damagePlayer: (damage, at) => { if (at >= this.nextPlayerDamageAt && at >= this.dashingUntil) this.applyPlayerDamage(damage, at); },
-              onCleared: () => {
-                this.pendingEnemySpawns.delete(actor);
-                actor.setActive(false).setVelocity(0, 0).setData("spawnReady", false);
-                if (actor.body) actor.body.enable = false;
-                if (!bridge.isServerAuthoritativeCombat()) {
-                  this.xpEarned += Math.round(dungeon.enemies.boss.rewardXp * getRelicXpMultiplier(selectedRelic));
-                  this.runShards += getRunShardReward(dungeon.enemies.boss.rewardXp);
-                }
-                // Completion is emitted once, after persistence confirms restoration.
-                this.proceduralController?.enemyDefeated();
-              },
+              onCleared: () => this.completeBossEncounter(room, actor),
             });
             this.bossEncounterRuntime.update(time);
           }
@@ -2528,6 +2522,48 @@ export function createArpgDungeonScene(
       this.emitHud(time);
     }
 
+    private completeBossEncounter(room: DungeonRoom, actor: ArcadeSprite) {
+      const runtime = this.bossEncounterRuntime;
+      if (!runtime || !dungeonManager || !this.dungeonWorld) return;
+      this.bossCompletion.complete(room.id, runtime.snapshot, {
+        destroyRuntime: () => { runtime.destroy(); this.bossEncounterRuntime = null; },
+        removeActor: () => {
+          this.pendingEnemySpawns.delete(actor);
+          this.tweens.killTweensOf(actor);
+          actor.setData("damageEnabled", false).setData("spawnReady", false);
+          actor.disableBody(true, true);
+          this.enemies.remove(actor, true, true);
+        },
+        clearCombatEffects: () => {
+          this.clearEnemyProjectiles();
+          this.projectiles.clear(true, true);
+          this.clearServerProjectileVisuals();
+          this.clearServerHazardVisuals();
+        },
+        restorePlayer: () => {
+          this.clearClickPath(); bridge.clearGameplayInput();
+          this.dashingUntil = 0; this.player.setVelocity(0, 0);
+          this.cameras.main.startFollow(this.player, true, 0.16, 0.16);
+          this.audio?.setMusicMode("exploration");
+        },
+        grantCombatReward: () => {
+          if (bridge.isServerAuthoritativeCombat()) return;
+          this.xpEarned += Math.round(dungeon.enemies.boss.rewardXp * getRelicXpMultiplier(selectedRelic));
+          this.runShards += getRunShardReward(dungeon.enemies.boss.rewardXp);
+        },
+        completeRoom: () => {
+          this.proceduralController?.completeRoom(); this.proceduralController = null;
+          this.proceduralWaveTransitionScheduled = false;
+          const cleared = dungeonManager!.clearRoom(room.id);
+          this.dungeonWorld!.restoreBossRoomArt(room.id);
+          this.spawnProceduralReward(cleared, this.runClock.now);
+          this.dungeonWorld!.setDoorsLocked(room.id, false);
+        },
+        createExit: () => this.createExitPortal(room),
+        publish: () => { this.emitRunCheckpoint(); this.emitHud(this.runClock.now); },
+      });
+    }
+
     private proceduralRoomLabel(room: DungeonRoom) {
       if (room.type === "boss") return "Sala do boss";
       if (room.type === "elite") return "Sala de elite";
@@ -2739,7 +2775,7 @@ export function createArpgDungeonScene(
         if (!enemy.active || !enemy.getData("spawnReady")) return;
 
         const definitionId = String(enemy.getData("definitionId"));
-        if (definitionId === "boss" && this.bossEncounterRuntime && (this.bossEncounterRuntime.lock.locked || hasBossCombatStrategy(this.bossEncounterRuntime.snapshot.bossId) || this.bossEncounterRuntime.snapshot.state === "CLEARED")) {
+        if (definitionId === "boss" && this.bossEncounterRuntime && (this.bossEncounterRuntime.snapshot.state !== "COMBAT" || hasBossCombatStrategy(this.bossEncounterRuntime.snapshot.bossId))) {
           enemy.setVelocity(0, 0);
           return;
         }
@@ -3768,15 +3804,14 @@ export function createArpgDungeonScene(
     }
 
     private createExitPortal(room: DungeonRoom) {
-      if (!this.dungeonWorld) return;
+      if (!this.dungeonWorld || this.exitPortalAvailable) return;
       this.playSound("portal");
       this.clearExitPortalMotion();
       this.exitPortal?.destroy(true);
       const center = this.dungeonWorld.getRoomCenter(room.id);
-      if (room.type === "boss" && this.bossEncounterRuntime) {
-        const arena = this.dungeonWorld.layout.rooms[room.id], boss = this.bossEncounterRuntime.snapshot;
-        if (Math.hypot(center.x - arena.left - boss.x, center.y + 80 - arena.top - boss.y) < 140) center.x += 220;
-      }
+      // The encounter is already destroyed here. Keep the exit beside the
+      // central reward chest instead of covering it or retaining a dead boss.
+      if (room.type === "boss") center.x += 220;
       const x = center.x;
       const y = center.y;
       const outer = this.add.ellipse(0, 0, 88, 116, 0x30213c, 0.78).setStrokeStyle(6, dungeon.colors.phase, 0.95);
@@ -3786,7 +3821,7 @@ export function createArpgDungeonScene(
       this.exitPortal = this.add.container(x, y, [outer, inner, core]).setDepth(8);
       this.syncExitPortalMotion();
       this.exitPortalAvailable = true;
-      bridge.emitMessage("Loot recolhido. Aproxime-se do portal e pressione E para voltar à Guilda.");
+      bridge.emitMessage(this.chestAvailable ? "Lenda restaurada. Recolha o baú e use o portal para voltar à Guilda." : "Loot recolhido. Aproxime-se do portal e pressione E para voltar à Guilda.");
       this.emitRunCheckpoint();
       this.emitHud(this.runClock.now);
     }
@@ -3918,7 +3953,7 @@ export function createArpgDungeonScene(
         nowMs: time,
         hp: this.hp,
         maxHp: this.maxHp,
-        room: proceduralRoom ? proceduralRoom.distanceFromStart + 1 : this.roomIndex + 1,
+        room: proceduralRoom?.type === "boss" ? proceduralRoomCount! : proceduralRoom ? proceduralRoom.distanceFromStart + 1 : this.roomIndex + 1,
         roomCount: proceduralRoomCount ?? this.roomWaves.length,
         enemiesRemaining: this.enemies?.countActive(true) ?? 0,
         weaponId: this.currentWeaponId,
@@ -4258,6 +4293,7 @@ export function createArpgDungeonScene(
           debugWindow.__cardRealmsBossQA = (command, amount = 0) => {
             if (command === "enter" && this.dungeonWorld) {
               const graph = dungeonManager!.getGraph();
+              for (const room of Object.values(graph.rooms)) if (room.type !== "boss") dungeonManager!.clearRoom(room.id);
               const queue = [[dungeonManager!.getCurrentRoom().id]];
               const visited = new Set<string>();
               let route: string[] = [];
@@ -4273,7 +4309,9 @@ export function createArpgDungeonScene(
               this.enemies.getChildren().forEach((enemy) => (enemy as ArcadeSprite).disableBody(true, true));
               this.pendingEnemySpawns.clear();
               const arena = this.dungeonWorld.layout.rooms[room.id];
-              this.player.setPosition(arena.centerX, arena.top + arena.height - 100).setVelocity(0, 0);
+              const art = BOSS_ROOM_ART[bossForRegion(dungeon.id).id];
+              const spawn = art?.width === arena.width ? art.spawn : { x: arena.width / 2, y: arena.height - 100 };
+              this.player.setPosition(arena.left + spawn.x, arena.top + spawn.y).setVelocity(0, 0);
               this.nextPlayerDamageAt = this.runClock.now + 3600000; // QA can inspect every attack without dying.
               this.proceduralRoomId = room.id; this.proceduralController = null;
               this.proceduralWaveTransitionScheduled = false;

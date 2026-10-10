@@ -1,4 +1,5 @@
 import type { Scene } from "phaser";
+import { BOSS_ROOM_ART } from "./bosses/boss-room-art";
 
 export type ArpgAnimationDefinition = {
   frameRate: number;
@@ -39,6 +40,7 @@ const STANDARD_GUILD_NPC_ANIMATIONS = {
 } as const satisfies Readonly<Record<string, ArpgAnimationDefinition>>;
 
 export const ARPG_ASSET_MANIFEST = {
+  bossRooms: BOSS_ROOM_ART,
   runtimeTextureKeys: {
     dungeonBackground: "dungeon-arena",
   },

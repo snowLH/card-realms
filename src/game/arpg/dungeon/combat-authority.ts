@@ -2,6 +2,7 @@ import { hasBossCombatStrategy } from "../bosses/boss-combat-strategies";
 import { z } from "zod";
 import { BossEncounterSchema, createBossEncounter, advanceBossEncounter, damageBossEncounter, voteBossIntroSkip } from "../bosses/boss-encounter-controller";
 import { bossForRegion } from "../bosses/registry";
+import { bossRoomThronePosition } from "../bosses/boss-room-art";
 import { isBossInputLocked } from "../bosses/cinematic-input-lock";
 import { insideBossHazard } from "../bosses/king-arthur/patterns";
 import { purificationPosition, approachPurification } from "../bosses/boss-purification-controller";
@@ -290,9 +291,9 @@ export function createArpgDungeonCombatState(options: {
   if (room.type === "boss") {
     const boss = state.enemies.find((enemy) => enemy.definitionId === "boss");
     if (boss) {
-      boss.x = tiles.width * 16;
-      boss.y = 144;
-      state.bossEncounter = createBossEncounter(bossForRegion(graph.regionId).id, options.nowMs, ["solo"], boss.maxHp, boss, options.seenBossIntro);
+      const definition = bossForRegion(graph.regionId);
+      Object.assign(boss, bossRoomThronePosition(definition.id, tiles.width * 32));
+      state.bossEncounter = createBossEncounter(definition.id, options.nowMs, ["solo"], boss.maxHp, boss, options.seenBossIntro);
     }
   }
   return ArpgDungeonCombatStateSchema.parse(state);

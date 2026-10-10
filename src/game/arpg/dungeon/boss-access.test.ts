@@ -3,7 +3,7 @@ import { populateArpgDungeonContent } from "./content";
 import { createArpgDungeonSeed } from "./encounter-seed";
 import { generateDungeon } from "./generator";
 import { DungeonManager } from "./manager";
-import { bossGateParentId, isBossRoomUnlocked, unclearedRoomsBeforeBoss } from "./boss-access";
+import { bossGateParentId, isBossRoomUnlocked, isFinalBossConnectionLocked, unclearedRoomsBeforeBoss } from "./boss-access";
 
 describe("final forgotten-legend gate", () => {
   it.each(["mata-encantada", "arquipelago-das-mares", "montanhas-runicas"] as const)(
@@ -20,6 +20,7 @@ describe("final forgotten-legend gate", () => {
       const parentId = bossGateParentId(manager.getGraph());
       expect(parentId).toBeTruthy();
       expect(isBossRoomUnlocked(manager.getGraph())).toBe(false);
+      expect(isFinalBossConnectionLocked(manager.getGraph())).toBe(true);
 
       for (const room of Object.values(manager.getGraph().rooms)) {
         if (room.id === bossId) continue;
@@ -28,6 +29,13 @@ describe("final forgotten-legend gate", () => {
 
       expect(unclearedRoomsBeforeBoss(manager.getGraph())).toEqual([]);
       expect(isBossRoomUnlocked(manager.getGraph())).toBe(true);
+      expect(isFinalBossConnectionLocked(manager.getGraph())).toBe(false);
+      // Every frame syncs the same connection. Cleared prerequisites must not
+      // reopen the door during intro, combat or the pending save in RESTORED.
+      manager.getRoom(bossId).state = "combat";
+      for (let frame = 0; frame < 3; frame++) expect(isFinalBossConnectionLocked(manager.getGraph())).toBe(true);
+      manager.clearRoom(bossId);
+      expect(isFinalBossConnectionLocked(manager.getGraph())).toBe(false);
     },
   );
 
