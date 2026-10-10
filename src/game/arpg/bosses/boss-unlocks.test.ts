@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { restoreBossProgress, EMPTY_BOSS_PROGRESS, BossProgressSchema } from "./boss-unlocks";
 import { createBossEncounter, advanceBossEncounter, damageBossEncounter } from "./boss-encounter-controller";
+import { bossById } from "./registry";
 import { DEFAULT_LOCAL_PROGRESS, loadLocalProgress, saveLocalProgress, LOCAL_PROGRESS_KEY } from "../../save/local-progress";
 describe("persistent restored legends", () => {
   it("unlocks only after purification and is idempotent across requests and reloads", () => {
@@ -19,6 +20,27 @@ describe("persistent restored legends", () => {
     expect(loadLocalProgress(storage).purifiedBossIds).toEqual(["king-arthur"]);
     expect(loadLocalProgress(storage, "other-account").unlockedLegendIds).toEqual([]);
   });
+  it.each([
+    ["ancestral-curupira", "curupira"],
+    ["deep-iara", "iara"],
+    ["king-arthur", "king-arthur"],
+  ] as const)("restores %s through the same purification-to-unlock contract", (bossId, legendId) => {
+    const definition = bossById(bossId);
+    const boss = createBossEncounter(bossId, 0, ["solo"], 100, { x: 976, y: 144 });
+    const players = [{ id: "solo", x: 976, y: 850, alive: true }];
+    const arena = { width: 1952, height: 992 };
+    advanceBossEncounter(boss, definition.intro.durationMs, players, arena);
+    damageBossEncounter(boss, 100, definition.intro.durationMs + 100);
+    const restoredAt = definition.intro.durationMs + 100
+      + definition.purification.defeatedMs
+      + definition.purification.durationMs;
+    advanceBossEncounter(boss, restoredAt, players, arena);
+    expect(boss.state).toBe("RESTORED");
+    const progress = restoreBossProgress(EMPTY_BOSS_PROGRESS, boss);
+    expect(progress.purifiedBossIds).toContain(bossId);
+    expect(progress.unlockedLegendIds).toContain(legendId);
+  });
+
   it("migrates old v4 and v1 saves without granting bosses or losing currency", () => {
     const { purifiedBossIds, unlockedLegendIds, seenBossIntroIds, ...old } = DEFAULT_LOCAL_PROGRESS;
     void purifiedBossIds; void unlockedLegendIds; void seenBossIntroIds;
