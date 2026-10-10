@@ -5,6 +5,8 @@ import { createSeededRandom } from "../dungeon/rng";
 import { buildRoomTileData, createSafeRoomSpawnPoints, ROOM_FLOOR_TILE, ROOM_OBSTACLE_TILE, ROOM_RUNE_TILE, ROOM_WALL_TILE, ROOM_WATER_TILE, type RoomSpawnPoint } from "../dungeon/room-tilemap";
 import type { DungeonDirection, DungeonGraph } from "../dungeon/types";
 import { ARPG_ASSET_MANIFEST } from "../assets";
+import { bossForRegion } from "../bosses/registry";
+import { createBossRoomPresentation, type BossRoomPresentation } from "../bosses/boss-room-presentation";
 
 export const DUNGEON_BIOME_PROPS_TEXTURE_KEY = "dungeon-biome-props-pixel-v1";
 export const DUNGEON_BIOME_PROPS_ASSET_PATH = "/art/dungeon-biome-props-pixel-v1.webp";
@@ -124,6 +126,7 @@ export class DungeonWorldRuntime {
   private readonly corridorWalls: import("phaser").GameObjects.Rectangle[] = [];
   private readonly doors = new Map<string, DoorEntry>();
   private readonly ambientByRoom = new Map<string, RoomAmbientState>();
+  private readonly bossRoomArt = new Map<string, BossRoomPresentation>();
   private activeAmbientRoomId: string | null = null;
 
   constructor(
@@ -157,6 +160,8 @@ export class DungeonWorldRuntime {
     this.scene.physics.world.setBounds(0, 0, this.layout.width, this.layout.height);
     return this;
   }
+
+  restoreBossRoomArt(roomId: string) { this.bossRoomArt.get(roomId)?.restore(); }
 
   private ensureTileTexture() {
     const key = this.tileTextureKey;
@@ -373,7 +378,14 @@ export class DungeonWorldRuntime {
   private drawRooms() {
     const textureKey = this.tileTextureKey;
     for (const room of Object.values(this.graph.rooms)) {
-      const camelot = room.type === "boss" && room.size === "boss" && this.graph.regionId === "montanhas-runicas";
+      const bossArt = room.type === "boss" && room.size === "boss"
+        ? createBossRoomPresentation(this.scene, bossForRegion(this.graph.regionId).id, {
+          x: this.layout.rooms[room.id].left, y: this.layout.rooms[room.id].top,
+        }) : null;
+      if (bossArt) {
+        this.bossRoomArt.set(room.id, bossArt);
+        if (room.state === "cleared") bossArt.restore();
+      }
       const tileData = buildRoomTileData(room.templateId, room.connections, this.graph.seed);
       const map = this.scene.make.tilemap({
         data: this.createFloorVariantData(tileData.data, room.id),
@@ -383,7 +395,7 @@ export class DungeonWorldRuntime {
       const tileset = map.addTilesetImage(textureKey, textureKey, DUNGEON_TILE_SIZE, DUNGEON_TILE_SIZE, 0, 0);
       if (!tileset) throw new Error(`Tileset procedural ausente para ${room.id}.`);
       const layout = this.layout.rooms[room.id];
-      if (this.hasArenaArtwork && !camelot) {
+      if (this.hasArenaArtwork && !bossArt) {
         this.scene.add.image(
           layout.centerX,
           layout.centerY,
@@ -394,7 +406,11 @@ export class DungeonWorldRuntime {
       if (!layer) throw new Error(`Não foi possível criar o tilemap da sala ${room.id}.`);
       layer.setDepth(1);
       layer.setCollision([ROOM_WALL_TILE, ROOM_OBSTACLE_TILE]);
-      if (this.hasArenaArtwork && !camelot) {
+      if (bossArt) {
+        // Invisible seeded collision grid; all visible environment comes from
+        // the authored image, including the unobstructed southern entrance.
+        layer.setAlpha(0);
+      } else if (this.hasArenaArtwork) {
         // Keep the seeded collision grid intact. Only its visible floor is
         // replaced by the authored arena; solid tiles still mark real walls.
         layer.forEachTile((tile) => {
@@ -405,13 +421,13 @@ export class DungeonWorldRuntime {
         this.drawArenaDoorways(layout);
       }
       this.wallLayers.push(layer);
-      if (!this.hasArenaArtwork) {
+      if (!this.hasArenaArtwork && !bossArt) {
         this.drawRoomRootRim(room, layout);
         this.drawBiomeSetDressing(room, tileData.data, layout);
         this.drawBiomeFloorMarks(room, tileData.data, layout);
         this.drawMataStartRoomDressing(room, tileData.data, layout);
       }
-      if (!camelot) this.drawAmbientDetails(room, tileData.data, layout);
+      if (!bossArt) this.drawAmbientDetails(room, tileData.data, layout);
     }
   }
 

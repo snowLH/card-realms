@@ -7361,3 +7361,8 @@ button.creature-card:disabled {
 .forgotten-legend-title { position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:8; max-width:85%; text-align:center; padding:6px 12px; background:#252734e8; color:#eadfbf; font:600 13px monospace; pointer-events:none; }
 .forgotten-legend-title small { display:block; padding-top:6px; }
 .forgotten-legend-title button { display:block; margin:6px auto 0; pointer-events:auto; padding:6px 12px; border:1px solid #bbaa79; background:#354459; color:#fff2cd; }
+.forgotten-legend-arena { position:absolute; inset:0; pointer-events:none; background-size:100% 100%; image-rendering:pixelated; filter:saturate(.55) brightness(.85); }
+.forgotten-legend-arena.is-restored { filter:none; }
+.forgotten-legend-title { max-width:min(360px,60%); font-size:11px; padding:4px 8px; }
+.forgotten-legend-title--intro { font-size:14px; }
+.forgotten-legend-title small { padding-top:3px; font-size:10px; }
