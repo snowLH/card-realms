@@ -1189,54 +1189,78 @@ export class DungeonWorldRuntime {
     for (const door of this.doors.values()) this.scene.physics.add.collider(enemies, door.visual);
   }
 
+  private setDoorEntryLocked(entry: DoorEntry, locked: boolean) {
+    if (entry.locked === locked) return false;
+    entry.locked = locked;
+    this.scene.tweens.killTweensOf(entry.visual);
+    if (locked) {
+      entry.state = "closing";
+      entry.visual.setPosition(entry.openX, entry.openY).setAlpha(0.2).setVisible(true).setFillStyle(this.palette.door, 1);
+      entry.body.enable = true;
+      entry.body.updateFromGameObject();
+      this.scene.tweens.add({
+        targets: entry.visual,
+        x: entry.closedX,
+        y: entry.closedY,
+        alpha: 1,
+        duration: 180,
+        ease: "Quad.easeIn",
+        onUpdate: () => entry.body.updateFromGameObject(),
+        onComplete: () => {
+          entry.state = "closed";
+          entry.body.updateFromGameObject();
+        },
+      });
+      this.emitDoorDust(entry.closedX, entry.closedY);
+    } else {
+      entry.state = "opening";
+      entry.body.enable = false;
+      this.scene.tweens.add({
+        targets: entry.visual,
+        x: entry.openX,
+        y: entry.openY,
+        alpha: 0,
+        duration: 170,
+        ease: "Quad.easeOut",
+        onComplete: () => {
+          entry.state = "open";
+          entry.visual.setVisible(false).setPosition(entry.openX, entry.openY);
+          entry.body.updateFromGameObject();
+        },
+      });
+    }
+    return true;
+  }
+
   setDoorsLocked(roomId: string, locked: boolean) {
     const room = this.graph.rooms[roomId];
     if (!room) return;
     let changed = false;
     for (const direction of Object.keys(room.connections) as DungeonDirection[]) {
       const entry = this.doors.get(this.doorKey(roomId, direction));
-      if (!entry || entry.locked === locked) continue;
-      changed = true;
-      entry.locked = locked;
-      this.scene.tweens.killTweensOf(entry.visual);
-      if (locked) {
-        entry.state = "closing";
-        entry.visual.setPosition(entry.openX, entry.openY).setAlpha(0.2).setVisible(true).setFillStyle(this.palette.door, 1);
-        entry.body.enable = true;
-        entry.body.updateFromGameObject();
-        this.scene.tweens.add({
-          targets: entry.visual,
-          x: entry.closedX,
-          y: entry.closedY,
-          alpha: 1,
-          duration: 180,
-          ease: "Quad.easeIn",
-          onUpdate: () => entry.body.updateFromGameObject(),
-          onComplete: () => {
-            entry.state = "closed";
-            entry.body.updateFromGameObject();
-          },
-        });
-        this.emitDoorDust(entry.closedX, entry.closedY);
-      } else {
-        entry.state = "opening";
-        entry.body.enable = false;
-        this.scene.tweens.add({
-          targets: entry.visual,
-          x: entry.openX,
-          y: entry.openY,
-          alpha: 0,
-          duration: 170,
-          ease: "Quad.easeOut",
-          onComplete: () => {
-            entry.state = "open";
-            entry.visual.setVisible(false).setPosition(entry.openX, entry.openY);
-            entry.body.updateFromGameObject();
-          },
-        });
-      }
+      if (entry && this.setDoorEntryLocked(entry, locked)) changed = true;
     }
     if (changed) this.onDoorsLockedChange?.(locked);
+  }
+
+  /** Lock just one graph connection. Used by the final-boss seal so players
+   * can freely backtrack through the dungeon while the final door stays shut. */
+  setConnectionLocked(roomId: string, targetRoomId: string, locked: boolean) {
+    const room = this.graph.rooms[roomId];
+    const target = this.graph.rooms[targetRoomId];
+    if (!room || !target) return false;
+    let changed = false;
+    for (const [direction, connectedId] of Object.entries(room.connections) as [DungeonDirection, string][]) {
+      if (connectedId !== targetRoomId) continue;
+      const entry = this.doors.get(this.doorKey(roomId, direction));
+      if (entry && this.setDoorEntryLocked(entry, locked)) changed = true;
+    }
+    for (const [direction, connectedId] of Object.entries(target.connections) as [DungeonDirection, string][]) {
+      if (connectedId !== roomId) continue;
+      const entry = this.doors.get(this.doorKey(targetRoomId, direction));
+      if (entry && this.setDoorEntryLocked(entry, locked)) changed = true;
+    }
+    return changed;
   }
 
   private emitDoorDust(x: number, y: number) {
