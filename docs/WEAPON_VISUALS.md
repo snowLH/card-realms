@@ -11,11 +11,11 @@ As 12 armas obteníveis do Folklard usam **arte externa em pixel art**. A fonte 
 - Licença: CC0 1.0 Universal — https://creativecommons.org/publicdomain/zero/1.0/
 - Proveniência detalhada: [LICENSES.md](../../LICENSES.md).
 
-O script `scripts/vendor-weapon-sprites.py` baixa o PNG original e valida a assinatura PNG e a grade 160×112 antes de gravá-lo. O workflow `.github/workflows/vendor-weapon-sprites.yml` inclui o arquivo na branch de implementação; **a integração só está pronta para merge depois que o PNG estiver presente no commit e os testes passarem**. O jogo carrega o arquivo local, não depende do OpenGameArt durante a partida.
+O script `scripts/vendor-weapon-sprites.py` baixa o PNG original e valida a assinatura PNG e a grade 170×119 antes de gravá-lo. O workflow `.github/workflows/vendor-weapon-sprites.yml` inclui o arquivo na branch de implementação; **a integração só está pronta para merge depois que o PNG estiver presente no commit e os testes passarem**. O jogo carrega o arquivo local, não depende do OpenGameArt durante a partida.
 
 ## Mapeamento de frames
 
-O spritesheet contém células 16×16 px em uma grade de 10 colunas e 7 linhas. Os índices são baseados em zero. A arte original é ampliada em runtime com o renderizador pixel-art do jogo; não é redesenhada.
+O spritesheet contém células 16×16 px separadas por um pixel transparente (passo de 17 px) em uma grade de 10 colunas e 7 linhas. Os índices são baseados em zero. A arte original é ampliada em runtime com o renderizador pixel-art do jogo; não é redesenhada.
 
 | Região | Arma | Frame | Silhueta original | Movimento |
 | --- | --- | ---: | --- | --- |
