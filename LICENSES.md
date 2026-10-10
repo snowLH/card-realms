@@ -5,6 +5,7 @@
 - **Autor:** Bennyboi_hack
 - **Página de origem:** https://opengameart.org/content/16x16-weapon-sprites-free
 - **PNG original:** https://opengameart.org/sites/default/files/weaponpack.png
+- **SHA256 do PNG original:** `37f4ce4a3e875b8e7f23897e583c1991253788eff271a1c283498e38629e45d3`
 - **Cópia no repositório:** `public/art/vendor/opengameart/bennyboi-hack/weaponpack.png`
 - **Licença declarada pelo autor:** Creative Commons Zero 1.0 Universal (CC0 1.0)
 - **Licença oficial:** https://creativecommons.org/publicdomain/zero/1.0/
