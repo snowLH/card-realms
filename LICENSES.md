@@ -11,4 +11,4 @@
 - **Crédito obrigatório:** não; o crédito acima é voluntário.
 - **Uso:** frames das 12 armas obtíveis no ARPG. O arquivo original é preservado; o Phaser aplica seleção de frame, escala, rotação, pivô e tint em tempo de execução.
 
-O arquivo foi selecionado diretamente da publicação do autor no OpenGameArt, e não de uma cópia de terceiros. A automação `scripts/vendor-weapon-sprites.py` obtém o PNG do endereço oficial, valida o formato e a dimensão 160×112 e o grava no caminho indicado. Não modificar a fonte nem substituir o arquivo por outra obra sem revisar a licença e este registro.
+O arquivo foi selecionado diretamente da publicação do autor no OpenGameArt, e não de uma cópia de terceiros. A automação `scripts/vendor-weapon-sprites.py` obtém o PNG do endereço oficial, valida o formato e a dimensão 170×119 e o grava no caminho indicado. Não modificar a fonte nem substituir o arquivo por outra obra sem revisar a licença e este registro.
