@@ -2,6 +2,7 @@
 import type { BossEncounterSnapshot } from "@/game/arpg/bosses/boss-encounter-controller";
 import { arthurArtFrame } from "@/game/arpg/bosses/king-arthur/art";
 import { bossById } from "@/game/arpg/bosses/registry";
+import { regionalBossArtFrame } from "@/game/arpg/bosses/regional-art";
 import { purificationColor } from "@/game/arpg/bosses/boss-purification-controller";
 import { PLAYABLE_LEGENDS } from "@/game/arpg/content/legends";
 import type { ArpgRaidPlayerState } from "@/game/arpg/raid";
@@ -13,9 +14,13 @@ export function RoundTableWardView({ players, width, height, nowMs }: { players:
 }
 
 export function ForgottenLegendActor({ encounter }: { encounter: BossEncounterSnapshot }) {
-  const art = arthurArtFrame(encounter);
+  const art = encounter.bossId === "king-arthur"
+    ? arthurArtFrame(encounter)
+    : regionalBossArtFrame(encounter);
+  if (!art) return null;
   const x = art.frame % 4 * 256, y = Math.floor(art.frame / 4) * 256;
-  return <svg viewBox="0 0 256 256" width="160" height="160" role="img" aria-label="Rei Arthur, pixel-art na base da Naturalista" style={{ imageRendering: "pixelated" }}>
+  const definition = bossById(encounter.bossId);
+  return <svg viewBox="0 0 256 256" width="160" height="160" role="img" aria-label={definition.corruptedTitle} style={{ imageRendering: "pixelated" }}>
     <svg x={0} y={0} width={256} height={256} viewBox={`${x} ${y} 256 256`} overflow="hidden">
       <image href={art.path} width={1024} height={1536} />
     </svg>
