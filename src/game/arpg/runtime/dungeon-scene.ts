@@ -43,6 +43,7 @@ import type {
   ArpgRuntimeBridge,
 } from "../domain/types";
 import type { ArpgDungeonCombatCommand, ArpgDungeonCombatState } from "../dungeon/combat-authority";
+import { bossGateParentId } from "../dungeon/boss-access";
 import type { DungeonManager } from "../dungeon/manager";
 import { DUNGEON_CORRIDOR_WIDTH } from "../dungeon/layout";
 import { buildDungeonNavigation } from "../dungeon/navigation";
@@ -379,6 +380,8 @@ export function createArpgDungeonScene(
     private victory = false;
     private roomTransitionScheduled = false;
     private playerActionUntil = 0;
+    private finalBossGateLocked = false;
+    private finalBossGateNoticeRoomId: string | null = null;
 
     constructor() {
       super(dungeon.sceneKey);
@@ -1781,6 +1784,7 @@ export function createArpgDungeonScene(
     }
     private updateProceduralRoom(time: number) {
       if (!dungeonManager || !this.dungeonWorld) return;
+      this.syncFinalBossGate();
       const roomAtPlayer = this.dungeonWorld.findRoomAt(this.player.x, this.player.y, 28);
       if (!roomAtPlayer) return;
 
@@ -1824,6 +1828,28 @@ export function createArpgDungeonScene(
         }
         this.spawnProceduralWave(room, next.waveIndex + 1, this.runClock.now);
       });
+    }
+
+    private syncFinalBossGate() {
+      if (!dungeonManager || !this.dungeonWorld) return;
+      const graph = dungeonManager.getGraph();
+      const parentId = bossGateParentId(graph);
+      if (!parentId) return;
+      const locked = !dungeonManager.isBossRoomUnlocked();
+      const changed = this.dungeonWorld.setConnectionLocked(parentId, graph.bossRoomId, locked);
+      const current = dungeonManager.getCurrentRoom();
+      if (locked && current.id === parentId && this.finalBossGateNoticeRoomId !== current.id) {
+        const remaining = dungeonManager.getUnclearedBossPrerequisiteRoomIds().length;
+        bridge.emitMessage(`A passagem final está selada. Conclua as ${remaining} salas restantes antes de enfrentar a Lenda Esquecida.`);
+        this.finalBossGateNoticeRoomId = current.id;
+      } else if (current.id !== parentId) {
+        this.finalBossGateNoticeRoomId = null;
+      }
+      if (!locked && (this.finalBossGateLocked || changed)) {
+        bridge.emitMessage("Todas as salas foram concluídas. O selo da arena final se rompeu.");
+        this.playSound("door-open");
+      }
+      this.finalBossGateLocked = locked;
     }
 
     private activateProceduralRoom(room: DungeonRoom, time: number) {
