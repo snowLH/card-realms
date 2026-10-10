@@ -50,6 +50,7 @@ declare
   player_id uuid;
   boss_id text;
   legend_id text;
+  legend_ability_ids text[];
   grant_item_key text;
 begin
   if target_player_id is null or (target_run_id is null) = (target_room_id is null) then
@@ -92,7 +93,16 @@ begin
     or coalesce((encounter ->> 'hp')::int, -1) <> 0
     or coalesce((encounter ->> 'stateAtMs')::bigint, 0) < coalesce((encounter ->> 'enteredAtMs')::bigint, 0) + 7700
   ) then raise exception 'A purificação ainda não terminou' using errcode = '42501'; end if;
-  legend_id := case boss_id when 'king-arthur' then 'king-arthur' else null end;
+  legend_id := case boss_id
+    when 'ancestral-curupira' then 'curupira'
+    when 'deep-iara' then 'iara'
+    when 'king-arthur' then 'king-arthur'
+    else null end;
+  legend_ability_ids := case boss_id
+    when 'ancestral-curupira' then array['curupira-root-snare','curupira-ember-arrow']::text[]
+    when 'deep-iara' then array['iara-enchanting-song','iara-living-spring']::text[]
+    when 'king-arthur' then array['arthur-camelot-cut','arthur-round-table-oath']::text[]
+    else '{}'::text[] end;
   -- Consistent profile ordering serializes entitlements across concurrent runs.
   foreach player_id in array coalesce(seen_ids, '{}'::uuid[]) loop
     perform 1 from public.profiles where id = player_id for update;
@@ -106,7 +116,7 @@ begin
         unlocked_legend_ids = array(select distinct unnest(unlocked_legend_ids || case when legend_id is null then '{}'::text[] else array[legend_id] end) order by 1),
         updated_at = now() where user_id = player_id;
       if legend_id is not null then
-        foreach grant_item_key in array array['legend-' || legend_id, 'arthur-camelot-cut', 'arthur-round-table-oath'] loop
+        foreach grant_item_key in array (array['legend-' || legend_id]::text[] || legend_ability_ids) loop
           insert into public.inventory_items(user_id,item_key,quantity,metadata)
             values(player_id,grant_item_key,1,jsonb_build_object('source','legend_restoration','bossId',boss_id))
           on conflict(user_id,item_key) do update set quantity = greatest(public.inventory_items.quantity, 1),
