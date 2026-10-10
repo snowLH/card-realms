@@ -1,16 +1,15 @@
 import type { Scene, GameObjects } from "phaser";
-import { arthurPixels } from "./pixel-art";
+import { ARTHUR_CHARACTER_ART, arthurArtFrame } from "./art";
 import type { BossEncounterSnapshot } from "../boss-encounter-controller";
-import { introPose } from "../boss-intro-controller";
-import { purificationPose, purificationColor } from "../boss-purification-controller";
+import { purificationColor } from "../boss-purification-controller";
 
 /** Scene-local presentation only. Simulation, clocks and rewards live elsewhere. */
 export class ArthurPresentation {
-  private actor: GameObjects.Graphics;
+  private actor: GameObjects.Sprite;
   private scenery: GameObjects.Graphics;
   private effects: GameObjects.Graphics;
   constructor(scene: Scene, private readonly origin: { x: number; y: number }, width: number, height: number) {
-    this.actor = scene.add.graphics().setDepth(9);
+    this.actor = scene.add.sprite(origin.x + width / 2, origin.y + 144, ARTHUR_CHARACTER_ART.corrupted.key, 0).setOrigin(0.5, 0.6875).setScale(0.75).setDepth(9);
     this.scenery = scene.add.graphics().setDepth(5);
     this.effects = scene.add.graphics().setDepth(12);
     const g = this.scenery;
@@ -41,18 +40,9 @@ export class ArthurPresentation {
     }
   }
   update(snapshot: BossEncounterSnapshot, nowMs: number, reducedMotion: boolean, legendId: string) {
-    const intro = ["ROOM_ENTERED", "INTRO_LOCK", "AWAKENING"].includes(snapshot.state);
     const restored = ["RESTORED", "UNLOCK", "CLEARED"].includes(snapshot.state);
-    const elapsed = nowMs - snapshot.stateAtMs;
-    const pose = intro ? introPose(nowMs - snapshot.enteredAtMs, snapshot.seenByAll)
-      : snapshot.state === "DEFEATED" ? "kneeling" : snapshot.state === "PURIFICATION" ? purificationPose(elapsed)
-        : restored ? "restored" : snapshot.pattern === "old-wound" ? "support" : "ready";
-    const g = this.actor;
-    g.clear();
-    const scale = 2;
-    for (const p of arthurPixels(pose, restored || (snapshot.state === "PURIFICATION" && elapsed > 5200), Math.floor(nowMs / 250))) {
-      g.fillStyle(p.color); g.fillRect(Math.round(this.origin.x + snapshot.x + (p.x - 32) * scale), Math.round(this.origin.y + snapshot.y + (p.y - 40) * scale), p.width * scale, p.height * scale);
-    }
+    const art = arthurArtFrame(snapshot, nowMs);
+    this.actor.setTexture(art.key, art.frame).setPosition(Math.round(this.origin.x + snapshot.x), Math.round(this.origin.y + snapshot.y));
     const fx = this.effects;
     fx.clear();
     if (snapshot.state === "DEFEATED" || snapshot.state === "PURIFICATION") {

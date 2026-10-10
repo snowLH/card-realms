@@ -1,9 +1,8 @@
 "use client";
 import type { BossEncounterSnapshot } from "@/game/arpg/bosses/boss-encounter-controller";
-import { arthurPixels } from "@/game/arpg/bosses/king-arthur/pixel-art";
-import { introPose } from "@/game/arpg/bosses/boss-intro-controller";
+import { arthurArtFrame } from "@/game/arpg/bosses/king-arthur/art";
 import { bossById } from "@/game/arpg/bosses/registry";
-import { purificationPose, purificationColor } from "@/game/arpg/bosses/boss-purification-controller";
+import { purificationColor } from "@/game/arpg/bosses/boss-purification-controller";
 import { PLAYABLE_LEGENDS } from "@/game/arpg/content/legends";
 import type { ArpgRaidPlayerState } from "@/game/arpg/raid";
 import { ARTHUR_WARD_RADIUS } from "@/game/arpg/bosses/king-arthur/playable-kit";
@@ -14,13 +13,12 @@ export function RoundTableWardView({ players, width, height, nowMs }: { players:
 }
 
 export function ForgottenLegendActor({ encounter }: { encounter: BossEncounterSnapshot }) {
-  const restored = ["RESTORED", "UNLOCK", "CLEARED"].includes(encounter.state);
-  const pose = ["ROOM_ENTERED", "INTRO_LOCK", "AWAKENING"].includes(encounter.state)
-    ? introPose(encounter.serverTimeMs - encounter.enteredAtMs, encounter.seenByAll)
-    : encounter.state === "PURIFICATION" ? purificationPose(encounter.serverTimeMs - encounter.stateAtMs)
-      : encounter.state === "DEFEATED" ? "kneeling" : restored ? "restored" : "ready";
-  return <svg viewBox="0 0 64 80" width="128" height="160" shapeRendering="crispEdges" role="img" aria-label="Rei Arthur, ilustração pixel-art temporária">
-    {arthurPixels(pose, restored).map((p, index) => <rect key={index} x={p.x} y={p.y} width={p.width} height={p.height} fill={"#" + p.color.toString(16).padStart(6, "0")} />)}
+  const art = arthurArtFrame(encounter);
+  const x = art.frame % 4 * 256, y = Math.floor(art.frame / 4) * 256;
+  return <svg viewBox="0 0 256 256" width="160" height="160" role="img" aria-label="Rei Arthur, pixel-art na base da Naturalista" style={{ imageRendering: "pixelated" }}>
+    <svg x={0} y={0} width={256} height={256} viewBox={`${x} ${y} 256 256`} overflow="hidden">
+      <image href={art.path} width={1024} height={1536} />
+    </svg>
   </svg>;
 }
 export function BossEncounterView({ encounter, width, height, players, onSkip }: {

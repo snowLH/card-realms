@@ -8,6 +8,7 @@ import { limitPixelPalette } from "./pixel-palette.mjs";
 if (!process.argv[2]) throw new Error("Usage: node scripts/export-character-atlases.mjs <art-spec.json>");
 const specPath = resolve(process.argv[2]);
 const spec = JSON.parse(await readFile(specPath, "utf8"));
+if (process.argv[3]) spec.sourceDirectory = resolve(process.argv[3]);
 const version = spec.version ?? 4;
 const logicalFrame = spec.logicalFrame ?? 128;
 const colours = spec.colours ?? 96;
@@ -16,7 +17,8 @@ await mkdir(sourceArchive, { recursive: true });
 const report = [];
 for (const [actor, definition] of Object.entries(spec.actors)) {
   const sourcePath = definition.sourcePath ?? join(spec.sourceDirectory, definition.file);
-  await copyFile(sourcePath, join(sourceArchive, `${actor}${extname(sourcePath)}`));
+  const archivedSource = join(sourceArchive, `${actor}${extname(sourcePath)}`);
+  if (resolve(sourcePath) !== archivedSource) await copyFile(sourcePath, archivedSource);
   const metadata = await sharp(sourcePath).metadata();
   if (Math.abs(metadata.width - 1024) > 2 || Math.abs(metadata.height - 1536) > 2) throw new Error(`${actor}: incorrect source atlas dimensions`);
   const { data, info } = await sharp(sourcePath).resize(1024, 1536, { kernel: "nearest" }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -56,5 +58,5 @@ for (const [actor, definition] of Object.entries(spec.actors)) {
   await writeFile(resolve("public/art", filename), output);
   report.push({ actor, source: definition.file ?? sourcePath, path: `/art/${filename}`, bytes: output.length, logicalFrame, colours, scale, top, left });
 }
-await writeFile(resolve(`../../outputs/character-export-v${version}.json`), JSON.stringify(report, null, 2));
+await writeFile(resolve(spec.reportPath ?? `../../outputs/character-export-v${version}.json`), JSON.stringify(report, null, 2));
 console.log(`${report.length} atlases exported, ${(report.reduce((sum, actor) => sum + actor.bytes, 0) / 1048576).toFixed(2)} MB total.`);

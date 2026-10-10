@@ -3,6 +3,7 @@ import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
 import { BossEncounterRuntime } from "../bosses/boss-encounter-runtime";
 import { createBossEncounter } from "../bosses/boss-encounter-controller";
 import { bossForRegion } from "../bosses/registry";
+import { queueBossPresentationAssets } from "../bosses/boss-presentations";
 import { resolveLocalPlayerHit } from "../domain/player-damage";
 import { arthurProtectedDamage, emptyArthurOaths, grantRoundTableWard } from "../bosses/king-arthur/playable-kit";
 import { ArthurWardPresentation } from "../bosses/king-arthur/playable-presentation";
@@ -393,6 +394,7 @@ export function createArpgDungeonScene(
         },
       );
       queueGeneratedLegendSpriteSheet(this, playerActorId, playerTextureKey);
+      queueBossPresentationAssets(this, bossForRegion(dungeon.id).id);
       const enemyProfiles = new Set(
         Object.values(dungeon.enemyAnimations ?? {}).filter(isArpgEnemyAnimationProfile),
       );

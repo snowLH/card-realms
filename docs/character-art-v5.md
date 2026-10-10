@@ -4,7 +4,7 @@ A direção de arte segue a imagem enviada pelo usuário em 9 de outubro de 2026
 
 ## Assets e identidade
 
-- 13 lendas jogáveis: Curupira, Iara, Boto, Amarok, Raiju, Mapinguari, Kappa, Kelpie, Ahuizotl, Ratatoskr, Carbunclo, Alicanto e Yeti.
+- 14 lendas jogáveis: Curupira, Iara, Boto, Amarok, Raiju, Mapinguari, Kappa, Kelpie, Ahuizotl, Ratatoskr, Carbunclo, Alicanto, Yeti e Rei Arthur (restauração).
 - 17 perfis de inimigos/chefes das três expedições, incluindo as versões ancestrais de Curupira, Amarok e Iara.
 - Roc do cooperativo, com folha própria e seis ciclos de animação.
 - Os quatro NPCs originais (ferreiro, mercador, arquivista e naturalista) já seguem a referência. Suas artes e identidades foram preservadas e reexportadas na mesma grade.
@@ -15,6 +15,13 @@ A direção de arte segue a imagem enviada pelo usuário em 9 de outubro de 2026
 Os assets finais estão em `public/art/*-v5.webp`. Seleção, Guilda e expedições usam `src/game/arpg/runtime/legend-sprite-sheets.ts` e `src/game/arpg/assets.ts`. O Bestiário e os ícones compartilham `src/game/content/character-portraits.ts`.
 
 As folhas animadas têm 4 colunas, 6 linhas e 24 poses: repouso, caminhada, ataque, poder, dano e derrota. Cada célula de 256 px deriva de uma grade lógica de 64 px, ampliada com vizinho mais próximo. O exportador preserva transparência binária, margens entre células e uma paleta de até 48 entradas por folha. Retratos usam até 64 entradas por atlas.
+
+Arthur jogável segue esses seis ciclos. A folha do boss mantém a mesma grade,
+proporções e identidade, com 24 poses próprias de intro, combate e purificação
+viva. Seu tamanho maior vem da escala no jogo. O Phaser e o co-op compartilham
+`king-arthur/art.ts` e os mesmos arquivos, sem desenhar outro corpo simplificado.
+Os [prompts de Arthur](king-arthur-art-prompts.md) registram a Naturalista e as
+folhas v5 existentes usadas como referências.
 
 Geração: ferramenta integrada `image_gen`, com a referência enviada pelo usuário e a folha original de Luzia como referências de estilo. O [conjunto de prompts](character-art-v5-prompts.md) registra as instruções utilizadas. A geração criativa é separada da conversão de formato, enquadramento e compressão nos exportadores de `scripts/`.
 

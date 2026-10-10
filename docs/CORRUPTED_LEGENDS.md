@@ -129,8 +129,10 @@ Nenhum deploy ou ajuste de configuração Vercel faz parte da implementação.
    registrar em `boss-combat-strategies.ts`. Receber snapshot, clock, jogadores
    e limites da arena, sem Phaser, timers locais, aleatoriedade não determinística
    ou escrita de save. Hazards precisam antecipar exatamente a área de dano.
-4. Registrar uma apresentação em `boss-presentations.ts` e adaptar a apresentação
-   co-op em `src/components/arpg/boss-encounter-view.tsx`. Desenhar a arena sem
+4. Registrar uma apresentação e suas folhas em `boss-presentations.ts`; o preload
+   carrega os assets registrados. Compartilhar a seleção de pose com o co-op em
+   `src/components/arpg/boss-encounter-view.tsx`, como `king-arthur/art.ts`.
+   Usar a base v5 da Naturalista e o exportador comum. Desenhar a arena sem
    impedir corredores/portas ou ocupar os espaços necessários para esquiva.
 5. Para novo personagem jogável, atualizar enum/catálogo, habilidades, sprite
    manifest, avatar e loadout. Criar **nova migração SQL** com a allowlist
@@ -145,7 +147,7 @@ Nenhum deploy ou ajuste de configuração Vercel faz parte da implementação.
 ## Evidência e limites da verificação
 
 Foram aprovados `npm run typecheck`, `npm run lint`, `npm test` e
-`npm run build`. A suíte tem 564 testes em 108 arquivos; cobre 900 layouts nas
+`npm run build`. A suíte tem 568 testes em 109 arquivos; cobre 900 layouts nas
 três regiões, estados, thresholds, HP zero, save antigo, intro/skip, co-op de
 dois/quatro participantes e seis testes que executam a migração SQL real.
 
@@ -157,10 +159,17 @@ kit jogável com arma flutuante. A verificação usa o auxiliar de desenvolvimen
 aplicar dano entre fases. Ele só existe em development e somente no motor
 offline; não é um controle de dano disponível em produção/servidor.
 
+A revisão das folhas v5 conferiu Arthur jogável, o boss sentado no trono,
+combate nas três fases, ajoelhar vivo, purificação e restauração no navegador
+local, incluindo reduced motion. Nenhum erro de console foi registrado.
+Os testes também validam as oito poses da intro completa/curta e o mesmo
+atlas/quadro no co-op após serialização/reconexão.
+
 Co-op foi validado por simulação do motor autoritativo e transações SQL, sem
 uma lobby online com contas/dispositivos reais, pois não havia ambiente
 Supabase autenticado nesta execução. A UI co-op existente apresenta a arena
-inteira com poses e hazards SVG; o pan da câmera é específico do runtime Phaser.
-Arte e decoração de Arthur são placeholders originais em pixel-art, com fonte
-editável e geração reproduzível. Balanceamento e arte final ainda merecem uma
-rodada de playtest humano.
+inteira com poses do mesmo atlas v5 e hazards SVG; o pan da câmera é específico
+do runtime Phaser. Arthur usa a base da Naturalista no boss, no personagem
+jogável e no co-op, com fontes de geração arquivadas e exportação reproduzível.
+O cenário procedural de Camelot continua temporário. Balanceamento e animações
+ainda merecem uma rodada de playtest humano.

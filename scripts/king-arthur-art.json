@@ -1,0 +1,17 @@
+{
+  "version": 5,
+  "logicalFrame": 64,
+  "colours": 48,
+  "sourceDirectory": "../../outputs/art-sources-v5",
+  "reportPath": "../../outputs/arthur-character-export-v5.json",
+  "actors": {
+    "king-arthur": {
+      "file": "king-arthur.png",
+      "path": "/art/legend-king-arthur-spritesheet-v5.webp"
+    },
+    "king-arthur-corrupted": {
+      "file": "king-arthur-corrupted.png",
+      "path": "/art/monster-king-arthur-corrupted-spritesheet-v5.webp"
+    }
+  }
+}
