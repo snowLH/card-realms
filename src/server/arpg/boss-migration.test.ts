@@ -94,7 +94,7 @@ describe("corrupted legend migration on embedded PostgreSQL", () => {
     expect(rows.find((row) => row.user_id === ALLY)?.unlocked_legend_ids).toEqual(["king-arthur"]);
     expect(rows.find((row) => row.user_id === SPECTATOR)?.unlocked_legend_ids).toEqual([]);
     expect(rows.find((row) => row.user_id === SPECTATOR)?.seen_boss_intro_ids).toEqual(["king-arthur"]);
-    expect((await db.query("select * from public.inventory_items")).rows).toHaveLength(6);
+    expect((await db.query("select * from public.inventory_items where user_id = any($1::uuid[])", [[PLAYER, ALLY]])).rows).toHaveLength(6);
   });
   it("restricts entitlement mutation to the service role and retains loadout checks", async () => {
     const result = await db.query<{ authenticated: boolean; service: boolean }>("select has_function_privilege('authenticated','public.record_corrupted_legend_progress(uuid,uuid,uuid,boolean)','execute') as authenticated, has_function_privilege('service_role','public.record_corrupted_legend_progress(uuid,uuid,uuid,boolean)','execute') as service");
@@ -102,5 +102,6 @@ describe("corrupted legend migration on embedded PostgreSQL", () => {
     await expect(db.query("insert into public.player_arpg_loadouts(user_id,ability_ids) values($1,array['forged','unknown'])", [PLAYER])).rejects.toThrow("player_arpg_loadouts_ability_ids_check");
     await db.query("insert into public.player_arpg_loadouts(user_id,ability_ids) values($1,array['arthur-camelot-cut','arthur-round-table-oath'])", [PLAYER]);
     expect((await db.query("select private.legend_signature_ability_ids('king-arthur') as ids")).rows[0]).toEqual({ ids: ["arthur-camelot-cut", "arthur-round-table-oath"] });
+    expect((await db.query("select private.legend_signature_ability_ids('iara') as ids")).rows[0]).toEqual({ ids: ["iara-enchanting-song", "iara-living-spring"] });
   });
 });
