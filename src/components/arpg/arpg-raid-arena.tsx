@@ -728,7 +728,7 @@ export function ArpgRaidArena({
             style={{ left: percent(state.boss.x, worldWidth), top: percent(state.boss.y, worldHeight) }}
           >
             <span className="arpg-raid-boss__aura" />
-            {state.bossEncounter?.bossId === "king-arthur" ? <ForgottenLegendActor encounter={state.bossEncounter} /> : <RaidBossSprite
+            {state.bossEncounter ? <ForgottenLegendActor encounter={state.bossEncounter} /> : <RaidBossSprite
               action={bossAction}
               active={state.status === "active"}
               x={state.boss.x}
