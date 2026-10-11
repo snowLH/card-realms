@@ -28,7 +28,7 @@ for (const path of sources) {
 const staticPaths = (await filesBelow(staticDir))
   .filter((path) => /\.(?:js|css|woff2?)$/.test(path))
   .map((path) => `/_next/static/${relative(staticDir, path).replaceAll("\\", "/")}`).sort();
-const files = ["/offline", "/offline.html", "/manifest.webmanifest", "/icon.svg", "/apple-icon.png",
+const files = ["/offline", "/offline.html", "/manifest.webmanifest", "/apple-icon.png",
   "/icons/card-realms-192.png", "/icons/card-realms-512.png", "/icons/card-realms-maskable-512.png",
   ...staticPaths, ...[...art].sort()];
 // Byte estimate covers static assets; /offline is fetched after prerendering.

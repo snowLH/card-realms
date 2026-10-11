@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronLeft, ChevronRight, Gift, LoaderCircle } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Gift, LoaderCircle } from "@/components/ui/pixel-icon";
 import { useMemo, useState } from "react";
 import type { RemotePlayerSnapshot } from "@/game/player";
 import { Button } from "@/components/ui/button";

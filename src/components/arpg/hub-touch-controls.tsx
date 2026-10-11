@@ -1,6 +1,6 @@
 "use client";
 
-import { Hand } from "lucide-react";
+import { Hand } from "@/components/ui/pixel-icon";
 import type { ArpgBridge } from "@/game/arpg/runtime/bridge";
 import { useTouchAction, useVirtualJoystick } from "./touch-input";
 

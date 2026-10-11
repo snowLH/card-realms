@@ -1,0 +1,15 @@
+{
+  "buildId": "7ACS83wMuARLhLqqCpkoF",
+  "mobile": {
+    "durationMs": 5003.400000035763,
+    "fps": 59.95922772471833,
+    "jsHeapBytes": 38861480,
+    "p95Ms": 16.80000000000291,
+    "samples": 300,
+    "viewport": [
+      852,
+      394
+    ]
+  },
+  "method": "5 second RAF sample; mobile viewport and touch/reduced-motion emulation, not physical device"
+}

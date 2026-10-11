@@ -1,6 +1,9 @@
 "use client";
 
-import { Coins, Gem, Heart, Sparkles, Swords, Wind } from "lucide-react";
+import { Coins, Gem, Heart, Sparkles, Swords, Wind } from "@/components/ui/pixel-icon";
+import {ArtSprite} from '@/components/ui/art-sprite';
+import {PixelHealthBar} from '@/components/ui/pixel-health-bar';
+import {UI_ART} from '@/game/arpg/art/manifest';
 import { ARPG_ABILITY_CARD_BY_ID } from "@/game/arpg/content/ability-cards";
 import { ARPG_WEAPONS, ARPG_WEAPON_BY_ID } from "@/game/arpg/content/equipment";
 import { MATA_CARDS } from "@/game/arpg/content/mata-encantada";
@@ -10,16 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { CREATURE_BY_ID } from "@/game/catalog";
 import type { ArpgDungeonMapState, ArpgHudState, ArpgMiniMapRoomState, ArpgMiniMapRoomType } from "@/game/arpg/domain/types";
 
-function roomMarker(type: ArpgMiniMapRoomType) {
-  if (type === "start") return "S";
-  if (type === "boss") return "B";
-  if (type === "treasure") return "T";
-  if (type === "elite") return "!";
-  if (type === "rest") return "+";
-  if (type === "shop") return "$";
-  if (type === "event") return "?";
-  return "";
-}
+
 
 function roomTypeLabel(type: ArpgMiniMapRoomType) {
   if (type === "start") return "Entrada";
@@ -40,51 +34,31 @@ function roomStateLabel(state: ArpgMiniMapRoomState) {
   return "revelada";
 }
 
-function DungeonMiniMap({ map, expanded = false }: { map: ArpgDungeonMapState; expanded?: boolean }) {
-  if (map.rooms.length === 0) return null;
-  const minX = Math.min(...map.rooms.map((room) => room.gridX));
-  const maxX = Math.max(...map.rooms.map((room) => room.gridX));
-  const minY = Math.min(...map.rooms.map((room) => room.gridY));
-  const maxY = Math.max(...map.rooms.map((room) => room.gridY));
-  const cell = 26;
-  const padding = 10;
-  const width = (maxX - minX + 1) * cell + padding * 2;
-  const height = (maxY - minY + 1) * cell + padding * 2;
-  const roomById = new Map(map.rooms.map((room) => [room.id, room]));
-  const point = (gridX: number, gridY: number) => ({
-    x: padding + (gridX - minX) * cell + cell / 2,
-    y: padding + (gridY - minY) * cell + cell / 2,
-  });
-
-  return (
-    <div className={`arpg-hud__minimap${expanded ? " is-expanded" : ""}`} aria-label="Minimapa da dungeon">
-      <span>MAPA</span>
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${map.rooms.length} salas descobertas`}>
-        {map.rooms.flatMap((room) => room.connections.map((targetId) => {
-          if (room.id.localeCompare(targetId) >= 0) return null;
-          const target = roomById.get(targetId);
-          if (!target) return null;
-          const from = point(room.gridX, room.gridY);
-          const to = point(target.gridX, target.gridY);
-          return <line key={`${room.id}:${targetId}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />;
-        }))}
-        {map.rooms.map((room) => {
-          const center = point(room.gridX, room.gridY);
-          const marker = roomMarker(room.type);
-          return (
-            <g
-              key={room.id}
-              className={`arpg-minimap-room is-type-${room.type} is-${room.state}${room.id === map.currentRoomId ? " is-current" : ""}`}
-            >
-              <title>{`${roomTypeLabel(room.type)} · ${room.state}`}</title>
-              <rect x={center.x - 7} y={center.y - 7} width="14" height="14" rx="2" />
-              {marker ? <text x={center.x} y={center.y + 3}>{marker}</text> : null}
-            </g>
-          );
-        })}
-      </svg>
+function DungeonMiniMap({map,expanded=false}:{map:ArpgDungeonMapState;expanded?:boolean}){
+  if(!map.rooms.length)return null;
+  const minX=Math.min(...map.rooms.map(room=>room.gridX)),maxX=Math.max(...map.rooms.map(room=>room.gridX));
+  const minY=Math.min(...map.rooms.map(room=>room.gridY)),maxY=Math.max(...map.rooms.map(room=>room.gridY));
+  const cell=26,padding=10,width=(maxX-minX+1)*cell+padding*2,height=(maxY-minY+1)*cell+padding*2;
+  const byId=new Map(map.rooms.map(room=>[room.id,room]));
+  const point=(x:number,y:number)=>({x:padding+(x-minX)*cell+cell/2,y:padding+(y-minY)*cell+cell/2});
+  const coords=(x:number,y:number,w:number,h:number)=>({position:'absolute' as const,left:x/width*100+'%',top:y/height*100+'%',width:w/width*100+'%',height:h/height*100+'%',transform:'translate(-50%,-50%)'});
+  const typed={boss:'minimap-room-boss',treasure:'minimap-room-treasure',elite:'minimap-room-elite',rest:'minimap-room-rest',shop:'minimap-room-shop',event:'minimap-room-event'} as const;
+  return <div className={'arpg-hud__minimap'+(expanded?' is-expanded':'')} aria-label="Minimapa da dungeon"><span>MAPA</span>
+    <div className="pixel-minimap" role="img" aria-label={map.rooms.length+' salas descobertas'} style={{position:'relative',aspectRatio:width+'/'+height}}>
+      {map.rooms.flatMap(room=>room.connections.map(id=>{
+        if(room.id.localeCompare(id)>=0)return null;const target=byId.get(id);if(!target)return null;
+        const from=point(room.gridX,room.gridY),to=point(target.gridX,target.gridY);
+        const length=Math.hypot(to.x-from.x,to.y-from.y),angle=Math.atan2(to.y-from.y,to.x-from.x)*180/Math.PI;
+        return <ArtSprite key={room.id+':'+id} pack="ui" frame={UI_ART['minimap-corridor-horizontal'].frame} style={{...coords((from.x+to.x)/2,(from.y+to.y)/2,length,5),transform:'translate(-50%,-50%) rotate('+angle+'deg)'}}/>;
+      }))}
+      {map.rooms.map(room=>{
+        const center=point(room.gridX,room.gridY),current=room.id===map.currentRoomId;
+        const icon=current?'minimap-room-current':room.state==='cleared'?'minimap-room-cleared':typed[room.type as keyof typeof typed]??'minimap-room';
+        return <ArtSprite key={room.id} pack="ui" frame={UI_ART[icon].frame} label={roomTypeLabel(room.type)+' · '+roomStateLabel(room.state)} style={coords(center.x,center.y,20,20)}/>;
+      })}
+      {map.rooms.filter(room=>room.id===map.currentRoomId).map(room=>{const center=point(room.gridX,room.gridY);return <ArtSprite key="player" pack="ui" frame={UI_ART['minimap-player'].frame} style={coords(center.x,center.y,8,8)}/>;})}
     </div>
-  );
+  </div>;
 }
 
 export function DungeonMapOverlay({
@@ -134,8 +108,8 @@ export function DungeonMapOverlay({
         </header>
         <DungeonMiniMap map={map} expanded />
         <p className="arpg-map-overlay__legend">
-          <span>■ Sala atual</span>
-          <span>□ Tipo revelado</span>
+          <span>Sala atual</span>
+          <span>Tipo revelado</span>
           <span>? Próxima sala sem revelar</span>
         </p>
         <button className="arpg-map-overlay__close" type="button" onClick={onClose}>Continuar expedição</button>
@@ -151,7 +125,7 @@ export function RunHud({ state }: { state: ArpgHudState | null }) {
   const weaponB = weaponSlots.B ? ARPG_WEAPON_BY_ID.get(weaponSlots.B) : null;
   const relic = ARPG_RELIC_BY_ID.get(state.relicId) ?? ARPG_RELIC_BY_ID.get(STARTER_ARPG_RELIC_ID)!;
   const cards = state.abilityIds.map((id) => ARPG_ABILITY_CARD_BY_ID.get(id) ?? MATA_CARDS[0]);
-  const hpPercent = Math.max(0, Math.min(100, (state.hp / state.maxHp) * 100));
+
 
   return (
     <div className="arpg-hud" role="group" aria-label="Estado da expedição">
@@ -159,7 +133,7 @@ export function RunHud({ state }: { state: ArpgHudState | null }) {
         <span className="arpg-hud__status-item arpg-hud__status-health">
           <Heart aria-hidden="true" /><b>{Math.ceil(state.hp)}/{state.maxHp}</b>
         </span>
-        <div className="arpg-hud__hp arpg-hud__status-item" role="meter" aria-label="Vida" aria-valuemin={0} aria-valuemax={state.maxHp} aria-valuenow={Math.ceil(state.hp)}><i style={{ width: `${hpPercent}%` }} /></div>
+        <PixelHealthBar hp={state.hp} maxHp={state.maxHp} className="arpg-hud__hp arpg-hud__status-item"/>
         <span className="arpg-hud__status-item arpg-hud__status-room">
           <b>{state.room}/{state.roomCount}</b><small>SALA</small><i aria-hidden="true" />
           <span className="arpg-hud__enemy-count">{state.enemiesRemaining} inimigos</span>

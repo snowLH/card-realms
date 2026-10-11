@@ -32,7 +32,8 @@ export async function createArpgHubGame(
     type: Phaser.AUTO,
     parent,
     ...viewport,
-    backgroundColor: "#1c1718",
+    backgroundColor: "rgba(0,0,0,0)",
+    transparent: true,
     ...ARPG_PIXEL_RENDER_SETTINGS,
     physics: { default: "arcade", arcade: { debug: false } },
     scale: {

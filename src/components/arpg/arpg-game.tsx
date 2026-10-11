@@ -5,7 +5,7 @@ import { BossProgressSchema, EMPTY_BOSS_PROGRESS, restoreBossProgress, bossProgr
 import { getLegendSignatureAbilityIds } from "@/game/arpg/content/legends";
 import { loadLocalProgress, saveLocalProgress } from "@/game/save/local-progress";
 
-import { Map as MapIcon, Maximize2, Pause, Play, Smartphone, Volume2, VolumeX, X } from "lucide-react";
+import { Map as MapIcon, Maximize2, Pause, Play, Smartphone, Volume2, VolumeX, X } from "@/components/ui/pixel-icon";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   DEFAULT_ARPG_EXPEDITION_ID,

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuthoredImage } from "@/components/ui/use-authored-image";
 import type { CSSProperties } from "react";
 import {
   DEFAULT_AVATAR_CONFIG,
@@ -24,6 +25,7 @@ export function CharacterAvatar2D({
   animationDurationMs?: number;
 }) {
   const generatedSpriteSheet = getGeneratedLegendSpriteSheet(config.legendId);
+  const imagePath = useAuthoredImage(generatedSpriteSheet, true);
 
   return (
     <div
@@ -49,7 +51,7 @@ export function CharacterAvatar2D({
       <span
         className="character-avatar-2d__sprite"
         aria-hidden="true"
-        style={{ backgroundImage: generatedSpriteSheet ? `url("${generatedSpriteSheet}")` : "none" }}
+        style={{ backgroundImage: `url("${imagePath}")` }}
       />
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { SpriteDefinition } from "@/game/types";
+import { FOLKLARD_ART_MANIFEST } from "@/game/arpg/art/manifest";
 import { cn } from "@/lib/utils";
 
 const PIXEL_ACTOR_SIZE = 64;
@@ -109,34 +110,6 @@ function drawPixelCreature(
     context.drawImage(sourceFrame, left, top, cropWidth, cropHeight, outputX, outputY, outputWidth, outputHeight);
   }
 
-  // v5 sprites have authored outlines and a native 64px grid. Preserve them.
-  if (sprite.sheet.endsWith("-v5.webp")) return true;
-
-  // Add a one-cluster ink edge around opaque compatibility pixels. Source colors are sampled
-  // unchanged; no palette reduction, hue shift, or grayscale filter is applied.
-  const pixels = context.getImageData(0, 0, PIXEL_ACTOR_SIZE, PIXEL_ACTOR_SIZE);
-  const original = new Uint8ClampedArray(pixels.data);
-  const opaque = new Uint8Array(PIXEL_ACTOR_SIZE * PIXEL_ACTOR_SIZE);
-  for (let index = 0; index < opaque.length; index += 1) {
-    opaque[index] = original[index * 4 + 3] >= 96 ? 1 : 0;
-  }
-  for (let y = 0; y < PIXEL_ACTOR_SIZE; y += 1) {
-    for (let x = 0; x < PIXEL_ACTOR_SIZE; x += 1) {
-      const index = y * PIXEL_ACTOR_SIZE + x;
-      if (opaque[index]) continue;
-      const touchesActor = (x > 0 && opaque[index - 1] === 1)
-        || (x < PIXEL_ACTOR_SIZE - 1 && opaque[index + 1] === 1)
-        || (y > 0 && opaque[index - PIXEL_ACTOR_SIZE] === 1)
-        || (y < PIXEL_ACTOR_SIZE - 1 && opaque[index + PIXEL_ACTOR_SIZE] === 1);
-      if (!touchesActor) continue;
-      const offset = index * 4;
-      pixels.data[offset] = 28;
-      pixels.data[offset + 1] = 24;
-      pixels.data[offset + 2] = 29;
-      pixels.data[offset + 3] = 255;
-    }
-  }
-  context.putImageData(pixels, 0, 0);
   return true;
 }
 
@@ -157,13 +130,15 @@ export function PixelCreature({
   const [pixelizedSpriteKey, setPixelizedSpriteKey] = useState<string | null>(null);
   const { sheet, columns, rows, column, row } = sprite;
   const spriteKey = `${sheet}:${columns}:${rows}:${column}:${row}`;
+  const [failedSheet, setFailedSheet] = useState<string | null>(null);
+  const failed = failedSheet === sheet;
   const pixelReady = pixelizedSpriteKey === spriteKey;
   const x = columns === 1 ? 0 : (column / (columns - 1)) * 100;
   const y = rows === 1 ? 0 : (row / (rows - 1)) * 100;
   const style = {
-    backgroundImage: pixelReady ? "none" : `url("${sheet}")`,
-    backgroundPosition: `${x}% ${y}%`,
-    backgroundSize: `${columns * 100}% ${rows * 100}%`,
+    backgroundImage: pixelReady ? "none" : `url("${failed ? FOLKLARD_ART_MANIFEST.missing.path : sheet}")`,
+    backgroundPosition: failed ? "center" : `${x}% ${y}%`,
+    backgroundSize: failed ? "contain" : `${columns * 100}% ${rows * 100}%`,
     "--sprite-scale-x": mirrored ? -1 : 1,
   } as CSSProperties;
 
@@ -179,8 +154,9 @@ export function PixelCreature({
       if (drawPixelCreature(canvasRef.current, image, { sheet, columns, rows, column, row })) {
         setPixelizedSpriteKey(spriteKey);
       }
-    }).catch(() => {
-      // Keep the original atlas background as a graceful fallback if canvas access fails.
+    }).catch((error: unknown) => {
+      console.error(error);
+      if (!cancelled) setFailedSheet(sheet);
     });
 
     return () => { cancelled = true; };

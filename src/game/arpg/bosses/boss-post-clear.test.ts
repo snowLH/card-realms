@@ -8,19 +8,24 @@ import { generateDungeon } from "../dungeon/generator";
 import { CORRUPTED_LEGEND_BOSSES } from "./registry";
 import { BOSS_ROOM_ART } from "./boss-room-art";
 
+vi.mock('../art/health-bar',()=>({AuthoredHealthBar:class{update(){}destroy(){}}}));
+vi.mock('../art/runtime-art',()=>({authoredPanel:(scene:{panel:ReturnType<typeof visual>})=>scene.panel,AuthoredEffectLayer:class{
+  constructor(private scene:{effects:ReturnType<typeof visual>}){}
+  begin(){}end(){}image(){return this.scene.effects;}destroy(){this.scene.effects.destroy();}
+}}));
 const art = vi.hoisted(() => ({ update: vi.fn(), destroy: vi.fn() }));
 vi.mock("./boss-presentations", () => ({ createBossPresentation: () => art }));
 
 function visual() {
-  const methods = ["setDepth", "setOrigin", "setScrollFactor", "setPosition", "setText", "setFontSize", "clear", "lineStyle", "fillStyle", "fillRect", "strokeRect", "slice", "fillPath", "strokePath", "fillCircle", "strokeCircle", "lineBetween", "save", "translateCanvas", "rotateCanvas", "restore"];
-  const object: Record<string, ReturnType<typeof vi.fn>> = { destroy: vi.fn() };
+  const methods = ["setVisible", "setSize", "setTint", "setDepth", "setOrigin", "setScrollFactor", "setPosition", "setText", "setFontSize", "clear", "lineStyle", "fillStyle", "fillRect", "strokeRect", "slice", "fillPath", "strokePath", "fillCircle", "strokeCircle", "lineBetween", "save", "translateCanvas", "rotateCanvas", "restore"];
+  const object: Record<string, ReturnType<typeof vi.fn<() => unknown>>> = { destroy: vi.fn() };
   for (const method of methods) object[method] = vi.fn(() => object);
   return object;
 }
 function fixture(id = "king-arthur", authoritative = false) {
-  const effects = visual(), title = visual();
+  const effects = visual(), title = visual(), panel = visual();
   const camera = { width: 1280, stopFollow: vi.fn(), startFollow: vi.fn(), centerOn: vi.fn() };
-  const scene = { add: { graphics: () => effects, text: () => title }, cameras: { main: camera }, events: { once: vi.fn() }, scene: { isActive: () => true } };
+  const scene = {effects, panel, add: { text: () => title }, cameras: { main: camera }, events: { once: vi.fn() }, scene: { isActive: () => true } };
   const actor = { active: true, x: 976, y: 144, setData: vi.fn(() => actor), setVelocity: vi.fn(() => actor), setPosition: vi.fn(() => actor), setVisible: vi.fn(() => actor) };
   const player = { x: 976, y: 892, velocity: { x: 0, y: 0 }, setVelocity: vi.fn((x = 0, y = 0) => { player.velocity = { x, y }; return player; }), setPosition: vi.fn((x: number, y: number) => { player.x = x; player.y = y; return player; }) };
   const bridge = { isServerAuthoritativeCombat: () => authoritative, clearGameplayInput: vi.fn(), markBossIntroSeen: vi.fn(), emitMessage: vi.fn(), persistBossRestoration: vi.fn(async () => true) };

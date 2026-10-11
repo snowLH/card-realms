@@ -1,0 +1,240 @@
+/* Paths generated from FOLKLARD_ART_MANIFEST. CSS only lays out authored images. */
+:root {
+  --art-sound:url("/art/authored/ui/sound.webp");
+  --art-pause:url("/art/authored/ui/pause.webp");
+  --art-map:url("/art/authored/ui/map.webp");
+  --art-fullscreen:url("/art/authored/ui/fullscreen.webp");
+  --art-exit:url("/art/authored/ui/exit.webp");
+  --art-coin:url("/art/authored/ui/coin.webp");
+  --art-shard:url("/art/authored/ui/shard.webp");
+  --art-life:url("/art/authored/ui/life.webp");
+  --art-defense:url("/art/authored/ui/defense.webp");
+  --art-attack:url("/art/authored/ui/attack.webp");
+  --art-dash:url("/art/authored/ui/dash.webp");
+  --art-skill:url("/art/authored/ui/skill.webp");
+  --art-interact:url("/art/authored/ui/interact.webp");
+  --art-portal:url("/art/authored/ui/portal.webp");
+  --art-boss:url("/art/authored/ui/boss.webp");
+  --art-settings:url("/art/authored/ui/settings.webp");
+  --art-backpack:url("/art/authored/ui/backpack.webp");
+  --art-equipment:url("/art/authored/ui/equipment.webp");
+  --art-bow:url("/art/authored/ui/bow.webp");
+  --art-staff:url("/art/authored/ui/staff.webp");
+  --art-back:url("/art/authored/ui/back.webp");
+  --art-check:url("/art/authored/ui/check.webp");
+  --art-lock:url("/art/authored/ui/lock.webp");
+  --art-star:url("/art/authored/ui/star.webp");
+  --art-hero:url("/art/authored/ui/hero.webp");
+  --art-party:url("/art/authored/ui/party.webp");
+  --art-connection:url("/art/authored/ui/connection.webp");
+  --art-book:url("/art/authored/ui/book.webp");
+  --art-roots:url("/art/authored/ui/roots.webp");
+  --art-water:url("/art/authored/ui/water.webp");
+  --art-lightning:url("/art/authored/ui/lightning.webp");
+  --art-snow:url("/art/authored/ui/snow.webp");
+  --art-panel-dark:url("/art/authored/ui/panel-dark.webp");
+  --art-panel-parchment:url("/art/authored/ui/panel-parchment.webp");
+  --art-button-normal:url("/art/authored/ui/button-normal.webp");
+  --art-button-hover:url("/art/authored/ui/button-hover.webp");
+  --art-button-pressed:url("/art/authored/ui/button-pressed.webp");
+  --art-slot-empty:url("/art/authored/ui/slot-empty.webp");
+  --art-slot-active:url("/art/authored/ui/slot-active.webp");
+  --art-tooltip-frame:url("/art/authored/ui/tooltip-frame.webp");
+  --art-toast-frame:url("/art/authored/ui/toast-frame.webp");
+  --art-dialogue-frame:url("/art/authored/ui/dialogue-frame.webp");
+  --art-hp-bar-frame:url("/art/authored/ui/hp-bar-frame.webp");
+  --art-hp-bar-fill:url("/art/authored/ui/hp-bar-fill.webp");
+  --art-hp-bar-damaged:url("/art/authored/ui/hp-bar-damaged.webp");
+  --art-boss-hp-frame:url("/art/authored/ui/boss-hp-frame.webp");
+  --art-boss-hp-fill:url("/art/authored/ui/boss-hp-fill.webp");
+  --art-boss-hp-phase-divider:url("/art/authored/ui/boss-hp-phase-divider.webp");
+  --art-minimap-room:url("/art/authored/ui/minimap-room.webp");
+  --art-minimap-room-cleared:url("/art/authored/ui/minimap-room-cleared.webp");
+  --art-minimap-room-current:url("/art/authored/ui/minimap-room-current.webp");
+  --art-minimap-room-elite:url("/art/authored/ui/minimap-room-elite.webp");
+  --art-minimap-room-treasure:url("/art/authored/ui/minimap-room-treasure.webp");
+  --art-minimap-room-shop:url("/art/authored/ui/minimap-room-shop.webp");
+  --art-minimap-room-event:url("/art/authored/ui/minimap-room-event.webp");
+  --art-minimap-room-boss:url("/art/authored/ui/minimap-room-boss.webp");
+  --art-minimap-corridor-horizontal:url("/art/authored/ui/minimap-corridor-horizontal.webp");
+  --art-minimap-corridor-vertical:url("/art/authored/ui/minimap-corridor-vertical.webp");
+  --art-minimap-player:url("/art/authored/ui/minimap-player.webp");
+  --art-minimap-room-rest:url("/art/authored/ui/minimap-room-rest.webp");
+  --art-checkpoint:url("/art/authored/ui/checkpoint.webp");
+  --art-cursor-default:url("/art/authored/ui/cursor-default.webp");
+  --art-target-marker-locked:url("/art/authored/ui/target-marker-locked.webp");
+  --art-hotbar-frame:url("/art/authored/ui/hotbar-frame.webp");
+  --art-prop-crate:url("/art/authored/props/0.webp");
+  --art-prop-vase:url("/art/authored/props/1.webp");
+  --art-prop-shrub:url("/art/authored/props/2.webp");
+  --art-prop-relic:url("/art/authored/props/3.webp");
+  --art-prop-fragment:url("/art/authored/props/4.webp");
+  --art-prop-coins:url("/art/authored/props/5.webp");
+  --art-prop-breastplate:url("/art/authored/props/6.webp");
+  --art-prop-mantle:url("/art/authored/props/7.webp");
+  --art-prop-merchant:url("/art/authored/props/8.webp");
+  --art-prop-archivist:url("/art/authored/props/9.webp");
+  --art-prop-forge:url("/art/authored/props/10.webp");
+  --art-prop-mapTable:url("/art/authored/props/11.webp");
+  --art-prop-legendShrine:url("/art/authored/props/12.webp");
+  --art-prop-refuge:url("/art/authored/props/13.webp");
+  --art-prop-naturalist:url("/art/authored/props/14.webp");
+  --art-prop-training:url("/art/authored/props/15.webp");
+  --art-prop-tree:url("/art/authored/props/16.webp");
+  --art-prop-stump:url("/art/authored/props/17.webp");
+  --art-prop-ruin:url("/art/authored/props/18.webp");
+  --art-prop-lantern:url("/art/authored/props/19.webp");
+  --art-prop-coral:url("/art/authored/props/20.webp");
+  --art-prop-seaweed:url("/art/authored/props/21.webp");
+  --art-prop-shipwreck:url("/art/authored/props/22.webp");
+  --art-prop-tideSpring:url("/art/authored/props/23.webp");
+  --art-prop-pine:url("/art/authored/props/24.webp");
+  --art-prop-crystal:url("/art/authored/props/25.webp");
+  --art-prop-rock:url("/art/authored/props/26.webp");
+  --art-prop-brazier:url("/art/authored/props/27.webp");
+  --art-prop-campfire:url("/art/authored/props/28.webp");
+  --art-prop-spring:url("/art/authored/props/29.webp");
+  --art-prop-chestClosed:url("/art/authored/props/30.webp");
+  --art-prop-chestOpen:url("/art/authored/props/31.webp");
+  --art-prop-table:url("/art/authored/props/32.webp");
+  --art-prop-bed:url("/art/authored/props/33.webp");
+  --art-prop-rug:url("/art/authored/props/34.webp");
+  --art-prop-plant:url("/art/authored/props/35.webp");
+  --art-prop-shelf:url("/art/authored/props/36.webp");
+  --art-prop-armor:url("/art/authored/props/37.webp");
+  --art-prop-throne:url("/art/authored/props/38.webp");
+  --art-prop-roundTable:url("/art/authored/props/39.webp");
+  --art-prop-roots:url("/art/authored/props/40.webp");
+  --art-prop-cracks:url("/art/authored/props/41.webp");
+  --art-prop-moss:url("/art/authored/props/42.webp");
+  --art-prop-puddle:url("/art/authored/props/43.webp");
+  --art-prop-tideMark:url("/art/authored/props/44.webp");
+  --art-prop-rune:url("/art/authored/props/45.webp");
+  --art-prop-snow:url("/art/authored/props/46.webp");
+  --art-prop-rubble:url("/art/authored/props/47.webp");
+  --art-prop-shadowSmall:url("/art/authored/props/48.webp");
+  --art-prop-shadowMedium:url("/art/authored/props/49.webp");
+  --art-prop-shadowLarge:url("/art/authored/props/50.webp");
+  --art-prop-shadowBoss:url("/art/authored/props/51.webp");
+  --art-prop-shadowFlying:url("/art/authored/props/52.webp");
+  --art-prop-sign:url("/art/authored/props/53.webp");
+  --art-prop-bench:url("/art/authored/props/54.webp");
+  --art-prop-banner:url("/art/authored/props/55.webp");
+  --art-prop-portalDormant:url("/art/authored/props/56.webp");
+  --art-prop-portalActivating:url("/art/authored/props/57.webp");
+  --art-prop-portalOpen:url("/art/authored/props/58.webp");
+  --art-prop-portalClosing:url("/art/authored/props/59.webp");
+  --art-prop-missing:url("/art/authored/props/60.webp");
+  --art-prop-forestAltar:url("/art/authored/props/61.webp");
+  --art-prop-waterAltar:url("/art/authored/props/62.webp");
+  --art-prop-runicAltar:url("/art/authored/props/63.webp");
+  --art-world-forestDoorOpen:url("/art/authored/world/24.webp");
+  --art-world-forestDoorClosing:url("/art/authored/world/25.webp");
+  --art-world-forestDoorClosed:url("/art/authored/world/26.webp");
+  --art-world-forestDoorOpening:url("/art/authored/world/27.webp");
+  --art-world-forestDoorSealed:url("/art/authored/world/28.webp");
+  --art-world-marineDoorOpen:url("/art/authored/world/32.webp");
+  --art-world-marineDoorClosing:url("/art/authored/world/33.webp");
+  --art-world-marineDoorClosed:url("/art/authored/world/34.webp");
+  --art-world-marineDoorOpening:url("/art/authored/world/35.webp");
+  --art-world-marineDoorSealed:url("/art/authored/world/36.webp");
+  --art-world-runicDoorOpen:url("/art/authored/world/40.webp");
+  --art-world-runicDoorClosing:url("/art/authored/world/41.webp");
+  --art-world-runicDoorClosed:url("/art/authored/world/42.webp");
+  --art-world-runicDoorOpening:url("/art/authored/world/43.webp");
+  --art-world-runicDoorSealed:url("/art/authored/world/44.webp");
+  --art-world-arrow:url("/art/authored/world/48.webp");
+  --art-world-magic:url("/art/authored/world/49.webp");
+  --art-world-lightning:url("/art/authored/world/50.webp");
+  --art-world-wave:url("/art/authored/world/51.webp");
+  --art-world-blade:url("/art/authored/world/52.webp");
+  --art-world-fire:url("/art/authored/world/53.webp");
+  --art-world-ice:url("/art/authored/world/54.webp");
+  --art-world-enemyProjectile:url("/art/authored/world/55.webp");
+  --art-world-laserCore:url("/art/authored/world/56.webp");
+  --art-world-laserGlow:url("/art/authored/world/57.webp");
+  --art-world-aimLine:url("/art/authored/world/58.webp");
+  --art-world-lightningBeam:url("/art/authored/world/59.webp");
+  --art-world-magicBeam:url("/art/authored/world/60.webp");
+  --art-world-frostZone:url("/art/authored/world/61.webp");
+  --art-world-lightningZone:url("/art/authored/world/62.webp");
+  --art-world-smokeOverlay:url("/art/authored/world/63.webp");
+}
+.pixel-icon {display:inline-block;object-fit:contain;image-rendering:pixelated;vertical-align:middle;}
+@keyframes pixel-icon-spin {to {transform:rotate(360deg);}}
+button,[data-slot="button"],input,select,textarea {
+  background:none !important; border-color:transparent !important;
+  border-image:var(--art-button-normal) 16 fill / 8px / 0 stretch !important;
+  box-shadow:none !important; border-radius:0 !important; image-rendering:pixelated;
+  color:#f8e7b8 !important;
+}
+button:hover:not(:disabled),button:focus-visible,[data-slot="button"]:focus-visible {border-image-source:var(--art-button-hover) !important;outline-color:transparent;color:#2b2117 !important;}
+button:active:not(:disabled),button[aria-pressed="true"] {border-image-source:var(--art-button-pressed) !important;}
+.pixel-health-bar {position:relative;display:block;height:16px;min-width:80px;overflow:visible;border:0 !important;border-image-source:none !important;background:none !important;}
+.pixel-health-bar__fill,.pixel-health-bar__frame {position:absolute;inset:0;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;}
+.pixel-health-bar__fill {inset:3px 8px;}
+.pixel-health-bar__divider {position:absolute;top:0;width:8px;height:100%;background-size:100% 100%;image-rendering:pixelated;}
+.arpg-hud__hp.pixel-health-bar {height:13px;min-width:96px;}
+.pixel-minimap {width:100%;min-height:24px;}
+.arpg-hud__minimap .pixel-minimap {max-height:110px;}
+.arpg-hud__minimap.is-expanded .pixel-minimap {width:100%;max-height:65dvh;}
+.forgotten-legend-effects {position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+.authored-telegraph,.authored-purification {animation:authored-effect-pulse 600ms ease-in-out infinite alternate;}
+@keyframes authored-effect-pulse {from {filter:brightness(.9);} to {filter:brightness(1.2);}}
+.forgotten-legend-title .pixel-health-bar {width:100%;max-width:400px;margin:4px auto;height:18px;}
+.refuge-furniture img {display:block;width:100%;height:100%;image-rendering:pixelated;}
+button.refuge-furniture {border:0;border-image-source:none !important;background:none !important;}
+button.refuge-furniture.is-selected,button.refuge-furniture.is-editable:hover {border-image:var(--art-slot-active) 16 / 8px / 0 stretch !important;}
+.authored-dialog-panel {background:none !important;border:0;border-radius:0;box-shadow:none;border-image:var(--art-panel-dark) 16 fill / 8px / 0 stretch;}
+.authored-dialog-scrim {background-color:transparent !important;background-image:var(--art-world-smokeOverlay);background-size:100% 100%;image-rendering:pixelated;filter:brightness(.35);}
+.arpg-shell .arpg-loot-choice,.arpg-shell .arpg-run-result,.arpg-shell .arpg-pause {background:none;border-image-source:none !important;backdrop-filter:none;isolation:isolate;}
+.arpg-loot-choice::before,.arpg-run-result::before,.arpg-pause::before {content:"";position:absolute;inset:0;z-index:-1;background:var(--art-world-smokeOverlay) center/100% 100% no-repeat;opacity:.8;image-rendering:pixelated;filter:brightness(.35);}
+.arpg-raid-enemy__sprite {display:block;width:64px;height:64px;background-size:400% 600%;image-rendering:pixelated;}
+.arpg-raid-enemy .pixel-health-bar,.arpg-raid-player .pixel-health-bar {width:38px;min-width:38px;height:8px;}
+.arpg-raid-enemy .pixel-health-bar__fill,.arpg-raid-player .pixel-health-bar__fill {inset:1px 4px;}
+.arpg-raid-dungeon-room::before,.arpg-raid-dungeon-room::after {display:none;}
+.arpg-raid-dungeon-corridor::before {display:none;}
+.arpg-raid-bar--boss.pixel-health-bar {min-height:18px;}
+.arpg-raid-bar--player.pixel-health-bar {min-height:12px;}
+.authored-panel,.authored-badge {background:none;border-color:transparent;border-radius:0;box-shadow:none;border-image:var(--art-panel-dark) 16 fill / 6px / 0 stretch;}
+.authored-button {background:none;border-color:transparent;border-radius:0;box-shadow:none;border-image:var(--art-button-normal) 16 fill / 8px / 0 stretch;}
+.authored-separator {background-image:var(--art-boss-hp-phase-divider);background-size:100% 100%;image-rendering:pixelated;}
+.authored-progress {min-width:0;height:12px;}
+.local-npc__sprite {background:var(--art-prop-merchant) center/contain no-repeat;border:0;border-image:none;clip-path:none;}
+.local-npc__sprite::before {display:none;}
+input[type="checkbox"],input[type="radio"] {appearance:none;border:0;border-image-source:none !important;background:var(--art-slot-empty) center/100% 100% no-repeat !important;min-width:20px;min-height:20px;image-rendering:pixelated;}
+input[type="checkbox"]:checked,input[type="radio"]:checked {background-image:var(--art-check) !important;}
+button:hover:not(:disabled)>:is(strong,span,small),button:focus-visible>:is(strong,span,small) {color:inherit !important;}
+/* Native scrolling remains; its visible track and thumb are atlas slices. */
+* {scrollbar-color:auto !important;scrollbar-width:auto;}
+*::-webkit-scrollbar {width:10px;height:10px;}
+*::-webkit-scrollbar-track {background:var(--art-slot-empty) center/100% 100% no-repeat;}
+*::-webkit-scrollbar-thumb {background:var(--art-button-normal) center/100% 100% no-repeat;border:0;border-radius:0;}
+*::-webkit-scrollbar-corner {background:var(--art-slot-empty) center/100% 100% no-repeat;}
+/* Keep the co-op captions readable after moving from vectors to textured UI. */
+.arpg-raid-arena__topbar {height:34px;}
+.arpg-raid-arena__topbar>div:first-child>span,.arpg-raid-arena__status span {font-size:9px;}
+.arpg-raid-arena__topbar strong {font-size:11px;}
+.arpg-raid-hud {top:55px;width:min(260px,42%);padding:6px;}
+.arpg-raid-hud__identity strong,.arpg-raid-hud__player>span:nth-child(3) {font-size:10px;}
+.arpg-raid-hud__identity small,.arpg-raid-hud__loadout span,.arpg-raid-log p {font-size:8px;}
+.arpg-raid-log {max-height:32px;}
+.arpg-raid-player strong,.arpg-raid-boss strong {font-size:9px;max-width:130px;}
+.arpg-raid-player small,.arpg-raid-boss small {font-size:8px;}
+.arpg-raid-boss {width:clamp(88px,9vw,136px);}
+.arpg-raid-boss .forgotten-legend-actor {width:100%;height:auto;aspect-ratio:1;}
+.arpg-raid-actions button,.arpg-raid-abilities button {width:clamp(80px,10vw,150px);height:52px;min-height:52px;}
+.arpg-raid-actions button strong,.arpg-raid-abilities button strong {font-size:9px;white-space:normal;}
+.arpg-raid-actions button small,.arpg-raid-abilities button small {font-size:8px;}
+@media(pointer:coarse){
+  .arpg-raid-controls {height:92px;}
+  .arpg-raid-world {bottom:94px;}
+  .arpg-raid-dpad {width:88px;height:88px;flex-basis:88px;}
+  .arpg-raid-dpad button {width:44px;height:44px;min-height:44px;}
+  .arpg-raid-dpad button:nth-child(1) {top:0;left:22px;}
+  .arpg-raid-dpad button:nth-child(2) {top:22px;left:0;}
+  .arpg-raid-dpad button:nth-child(3) {bottom:0;left:22px;}
+  .arpg-raid-dpad button:nth-child(4) {top:22px;right:0;}
+}
+@supports(-moz-appearance:none){* {scrollbar-width:none;}}
+@media(prefers-reduced-motion:reduce){.pixel-icon,.authored-telegraph,.authored-purification {animation:none !important;}}

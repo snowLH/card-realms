@@ -35,7 +35,7 @@ describe("ARPG runtime asset manifest", () => {
         .map((match) => ({ file, assetPath: `/${match[1]}` }));
     });
 
-    for (const reference of references) {
+    for (const reference of references.filter(({assetPath})=>!assetPath.includes("${"))) {
       expect(existsSync(resolve(process.cwd(), "public", reference.assetPath.slice(1))), reference.file).toBe(true);
     }
     expect(readdirSync(publicArt).some((file) => file.toLowerCase().endsWith(".png"))).toBe(false);

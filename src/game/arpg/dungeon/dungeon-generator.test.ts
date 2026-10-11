@@ -79,9 +79,8 @@ describe("dungeon procedural do Card Realms", () => {
     }
   }, 20_000);
 
-  it("encontra um caminho caminhável do início ao boss em cada bioma", () => {
-    const regions = ["mata-encantada", "arquipelago-das-mares", "montanhas-runicas"] as const;
-    for (const regionId of regions) {
+  it.each(["mata-encantada", "arquipelago-das-mares", "montanhas-runicas"] as const)(
+    "encontra um caminho caminhável do início ao boss em %s", (regionId) => {
       for (let index = 0; index < 40; index += 1) {
         const graph = generateDungeon({ seed: `click-path-${regionId}-${index}`, regionId });
         const layout = buildDungeonPixelLayout(graph);
@@ -102,8 +101,8 @@ describe("dungeon procedural do Card Realms", () => {
           expect(Math.abs(path![pointIndex].x - previous.x) + Math.abs(path![pointIndex].y - previous.y)).toBe(32);
         }
       }
-    }
-  });
+    },
+  );
 
   it("valida mil seeds sem sobreposição, salas inacessíveis ou portas para vazio", () => {
     for (let index = 0; index < 1000; index += 1) {

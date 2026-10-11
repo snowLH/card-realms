@@ -1,42 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { drawBiomeFloorVariant } from "./dungeon-floor-tiles";
-
-const palette = { floor: "#101010", wall: "#222222", floorDetail: "#333333", wallHighlight: "#ffffff" };
-
-function draw(regionId: string, variant: number) {
-  const rects: string[] = [];
-  const context = {
-    fillStyle: "",
-    globalAlpha: 1,
-    fillRect(this: { fillStyle: string }, x: number, y: number, width: number, height: number) {
-      rects.push([x, y, width, height, this.fillStyle].join(":"));
-    },
-  } as unknown as CanvasRenderingContext2D;
-  drawBiomeFloorVariant(context, 64, variant, palette, regionId);
-  return { rects, context };
-}
-
-describe("deterministic biome floor tile variants", () => {
-  it.each(["mata-encantada", "arquipelago-das-mares", "montanhas-runicas"])(
-    "creates two distinct pixel-art patterns for %s",
-    (regionId) => {
-      const first = draw(regionId, 0);
-      const second = draw(regionId, 1);
-      expect(first.rects.length).toBeGreaterThan(6);
-      expect(first.rects).not.toEqual(second.rects);
-      expect(first.context.globalAlpha).toBe(1);
-      expect(second.context.globalAlpha).toBe(1);
-    },
-  );
-  it("keeps the biome border tile inside its 32px grid cell", () => {
-    for (const region of ["mata-encantada", "arquipelago-das-mares", "montanhas-runicas"]) {
-      for (const rect of draw(region, 1).rects) {
-        const [x, y, width, height] = rect.split(":").map(Number);
-        expect(x).toBeGreaterThanOrEqual(64);
-        expect(x + width).toBeLessThanOrEqual(96);
-        expect(y).toBeGreaterThanOrEqual(0);
-        expect(y + height).toBeLessThanOrEqual(32);
-      }
-    }
+import {resolve} from "node:path";
+import sharp from "sharp";
+import {describe,expect,it} from "vitest";
+import {getAuthoredDungeonTiles} from "./dungeon-floor-tiles";
+describe("authored biome tiles",()=>{
+  it.each(["mata-encantada","arquipelago-das-mares","montanhas-runicas"])("loads eight distinct authored 32px tiles for %s",async region=>{
+    const art=getAuthoredDungeonTiles(region);
+    const image=sharp(resolve(process.cwd(),"public"+art.path));
+    expect(await image.metadata()).toMatchObject({width:256,height:32,format:"webp"});
+    const tiles=await Promise.all(Array.from({length:8},(_,i)=>image.clone().extract({left:i*32,top:0,width:32,height:32}).raw().toBuffer()));
+    expect(new Set(tiles.map(tile=>tile.toString("base64"))).size).toBe(8);
   });
+  it("rejects unregistered regions instead of drawing a fallback",()=>expect(()=>getAuthoredDungeonTiles("unknown")).toThrow("missing"));
 });

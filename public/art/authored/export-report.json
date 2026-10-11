@@ -1,0 +1,34 @@
+[
+  {
+    "pack": "fx",
+    "sourceWidth": 1254,
+    "sourceHeight": 1254,
+    "frames": 64,
+    "cellSize": 128,
+    "bytes": 1711266
+  },
+  {
+    "pack": "props",
+    "sourceWidth": 1254,
+    "sourceHeight": 1254,
+    "frames": 64,
+    "cellSize": 64,
+    "bytes": 440946
+  },
+  {
+    "pack": "ui",
+    "sourceWidth": 1254,
+    "sourceHeight": 1254,
+    "frames": 64,
+    "cellSize": 64,
+    "bytes": 334416
+  },
+  {
+    "pack": "world",
+    "sourceWidth": 1254,
+    "sourceHeight": 1254,
+    "frames": 64,
+    "cellSize": 64,
+    "bytes": 518826
+  }
+]

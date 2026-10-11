@@ -10,7 +10,7 @@ import {
   Trash2,
   X,
   UserRound,
-} from "lucide-react";
+} from "@/components/ui/pixel-icon";
 import { useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { ProgressSource, RemotePlayerSnapshot } from "@/game/player";

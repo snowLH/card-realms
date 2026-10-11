@@ -13,7 +13,7 @@ import {
   Sparkles,
   Swords,
   X,
-} from "lucide-react";
+} from "@/components/ui/pixel-icon";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREATURES } from "@/game/catalog";

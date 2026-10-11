@@ -9,6 +9,8 @@ Viemos fazê-las lembrar.”
 
 ## Implementação integrada
 
+A apresentação agora usa exclusivamente a biblioteca de imagens descrita em [AUTHORED_ART.md](AUTHORED_ART.md). Todos os sinais de ataque, efeitos, sombras, HP e UI vêm de frames de atlas ou nine-slice. A máscara de arco é invisível. Novas apresentações de boss devem registrar arte no manifesto, sem acrescentar Graphics/SVG/shapes ao renderer. Arthur continua sendo a base do ciclo comum de entrada, confronto, purificação, confirmação e desbloqueio.
+
 As três expedições usam arenas de boss de 61 × 31 tiles (1952 × 992 px).
 As salas comuns mantêm seus tamanhos e células de 1344 × 896 px. Depois de criar
 os ramos, o gerador liga o boss a uma sala exterior ao norte, a pelo menos três

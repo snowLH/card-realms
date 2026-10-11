@@ -1,4 +1,5 @@
 import type { Scene } from "phaser";
+import { FOLKLARD_ART_MANIFEST } from "./art/manifest";
 import { BOSS_ROOM_ART } from "./bosses/boss-room-art";
 
 export type ArpgAnimationDefinition = {
@@ -15,6 +16,7 @@ export type ArpgSpriteSheetDefinition = {
   frameWidth: number;
   frameHeight: number;
   frameCount: number;
+  spacing?: number;
   columns?: number;
   rows?: number;
   scale: number;
@@ -40,9 +42,23 @@ const STANDARD_GUILD_NPC_ANIMATIONS = {
 } as const satisfies Readonly<Record<string, ArpgAnimationDefinition>>;
 
 export const ARPG_ASSET_MANIFEST = {
+  authored:FOLKLARD_ART_MANIFEST,
   bossRooms: BOSS_ROOM_ART,
   runtimeTextureKeys: {
     dungeonBackground: "dungeon-arena",
+  },
+  weapons: {
+    bennyboiHack: {
+      textureKey: "folklard-external-weapons-bennyboi-hack",
+      path: "/art/vendor/opengameart/bennyboi-hack/weaponpack-alpha.png",
+      frameWidth: 16,
+      frameHeight: 16,
+      spacing: 1,
+      frameCount: 70,
+      columns: 10,
+      rows: 7,
+      scale: 2.2,
+    },
   },
   environments: {
     mataEncounter: { path: "/art/dungeon-forest-background-v3.webp" },
@@ -411,11 +427,12 @@ export const ARPG_ASSETS = {
 } as const;
 
 /** Shared Phaser loader config for manifest-backed sprite sheets. */
-export function getArpgSpriteSheetFrameConfig(sheet: Pick<ArpgSpriteSheetDefinition, "frameWidth" | "frameHeight" | "frameCount">) {
+export function getArpgSpriteSheetFrameConfig(sheet: Pick<ArpgSpriteSheetDefinition, "frameWidth" | "frameHeight" | "frameCount" | "spacing">) {
   return {
     frameWidth: sheet.frameWidth,
     frameHeight: sheet.frameHeight,
     endFrame: sheet.frameCount - 1,
+    ...(sheet.spacing === undefined ? {} : { spacing: sheet.spacing }),
   };
 }
 
@@ -448,11 +465,11 @@ export function registerArpgSpriteSheetAnimations(
 }
 
 function collectPaths(value: unknown): string[] {
+  if (typeof value === "string") return value.startsWith("/art/") ? [value] : [];
   if (!value || typeof value !== "object") return [];
   const record = value as Record<string, unknown>;
-  const ownPath = typeof record.path === "string" ? [record.path] : [];
-  return [...ownPath, ...Object.values(record).flatMap(collectPaths)];
+  return Object.values(record).flatMap(collectPaths);
 }
 
 /** All static files loaded by the ARPG Phaser scenes, useful for checks and preload tooling. */
-export const ARPG_ASSET_PATHS = Object.freeze(collectPaths(ARPG_ASSET_MANIFEST));
+export const ARPG_ASSET_PATHS = Object.freeze([...new Set(collectPaths(ARPG_ASSET_MANIFEST))]);

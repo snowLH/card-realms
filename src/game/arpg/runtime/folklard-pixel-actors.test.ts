@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { PLAYABLE_LEGEND_IDS } from "../content/legends";
-import { FOLKLARD_PIXEL_ACTORS, getFolklardPixelActorFrame } from "./folklard-pixel-actors";
+import { FOLKLARD_PIXEL_ACTORS, getFolklardPixelActorFrame } from "../../../../scripts/art-archive/folklard-pixel-actors";
 
 describe("retained experimental Folklard pixel assets", () => {
   it.each(FOLKLARD_PIXEL_ACTORS.filter((actor) => actor !== "king-arthur"))("keeps %s on an opaque 32px grid without blur or frame bleed", async (actor) => {

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "fx",
+    "path": "scripts/art-sources/fx.png",
+    "sha256": "a676f68d1393b842686b0cd875feb9186c3111c6206f7110f3f035963c78d870",
+    "generator": "OpenAI ImageGen",
+    "sourceDimensions": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "name": "props",
+    "path": "scripts/art-sources/props.png",
+    "sha256": "67c609dda0f1486f37f519b3477c9338c1e9e9789a2db807a0e7aef125f16b77",
+    "generator": "OpenAI ImageGen",
+    "sourceDimensions": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "name": "ui",
+    "path": "scripts/art-sources/ui.png",
+    "sha256": "7fcb2a3c72d9e0a0987af9141482ef55a08b50f1d6a24b79858721907f2421b5",
+    "generator": "OpenAI ImageGen",
+    "sourceDimensions": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "name": "world",
+    "path": "scripts/art-sources/world.png",
+    "sha256": "4e36664b638185b236aa059e7cb86b9cabfa2a5c9e46115b8fe6e6499d0cdb69",
+    "generator": "OpenAI ImageGen",
+    "sourceDimensions": [
+      1254,
+      1254
+    ]
+  }
+]

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { ArrowLeft, Check, Coins, LockKeyhole, LoaderCircle, Star } from "lucide-react";
+import { ArrowLeft, Check, Coins, LockKeyhole, LoaderCircle, Star } from "@/components/ui/pixel-icon";
 import {
   getLegendAppearance,
   PLAYABLE_LEGENDS,
@@ -119,7 +119,7 @@ export function LegendSelector({
               </div>
 
               <div className={styles.preview}>
-                <span className={styles.previewRune} aria-hidden="true">✦</span>
+                <span className={styles.previewRune} aria-hidden="true"><Star/></span>
                 <CharacterAvatar2D
                   config={avatarConfig}
                   compact

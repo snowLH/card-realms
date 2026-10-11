@@ -5,7 +5,10 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: ["./src/test/vitest.setup.ts"],
-    pool: "threads",
+    // Process isolation avoids the JSDOM worker startup timeouts observed on
+    // Windows in the full suite. Linux CI keeps its existing thread pool;
+    // both platforms retain test isolation, time limits and all assertions.
+    pool: process.platform === "win32" ? "forks" : "threads",
     maxWorkers: 2,
     coverage: {
       reporter: ["text", "json", "html"],

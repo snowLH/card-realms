@@ -5,7 +5,7 @@ import sharp from "sharp";
 
 // Compile the pure drawing source; no browser, remote images or image processing
 // of existing art is involved. SVG rasterization places each logical pixel at 8x.
-const source = await readFile(resolve("src/game/arpg/runtime/folklard-pixel-actors.ts"), "utf8");
+const source = await readFile(resolve("scripts/art-archive/folklard-pixel-actors.ts"), "utf8");
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const { FOLKLARD_PIXEL_ACTORS, getFolklardPixelActorFrame } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
 const rects = (actor, row, frame) => getFolklardPixelActorFrame(actor, row, frame)

@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Swords } from "lucide-react";
+import { Sparkles, Swords } from "@/components/ui/pixel-icon";
 import { ARPG_WEAPON_BY_ID } from "@/game/arpg/content/equipment";
 import type { ArpgHudState, ArpgWeaponDefinition } from "@/game/arpg/domain/types";
 import { ArpgBridge } from "@/game/arpg/runtime/bridge";

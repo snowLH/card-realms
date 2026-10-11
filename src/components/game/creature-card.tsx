@@ -1,6 +1,6 @@
 "use client";
 
-import { LockKeyhole, Shield, Swords, Zap } from "lucide-react";
+import { LockKeyhole, Shield, Swords, Zap } from "@/components/ui/pixel-icon";
 import type { CSSProperties, MouseEventHandler } from "react";
 import { ELEMENT_META } from "@/game/catalog";
 import type { CreatureDefinition } from "@/game/types";
@@ -73,11 +73,11 @@ export function CreatureCard({
         value={hpPercent}
         label={`Vida de ${creature.name}: ${currentHp} de ${creature.hp}`}
         className="mt-2 h-2"
-        indicatorClassName={hpPercent <= 30 ? "bg-red-400" : "bg-[var(--element)]"}
+        indicatorClassName={hpPercent <= 30 ? "" : ""}
       />
       {compact ? (
         <div className="mt-2 flex items-center justify-between gap-2">
-          <Badge className="border-[var(--element)]/35 bg-[var(--element)]/10 text-[var(--element)]">
+          <Badge className="text-[var(--element)]">
             {element.name}
           </Badge>
           <span className="text-[10px] font-bold text-muted-foreground">
@@ -99,7 +99,7 @@ export function CreatureCard({
             <span className="inline-flex items-center gap-1"><Zap className="size-3.5" /> {creature.speed}</span>
           </div>
           <div className="mt-3 flex items-center justify-between gap-2">
-            <Badge className="border-[var(--element)]/35 bg-[var(--element)]/10 text-[var(--element)]">
+            <Badge className="text-[var(--element)]">
               {element.name}
             </Badge>
             <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LogIn, LogOut, Mail, UserRound } from "lucide-react";
+import { LogIn, LogOut, Mail, UserRound } from "@/components/ui/pixel-icon";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -125,14 +125,14 @@ export function LoginDialog({
 
         {configured && identity ? (
           <div className="space-y-4">
-            <div className="rounded-xl border border-border bg-muted p-4">
+            <div className="authored-panel p-4">
               <strong className="block">{identity.name}</strong>
               <span className="text-sm text-muted-foreground">{identity.email}</span>
             </div>
             <Button variant="secondary" className="w-full" onClick={signOut} disabled={busy}>
               <LogOut /> Sair desta conta
             </Button>
-            {message ? <p role="status" aria-live="polite" className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">{message}</p> : null}
+            {message ? <p role="status" aria-live="polite" className="authored-panel p-3 text-sm text-muted-foreground">{message}</p> : null}
           </div>
         ) : configured ? (
           <div className="space-y-4">
@@ -141,11 +141,11 @@ export function LoginDialog({
               Entrar com Google
             </Button>
             <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              <span className="h-px flex-1 bg-border" /> ou por e-mail <span className="h-px flex-1 bg-border" />
+              <span className="authored-separator h-px flex-1" /> ou por e-mail <span className="authored-separator h-px flex-1" />
             </div>
             <form className="space-y-3" onSubmit={sendMagicLink}>
               <label className="block text-sm font-bold" htmlFor="email">E-mail</label>
-              <div className="flex min-h-12 items-center gap-2 rounded-xl border border-input bg-background px-3 focus-within:ring-2 focus-within:ring-ring">
+              <div className="authored-panel flex min-h-12 items-center gap-2 border px-3 ">
                 <Mail className="size-4 text-muted-foreground" />
                 <input
                   id="email"
@@ -161,10 +161,10 @@ export function LoginDialog({
                 Receber link de acesso
               </Button>
             </form>
-            {message ? <p role="status" aria-live="polite" className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">{message}</p> : null}
+            {message ? <p role="status" aria-live="polite" className="authored-panel p-3 text-sm text-muted-foreground">{message}</p> : null}
           </div>
         ) : (
-          <div className="rounded-xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm leading-relaxed text-amber-100">
+          <div className="authored-panel p-4 text-sm leading-relaxed text-amber-100">
             O modo de conta será ativado assim que o projeto Supabase for conectado. A versão atual permite testar o ciclo de jogo localmente sem fingir que o progresso já está salvo na nuvem.
           </div>
         )}
@@ -172,4 +172,3 @@ export function LoginDialog({
     </Dialog>
   );
 }
-

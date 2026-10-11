@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Coins, Gem, Sparkles, Swords } from "lucide-react";
+import { ArrowLeft, Coins, Gem, Sparkles, Swords } from "@/components/ui/pixel-icon";
 import { ARPG_ABILITY_CARD_BY_ID, ARPG_ABILITY_CARDS } from "@/game/arpg/content/ability-cards";
 import { ARPG_WEAPONS } from "@/game/arpg/content/equipment";
 import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";

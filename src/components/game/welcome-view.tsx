@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, BookOpen, Swords } from "lucide-react";
+import { ArrowRight, BookOpen, Swords } from "@/components/ui/pixel-icon";
 import type { CSSProperties } from "react";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
@@ -55,5 +55,3 @@ export function WelcomeView({ onPreview }: { onPreview: () => void }) {
     </section>
   );
 }
-
-

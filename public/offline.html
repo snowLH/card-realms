@@ -1,1 +1,55 @@
-<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Folklard — modo offline</title><body style="background:#091610;color:#fff2d2;font:18px monospace;padding:32px;max-width:620px"><h1>Folklard</h1><p>O jogo ainda precisa ser preparado neste aparelho para abrir sem internet.</p><p>Quando sua conexão voltar, abra o jogo e toque em <strong>Preparar jogo offline</strong>. Espere a confirmação antes de desconectar.</p><p>Seu progresso salvo permanece neste aparelho.</p><a href="/" style="color:#f5d582">Tentar novamente</a></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Folklard — modo offline</title>
+  <style>
+    :root {
+      --offline-texture: url("/art/authored/ui/panel-dark.webp");
+      --offline-panel: url("/art/authored/ui/panel-parchment.webp");
+      --offline-button: url("/art/authored/ui/button-normal.webp");
+      --offline-hover: url("/art/authored/ui/button-hover.webp");
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; padding: clamp(16px, 5vw, 40px); font: 18px/1.6 monospace; background-image: var(--offline-texture); background-size: 400vw 400vh; background-position: center; background-repeat: no-repeat; image-rendering: pixelated; }
+    main { max-width: 680px; margin: auto; padding: clamp(16px, 4vw, 32px); border: 12px solid transparent; border-image: var(--offline-panel) 16 fill stretch; color: #241b13; }
+    h1 { margin: 0; font-size: clamp(24px, 6vw, 36px); }
+    img { width: 64px; height: 64px; }
+    a { display: inline-block; padding: 8px 16px; border: 8px solid transparent; border-image: var(--offline-button) 8 fill stretch; color: #fff2d2; text-decoration: none; }
+    a:hover, a:focus-visible { border-image-source: var(--offline-hover); color: #241b13; outline: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/icons/card-realms-192.png" alt="">
+    <h1>Folklard</h1>
+    <p>O jogo ainda precisa ser preparado neste aparelho para abrir sem internet.</p>
+    <p>Quando sua conexão voltar, abra o jogo e toque em <strong>Preparar jogo offline</strong>. Espere a confirmação antes de desconectar.</p>
+    <p>Seu progresso salvo permanece neste aparelho.</p>
+    <a href="/">Tentar novamente</a>
+  </main>
+  <script>
+    const placeholder = "/art/authored/missing-texture.webp";
+    const paths = {
+      texture: "/art/authored/ui/panel-dark.webp",
+      panel: "/art/authored/ui/panel-parchment.webp",
+      button: "/art/authored/ui/button-normal.webp",
+      hover: "/art/authored/ui/button-hover.webp",
+    };
+    for (const [name, path] of Object.entries(paths)) {
+      const image = new Image();
+      image.onerror = () => {
+        console.error("Missing authored offline image: " + path);
+        document.documentElement.style.setProperty("--offline-" + name, 'url("' + placeholder + '")');
+      };
+      image.src = path;
+    }
+    document.querySelector("img").onerror = (event) => {
+      console.error("Missing authored offline icon");
+      event.currentTarget.onerror = null;
+      event.currentTarget.src = placeholder;
+    };
+  </script>
+</body>
+</html>
