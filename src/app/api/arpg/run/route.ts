@@ -783,15 +783,24 @@ export async function POST(request: Request) {
       }
     }
 
-    // The RPC validates the signed loot and requested outcome on retries,
-    // returning the saved result without awarding or finalizing the run again.
-    const { data, error } = await admin.rpc("finish_arpg_run", {
-      target_player_id: playerId,
-      target_run_id: session.runId,
-      target_expedition_id: session.regionId,
-      target_victory: parsed.victory,
-      target_loot_item_ids: session.lootItemIds,
-    });
+    // Stages 1–4 close the durable stage without minting an expedition reward.
+    // Stage 5 (or a defeat) keeps the existing authoritative completion path.
+    const stageNumber = getArpgStageFromSeed(session.dungeonSeed, session.regionId);
+    const stageOnlyCompletion = parsed.victory && stageNumber < 5;
+    const { data, error } = stageOnlyCompletion
+      ? await admin.rpc("finish_arpg_stage", {
+        target_player_id: playerId,
+        target_run_id: session.runId,
+        target_expedition_id: session.regionId,
+        target_loot_item_ids: session.lootItemIds,
+      })
+      : await admin.rpc("finish_arpg_run", {
+        target_player_id: playerId,
+        target_run_id: session.runId,
+        target_expedition_id: session.regionId,
+        target_victory: parsed.victory,
+        target_loot_item_ids: session.lootItemIds,
+      });
 
     if (error) {
       console.error("Falha ao persistir término da run ARPG.", error.code);
