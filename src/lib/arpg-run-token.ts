@@ -5,6 +5,7 @@ import { isDungeonLootPlanValid } from "@/game/arpg/content/dungeons";
 import { createArpgDungeonSeed } from "@/game/arpg/dungeon/encounter-seed";
 import { ArpgLoadoutSchema } from "@/game/arpg/domain/loadout-schema";
 import type { ArpgLoadout } from "@/game/arpg/domain/types";
+import type { FolklardStageNumber } from "@/game/arpg/campaign/stages";
 import {
   getArpgExpeditionForAtlasRegion,
   resolveAtlasEncounterTarget,
@@ -87,6 +88,7 @@ export function createArpgRunToken(
   lootItemIds: readonly string[],
   initialLoadout?: ArpgLoadout,
   atlasEncounter?: AtlasEncounterReference | null,
+  stage: FolklardStageNumber = 5,
 ) {
   const expedition = ARPG_EXPEDITIONS.find((item) => item.id === regionId);
   if (!expedition?.available) throw new Error("Esta expedição ainda não está disponível.");
@@ -105,7 +107,7 @@ export function createArpgRunToken(
     playerId,
     regionId,
     lootItemIds: [...lootItemIds],
-    dungeonSeed: createArpgDungeonSeed(regionId, runId),
+    dungeonSeed: createArpgDungeonSeed(regionId, runId, stage),
     startedAt: now,
     expiresAt: now + 1000 * 60 * 60 * 24 * 7,
   };
