@@ -603,7 +603,6 @@ export function ArpgGame({
               abilityIds={hud?.abilityIds ?? loadout.abilityIds}
               abilityReadyAt={hud?.abilityReadyAt ?? {}}
               nowMs={hud?.nowMs ?? 0}
-              dashReadyAt={hud?.dashReadyAt ?? 0}
               chestAvailable={hud?.chestAvailable ?? false}
               exitPortalAvailable={hud?.exitPortalAvailable ?? false}
               specialRoomAvailable={specialRoomAvailable}
