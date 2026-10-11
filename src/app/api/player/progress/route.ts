@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ARPG_MERCHANT_PRODUCT_KEYS } from "@/game/arpg/content/merchant-catalog";
-import { RemotePlayerSnapshotSchema } from "@/game/player";
+import { loadAuthenticatedPlayerBootstrap } from "@/server/player/progress";
 import {
   REFUGE_FURNITURE_KEYS,
   REFUGE_FURNITURE_UNLOCK_ITEM_KEYS,
@@ -14,6 +14,7 @@ import { POST as purchaseArpgPower } from "@/server/http-handlers/arpg-power-pur
 import { PATCH as saveAvatar } from "@/server/http-handlers/player-avatar";
 import { POST as purchaseLegend } from "@/server/http-handlers/player-legend-purchase";
 import { GET as authCallback } from "@/server/http-handlers/auth-callback";
+import { GET as loadPreferences, PATCH as savePreferences } from "@/server/http-handlers/player-preferences";
 import { GET as loadRaidLobby, POST as updateRaidLobby } from "@/server/http-handlers/arpg-raid-lobby";
 
 export const runtime = "nodejs";
@@ -81,6 +82,7 @@ export async function GET(request: Request) {
   if (handler === "auth") {
     return authCallback(request);
   }
+  if (handler === "preferences") return loadPreferences();
   if (handler === "raids") {
     return loadRaidLobby();
   }
@@ -93,78 +95,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const [snapshotResult, profileResult, worldResult, evolutionResult, missionResult] = await Promise.all([
-    auth.supabase.rpc("get_my_player_snapshot"),
-    auth.supabase.from("profiles").select("avatar_config").single(),
-    auth.supabase.from("player_world_state").select("current_area_id,visited_area_ids,map_positions").single(),
-    auth.supabase.from("player_creatures").select("id,evolution_stage"),
-    auth.supabase.from("missions").select("id,objective,enabled").eq("enabled", true),
-  ]);
-  const { data, error } = snapshotResult;
-  if (error) {
-    console.error("Falha no snapshot remoto.", error.code);
-    return NextResponse.json({ error: "Não foi possível carregar o progresso." }, { status: 503 });
+  const bootstrap = await loadAuthenticatedPlayerBootstrap(auth.supabase, { id: auth.userId, email: null });
+  if (bootstrap.source !== "supabase" || !bootstrap.snapshot) {
+    return NextResponse.json({ error: bootstrap.error ?? "Não foi possível carregar o progresso." }, { status: 503 });
   }
-  const evolutionById = new Map(
-    (evolutionResult.data ?? []).map((row) => [row.id, Number(row.evolution_stage) || 0]),
-  );
-  const missionTargets = new Map(
-    (missionResult.data ?? []).map((row) => {
-      const objective = row.objective && typeof row.objective === "object" && !Array.isArray(row.objective)
-        ? row.objective as Record<string, unknown>
-        : {};
-      return [row.id, Math.max(1, Number(objective.count) || 1)] as const;
-    }),
-  );
-  const raw = data && typeof data === "object" && !Array.isArray(data)
-    ? data as Record<string, unknown>
-    : null;
-  const rawCollection = Array.isArray(raw?.collection) ? raw.collection : [];
-  const rawTeams = Array.isArray(raw?.teams) ? raw.teams : [];
-  const rawMissions = Array.isArray(raw?.missions) ? raw.missions : [];
-  const enriched = raw
-    ? {
-        ...raw,
-        profile: {
-          ...(raw.profile && typeof raw.profile === "object" ? raw.profile : {}),
-          avatarConfig: profileResult.data?.avatar_config,
-        },
-        world: {
-          ...(raw.world && typeof raw.world === "object" ? raw.world : {}),
-          currentAreaId: worldResult.data?.current_area_id ?? null,
-          visitedAreaIds: worldResult.data?.visited_area_ids ?? [],
-          mapPositions: worldResult.data?.map_positions ?? {},
-        },
-        collection: rawCollection.map((entry) => {
-          const creature = entry as Record<string, unknown>;
-          return { ...creature, evolutionStage: evolutionById.get(String(creature.instanceId)) ?? 0 };
-        }),
-        teams: rawTeams.map((entry) => {
-          const team = entry as Record<string, unknown>;
-          const members = Array.isArray(team.members) ? team.members : [];
-          return {
-            ...team,
-            members: members.map((member) => {
-              const typed = member as Record<string, unknown>;
-              return { ...typed, evolutionStage: evolutionById.get(String(typed.playerCreatureId)) ?? 0 };
-            }),
-          };
-        }),
-        missions: rawMissions
-          .filter((entry) => missionTargets.has(String((entry as Record<string, unknown>).id)))
-          .map((entry) => {
-            const mission = entry as Record<string, unknown>;
-            return { ...mission, target: missionTargets.get(String(mission.id)) ?? 1 };
-          }),
-      }
-    : data;
-  const parsed = RemotePlayerSnapshotSchema.safeParse(enriched);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Snapshot remoto incompatível." }, { status: 500 });
-  }
-  return NextResponse.json({ snapshot: parsed.data, authority: "supabase" });
+  return NextResponse.json({ snapshot: bootstrap.snapshot, authority: "supabase" }, {
+    headers: { "cache-control": "private, no-store" },
+  });
 }
-
 export async function POST(request: Request) {
   switch (delegatedHandler(request)) {
     case "raids":
@@ -181,6 +119,8 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const handler = delegatedHandler(request);
   switch (handler) {
+    case "preferences":
+      return savePreferences(request);
     case "loadout":
       return saveArpgLoadout(request);
     case "avatar":

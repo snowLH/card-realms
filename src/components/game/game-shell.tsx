@@ -42,9 +42,9 @@ import {
   DEFAULT_AVATAR_CONFIG,
   DEFAULT_LOCAL_PROGRESS,
   loadLocalProgress,
-  saveLocalProgress,
   type AvatarConfig,
 } from "@/game/save/local-progress";
+import { saveReconciledProgress, saveReconciledValue } from "@/game/save/save-conflict";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { cn } from "@/lib/utils";
 import { connectNativeApp, NATIVE_BACK_EVENT, setNativeLandscape } from "@/lib/native-app";
@@ -219,8 +219,9 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
 
   useEffect(() => {
     if (!progressLoaded) return;
+    let cancelled = false;
     try {
-      saveLocalProgress(window.localStorage, {
+      const conflict = saveReconciledProgress(window.localStorage, {
         ...bossProgress,
         version: 4,
         coins,
@@ -234,20 +235,33 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
         equipmentIds,
         avatar,
         refuge: localRefuge,
-      }, cacheAccountId);
+      }, cacheAccountId, bootstrap.source === "supabase" ? "cloud" : "offline");
+      if (conflict) queueMicrotask(() => {
+        if (!cancelled) setToast("Sua jornada offline foi preservada neste aparelho. A conta carregou o progresso confirmado online.");
+      });
     } catch (error) {
       console.error("Não foi possível salvar o progresso local.", error);
     }
-  }, [avatar, bossProgress, cacheAccountId, coins, currentAreaId, energy, equipmentIds, localRefuge, mapPositions, openedTreasures, playerRegionId, progressLoaded, visitedAreaIds, xp]);
+    return () => { cancelled = true; };
+  }, [avatar, bootstrap.source, bossProgress, cacheAccountId, coins, currentAreaId, energy, equipmentIds, localRefuge, mapPositions, openedTreasures, playerRegionId, progressLoaded, visitedAreaIds, xp]);
 
   useEffect(() => {
     if (!progressLoaded) return;
+    let cancelled = false;
     try {
-      window.localStorage.setItem(arpgLoadoutStorageKey, JSON.stringify(playableArpgLoadout));
+      const value = JSON.stringify(playableArpgLoadout);
+      if (cacheAccountId) {
+        const conflict = saveReconciledValue(window.localStorage, arpgLoadoutStorageKey, value,
+          bootstrap.source === "supabase" ? "cloud" : "offline");
+        if (conflict) queueMicrotask(() => {
+          if (!cancelled) setToast("Seu Arsenal anterior foi preservado neste aparelho. A conta carregou o equipamento confirmado online.");
+        });
+      } else window.localStorage.setItem(arpgLoadoutStorageKey, value);
     } catch (error) {
       console.warn("Não foi possível salvar o loadout ARPG localmente.", error);
     }
-  }, [arpgLoadoutStorageKey, playableArpgLoadout, progressLoaded]);
+    return () => { cancelled = true; };
+  }, [arpgLoadoutStorageKey, bootstrap.source, cacheAccountId, playableArpgLoadout, progressLoaded]);
 
   useEffect(() => {
     if (!toast) return;
