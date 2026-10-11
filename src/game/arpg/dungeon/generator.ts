@@ -1,7 +1,7 @@
 import { computeRoomDistances, DIRECTION_VECTOR, DUNGEON_DIRECTIONS, OPPOSITE_DIRECTION, roomCoordinateKey, validateDungeonGraph } from "./graph";
 import { createSeededRandom, type SeededRandom } from "./rng";
 import { pickDungeonTemplate } from "./templates";
-import { usesCompactDungeonLayout, usesLegacyDungeonLayout } from "./encounter-seed";
+import { getArpgStageFromSeed, isArpgBossStageSeed, usesCompactDungeonLayout, usesLegacyDungeonLayout } from "./encounter-seed";
 import type { DungeonDirection, DungeonGraph, DungeonRoom } from "./types";
 
 export type DungeonGeneratorOptions = {
@@ -64,7 +64,7 @@ function assignRoomTypes(graph: DungeonGraph, random: SeededRandom) {
   const start = graph.rooms[graph.startRoomId];
   const boss = graph.rooms[graph.bossRoomId];
   start.type = "start";
-  boss.type = "boss";
+  boss.type = graph.isBossStage === false ? "combat" : "boss";
 
   const candidates = rooms.filter((room) => room.id !== start.id && room.id !== boss.id);
   const terminals = candidates.filter((room) => degree(room) === 1);
@@ -78,7 +78,7 @@ function assignRoomTypes(graph: DungeonGraph, random: SeededRandom) {
   elite.type = "elite";
 
   const remaining = candidates.filter((room) => room.id !== treasure.id && room.id !== elite.id);
-  if (remaining.length > 0) random.pick(remaining).type = "event";
+  if (remaining.length > 1) random.pick(remaining).type = "event";
 
   const afterEvent = remaining.filter((room) => room.type === "combat");
   if (afterEvent.length > 0) random.pick(afterEvent).type = "rest";
@@ -137,7 +137,7 @@ function generateAttempt(options: Required<DungeonGeneratorOptions>, attempt: nu
 
   // Reserve an exterior terminal for the monumental arena AFTER branches exist.
   // Only its final connection changes; ordinary rooms retain compact grid cells.
-  if (!usesLegacyDungeonLayout(options.seed, options.regionId)) {
+  if (!usesLegacyDungeonLayout(options.seed, options.regionId) && isArpgBossStageSeed(options.seed, options.regionId)) {
   const boss = mutable.rooms[bossId];
   for (const [direction, parentId] of Object.entries(boss.connections)) {
     delete mutable.rooms[parentId!].connections[OPPOSITE_DIRECTION[direction as DungeonDirection]];
@@ -160,6 +160,8 @@ function generateAttempt(options: Required<DungeonGeneratorOptions>, attempt: nu
     floor: options.floor,
     startRoomId: start.id,
     bossRoomId: bossId,
+    stageNumber: getArpgStageFromSeed(options.seed, options.regionId),
+    isBossStage: isArpgBossStageSeed(options.seed, options.regionId),
     rooms: mutable.rooms,
   };
   assignRoomTypes(graph, random);
