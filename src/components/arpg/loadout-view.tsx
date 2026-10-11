@@ -70,7 +70,7 @@ export function ArpgLoadoutView({
   const selectedWeapon = ARPG_WEAPONS.find((item) => item.id === loadout.weaponId) ?? ARPG_WEAPONS[0];
   const selectedRelic = ARPG_RELIC_BY_ID.get(loadout.relicId) ?? ARPG_RELIC_BY_ID.get(STARTER_ARPG_RELIC_ID)!;
   const selectedLegend = PLAYABLE_LEGEND_BY_ID.get(avatarConfig.legendId) ?? PLAYABLE_LEGEND_BY_ID.get("curupira")!;
-  const selectedCards = loadout.abilityIds.map((id) => {
+  const selectedCards = loadout.abilityIds.slice(0, 1).map((id) => {
     const card = ARPG_ABILITY_CARD_BY_ID.get(id) ?? ARPG_ABILITY_CARDS[0];
     const ownerLegend = PLAYABLE_LEGEND_BY_ID.get(card.creatureId as PlayableLegendId);
     return {
@@ -105,12 +105,12 @@ export function ArpgLoadoutView({
       ? {
           eyebrow: "TÉCNICAS DA LENDA",
           title: `Ataques de ${selectedLegend.name}`,
-          description: "Cada personagem leva seus dois ataques próprios. Eles vêm com a carta da lenda e não mudam durante a expedição.",
+          description: "Cada personagem leva sua habilidade ativa. Eles vêm com a carta da lenda e não mudam durante a expedição.",
         }
       : {
           eyebrow: "PREPARAÇÃO DA EXPEDIÇÃO",
           title: "Arsenal da Guilda",
-          description: `${selectedLegend.name} leva seus dois ataques próprios e entra sem armadura. Prepare sua arma e relíquia antes de partir.`,
+          description: `${selectedLegend.name} leva sua habilidade ativa e entra sem armadura. Prepare sua arma e relíquia antes de partir.`,
         };
 
   return (
@@ -150,7 +150,7 @@ export function ArpgLoadoutView({
         <div className="arpg-loadout-summary">
           <span><ArpgItemPixelIcon item={selectedWeapon.kind} size={32} /><b>{selectedWeapon.name}</b><small>{selectedWeapon.damage} dano</small></span>
           <span><ArpgItemPixelIcon item={relicIconById[selectedRelic.id]} size={32} /><b>{selectedRelic.name}</b><small>{selectedRelic.effectLabel}</small></span>
-          <span><Sparkles aria-hidden="true" /><b>2 ataques de {selectedLegend.name}</b><small>{selectedCards[0].name} · {selectedCards[1].name}</small></span>
+          <span><Sparkles aria-hidden="true" /><b>2 ataques de {selectedLegend.name}</b><small>{selectedCards[0].name}</small></span>
           <span><Coins aria-hidden="true" /><b>{coins.toLocaleString("pt-BR")} moedas</b><small>Saldo da jornada</small></span>
         </div>
       ) : null}
@@ -212,8 +212,8 @@ export function ArpgLoadoutView({
           <div className="arpg-loadout-section__heading">
             <Sparkles aria-hidden="true" />
             <div>
-              <strong id="arpg-power-title">Os dois ataques de {selectedLegend.name}</strong>
-              <small>Desbloqueados juntos com a carta deste personagem; escolha outra lenda na Guilda para trocar de ataques.</small>
+              <strong id="arpg-power-title">Habilidade de {selectedLegend.name}</strong>
+              <small>A habilidade ativa acompanha a lenda escolhida; troque de personagem na Guilda para trocar de habilidade.</small>
             </div>
           </div>
           <div className="arpg-ability-collection" aria-label={`Ataques de ${selectedLegend.name}`}>
@@ -222,7 +222,7 @@ export function ArpgLoadoutView({
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                   {renderPowerPortrait(card.creatureId, 42)}
                   <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
-                    <small>ATAQUE {index + 1} · {rarityLabel[card.rarity] ?? card.rarity} · {card.element}</small>
+                    <small>HABILIDADE · {rarityLabel[card.rarity] ?? card.rarity} · {card.element}</small>
                     <strong>{card.name}</strong>
                     <span>{card.creatureName} · {card.description}</span>
                     <em>Recarga {(card.cooldownMs / 1000).toFixed(1)}s</em>
