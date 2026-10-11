@@ -10,6 +10,7 @@ import { buildRoomTileData, createSafeRoomSpawnPoints, ROOM_FLOOR_TILE, ROOM_OBS
 import { createRunLootAssignments, rollCombatRoomCache } from "./rewards";
 import { MARES_ROOM_TEMPLATES, MATA_ROOM_TEMPLATES, RUNIC_ROOM_TEMPLATES } from "./templates";
 import { findGridPath, gridCellKey, worldToGridCell } from "../navigation/grid-path";
+import { createArpgDungeonSeed } from "./encounter-seed";
 
 function signature(seed: string) {
   const graph = generateDungeon({ seed });
@@ -19,6 +20,37 @@ function signature(seed: string) {
 }
 
 describe("dungeon procedural do Card Realms", () => {
+
+  it("gera estágios compactos v4 com 5–8 salas e reserva boss para x-5", () => {
+    const ordinary = generateDungeon({
+      seed: createArpgDungeonSeed("mata-encantada", "stage-1", 1),
+      regionId: "mata-encantada",
+      minRooms: 5,
+      maxRooms: 8,
+    });
+    const bossStage = generateDungeon({
+      seed: createArpgDungeonSeed("mata-encantada", "stage-5", 5),
+      regionId: "mata-encantada",
+      minRooms: 5,
+      maxRooms: 8,
+    });
+
+    expect(Object.keys(ordinary.rooms).length).toBeGreaterThanOrEqual(5);
+    expect(Object.keys(ordinary.rooms).length).toBeLessThanOrEqual(8);
+    expect(ordinary.stageNumber).toBe(1);
+    expect(ordinary.isBossStage).toBe(false);
+    expect(Object.values(ordinary.rooms).filter((room) => room.type === "boss")).toHaveLength(0);
+    expect(ordinary.rooms[ordinary.bossRoomId].type).toBe("combat");
+    expect(validateDungeonGraph(ordinary).errors).toEqual([]);
+    expect(() => createRunLootAssignments(ordinary)).not.toThrow();
+
+    expect(bossStage.stageNumber).toBe(5);
+    expect(bossStage.isBossStage).toBe(true);
+    expect(Object.values(bossStage.rooms).filter((room) => room.type === "boss")).toHaveLength(1);
+    expect(bossStage.rooms[bossStage.bossRoomId].size).toBe("boss");
+    expect(validateDungeonGraph(bossStage).errors).toEqual([]);
+  });
+
   it("é determinística para a mesma seed", () => {
     expect(signature("mata-debug-42")).toEqual(signature("mata-debug-42"));
   });
