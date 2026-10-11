@@ -41,6 +41,8 @@ export function TouchControls({
   abilityIds: [string, string];
   abilityReadyAt: Record<string, number>;
   nowMs: number;
+  /** Legacy compatibility only; universal dash is no longer rendered or consumed here. */
+  dashReadyAt?: number;
   chestAvailable: boolean;
   exitPortalAvailable?: boolean;
   specialRoomAvailable?: boolean;
