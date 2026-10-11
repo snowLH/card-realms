@@ -10,6 +10,7 @@ import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-prog
 import { ARPG_GAMEPLAY_VIEWPORT, ARPG_PIXEL_RENDER_SETTINGS } from "./render-config";
 import { createScenePauseControl } from "./scene-pause-control";
 import { createArpgDungeonSeed } from "../dungeon/encounter-seed";
+import type { FolklardStageNumber } from "../campaign/stages";
 
 export async function createArpgGame(
   parent: HTMLElement,
@@ -21,13 +22,14 @@ export async function createArpgGame(
   checkpoint?: ArpgRunCheckpoint,
   avatarConfig: AvatarConfig = DEFAULT_AVATAR_CONFIG,
   viewport: { width: number; height: number } = ARPG_GAMEPLAY_VIEWPORT,
+  stageNumber: FolklardStageNumber = 1,
 ) {
   const dungeon = ARPG_DUNGEON_CONFIGS[expeditionId];
   if (!dungeon) throw new Error("Configuração da expedição não encontrada.");
 
   const lootPlan = resolveDungeonLootPlan(expeditionId, lootItemIds);
   const dungeonGraph = populateArpgDungeonContent(generateDungeon({
-    seed: runSeed ?? createArpgDungeonSeed(expeditionId, globalThis.crypto.randomUUID()),
+    seed: runSeed ?? createArpgDungeonSeed(expeditionId, globalThis.crypto.randomUUID(), stageNumber),
     regionId: expeditionId,
   }));
   const dungeonManager = new DungeonManager(dungeonGraph, checkpoint);
