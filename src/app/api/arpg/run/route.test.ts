@@ -224,7 +224,7 @@ describe("/api/arpg/run durable run endpoints", () => {
     const run = await beginPersistedRun();
 
     expect(run.persistent).toBe(true);
-    expect(run.runSeed).toContain("mata-encantada:encounters-v3:");
+    expect(run.runSeed).toContain("mata-encantada:encounters-v4:s1:");
     expect(run.checkpoint.currentRoomId).toBe("room-0");
     expect(rpcMock).toHaveBeenCalledWith("begin_or_resume_arpg_run", expect.objectContaining({
       target_player_id: PLAYER_ID,
@@ -616,7 +616,7 @@ describe("/api/arpg/run durable run endpoints", () => {
   });
 
   it("finishes a boss run only from its persisted server victory and portal checkpoint", async () => {
-    const run = await beginPersistedRun();
+    const run = await beginPersistedRun({ action: "start", expeditionId: "mata-encantada", stage: 5 });
     const { generateDungeon } = await import("@/game/arpg/dungeon/generator");
     const graph = generateDungeon({ seed: run.runSeed, regionId: "mata-encantada" });
     const { state, rewards } = createVictoryState(run, graph, graph.bossRoomId, run.checkpoint);
@@ -816,7 +816,7 @@ describe("/api/arpg/run durable run endpoints", () => {
   });
 
   it("persists an authoritative Curupira telegraph through the authenticated encounter route", async () => {
-    const run = await beginPersistedRun();
+    const run = await beginPersistedRun({ action: "start", expeditionId: "mata-encantada", stage: 5 });
     const { graph, roomId, entered } = await getCombatRoomCheckpoints(run, "boss");
     const entry = combatEntryPosition(graph, roomId, entered.clearedRoomIds);
     let savedCheckpoint: Record<string, unknown> = entered;
