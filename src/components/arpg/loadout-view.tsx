@@ -7,7 +7,8 @@ import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
 import { CREATURE_BY_ID } from "@/game/catalog";
 import { ARPG_RELIC_BY_ID, ARPG_RELICS, STARTER_ARPG_RELIC_ID } from "@/game/arpg/content/relics";
 import { getLegendAppearance, PLAYABLE_LEGEND_BY_ID, type PlayableLegendId } from "@/game/arpg/content/legends";
-import type { ArpgLoadout } from "@/game/arpg/domain/types";
+import type { ArpgLoadout, WeaponKind } from "@/game/arpg/domain/types";
+import { ELEMENT_META } from "@/game/domain/elements";
 import { PixelCreature } from "@/components/game/pixel-creature";
 import { CharacterAvatar2D } from "@/components/game/character-avatar";
 import { LegendSelector } from "@/components/game/legend-selector";
@@ -27,6 +28,12 @@ const relicIconById: Record<string, ArpgItemPixelIconKey> = {
   "cartographer-compass": "compass",
   "curupira-track-talisman": "talisman",
   "iara-shell-charm": "shell",
+};
+
+const weaponKindLabel: Record<WeaponKind, string> = {
+  sword: "Espada",
+  bow: "Arco",
+  staff: "Cajado",
 };
 
 export type ArpgLoadoutFocus = "all" | "cards" | "legend";
@@ -83,7 +90,7 @@ export function ArpgLoadoutView({
     const legend = PLAYABLE_LEGEND_BY_ID.get(creatureId as PlayableLegendId);
     if (legend) {
       return (
-        <span style={{ width: size, height: size, flex: `0 0 ${size}px`, overflow: "hidden" }} aria-hidden="true">
+        <span className="arpg-power-portrait" style={{ width: size, height: size, flex: `0 0 ${size}px` }} aria-hidden="true">
           <CharacterAvatar2D config={{ ...getLegendAppearance(legend.id), favoriteLegendId: null }} compact ariaLabel="" />
         </span>
       );
@@ -173,7 +180,7 @@ export function ArpgLoadoutView({
                   <ArpgItemPixelIcon item={weapon.kind} size={52} />
                   <small>{loadout.weaponId === weapon.id ? "EQUIPADA · " : ""}{rarityLabel[weapon.rarity] ?? weapon.rarity}</small>
                   <strong>{unlocked ? weapon.name : "Arma não encontrada"}</strong>
-                  <span>{unlocked ? `${weapon.damage} dano · ${weapon.kind}` : "Encontre em expedições para desbloquear."}</span>
+                  <span>{unlocked ? `${weapon.damage} dano · ${weaponKindLabel[weapon.kind]}` : "Encontre em expedições para desbloquear."}</span>
                   {unlocked && weapon.effect ? <em>{weapon.effect.label}: {weapon.effect.description}</em> : null}
                 </button>
               );
@@ -222,7 +229,7 @@ export function ArpgLoadoutView({
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                   {renderPowerPortrait(card.creatureId, 42)}
                   <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
-                    <small>ATAQUE {index + 1} · {rarityLabel[card.rarity] ?? card.rarity} · {card.element}</small>
+                    <small>ATAQUE {index + 1} · {rarityLabel[card.rarity] ?? card.rarity} · {ELEMENT_META[card.element].name}</small>
                     <strong>{card.name}</strong>
                     <span>{card.creatureName} · {card.description}</span>
                     <em>Recarga {(card.cooldownMs / 1000).toFixed(1)}s</em>

@@ -1466,16 +1466,6 @@
   border-bottom: 2px solid transparent;
 }
 
-.arpg-expedition-card__art::after {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  background: none;
-  content: "";
-  pointer-events: none;
-  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
-}
-
 .arpg-expedition-card__art > * { position: relative; z-index: 1; }
 
 .arpg-expedition-card__art span {
@@ -1589,7 +1579,6 @@
     border-bottom: 2px solid transparent;
     background-color: transparent;
     background-position: center 48%;
-    border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
   }
 
   .arpg-expedition-card__art span {
@@ -2485,132 +2474,6 @@
   .arpg-room-choice .arpg-room-choice__options > button > span {
     color: CanvasText;
   }
-}
-
-/* Guild armory: keep equipped gear luminous and locked finds archival, not disabled-looking. */
-.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button {
-  position: relative;
-  border-color: transparent;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  transition: background .16s ease, border-color .16s ease, box-shadow .16s ease;
-  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
-}
-
-.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button::before {
-  position: absolute;
-  inset: 4px;
-  border: 1px solid transparent;
-  content: "";
-  pointer-events: none;
-}
-
-.arpg-loadout-view .arpg-loadout-grid--equipment button.is-selected {
-  border-color: transparent;
-  background: none;
-  box-shadow: none;
-  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
-}
-
-.arpg-loadout-view .arpg-loadout-grid--equipment button.is-selected::before {
-  border-color: transparent;
-}
-
-.arpg-loadout-view .arpg-loadout-grid--relics button.is-selected {
-  border-color: transparent;
-  background: none;
-  box-shadow: none;
-  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
-}
-
-.arpg-loadout-view .arpg-loadout-grid--relics button.is-selected::before {
-  border-color: transparent;
-}
-
-.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled {
-  border-color: transparent;
-  background:
-    none;
-  box-shadow: none;
-  filter: none;
-  opacity: 1;
-  cursor: not-allowed;
-  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
-}
-
-.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled::before {
-  border-color: transparent;
-  border-style: dashed;
-}
-
-.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled::after {
-  position: absolute;
-  top: 11px;
-  right: 11px;
-  width: 6px;
-  height: 6px;
-  border: 1px solid transparent;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  content: "";
-  pointer-events: none;
-  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
-}
-
-.arpg-loadout-view .arpg-loadout-grid--relics button:disabled::after {
-  border-color: transparent;
-  background: none;
-  box-shadow: none;
-  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
-}
-
-.arpg-loadout-view .arpg-loadout-grid--equipment button.is-selected:disabled {
-  border-color: transparent;
-  background: none;
-  box-shadow: none;
-  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
-}
-
-.arpg-loadout-view .arpg-loadout-grid--relics button.is-selected:disabled {
-  border-color: transparent;
-  background: none;
-  box-shadow: none;
-  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
-}
-
-.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button.is-selected:disabled::after { display: none; }
-
-.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled > small { color: #725f43; }
-.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled > strong { color: #473b2c; }
-.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled > span { color: #5b4d39; }
-.arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled > em { color: #705437; }
-
-@media (prefers-reduced-motion: reduce) {
-  .arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button { transition: none; }
-}
-
-@media (forced-colors: active) {
-  .arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button,
-  .arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled {
-    border: 1px solid transparent;
-    background: none;
-    color: CanvasText;
-    box-shadow: none;
-    filter: none;
-    opacity: 1;
-    border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
-  }
-
-  .arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button.is-selected {
-    border: 2px solid transparent;
-  }
-
-  .arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button::before,
-  .arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button::after { display: none; }
-
-  .arpg-loadout-view :is(.arpg-loadout-grid--equipment, .arpg-loadout-grid--relics) button:disabled > :is(small, strong, span, em) { color: GrayText; }
 }
 
 /* Title screen art direction: keep the portal visible while giving the menu a calm reading field. */
