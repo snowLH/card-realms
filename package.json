@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@capacitor/app": "7.1.2",
+    "@capacitor/browser": "7.0.5",
     "@capacitor/core": "7.6.9",
     "@capacitor/screen-orientation": "7.0.4",
     "@supabase/ssr": "0.12.7",

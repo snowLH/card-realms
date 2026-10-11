@@ -7,6 +7,7 @@
   "scripts": {
     "start": "electron .",
     "dist:win": "electron-builder --win nsis --x64 --publish never",
+    "dist:win:qa": "electron-builder --config electron-builder.qa.cjs --win nsis --x64 --publish never",
     "dist:linux": "electron-builder --linux AppImage --x64 --publish never"
   },
   "devDependencies": {
@@ -20,6 +21,9 @@
     "files": [
       "main.cjs",
       "window-controller.cjs",
+      "preload.cjs",
+      "auth-protocol.cjs",
+      "app-config.cjs",
       "offline.html",
       "offline.css",
       "assets/**",
@@ -45,7 +49,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
-    "artifactName": "Folklard-${os}-${arch}-${version}.${ext}"
+    "artifactName": "Folklard-${os}-${arch}-${version}.${ext}",
+    "protocols": [{ "name": "Folklard account callback", "schemes": ["folklard"] }]
   },
   "repository": {
     "type": "git",
