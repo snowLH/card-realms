@@ -3,78 +3,86 @@ import { populateArpgDungeonContent } from "./content";
 import { createArpgDungeonSeed } from "./encounter-seed";
 import { generateDungeon } from "./generator";
 import { DungeonManager } from "./manager";
-import { bossGateParentId, isBossRoomUnlocked, isFinalBossConnectionLocked, unclearedRoomsBeforeBoss } from "./boss-access";
+import {
+  bossGateParentId,
+  isBossRoomUnlocked,
+  isFinalBossConnectionLocked,
+  unclearedRoomsBeforeBoss,
+} from "./boss-access";
+
+function routeTo(graph: ReturnType<typeof generateDungeon>, targetId: string) {
+  const queue: string[][] = [[graph.startRoomId]];
+  while (queue.length) {
+    const path = queue.shift()!;
+    const id = path.at(-1)!;
+    if (id === targetId) return path;
+    for (const next of Object.values(graph.rooms[id].connections)) {
+      if (next && !path.includes(next) && next !== graph.bossRoomId) {
+        queue.push([...path, next]);
+      }
+    }
+  }
+  return [];
+}
 
 describe("final forgotten-legend gate", () => {
   it.each(["mata-encantada", "arquipelago-das-mares", "montanhas-runicas"] as const)(
-    "keeps the %s boss sealed until every other room is cleared",
+    "lets %s skip optional branches after clearing the boss antechamber",
     (regionId) => {
       const graph = populateArpgDungeonContent(generateDungeon({
-        seed: createArpgDungeonSeed(regionId, "boss-gate"),
+        seed: createArpgDungeonSeed(regionId, "compact-boss-gate"),
         regionId,
         minRooms: 8,
         maxRooms: 8,
       }));
       const manager = new DungeonManager(graph);
-      const bossId = manager.getGraph().bossRoomId;
-      const parentId = bossGateParentId(manager.getGraph());
-      expect(parentId).toBeTruthy();
+      const bossId = graph.bossRoomId;
+      const parentId = bossGateParentId(graph)!;
+      const route = routeTo(graph, parentId);
+
+      expect(route.length).toBeGreaterThan(1);
       expect(isBossRoomUnlocked(manager.getGraph())).toBe(false);
-      expect(isFinalBossConnectionLocked(manager.getGraph())).toBe(true);
 
-      for (const room of Object.values(manager.getGraph().rooms)) {
-        if (room.id === bossId) continue;
-        manager.clearRoom(room.id);
+      for (const nextId of route.slice(1)) {
+        manager.clearRoom();
+        manager.enterRoom(nextId);
       }
+      manager.clearRoom(parentId);
 
+      const unresolvedSideRooms = Object.values(manager.getGraph().rooms)
+        .filter((room) => room.id !== bossId && room.state !== "cleared");
+      expect(unresolvedSideRooms.length).toBeGreaterThan(0);
       expect(unclearedRoomsBeforeBoss(manager.getGraph())).toEqual([]);
       expect(isBossRoomUnlocked(manager.getGraph())).toBe(true);
       expect(isFinalBossConnectionLocked(manager.getGraph())).toBe(false);
-      // Every frame syncs the same connection. Cleared prerequisites must not
-      // reopen the door during intro, combat or the pending save in RESTORED.
+      expect(manager.enterRoom(bossId).id).toBe(bossId);
+
       manager.getRoom(bossId).state = "combat";
-      for (let frame = 0; frame < 3; frame++) expect(isFinalBossConnectionLocked(manager.getGraph())).toBe(true);
+      expect(isFinalBossConnectionLocked(manager.getGraph())).toBe(true);
       manager.clearRoom(bossId);
       expect(isFinalBossConnectionLocked(manager.getGraph())).toBe(false);
     },
   );
 
-  it("rejects entering the boss while even one branch is unresolved", () => {
+  it("keeps encounter-v3 saved runs on the historical full-clear rule", () => {
+    const regionId = "mata-encantada";
     const graph = populateArpgDungeonContent(generateDungeon({
-      seed: createArpgDungeonSeed("mata-encantada", "boss-gate-entry"),
-      regionId: "mata-encantada",
+      seed: `${regionId}:encounters-v3:saved-run`,
+      regionId,
       minRooms: 8,
       maxRooms: 8,
     }));
     const manager = new DungeonManager(graph);
-    const bossId = manager.getGraph().bossRoomId;
-    const parentId = bossGateParentId(manager.getGraph())!;
+    const bossId = graph.bossRoomId;
+    const parentId = bossGateParentId(graph)!;
 
-    const queue = [[manager.getGraph().startRoomId]];
-    let route: string[] = [];
-    while (queue.length) {
-      const path = queue.shift()!;
-      const id = path.at(-1)!;
-      if (id === parentId) { route = path; break; }
-      const room = manager.getGraph().rooms[id];
-      for (const next of Object.values(room.connections)) {
-        if (next && !path.includes(next) && next !== bossId) queue.push([...path, next]);
-      }
-    }
-    expect(route.at(-1)).toBe(parentId);
-    for (const nextId of route.slice(1)) {
-      manager.clearRoom();
-      manager.enterRoom(nextId);
-    }
     manager.clearRoom(parentId);
-
     expect(unclearedRoomsBeforeBoss(manager.getGraph()).length).toBeGreaterThan(0);
-    expect(() => manager.enterRoom(bossId)).toThrow(/permanece selada/i);
+    expect(isBossRoomUnlocked(manager.getGraph())).toBe(false);
 
     for (const room of Object.values(manager.getGraph().rooms)) {
       if (room.id !== bossId) manager.clearRoom(room.id);
     }
-    expect(manager.isBossRoomUnlocked()).toBe(true);
-    expect(manager.enterRoom(bossId).id).toBe(bossId);
+    expect(isBossRoomUnlocked(manager.getGraph())).toBe(true);
   });
 });
