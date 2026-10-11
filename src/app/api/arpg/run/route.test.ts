@@ -615,6 +615,54 @@ describe("/api/arpg/run durable run endpoints", () => {
     }));
   });
 
+  it("closes stages 1–4 without granting expedition completion rewards", async () => {
+    const run = await beginPersistedRun({ action: "start", expeditionId: "mata-encantada", stage: 1 });
+    const { generateDungeon } = await import("@/game/arpg/dungeon/generator");
+    const graph = generateDungeon({ seed: run.runSeed, regionId: "mata-encantada" });
+    expect(graph.isBossStage).toBe(false);
+    const { state, rewards } = createVictoryState(run, graph, graph.bossRoomId, run.checkpoint);
+    const terminalCheckpoint = {
+      ...run.checkpoint,
+      currentRoomId: graph.bossRoomId,
+      visitedRoomIds: Object.keys(graph.rooms),
+      clearedRoomIds: Object.keys(graph.rooms),
+      playerHp: state.playerHp,
+      xpEarned: state.baseXpEarned + rewards.xp,
+      runShards: state.baseRunShards + rewards.runShards,
+      rewardRoomId: null,
+      exitPortalAvailable: true,
+      serverCombatState: state,
+    };
+    rpcMock.mockImplementation(async (name: string) => {
+      if (name === "get_arpg_run_for_completion") {
+        return { data: activeRunPayload(run, terminalCheckpoint), error: null };
+      }
+      if (name === "finish_arpg_stage") {
+        return {
+          data: {
+            coins: 0, xp: 0, victory: true, items: [], runLootItems: [],
+            newItems: [], persisted: true, replayed: false,
+          },
+          error: null,
+        };
+      }
+      return { data: null, error: null };
+    });
+
+    const response = await post({ action: "complete", token: run.token, victory: true });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      persisted: true,
+      reward: { victory: true, coins: 0, xp: 0 },
+    });
+    expect(rpcMock).toHaveBeenCalledWith("finish_arpg_stage", expect.objectContaining({
+      target_player_id: PLAYER_ID,
+      target_run_id: run.runId,
+    }));
+    expect(rpcMock).not.toHaveBeenCalledWith("finish_arpg_run", expect.anything());
+  });
+
   it("finishes a boss run only from its persisted server victory and portal checkpoint", async () => {
     const run = await beginPersistedRun({ action: "start", expeditionId: "mata-encantada", stage: 5 });
     const { generateDungeon } = await import("@/game/arpg/dungeon/generator");
