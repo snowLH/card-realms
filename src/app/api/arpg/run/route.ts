@@ -30,6 +30,7 @@ import {
 import { ArpgLoadoutSchema } from "@/game/arpg/domain/loadout-schema";
 import type { ArpgLoadout } from "@/game/arpg/domain/types";
 import { generateDungeon } from "@/game/arpg/dungeon/generator";
+import { getArpgStageFromSeed } from "@/game/arpg/dungeon/encounter-seed";
 import { populateArpgDungeonContent } from "@/game/arpg/dungeon/content";
 import { computeRoomDistances } from "@/game/arpg/dungeon/graph";
 import {
@@ -89,11 +90,13 @@ function sameAtlasEncounter(
 }
 
 const ExpeditionIdSchema = z.enum(["mata-encantada", "arquipelago-das-mares", "montanhas-runicas"]);
+const StageNumberSchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]);
 
 const RequestSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("start"),
     expeditionId: ExpeditionIdSchema.default(DEFAULT_ARPG_EXPEDITION_ID),
+    stage: StageNumberSchema.default(1),
     atlasEncounter: z.object({
       kind: z.enum(["wild", "npc"]),
       regionId: z.string().min(1).max(40),
@@ -269,6 +272,7 @@ export async function POST(request: Request) {
           regionId: atlasTarget.regionId,
           id: atlasTarget.id,
         } satisfies AtlasEncounterReference : null,
+        parsed.stage,
       );
       const graph = generateDungeon({ seed: session.payload.dungeonSeed, regionId: parsed.expeditionId });
       const initialCheckpoint = createInitialArpgRunCheckpoint({
@@ -386,6 +390,7 @@ export async function POST(request: Request) {
           atlasEncounter: storedSession.atlasEncounter,
           revision: activeRun.data.revision,
           resumed: activeRun.data.resumed,
+          stage: getArpgStageFromSeed(activeRun.data.dungeonSeed, activeRun.data.expeditionId),
         });
       }
 
@@ -399,6 +404,7 @@ export async function POST(request: Request) {
         checkpoint: initialCheckpoint,
         revision: 0,
         resumed: false,
+        stage: getArpgStageFromSeed(session.payload.dungeonSeed, session.payload.regionId),
         atlasEncounter: verifyArpgRunToken(session.token).atlasEncounter,
       });
     }
@@ -846,6 +852,7 @@ export async function GET() {
         currentRoom: (computeRoomDistances(graph).get(checkpoint.data.currentRoomId) ?? 0) + 1,
         clearedRoomCount: checkpoint.data.clearedRoomIds.length,
         roomCount: Object.keys(graph.rooms).length,
+        stage: getArpgStageFromSeed(activeRun.data.dungeonSeed, activeRun.data.expeditionId),
         updatedAt: activeRun.data.updatedAt,
       },
     });
