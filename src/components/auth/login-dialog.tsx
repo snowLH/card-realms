@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { LogIn, LogOut, Mail, UserRound } from "@/components/ui/pixel-icon";
-import { useRouter } from "next/navigation";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useAuth } from "./auth-provider";
+
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { isGoogleOAuthEnabled } from "@/lib/supabase/provider-settings";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,89 +24,9 @@ export function LoginDialog({
   label?: string;
   className?: string;
 } = {}) {
-  const router = useRouter();
   const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [identity, setIdentity] = useState<{ email: string; name: string } | null>(null);
+  const { identity, busy, message, signInWithGoogle, sendMagicLink, signOut } = useAuth();
   const configured = isSupabaseConfigured();
-
-  useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
-
-    void supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) return;
-      setIdentity({
-        email: data.user.email ?? "Conta conectada",
-        name: data.user.email?.split("@")[0] ?? "Viajante",
-      });
-    });
-
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      const user = session?.user;
-      setIdentity(user ? {
-        email: user.email ?? "Conta conectada",
-        name: user.email?.split("@")[0] ?? "Viajante",
-      } : null);
-    });
-    return () => data.subscription.unsubscribe();
-  }, []);
-
-  async function signInWithGoogle() {
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
-    setBusy(true);
-    try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-      if (!supabaseUrl || !publishableKey) {
-        setMessage("O login com Google está indisponível no momento. Use o acesso por e-mail.");
-        return;
-      }
-
-      const googleEnabled = await isGoogleOAuthEnabled(supabaseUrl, publishableKey);
-      if (!googleEnabled) {
-        setMessage("O login com Google ainda não está ativado neste projeto. Use o acesso por e-mail enquanto configuramos o provedor.");
-        return;
-      }
-
-      const redirectTo = `${window.location.origin}/auth/callback`;
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo },
-      });
-      if (error) setMessage(error.message);
-    } catch {
-      setMessage("Não foi possível verificar o login com Google. Tente novamente ou use o acesso por e-mail.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function sendMagicLink(event: React.FormEvent) {
-    event.preventDefault();
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
-    setBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    });
-    setMessage(error ? error.message : "Link de acesso enviado. Verifique seu e-mail.");
-    setBusy(false);
-  }
-
-  async function signOut() {
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
-    setBusy(true);
-    const { error } = await supabase.auth.signOut();
-    setMessage(error?.message ?? "Sessão encerrada neste dispositivo.");
-    setBusy(false);
-    if (!error) router.refresh();
-  }
-
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -119,7 +38,7 @@ export function LoginDialog({
         <DialogHeader>
           <DialogTitle>Continuar sua jornada</DialogTitle>
           <DialogDescription>
-            Sua coleção, equipes e conquistas ficam vinculadas à sua conta.
+            Suas Lendas, equipamentos e conquistas ficam vinculados à sua conta.
           </DialogDescription>
         </DialogHeader>
 
@@ -143,7 +62,7 @@ export function LoginDialog({
             <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
               <span className="authored-separator h-px flex-1" /> ou por e-mail <span className="authored-separator h-px flex-1" />
             </div>
-            <form className="space-y-3" onSubmit={sendMagicLink}>
+            <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void sendMagicLink(email); }}>
               <label className="block text-sm font-bold" htmlFor="email">E-mail</label>
               <div className="authored-panel flex min-h-12 items-center gap-2 border px-3 ">
                 <Mail className="size-4 text-muted-foreground" />
@@ -165,7 +84,7 @@ export function LoginDialog({
           </div>
         ) : (
           <div className="authored-panel p-4 text-sm leading-relaxed text-amber-100">
-            O modo de conta será ativado assim que o projeto Supabase for conectado. A versão atual permite testar o ciclo de jogo localmente sem fingir que o progresso já está salvo na nuvem.
+            O acesso à conta está indisponível no momento. Você pode jogar como visitante; sua jornada será salva neste aparelho.
           </div>
         )}
       </DialogContent>
