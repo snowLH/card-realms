@@ -14,7 +14,7 @@ set search_path = ''
 as $$
 declare
   active_run private.arpg_runs%rowtype;
-  result jsonb;
+  stage_result jsonb;
 begin
   select * into active_run
   from private.arpg_runs
@@ -54,7 +54,7 @@ begin
     raise exception 'O checkpoint ainda não comprova a conclusão do estágio' using errcode = '22023';
   end if;
 
-  result := jsonb_build_object(
+  stage_result := jsonb_build_object(
     'coins', 0,
     'xp', 0,
     'victory', true,
@@ -68,12 +68,12 @@ begin
 
   update private.arpg_runs
   set status = 'extracted',
-      result = result,
+      result = stage_result,
       updated_at = now(),
       finished_at = now()
   where run_id = target_run_id;
 
-  return result;
+  return stage_result;
 end;
 $$;
 
