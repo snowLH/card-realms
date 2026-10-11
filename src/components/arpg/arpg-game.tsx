@@ -333,10 +333,13 @@ export function ArpgGame({
       setRunResult(state);
       const persistent = persistentRunRef.current;
       retryExtractionRef.current = persistent ? () => completeRun(state, true) : null;
+      const localStageReward = stageNumber === 5
+        ? getLocalDungeonCompletionReward(expeditionId, state.victory)
+        : { coins: 0, xp: 0 };
       const localExtraction: ArpgExtractionResult = {
         persisted: false,
         reward: {
-          ...getLocalDungeonCompletionReward(expeditionId, state.victory),
+          ...localStageReward,
           victory: state.victory,
           items: [],
           replayed: false,
@@ -345,7 +348,9 @@ export function ArpgGame({
       const token = runTokenRef.current;
       if (!token) {
         setExtractionMessage(state.victory
-          ? `Vitória local: +${localExtraction.reward.coins} moedas e +${localExtraction.reward.xp} XP.`
+          ? stageNumber < 5
+            ? `Estágio ${stageNumber} concluído. O portal para a próxima etapa foi estabilizado.`
+            : `Vitória local: +${localExtraction.reward.coins} moedas e +${localExtraction.reward.xp} XP.`
           : "Expedição local encerrada sem recompensa de vitória.");
         extractionInFlightRef.current = false;
         setExtractionStatus("complete");
