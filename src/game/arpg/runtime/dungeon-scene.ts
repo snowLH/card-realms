@@ -1465,6 +1465,10 @@ export function createArpgDungeonScene(
           const cleared = dungeonManager.clearRoom(room.id);
           this.proceduralController = null;
           this.spawnProceduralReward(cleared, this.runClock.now);
+          const graph = dungeonManager.getGraph();
+          if (graph.isBossStage === false && cleared.id === graph.bossRoomId) {
+            this.createExitPortal(cleared);
+          }
           return;
         }
         this.spawnProceduralWave(room, next.waveIndex + 1, this.runClock.now);
@@ -1481,13 +1485,13 @@ export function createArpgDungeonScene(
       const current = dungeonManager.getCurrentRoom();
       if (sealed && current.id === parentId && this.finalBossGateNoticeRoomId !== current.id) {
         const remaining = dungeonManager.getUnclearedBossPrerequisiteRoomIds().length;
-        bridge.emitMessage(remaining === 1 ? "A passagem final está selada. Conclua a antecâmara para enfrentar a Lenda Esquecida." : `A passagem final está selada. Ainda faltam ${remaining} objetivos obrigatórios.`);
+        bridge.emitMessage(graph.isBossStage === false ? "A passagem para o portal final está selada. Conclua a sala anterior." : remaining === 1 ? "A passagem final está selada. Conclua a antecâmara para enfrentar a Lenda Esquecida." : `A passagem final está selada. Ainda faltam ${remaining} objetivos obrigatórios.`);
         this.finalBossGateNoticeRoomId = current.id;
       } else if (current.id !== parentId) {
         this.finalBossGateNoticeRoomId = null;
       }
       if (!sealed && (this.finalBossGateLocked || (changed && current.id !== graph.bossRoomId))) {
-        bridge.emitMessage("O caminho principal foi concluído. A arena da Lenda Esquecida está aberta.");
+        bridge.emitMessage(graph.isBossStage === false ? "O caminho principal foi liberado. Alcance a última sala para abrir o portal." : "O caminho principal foi concluído. A arena da Lenda Esquecida está aberta.");
         this.playSound("door-open");
       }
       this.finalBossGateLocked = sealed;
@@ -3301,7 +3305,14 @@ export function createArpgDungeonScene(
       this.exitPortal = this.add.container(x, y, [outer, inner, core]).setDepth(8);
       this.syncExitPortalMotion();
       this.exitPortalAvailable = true;
-      bridge.emitMessage(this.chestAvailable ? "Lenda restaurada. Recolha o baú e use o portal para voltar à Guilda." : "Loot recolhido. Aproxime-se do portal e pressione E para voltar à Guilda.");
+      const stageContinues = dungeonManager?.getGraph().isBossStage === false;
+      bridge.emitMessage(stageContinues
+        ? this.chestAvailable
+          ? "Estágio concluído. Recolha o baú e use o portal para seguir."
+          : "Estágio concluído. Use o portal para seguir."
+        : this.chestAvailable
+          ? "Lenda restaurada. Recolha o baú e use o portal para continuar."
+          : "Loot recolhido. Aproxime-se do portal e pressione E para continuar.");
       this.emitRunCheckpoint();
       this.emitHud(this.runClock.now);
     }
