@@ -124,7 +124,7 @@ export function RunHud({ state }: { state: ArpgHudState | null }) {
   const weaponA = ARPG_WEAPON_BY_ID.get(weaponSlots.A) ?? ARPG_WEAPONS[0];
   const weaponB = weaponSlots.B ? ARPG_WEAPON_BY_ID.get(weaponSlots.B) : null;
   const relic = ARPG_RELIC_BY_ID.get(state.relicId) ?? ARPG_RELIC_BY_ID.get(STARTER_ARPG_RELIC_ID)!;
-  const cards = state.abilityIds.map((id) => ARPG_ABILITY_CARD_BY_ID.get(id) ?? MATA_CARDS[0]);
+  const cards = [ARPG_ABILITY_CARD_BY_ID.get(state.abilityIds[0]) ?? MATA_CARDS[0]];
 
 
   return (
@@ -204,7 +204,7 @@ export function RunHud({ state }: { state: ArpgHudState | null }) {
             <span
               key={card.id}
               className={remaining > 0 ? "is-cooling" : "is-ready"}
-              aria-label={`Poder ${index + 1}: ${card.name}, ${remaining > 0 ? `recarga de ${(remaining / 1000).toFixed(1)} segundos` : "pronto"}`}
+              aria-label={`Habilidade: ${card.name}, ${remaining > 0 ? `recarga de ${(remaining / 1000).toFixed(1)} segundos` : "pronto"}`}
             >
               <b>{index + 1}</b>
               <span className="arpg-hud__card-portrait" aria-hidden="true">
