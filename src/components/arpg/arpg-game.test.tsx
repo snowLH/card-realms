@@ -80,7 +80,7 @@ describe("ARPG run completion and recovery", () => {
   it("starts offline without any server request and grants only the local completion reward", async () => {
     fetchMock.mockRejectedValue(new TypeError("No internet"));
     const onComplete = vi.fn();
-    render(<ArpgGame onExit={vi.fn()} onRunComplete={onComplete} sessionMode="offline" />);
+    render(<ArpgGame onExit={vi.fn()} onRunComplete={onComplete} sessionMode="offline" stageNumber={5} />);
     await waitFor(() => expect(createGame).toHaveBeenCalledOnce());
     expect(fetchMock).not.toHaveBeenCalled();
     act(() => runtimeBridge.emitRunCheckpoint(checkpoint));
@@ -91,6 +91,19 @@ describe("ARPG run completion and recovery", () => {
     act(() => runtimeBridge.emitRunEnd({ ...completedRun, victory: true }));
     expect(onComplete).toHaveBeenCalledOnce();
   });
+  it("does not mint expedition rewards on offline stages 1–4", async () => {
+    const onComplete = vi.fn();
+    render(<ArpgGame onExit={vi.fn()} onRunComplete={onComplete} sessionMode="offline" stageNumber={1} />);
+    await waitFor(() => expect(createGame).toHaveBeenCalledOnce());
+    act(() => runtimeBridge.emitRunCheckpoint(checkpoint));
+    act(() => runtimeBridge.emitRunEnd({ ...completedRun, hp: 50, victory: true }));
+    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
+    expect(onComplete.mock.calls[0][1]).toMatchObject({
+      persisted: false,
+      reward: { victory: true, coins: 0, xp: 0 },
+    });
+  });
+
   it("pauses after a lost checkpoint and prevents subsequent queued actions from using an obsolete revision", async () => {
     await boot();
     runtimeBridge.setMove(1, 0);
