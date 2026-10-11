@@ -1,7 +1,7 @@
 import { computeRoomDistances, DIRECTION_VECTOR, DUNGEON_DIRECTIONS, OPPOSITE_DIRECTION, roomCoordinateKey, validateDungeonGraph } from "./graph";
 import { createSeededRandom, type SeededRandom } from "./rng";
 import { pickDungeonTemplate } from "./templates";
-import { usesLegacyDungeonLayout } from "./encounter-seed";
+import { getArpgStageFromSeed, isArpgBossStageSeed, usesCompactDungeonLayout, usesLegacyDungeonLayout } from "./encounter-seed";
 import type { DungeonDirection, DungeonGraph, DungeonRoom } from "./types";
 
 export type DungeonGeneratorOptions = {
@@ -64,7 +64,7 @@ function assignRoomTypes(graph: DungeonGraph, random: SeededRandom) {
   const start = graph.rooms[graph.startRoomId];
   const boss = graph.rooms[graph.bossRoomId];
   start.type = "start";
-  boss.type = "boss";
+  boss.type = graph.isBossStage === false ? "combat" : "boss";
 
   const candidates = rooms.filter((room) => room.id !== start.id && room.id !== boss.id);
   const terminals = candidates.filter((room) => degree(room) === 1);
@@ -78,13 +78,13 @@ function assignRoomTypes(graph: DungeonGraph, random: SeededRandom) {
   elite.type = "elite";
 
   const remaining = candidates.filter((room) => room.id !== treasure.id && room.id !== elite.id);
-  if (remaining.length > 0) random.pick(remaining).type = "event";
+  if (remaining.length > 1) random.pick(remaining).type = "event";
 
   const afterEvent = remaining.filter((room) => room.type === "combat");
-  if (afterEvent.length > 0) random.pick(afterEvent).type = "rest";
+  if (afterEvent.length > 1) random.pick(afterEvent).type = "rest";
 
   const afterRest = remaining.filter((room) => room.type === "combat");
-  if (afterRest.length > 0) random.pick(afterRest).type = "shop";
+  if (afterRest.length > 1) random.pick(afterRest).type = "shop";
 }
 
 function finalizeRooms(graph: DungeonGraph, random: SeededRandom) {
@@ -106,7 +106,10 @@ function finalizeRooms(graph: DungeonGraph, random: SeededRandom) {
 function generateAttempt(options: Required<DungeonGeneratorOptions>, attempt: number) {
   const random = createSeededRandom(`${options.seed}:${attempt}`);
   const targetCount = random.int(options.minRooms, options.maxRooms);
-  const mainLength = Math.min(targetCount - 1, random.int(6, Math.min(8, targetCount - 1)));
+  const compact = usesCompactDungeonLayout(options.seed, options.regionId);
+  const mainLength = compact
+    ? Math.min(targetCount, random.int(5, Math.min(6, targetCount)))
+    : Math.min(targetCount - 1, random.int(6, Math.min(8, targetCount - 1)));
   const mutable: MutableGraph = { rooms: {}, occupied: new Map(), nextId: 1 };
   const start: DungeonRoom = {
     id: "room-0", gridX: 0, gridY: 0, type: "start", size: "medium", state: "active",
@@ -134,7 +137,7 @@ function generateAttempt(options: Required<DungeonGeneratorOptions>, attempt: nu
 
   // Reserve an exterior terminal for the monumental arena AFTER branches exist.
   // Only its final connection changes; ordinary rooms retain compact grid cells.
-  if (!usesLegacyDungeonLayout(options.seed, options.regionId)) {
+  if (!usesLegacyDungeonLayout(options.seed, options.regionId) && isArpgBossStageSeed(options.seed, options.regionId)) {
   const boss = mutable.rooms[bossId];
   for (const [direction, parentId] of Object.entries(boss.connections)) {
     delete mutable.rooms[parentId!].connections[OPPOSITE_DIRECTION[direction as DungeonDirection]];
@@ -157,6 +160,8 @@ function generateAttempt(options: Required<DungeonGeneratorOptions>, attempt: nu
     floor: options.floor,
     startRoomId: start.id,
     bossRoomId: bossId,
+    stageNumber: getArpgStageFromSeed(options.seed, options.regionId),
+    isBossStage: isArpgBossStageSeed(options.seed, options.regionId),
     rooms: mutable.rooms,
   };
   assignRoomTypes(graph, random);
@@ -165,15 +170,19 @@ function generateAttempt(options: Required<DungeonGeneratorOptions>, attempt: nu
 }
 
 export function generateDungeon(options: DungeonGeneratorOptions): DungeonGraph {
+  const regionId = options.regionId ?? "mata-encantada";
+  const compact = usesCompactDungeonLayout(options.seed, regionId);
   const normalized: Required<DungeonGeneratorOptions> = {
     seed: options.seed,
-    regionId: options.regionId ?? "mata-encantada",
+    regionId,
     floor: options.floor ?? 1,
-    minRooms: options.minRooms ?? 8,
-    maxRooms: options.maxRooms ?? 12,
+    minRooms: options.minRooms ?? (compact ? 6 : 8),
+    maxRooms: options.maxRooms ?? (compact ? 8 : 12),
   };
-  if (normalized.minRooms < 8 || normalized.maxRooms > 12 || normalized.minRooms > normalized.maxRooms) {
-    throw new Error("A vertical slice aceita entre 8 e 12 salas por dungeon.");
+  const minimum = compact ? 5 : 8;
+  const maximum = compact ? 8 : 12;
+  if (normalized.minRooms < minimum || normalized.maxRooms > maximum || normalized.minRooms > normalized.maxRooms) {
+    throw new Error(`A geração ${compact ? "compacta" : "legada"} aceita entre ${minimum} e ${maximum} salas por dungeon.`);
   }
 
   for (let attempt = 0; attempt < 24; attempt += 1) {

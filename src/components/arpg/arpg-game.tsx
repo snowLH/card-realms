@@ -14,6 +14,7 @@ import {
 } from "@/game/arpg/content/expeditions";
 import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
 import type { ArpgHudState, ArpgLoadout, ArpgRunCheckpointState } from "@/game/arpg/domain/types";
+import type { FolklardStageNumber } from "@/game/arpg/campaign/stages";
 import type { ArpgRunCheckpoint } from "@/game/arpg/dungeon/run-checkpoint";
 import type { ArpgDungeonCombatState } from "@/game/arpg/dungeon/combat-authority";
 import { getLocalDungeonCompletionReward } from "@/game/arpg/dungeon/rewards";
@@ -76,6 +77,7 @@ export function ArpgGame({
   avatarConfig = DEFAULT_AVATAR_CONFIG,
   atlasEncounter = null,
   sessionMode = "online",
+  stageNumber = 1,
 }: {
   bossProgress?: BossProgress;
   accountId?: string | null;
@@ -88,6 +90,7 @@ export function ArpgGame({
   avatarConfig?: AvatarConfig;
   atlasEncounter?: AtlasEncounterReference | null;
   sessionMode?: "online" | "offline";
+  stageNumber?: FolklardStageNumber;
 }) {
   const expedition = getArpgExpedition(expeditionId);
   const progressRef = useRef(bossProgress);
@@ -330,10 +333,13 @@ export function ArpgGame({
       setRunResult(state);
       const persistent = persistentRunRef.current;
       retryExtractionRef.current = persistent ? () => completeRun(state, true) : null;
+      const localStageReward = stageNumber === 5
+        ? getLocalDungeonCompletionReward(expeditionId, state.victory)
+        : { coins: 0, xp: 0 };
       const localExtraction: ArpgExtractionResult = {
         persisted: false,
         reward: {
-          ...getLocalDungeonCompletionReward(expeditionId, state.victory),
+          ...localStageReward,
           victory: state.victory,
           items: [],
           replayed: false,
@@ -342,7 +348,9 @@ export function ArpgGame({
       const token = runTokenRef.current;
       if (!token) {
         setExtractionMessage(state.victory
-          ? `Vitória local: +${localExtraction.reward.coins} moedas e +${localExtraction.reward.xp} XP.`
+          ? stageNumber < 5
+            ? `Estágio ${stageNumber} concluído. O portal para a próxima etapa foi estabilizado.`
+            : `Vitória local: +${localExtraction.reward.coins} moedas e +${localExtraction.reward.xp} XP.`
           : "Expedição local encerrada sem recompensa de vitória.");
         extractionInFlightRef.current = false;
         setExtractionStatus("complete");
@@ -416,7 +424,7 @@ export function ArpgGame({
           bootStartedRef.current = true;
           const session = await createArpgGame(
             host, bridge, loadoutForBootRef.current, expeditionId,
-            undefined, undefined, undefined, avatarConfig,
+            undefined, undefined, undefined, avatarConfig, undefined, stageNumber,
           );
           if (disposed) { session.destroy(); return; }
           destroyGame = session.destroy;
@@ -430,6 +438,7 @@ export function ArpgGame({
           body: JSON.stringify({
             action: "start",
             expeditionId,
+            stage: stageNumber,
             ...(atlasEncounter ? { atlasEncounter } : {}),
           }),
         });
@@ -506,7 +515,7 @@ export function ArpgGame({
       destroyGame?.();
       setReady(false);
     };
-  }, [accountId, atlasEncounter, avatarConfig, bootAttempt, bridge, expedition, expeditionId, sessionMode, setMessage]);
+  }, [accountId, atlasEncounter, avatarConfig, bootAttempt, bridge, expedition, expeditionId, sessionMode, setMessage, stageNumber]);
 
   const requestFullscreen = async () => {
     try {
@@ -594,7 +603,6 @@ export function ArpgGame({
               abilityIds={hud?.abilityIds ?? loadout.abilityIds}
               abilityReadyAt={hud?.abilityReadyAt ?? {}}
               nowMs={hud?.nowMs ?? 0}
-              dashReadyAt={hud?.dashReadyAt ?? 0}
               chestAvailable={hud?.chestAvailable ?? false}
               exitPortalAvailable={hud?.exitPortalAvailable ?? false}
               specialRoomAvailable={specialRoomAvailable}

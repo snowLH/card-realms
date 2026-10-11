@@ -46,7 +46,11 @@ export function validateDungeonGraph(graph: DungeonGraph) {
   if (!graph.rooms[graph.startRoomId]) errors.push("START ausente.");
   if (!graph.rooms[graph.bossRoomId]) errors.push("BOSS ausente.");
   if (rooms.filter((room) => room.type === "start").length !== 1) errors.push("Deve existir exatamente um START.");
-  if (rooms.filter((room) => room.type === "boss").length !== 1) errors.push("Deve existir exatamente um BOSS.");
+  const bossCount = rooms.filter((room) => room.type === "boss").length;
+  if (graph.isBossStage === false) {
+    if (bossCount !== 0) errors.push("Estágios 1–4 não devem conter BOSS.");
+    if (graph.rooms[graph.bossRoomId]?.type !== "combat") errors.push("A saída do estágio comum deve ser uma sala de combate.");
+  } else if (bossCount !== 1) errors.push("Deve existir exatamente um BOSS.");
 
   for (const room of rooms) {
     const key = roomCoordinateKey(room.gridX, room.gridY);

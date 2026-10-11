@@ -81,7 +81,7 @@ export class DungeonManager {
     }
     if (roomId === this.graph.bossRoomId && roomId !== current.id && !this.isBossRoomUnlocked()) {
       const remaining = this.getUnclearedBossPrerequisiteRoomIds().length;
-      throw new Error(`A Lenda Esquecida permanece selada. Conclua as ${remaining} salas restantes antes do confronto final.`);
+      throw new Error(`A passagem para a Lenda Esquecida permanece selada. Conclua ${remaining === 1 ? "a antecâmara final" : `as ${remaining} salas obrigatórias`} antes do confronto.`);
     }
     if (current.id !== roomId && current.state === "active") {
       current.state = current.type === "start" ? "cleared" : "discovered";

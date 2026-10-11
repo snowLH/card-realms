@@ -15,6 +15,7 @@ type ActiveRunSummary = {
   currentRoom: number;
   clearedRoomCount: number;
   roomCount: number;
+  stage?: 1 | 2 | 3 | 4 | 5;
   updatedAt: string;
 };
 
@@ -22,7 +23,7 @@ export function ArpgExpeditionSelect({
   onSelect,
   restoreRemoteRun = true,
 }: {
-  onSelect: (id: ArpgExpeditionId) => void;
+  onSelect: (id: ArpgExpeditionId, stage?: 1 | 2 | 3 | 4 | 5) => void;
   restoreRemoteRun?: boolean;
 }) {
   const [activeRun, setActiveRun] = useState<ActiveRunSummary | null>(null);
@@ -54,7 +55,7 @@ export function ArpgExpeditionSelect({
         <div>
           <small>ROTAS DO CARTÓGRAFO</small>
           <h1>Escolha sua expedição</h1>
-          <p>Escolha uma rota folclórica. Cada run monta 8–12 salas até um encontro folclórico final.</p>
+          <p>Escolha uma rota folclórica. A jornada avança por 1-1 até 3-5. Cada estágio monta 5–8 salas e apenas x-5 termina em uma Lenda corrompida.</p>
         </div>
         <MapPinned aria-hidden="true" />
       </header>
@@ -64,9 +65,9 @@ export function ArpgExpeditionSelect({
           <div>
             <small>RUN ATIVA · CHECKPOINT SALVO</small>
             <strong>{activeExpedition.name}</strong>
-            <span>Sala {activeRun.currentRoom} · {activeRun.clearedRoomCount}/{activeRun.roomCount} salas limpas</span>
+            <span>{activeRun.stage ? `Estágio ${activeRun.expeditionId === "mata-encantada" ? 1 : activeRun.expeditionId === "arquipelago-das-mares" ? 2 : 3}-${activeRun.stage} · ` : ""}Sala {activeRun.currentRoom} · {activeRun.clearedRoomCount}/{activeRun.roomCount} salas limpas</span>
           </div>
-          <button type="button" onClick={() => onSelect(activeRun.expeditionId)}>
+          <button type="button" onClick={() => onSelect(activeRun.expeditionId, activeRun.stage ?? 1)}>
             <RotateCcw aria-hidden="true" /> Continuar run
           </button>
         </section>
@@ -102,7 +103,7 @@ export function ArpgExpeditionSelect({
               <button
                 type="button"
                 disabled={!expedition.available || Boolean(activeRun && activeRun.expeditionId !== expedition.id)}
-                onClick={() => onSelect(expedition.id)}
+                onClick={() => onSelect(expedition.id, activeRun?.expeditionId === expedition.id ? activeRun.stage ?? 1 : 1)}
               >
                 {expedition.available ? (
                   <>{activeRun?.expeditionId === expedition.id ? "Continuar run" : "Preparar expedição"} <ArrowRight /></>

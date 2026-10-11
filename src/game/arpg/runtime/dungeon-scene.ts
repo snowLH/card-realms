@@ -822,33 +822,7 @@ export function createArpgDungeonScene(
       }
       if (move.lengthSq() > 1) move.normalize();
 
-      const dashPressed = consumeKeyboardDash(this.keys.dash, this.keys.dashAlternate, Phaser.Input.Keyboard.JustDown)
-        || bridge.consumeDash()
-        || this.gamepad.dashPressed;
-      if (dashPressed && time >= this.nextDashAt) {
-        const source = move.lengthSq() > 0 ? move : this.resolveAimVector();
-        const dashArmor = ARPG_ARMOR_BY_ID.get(this.currentArmorId) ?? ARPG_ARMORS[0];
-        this.dashVector.copy(source).normalize();
-        this.facePlayer(this.dashVector);
-        if (bridge.isServerAuthoritativeCombat() && this.proceduralController && this.proceduralRoomId) {
-          if (!this.serverActionPending) {
-            this.submitServerCombatCommand(this.proceduralRoomId, "dash", time, undefined, {
-              x: this.dashVector.x,
-              y: this.dashVector.y,
-            });
-          }
-        } else {
-          this.dashingUntil = time + DASH_MS;
-          this.nextDashAt = time + getArmorDashCooldownMs(dashArmor, DASH_COOLDOWN_MS);
-          this.playPlayerAction("walk", time, DASH_MS);
-          this.flashPlayer(0xcaf4d2, 150);
-        }
-      }
 
-      if (time < this.dashingUntil) {
-        this.player.setVelocity(this.dashVector.x * DASH_SPEED, this.dashVector.y * DASH_SPEED);
-        return;
-      }
 
       const armor = ARPG_ARMOR_BY_ID.get(this.currentArmorId) ?? ARPG_ARMORS[0];
       const speed = PLAYER_BASE_SPEED + armor.moveSpeedBonus + this.runMoveSpeedBonus;
@@ -939,18 +913,14 @@ export function createArpgDungeonScene(
         else this.tryInteractSpecialRoom(time);
       }
 
-      const abilityKeys = [this.keys.one, this.keys.two] as const;
-      if (pointer.rightButtonDown()) this.castAbility(1, time);
-      abilityKeys.forEach((key, index) => {
-        const slot = index as 0 | 1;
-        if (
-          Phaser.Input.Keyboard.JustDown(key)
-          || bridge.consumeAbility(slot)
-          || this.gamepad.abilityPressed[slot]
-        ) {
-          this.castAbility(slot, time);
-        }
-      });
+      if (
+        Phaser.Input.Keyboard.JustDown(this.keys.one)
+        || bridge.consumeAbility(0)
+        || this.gamepad.abilityPressed[0]
+        || pointer.rightButtonDown()
+      ) {
+        this.castAbility(0, time);
+      }
     }
 
     private performBasicAttack(time: number) {
@@ -1465,6 +1435,10 @@ export function createArpgDungeonScene(
           const cleared = dungeonManager.clearRoom(room.id);
           this.proceduralController = null;
           this.spawnProceduralReward(cleared, this.runClock.now);
+          const graph = dungeonManager.getGraph();
+          if (graph.isBossStage === false && cleared.id === graph.bossRoomId) {
+            this.createExitPortal(cleared);
+          }
           return;
         }
         this.spawnProceduralWave(room, next.waveIndex + 1, this.runClock.now);
@@ -1481,13 +1455,13 @@ export function createArpgDungeonScene(
       const current = dungeonManager.getCurrentRoom();
       if (sealed && current.id === parentId && this.finalBossGateNoticeRoomId !== current.id) {
         const remaining = dungeonManager.getUnclearedBossPrerequisiteRoomIds().length;
-        bridge.emitMessage(`A passagem final está selada. Conclua as ${remaining} salas restantes antes de enfrentar a Lenda Esquecida.`);
+        bridge.emitMessage(graph.isBossStage === false ? "A passagem para o portal final está selada. Conclua a sala anterior." : remaining === 1 ? "A passagem final está selada. Conclua a antecâmara para enfrentar a Lenda Esquecida." : `A passagem final está selada. Ainda faltam ${remaining} objetivos obrigatórios.`);
         this.finalBossGateNoticeRoomId = current.id;
       } else if (current.id !== parentId) {
         this.finalBossGateNoticeRoomId = null;
       }
       if (!sealed && (this.finalBossGateLocked || (changed && current.id !== graph.bossRoomId))) {
-        bridge.emitMessage("Todas as salas foram concluídas. O selo da arena final se rompeu.");
+        bridge.emitMessage(graph.isBossStage === false ? "O caminho principal foi liberado. Alcance a última sala para abrir o portal." : "O caminho principal foi concluído. A arena da Lenda Esquecida está aberta.");
         this.playSound("door-open");
       }
       this.finalBossGateLocked = sealed;
@@ -3291,6 +3265,7 @@ export function createArpgDungeonScene(
       // The encounter is already destroyed here. Keep the exit beside the
       // central reward chest instead of covering it or retaining a dead boss.
       if (room.type === "boss") center.x += 220;
+      else if (this.chestAvailable) center.x += 180;
       const x = center.x;
       const y = center.y;
       const outer=authoredImage(this,0,0,'props',PROP_ART.portalActivating,88,116);
@@ -3301,7 +3276,14 @@ export function createArpgDungeonScene(
       this.exitPortal = this.add.container(x, y, [outer, inner, core]).setDepth(8);
       this.syncExitPortalMotion();
       this.exitPortalAvailable = true;
-      bridge.emitMessage(this.chestAvailable ? "Lenda restaurada. Recolha o baú e use o portal para voltar à Guilda." : "Loot recolhido. Aproxime-se do portal e pressione E para voltar à Guilda.");
+      const stageContinues = dungeonManager?.getGraph().isBossStage === false;
+      bridge.emitMessage(stageContinues
+        ? this.chestAvailable
+          ? "Estágio concluído. Recolha o baú e use o portal para seguir."
+          : "Estágio concluído. Use o portal para seguir."
+        : this.chestAvailable
+          ? "Lenda restaurada. Recolha o baú e use o portal para continuar."
+          : "Loot recolhido. Aproxime-se do portal e pressione E para continuar.");
       this.emitRunCheckpoint();
       this.emitHud(this.runClock.now);
     }
@@ -3451,8 +3433,8 @@ export function createArpgDungeonScene(
           : null,
         pendingRoomChoice: this.pendingRoomChoice,
         runLoot: this.runLoot.filter((item) => item.kind !== "armor"),
-        abilityIds: loadout.abilityIds,
-        dashReadyAt: Math.max(time, this.nextDashAt),
+        abilityIds: [loadout.abilityIds[0], loadout.abilityIds[0]],
+        dashReadyAt: time,
         abilityReadyAt: { ...this.abilityReadyAt },
         xpEarned: this.xpEarned,
         runEnded: this.runEnded,

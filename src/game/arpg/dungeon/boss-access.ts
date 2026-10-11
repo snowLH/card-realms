@@ -1,4 +1,4 @@
-import { usesLegacyDungeonLayout } from "./encounter-seed";
+import { usesCompactDungeonLayout, usesLegacyDungeonLayout } from "./encounter-seed";
 import type { DungeonGraph } from "./types";
 
 /**
@@ -8,6 +8,12 @@ import type { DungeonGraph } from "./types";
  */
 export function requiredRoomsBeforeBoss(graph: DungeonGraph) {
   if (usesLegacyDungeonLayout(graph.seed, graph.regionId)) return [];
+  if (usesCompactDungeonLayout(graph.seed, graph.regionId)) {
+    const parentId = bossGateParentId(graph);
+    return parentId ? [parentId] : [];
+  }
+  // Encounter-v3 checkpoints keep the historical full-clear seal. New v4
+  // stages only require reaching and clearing the boss antechamber.
   return Object.values(graph.rooms)
     .filter((room) => room.id !== graph.bossRoomId)
     .map((room) => room.id)

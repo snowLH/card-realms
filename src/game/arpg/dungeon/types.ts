@@ -26,6 +26,9 @@ export type DungeonGraph = {
   regionId: string;
   floor: number;
   startRoomId: string;
+  /** Kept for checkpoint compatibility: on stages 1–4 this is the terminal combat room. */
   bossRoomId: string;
+  stageNumber?: 1 | 2 | 3 | 4 | 5;
+  isBossStage?: boolean;
   rooms: Record<string, DungeonRoom>;
 };
