@@ -19,9 +19,10 @@ Observed in the installed executable, through Windows UI automation:
 - Guest Boto purchase changed 500 coins to 260; selection displayed Boto in the Guild.
 - Sound was disabled, then the app was closed and relaunched. Boto, 260 coins and disabled sound persisted.
 - The native protocol command was registered to the installed executable with the QA origin/profile arguments.
-- Opening while the local server was stopped showed the bundled recovery screen. The recovery controller was corrected to retry the configured QA origin; its regression test passes. The updated recovery executable still needs its final installer QA.
+- Opening while the local server was stopped showed the bundled recovery screen. After starting the server, the updated installed executable's retry button returned to the configured loopback game inside the app.
+- Production loopback builds originally reported a ready offline pack but bypassed navigation caching. Production registration now explicitly opts into offline handling; development still unregisters both worker URLs and clears its caches. After updating the pack and stopping the server, `/offline` and the Phaser Guild rendered from cache with Boto, 260 coins and sound off. This is local-server-offline QA, not physical network disconnection or a complete dungeon/boss run.
 
-Screenshots were captured in the task's `outputs/native-auth-sync` directory: title, Guild, fullscreen, before/after restart and legend catalog. Private browser/app storage was not committed. The user's original browser tab and visitor progress were preserved.
+Screenshots were captured in the task's `outputs/native-auth-sync` directory: title, Guild, fullscreen, before/after restart, legend catalog, `windows-recovery.png`, `windows-recovered.png`, `windows-offline-title.png` and `windows-offline-guild.png`. Private browser/app storage was not committed. The user's original browser tab and visitor progress were preserved.
 
 The browser title/auth dialog was also inspected locally. This build has no Supabase environment variables; it correctly offers visitor play and does not claim a cloud session. This is **not** a real Google or cloud-save acceptance test.
 
@@ -33,8 +34,8 @@ The browser title/auth dialog was also inspected locally. This build has no Supa
 | Unit / component tests | Parser, SDK flow binding, exchange failure/retry/replay, account changes, native listener lifecycle, settings lifecycle and conflicts |
 | Embedded PostgreSQL | Additive preference migration, repeat migration retaining data, optimistic revision conflict/idempotence, RLS ownership and denied client writes; existing boss migration suite retained |
 | Browser UI | Local title and honest unconfigured account state observed |
-| Real installed Windows | Title, Guild, fullscreen/Escape and guest progress/sound restart persistence observed |
-| Native builds | Windows regular and isolated QA installers compiled locally; Android/iOS/Linux require final CI results |
+| Real installed Windows | Title, Guild, fullscreen/Escape, guest progress/sound restart persistence, recovery retry and cached offline Guild observed |
+| Native builds | Windows regular and isolated QA installers compiled locally; Android APK, iOS simulator app, Windows NSIS and Linux AppImage passed CI for `56fe582`; final follow-up status is linked in the PR |
 | Google with a real user | Pending correct test-project access/configuration and user-operated Google login |
 | Cross-device authenticated progress/settings | Pending the same real account on web/Windows, then Android/iOS |
 | Real multiplayer | Not tested in phase 1; phase 2 must wait for native auth acceptance |
@@ -57,4 +58,6 @@ Build the root application and run it on port 3000. In `desktop`, run `npm run d
 
 Auth runs at session boundaries, not in the Phaser update loop. Callback exchange is serialized. Preference requests happen on account load, setting changes and reconnect; they do not poll every frame. Offline backup lists are bounded to three entries. No five-player FPS/network benchmark or physical mobile performance claim is made in this phase.
 
-The initial Windows targeted test attempt encountered a worker startup timeout; its complete targeted rerun passed. Final mandatory gate and CI outcomes are recorded when observed. Phase 1 is not accepted until real native Google/session/cloud tests and remote schema/advisors pass. Phase 2 has not started. No Vercel deployment, automatic-build reactivation or merge to main was performed.
+The initial Windows targeted test attempt encountered a worker startup timeout; its complete targeted rerun passed. Final local mandatory checks passed: `npm run typecheck`, `npm run lint`, `npm test` (**137 files / 721 tests**) and `npm run build`. CI verification and all native targets passed for `56fe582`: [Verify](https://github.com/snowLH/card-realms/actions/runs/38139134804), [Android](https://github.com/snowLH/card-realms/actions/runs/38139134830), [iOS Simulator](https://github.com/snowLH/card-realms/actions/runs/38139134793), [Windows/Linux](https://github.com/snowLH/card-realms/actions/runs/38139134794). The subsequent offline follow-up is covered by the local gate and the latest checks on [draft PR #18](https://github.com/snowLH/card-realms/pull/18).
+
+Phase 1 is not accepted until real native Google/session/cloud tests and remote schema/advisors pass. Phase 2 has not started. No Vercel deployment, automatic-build reactivation or merge to main was performed.

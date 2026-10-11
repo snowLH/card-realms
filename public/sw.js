@@ -2,7 +2,8 @@ const CACHE_VERSION = "folklard-arpg-v26";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const OFFLINE_STATE_CACHE = "folklard-offline-state-v1";
 const READY_URL = "/__folklard-offline-ready__";
-const DEVELOPMENT_ORIGIN = ["localhost", "127.0.0.1", "[::1]"].includes(self.location.hostname);
+const DEVELOPMENT_ORIGIN = ["localhost", "127.0.0.1", "[::1]"].includes(self.location.hostname)
+  && new URL(self.location.href).searchParams.get("offline") !== "1";
 const CORE_ASSETS = ["/icons/card-realms-192.png", "/icons/card-realms-512.png", "/icons/card-realms-maskable-512.png", "/apple-icon.png", "/offline.html",
   "/art/authored/ui/panel-dark.webp", "/art/authored/ui/panel-parchment.webp",
   "/art/authored/ui/button-normal.webp", "/art/authored/ui/button-hover.webp", "/art/authored/missing-texture.webp"];
