@@ -81,10 +81,10 @@ function assignRoomTypes(graph: DungeonGraph, random: SeededRandom) {
   if (remaining.length > 1) random.pick(remaining).type = "event";
 
   const afterEvent = remaining.filter((room) => room.type === "combat");
-  if (afterEvent.length > 0) random.pick(afterEvent).type = "rest";
+  if (afterEvent.length > 1) random.pick(afterEvent).type = "rest";
 
   const afterRest = remaining.filter((room) => room.type === "combat");
-  if (afterRest.length > 0) random.pick(afterRest).type = "shop";
+  if (afterRest.length > 1) random.pick(afterRest).type = "shop";
 }
 
 function finalizeRooms(graph: DungeonGraph, random: SeededRandom) {
