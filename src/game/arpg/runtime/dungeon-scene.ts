@@ -1481,13 +1481,13 @@ export function createArpgDungeonScene(
       const current = dungeonManager.getCurrentRoom();
       if (sealed && current.id === parentId && this.finalBossGateNoticeRoomId !== current.id) {
         const remaining = dungeonManager.getUnclearedBossPrerequisiteRoomIds().length;
-        bridge.emitMessage(`A passagem final está selada. Conclua as ${remaining} salas restantes antes de enfrentar a Lenda Esquecida.`);
+        bridge.emitMessage(remaining === 1 ? "A passagem final está selada. Conclua a antecâmara para enfrentar a Lenda Esquecida." : `A passagem final está selada. Ainda faltam ${remaining} objetivos obrigatórios.`);
         this.finalBossGateNoticeRoomId = current.id;
       } else if (current.id !== parentId) {
         this.finalBossGateNoticeRoomId = null;
       }
       if (!sealed && (this.finalBossGateLocked || (changed && current.id !== graph.bossRoomId))) {
-        bridge.emitMessage("Todas as salas foram concluídas. O selo da arena final se rompeu.");
+        bridge.emitMessage("O caminho principal foi concluído. A arena da Lenda Esquecida está aberta.");
         this.playSound("door-open");
       }
       this.finalBossGateLocked = sealed;
