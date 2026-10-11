@@ -34,6 +34,12 @@ import {
 import { resolveHubNavigation } from "@/game/arpg/hub/navigation";
 import { ARPG_RELIC_BY_ID } from "@/game/arpg/content/relics";
 import type { ArpgLoadout } from "@/game/arpg/domain/types";
+import {
+  campaignStageForRegion,
+  nextCampaignStage,
+  type FolklardCampaignStage,
+  type FolklardStageNumber,
+} from "@/game/arpg/campaign/stages";
 import type { GridPoint } from "@/game/exploration/pathfinding";
 import type { PlayerBootstrap } from "@/game/player";
 import type { RefugeSavePayload } from "@/game/refuge";
@@ -129,6 +135,7 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
   const [pendingLegendId, setPendingLegendId] = useState<PlayableLegendId | null>(null);
   const [villageReturnView, setVillageReturnView] = useState<"map" | "hub">("map");
   const [selectedExpeditionId, setSelectedExpeditionId] = useState<ArpgExpeditionId>(DEFAULT_ARPG_EXPEDITION_ID);
+  const [campaignStage, setCampaignStage] = useState<FolklardCampaignStage | null>(null);
   const [selectedAtlasEncounter, setSelectedAtlasEncounter] = useState<AtlasEncounterReference | null>(null);
   const [playReturnView, setPlayReturnView] = useState<"hub" | "map">("hub");
   const [guestPreview, setGuestPreview] = useState(false);
@@ -308,10 +315,14 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
     setView("hub");
   };
 
-  const handleStartArpg = async (expeditionId: ArpgExpeditionId = selectedExpeditionId) => {
+  const handleStartArpg = async (
+    expeditionId: ArpgExpeditionId = selectedExpeditionId,
+    stage: FolklardStageNumber = 1,
+  ) => {
     if (!await persistArpgLoadout(true)) return;
     setSelectedAtlasEncounter(null);
     setSelectedExpeditionId(expeditionId);
+    setCampaignStage(campaignStageForRegion(expeditionId, stage));
     setPlayReturnView("hub");
     setView("play");
   };
@@ -333,6 +344,7 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
     }
     if (!await persistArpgLoadout(true)) return;
     setSelectedExpeditionId(expeditionId);
+    setCampaignStage(null);
     setSelectedAtlasEncounter(atlasEncounter);
     setPlayReturnView("map");
     setView("play");
@@ -707,10 +719,11 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
           />
         ) : null}
         {!showWelcome && view === "expeditions" ? (
-          <ArpgExpeditionSelect restoreRemoteRun={bootstrap.source === "supabase"} onSelect={(id) => void handleStartArpg(id)} />
+          <ArpgExpeditionSelect restoreRemoteRun={bootstrap.source === "supabase"} onSelect={(id, stage) => void handleStartArpg(id, stage)} />
         ) : null}
         {!showWelcome && view === "play" ? (
           <ArpgGame
+            key={campaignStage?.label ?? `atlas:${selectedExpeditionId}`}
             bossProgress={bossProgress}
             accountId={cacheAccountId}
             onBossProgress={(progress, inventory) => {
@@ -721,9 +734,10 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
             loadout={playableArpgLoadout}
             avatarConfig={activeAvatar}
             expeditionId={selectedExpeditionId}
+            stageNumber={campaignStage?.stage ?? 5}
             atlasEncounter={selectedAtlasEncounter}
             exitLabel={playReturnView === "map" ? "Voltar ao Atlas" : "Voltar à Guilda"}
-            onExit={() => navigate(playReturnView)}
+            onExit={() => { setCampaignStage(null); void navigate(playReturnView); }}
             onRunComplete={(state, extraction) => {
               const newItems = extraction?.reward.newItems ?? [];
               const runLootItems = extraction?.reward.runLootItems ?? [];
@@ -771,6 +785,17 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
                             ? `Run concluída: ${state.xpEarned} XP de expedição local.`
                             : `Expedição encerrada na sala ${state.room}.`,
               );
+              if (state.victory && campaignStage) {
+                const next = nextCampaignStage(campaignStage);
+                if (next) {
+                  setSelectedExpeditionId(next.regionId);
+                  setCampaignStage(next);
+                  setToast(`Estágio ${campaignStage.label} concluído. Abrindo ${next.label}...`);
+                  return;
+                }
+                setCampaignStage(null);
+                setToast("Campanha concluída: as três regiões foram atravessadas e Arthur foi restaurado.");
+              }
             }}
           />
         ) : null}
