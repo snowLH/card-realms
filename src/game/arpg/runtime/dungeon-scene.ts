@@ -3295,6 +3295,7 @@ export function createArpgDungeonScene(
       // The encounter is already destroyed here. Keep the exit beside the
       // central reward chest instead of covering it or retaining a dead boss.
       if (room.type === "boss") center.x += 220;
+      else if (this.chestAvailable) center.x += 180;
       const x = center.x;
       const y = center.y;
       const outer=authoredImage(this,0,0,'props',PROP_ART.portalActivating,88,116);
