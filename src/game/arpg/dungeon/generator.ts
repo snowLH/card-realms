@@ -1,7 +1,7 @@
 import { computeRoomDistances, DIRECTION_VECTOR, DUNGEON_DIRECTIONS, OPPOSITE_DIRECTION, roomCoordinateKey, validateDungeonGraph } from "./graph";
 import { createSeededRandom, type SeededRandom } from "./rng";
 import { pickDungeonTemplate } from "./templates";
-import { usesLegacyDungeonLayout } from "./encounter-seed";
+import { usesCompactDungeonLayout, usesLegacyDungeonLayout } from "./encounter-seed";
 import type { DungeonDirection, DungeonGraph, DungeonRoom } from "./types";
 
 export type DungeonGeneratorOptions = {
@@ -106,7 +106,10 @@ function finalizeRooms(graph: DungeonGraph, random: SeededRandom) {
 function generateAttempt(options: Required<DungeonGeneratorOptions>, attempt: number) {
   const random = createSeededRandom(`${options.seed}:${attempt}`);
   const targetCount = random.int(options.minRooms, options.maxRooms);
-  const mainLength = Math.min(targetCount - 1, random.int(6, Math.min(8, targetCount - 1)));
+  const compact = usesCompactDungeonLayout(options.seed, options.regionId);
+  const mainLength = compact
+    ? Math.min(targetCount, random.int(5, Math.min(6, targetCount)))
+    : Math.min(targetCount - 1, random.int(6, Math.min(8, targetCount - 1)));
   const mutable: MutableGraph = { rooms: {}, occupied: new Map(), nextId: 1 };
   const start: DungeonRoom = {
     id: "room-0", gridX: 0, gridY: 0, type: "start", size: "medium", state: "active",
@@ -165,15 +168,19 @@ function generateAttempt(options: Required<DungeonGeneratorOptions>, attempt: nu
 }
 
 export function generateDungeon(options: DungeonGeneratorOptions): DungeonGraph {
+  const regionId = options.regionId ?? "mata-encantada";
+  const compact = usesCompactDungeonLayout(options.seed, regionId);
   const normalized: Required<DungeonGeneratorOptions> = {
     seed: options.seed,
-    regionId: options.regionId ?? "mata-encantada",
+    regionId,
     floor: options.floor ?? 1,
-    minRooms: options.minRooms ?? 8,
-    maxRooms: options.maxRooms ?? 12,
+    minRooms: options.minRooms ?? (compact ? 6 : 8),
+    maxRooms: options.maxRooms ?? (compact ? 8 : 12),
   };
-  if (normalized.minRooms < 8 || normalized.maxRooms > 12 || normalized.minRooms > normalized.maxRooms) {
-    throw new Error("A vertical slice aceita entre 8 e 12 salas por dungeon.");
+  const minimum = compact ? 5 : 8;
+  const maximum = compact ? 8 : 12;
+  if (normalized.minRooms < minimum || normalized.maxRooms > maximum || normalized.minRooms > normalized.maxRooms) {
+    throw new Error(`A geração ${compact ? "compacta" : "legada"} aceita entre ${minimum} e ${maximum} salas por dungeon.`);
   }
 
   for (let attempt = 0; attempt < 24; attempt += 1) {
