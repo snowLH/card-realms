@@ -14,6 +14,7 @@ import {
 } from "@/game/arpg/content/expeditions";
 import { DEFAULT_ARPG_LOADOUT } from "@/game/arpg/content/mata-encantada";
 import type { ArpgHudState, ArpgLoadout, ArpgRunCheckpointState } from "@/game/arpg/domain/types";
+import type { FolklardStageNumber } from "@/game/arpg/campaign/stages";
 import type { ArpgRunCheckpoint } from "@/game/arpg/dungeon/run-checkpoint";
 import type { ArpgDungeonCombatState } from "@/game/arpg/dungeon/combat-authority";
 import { getLocalDungeonCompletionReward } from "@/game/arpg/dungeon/rewards";
@@ -76,6 +77,7 @@ export function ArpgGame({
   avatarConfig = DEFAULT_AVATAR_CONFIG,
   atlasEncounter = null,
   sessionMode = "online",
+  stageNumber = 1,
 }: {
   bossProgress?: BossProgress;
   accountId?: string | null;
@@ -88,6 +90,7 @@ export function ArpgGame({
   avatarConfig?: AvatarConfig;
   atlasEncounter?: AtlasEncounterReference | null;
   sessionMode?: "online" | "offline";
+  stageNumber?: FolklardStageNumber;
 }) {
   const expedition = getArpgExpedition(expeditionId);
   const progressRef = useRef(bossProgress);
@@ -416,7 +419,7 @@ export function ArpgGame({
           bootStartedRef.current = true;
           const session = await createArpgGame(
             host, bridge, loadoutForBootRef.current, expeditionId,
-            undefined, undefined, undefined, avatarConfig,
+            undefined, undefined, undefined, avatarConfig, undefined, stageNumber,
           );
           if (disposed) { session.destroy(); return; }
           destroyGame = session.destroy;
@@ -430,6 +433,7 @@ export function ArpgGame({
           body: JSON.stringify({
             action: "start",
             expeditionId,
+            stage: stageNumber,
             ...(atlasEncounter ? { atlasEncounter } : {}),
           }),
         });
