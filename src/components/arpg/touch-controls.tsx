@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, Crosshair, Footprints, Hand, Sparkles } from "@/components/ui/pixel-icon";
+import { ArrowLeftRight, Crosshair, Hand, Sparkles } from "@/components/ui/pixel-icon";
 import type { ButtonHTMLAttributes } from "react";
 import { ARPG_ABILITY_CARD_BY_ID } from "@/game/arpg/content/ability-cards";
 import { MATA_CARDS } from "@/game/arpg/content/mata-encantada";
@@ -31,7 +31,6 @@ export function TouchControls({
   abilityIds,
   abilityReadyAt,
   nowMs,
-  dashReadyAt,
   chestAvailable,
   exitPortalAvailable = false,
   specialRoomAvailable = false,
@@ -42,7 +41,6 @@ export function TouchControls({
   abilityIds: [string, string];
   abilityReadyAt: Record<string, number>;
   nowMs: number;
-  dashReadyAt: number;
   chestAvailable: boolean;
   exitPortalAvailable?: boolean;
   specialRoomAvailable?: boolean;
@@ -51,9 +49,7 @@ export function TouchControls({
 }) {
   const stickInput = useVirtualJoystick(bridge);
   const attackInput = useHeldAttack(bridge);
-  const cards = abilityIds.map((id) => ARPG_ABILITY_CARD_BY_ID.get(id) ?? MATA_CARDS[0]);
-  const dashRemaining = Math.max(0, dashReadyAt - nowMs);
-  const dashCooling = dashRemaining > 50;
+  const card = ARPG_ABILITY_CARD_BY_ID.get(abilityIds[0]) ?? MATA_CARDS[0];
   const showInteraction = chestAvailable || exitPortalAvailable || specialRoomAvailable;
   const interactionLabel = exitPortalAvailable
     ? "Entrar no portal de extração"
@@ -74,31 +70,30 @@ export function TouchControls({
       </div>
 
       <div className="arpg-touch__actions">
-        <div className="arpg-touch__cards" role="group" aria-label="Dois poderes equipados">
-          {cards.map((card, index) => {
+        <div className="arpg-touch__cards" role="group" aria-label="Habilidade ativa">
+          {(() => {
             const remaining = Math.max(0, (abilityReadyAt[card.id] ?? 0) - nowMs);
             const cooling = remaining > 50;
             const cooldownLabel = cooling ? `${(remaining / 1000).toFixed(1)}s` : "Pronta";
             return (
               <TouchActionButton
                 type="button"
-                key={card.id}
                 className={cooling ? "is-cooling" : "is-ready"}
-                aria-label={`Poder ${index + 1}: ${card.name}, ${cooldownLabel}`}
-                aria-keyshortcuts={index === 0 ? "1" : "2"}
+                aria-label={`Habilidade: ${card.name}, ${cooldownLabel}`}
+                aria-keyshortcuts="1"
                 title={card.name}
-                action={() => bridge.queueAbility(index as 0 | 1)}
+                action={() => bridge.queueAbility(0)}
               >
-                <strong>{index + 1}</strong>
+                <strong>1</strong>
                 <TouchCreaturePortrait creatureId={card.creatureId} />
                 <span className="arpg-touch__card-name">{card.name}</span>
                 <small>{cooldownLabel}</small>
               </TouchActionButton>
             );
-          })}
+          })()}
         </div>
 
-        <div className="arpg-touch__combat" role="group" aria-label="Ataque básico, dash e interação">
+        <div className="arpg-touch__combat" role="group" aria-label="Ataque básico e interação">
           {weaponBId ? (
             <TouchActionButton
               type="button"
@@ -120,17 +115,7 @@ export function TouchControls({
           >
             <Crosshair /> Ataque
           </button>
-          <TouchActionButton
-            type="button"
-            className="arpg-touch__dash"
-            disabled={dashCooling}
-            aria-label={dashCooling ? `Dash em recarga por ${(dashRemaining / 1000).toFixed(1)} segundos` : "Usar dash. Teclas Espaço ou Shift"}
-            aria-keyshortcuts="Space Shift"
-            action={() => bridge.queueDash()}
-          >
-            <Footprints />
-            <span>{dashCooling ? `Dash ${(dashRemaining / 1000).toFixed(1)}s` : "Dash"}</span>
-          </TouchActionButton>
+
           {showInteraction ? (
             <TouchActionButton
               type="button"
