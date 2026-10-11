@@ -510,7 +510,7 @@ export function ArpgGame({
       destroyGame?.();
       setReady(false);
     };
-  }, [accountId, atlasEncounter, avatarConfig, bootAttempt, bridge, expedition, expeditionId, sessionMode, setMessage]);
+  }, [accountId, atlasEncounter, avatarConfig, bootAttempt, bridge, expedition, expeditionId, sessionMode, setMessage, stageNumber]);
 
   const requestFullscreen = async () => {
     try {
