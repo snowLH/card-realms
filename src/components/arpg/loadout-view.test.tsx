@@ -65,6 +65,29 @@ describe("ArpgLoadoutView", () => {
     expect(screen.queryByText("Saldo disponível:")).not.toBeInTheDocument();
   });
 
+  it("uses Portuguese equipment and attack labels", () => {
+    renderLoadout({ focus: "all" });
+
+    expect(screen.getByText("19 dano · Arco")).toBeInTheDocument();
+    expect(screen.getByText("ATAQUE 1 · Raro · Natureza")).toBeInTheDocument();
+    expect(screen.getByText("ATAQUE 2 · Raro · Fogo")).toBeInTheDocument();
+  });
+
+  it("keeps locked gear disabled while equipped gear remains selectable", () => {
+    const { props } = renderLoadout({ focus: "all" });
+    const lockedWeapon = screen.getAllByRole("button", { name: /Arma não encontrada/i })[0];
+    const equippedWeapon = screen.getByRole("button", { name: /EQUIPADA.*Arco da Mata/i });
+    const equippedRelic = screen.getByRole("button", { name: /EQUIPADA.*Bússola do Cartógrafo/i });
+
+    expect(lockedWeapon).toBeDisabled();
+    fireEvent.click(lockedWeapon);
+    expect(props.onChange).not.toHaveBeenCalled();
+    expect(equippedWeapon).toBeEnabled();
+    expect(equippedWeapon).toHaveAttribute("aria-pressed", "true");
+    expect(equippedRelic).toBeEnabled();
+    expect(equippedRelic).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("hides legacy armor from the Arsenal while preserving it in loadout edits", () => {
     const legacyLoadout = { ...DEFAULT_ARPG_LOADOUT, armorId: "leather-armor" };
     const nextWeapon = ARPG_WEAPONS.find((weapon) => weapon.id !== legacyLoadout.weaponId)!;
