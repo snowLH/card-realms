@@ -1,4 +1,6 @@
 import "server-only";
+import { createHash } from "node:crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   LOCAL_PLAYER_BOOTSTRAP,
@@ -26,6 +28,15 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
     id: subject,
     email: typeof claims?.email === "string" ? claims.email : null,
   };
+  return loadAuthenticatedPlayerBootstrap(supabase, identity);
+}
+
+/** Page bootstrap and refresh API must expose the same authoritative fields. */
+export async function loadAuthenticatedPlayerBootstrap(
+  supabase: SupabaseClient,
+  identity: NonNullable<PlayerBootstrap["identity"]>,
+): Promise<PlayerBootstrap> {
+  const subject = identity.id;
   const [snapshotResult, profileResult, worldResult, evolutionResult, missionResult, arpgLoadoutResult, bossProgressResult] = await Promise.all([
     supabase.rpc("get_my_player_snapshot"),
     supabase.from("profiles").select("avatar_config").single(),
@@ -39,6 +50,13 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
       .maybeSingle(),
     supabase.from("player_boss_progress").select("purified_boss_ids,unlocked_legend_ids,seen_boss_intro_ids").eq("user_id", subject).maybeSingle(),
   ]);
+  const failures = [profileResult, worldResult, evolutionResult, missionResult, arpgLoadoutResult, bossProgressResult]
+    .filter((result) => result.error);
+  if (failures.length) {
+    console.error("Progresso remoto incompleto.", failures.map((result) => result.error?.code));
+    return { source: "supabase-unavailable", identity, snapshot: null,
+      error: "Não foi possível carregar sua jornada completa. Seu progresso neste aparelho foi preservado." };
+  }
   const { data, error } = snapshotResult;
   if (error) {
     console.error("Falha ao carregar o progresso remoto.", error.code);
@@ -139,4 +157,10 @@ export async function loadPlayerBootstrap(): Promise<PlayerBootstrap> {
   }
 
   return { source: "supabase", identity, snapshot: parsed.data };
+}
+
+/** This is a content fingerprint for React state, not a database revision. */
+export function playerBootstrapKey(bootstrap: PlayerBootstrap) {
+  const revision = createHash("sha256").update(JSON.stringify(bootstrap.snapshot)).digest("hex");
+  return `${bootstrap.source}:${bootstrap.identity?.id ?? "guest"}:${revision}`;
 }
