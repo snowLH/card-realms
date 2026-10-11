@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { UI_ART } from "@/game/arpg/art/manifest";
 import { cn } from "@/lib/utils";
 
 export function Progress({
@@ -20,12 +20,13 @@ export function Progress({
       aria-valuenow={normalized}
       aria-valuemin={0}
       aria-valuemax={100}
-      className={cn("h-2.5 overflow-hidden rounded-full bg-black/45", className)}
+      className={cn("pixel-health-bar authored-progress", className)}
     >
-      <div
-        className={cn("h-full rounded-full bg-primary transition-[width] duration-500", indicatorClassName)}
-        style={{ "--progress-value": `${normalized}%`, width: "var(--progress-value)" } as CSSProperties}
+      <span
+        className={cn("pixel-health-bar__fill", indicatorClassName)}
+        style={{ clipPath:`inset(0 ${100-normalized}% 0 0)`,backgroundImage:`url(${UI_ART['hp-bar-fill'].path})` }}
       />
+      <span className="pixel-health-bar__frame" style={{backgroundImage:`url(${UI_ART['hp-bar-frame'].path})`}}/>
     </div>
   );
 }

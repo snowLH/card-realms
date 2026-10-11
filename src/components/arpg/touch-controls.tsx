@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, Crosshair, Footprints, Hand, Sparkles } from "lucide-react";
+import { ArrowLeftRight, Crosshair, Footprints, Hand, Sparkles } from "@/components/ui/pixel-icon";
 import type { ButtonHTMLAttributes } from "react";
 import { ARPG_ABILITY_CARD_BY_ID } from "@/game/arpg/content/ability-cards";
 import { MATA_CARDS } from "@/game/arpg/content/mata-encantada";

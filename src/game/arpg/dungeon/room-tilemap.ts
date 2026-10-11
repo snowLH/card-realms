@@ -1,6 +1,8 @@
 import { ARPG_ROOM_TEMPLATE_BY_ID } from "./templates";
 import { DUNGEON_TILE_SIZE } from "./layout";
 import type { DungeonDirection, DungeonRoomConnections } from "./types";
+import { BOSS_ARENA_COLLISION_ZONES, BOSS_ROOM_ART } from "../bosses/boss-room-art";
+import { bossForRegion } from "../bosses/registry";
 
 export const ROOM_FLOOR_TILE = 0;
 export const ROOM_WALL_TILE = 1;
@@ -54,10 +56,17 @@ function clearDoor(data: number[][], direction: DungeonDirection) {
 export function buildRoomTileData(templateId: string, connections: DungeonRoomConnections, seed = ""): RoomTileData {
   const template = ARPG_ROOM_TEMPLATE_BY_ID.get(templateId);
   if (!template) throw new Error(`Template não encontrado: ${templateId}.`);
+  const bossCollisionZones = template.size === "boss"
+    ? BOSS_ROOM_ART[bossForRegion(template.biome).id]?.collisionZones ?? BOSS_ARENA_COLLISION_ZONES
+    : [];
   const data = Array.from({ length: template.heightTiles }, (_, y) =>
     Array.from({ length: template.widthTiles }, (_, x) => {
       const edge = x === 0 || y === 0 || x === template.widthTiles - 1 || y === template.heightTiles - 1;
       if (edge) return ROOM_WALL_TILE;
+      if (template.size === "boss") return bossCollisionZones.some((zone) =>
+        x * DUNGEON_TILE_SIZE >= zone.x && x * DUNGEON_TILE_SIZE < zone.x + zone.width
+        && y * DUNGEON_TILE_SIZE >= zone.y && y * DUNGEON_TILE_SIZE < zone.y + zone.height)
+        ? ROOM_WALL_TILE : ROOM_FLOOR_TILE;
 
       const centerX = Math.floor(template.widthTiles / 2);
       const centerY = Math.floor(template.heightTiles / 2);

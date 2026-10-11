@@ -1,0 +1,323 @@
+{
+  "commit": "018df58456a4df21a9cf935f21d8589180e2cacc",
+  "buildId": "EYfFYI7KyW1mHWkhaz--0",
+  "buildTime": "2026-10-10T13:47:05.997Z",
+  "scope": "all production static JS/CSS chunks, excluding .next/dev; aggregate, not initial route transfer",
+  "files": 60,
+  "rawBytes": 3832425,
+  "gzipBytes": 1071553,
+  "byExtension": {
+    "js": {
+      "files": 49,
+      "rawBytes": 3279229,
+      "gzipBytes": 954535
+    },
+    "css": {
+      "files": 11,
+      "rawBytes": 553196,
+      "gzipBytes": 117018
+    }
+  },
+  "rows": [
+    {
+      "path": ".next/static/chunks/1711.9a3dd3011a567d16.js",
+      "bytes": 171584,
+      "gzipBytes": 51802
+    },
+    {
+      "path": ".next/static/chunks/1856.d7e881fba64bc861.js",
+      "bytes": 26813,
+      "gzipBytes": 9452
+    },
+    {
+      "path": ".next/static/chunks/1966.d10b448f42cccd98.js",
+      "bytes": 754,
+      "gzipBytes": 421
+    },
+    {
+      "path": ".next/static/chunks/2198.8aa0cf861ccf892e.js",
+      "bytes": 64366,
+      "gzipBytes": 20025
+    },
+    {
+      "path": ".next/static/chunks/2711.723498546720fc69.js",
+      "bytes": 838,
+      "gzipBytes": 402
+    },
+    {
+      "path": ".next/static/chunks/3052.93fdfbb5e1c3b0a3.js",
+      "bytes": 34033,
+      "gzipBytes": 11538
+    },
+    {
+      "path": ".next/static/chunks/3104.845b0c14b6ecdbb3.js",
+      "bytes": 14047,
+      "gzipBytes": 4636
+    },
+    {
+      "path": ".next/static/chunks/3256.434f9e397e1fba0b.js",
+      "bytes": 4148,
+      "gzipBytes": 1726
+    },
+    {
+      "path": ".next/static/chunks/3794-4e3500efc893e566.js",
+      "bytes": 241032,
+      "gzipBytes": 65710
+    },
+    {
+      "path": ".next/static/chunks/3811.ec940abc8c713a23.js",
+      "bytes": 1142,
+      "gzipBytes": 398
+    },
+    {
+      "path": ".next/static/chunks/3899.55a0943bf5e7fec7.js",
+      "bytes": 4753,
+      "gzipBytes": 1993
+    },
+    {
+      "path": ".next/static/chunks/4143.e27ec70f4115c5fc.js",
+      "bytes": 46529,
+      "gzipBytes": 13197
+    },
+    {
+      "path": ".next/static/chunks/44530001-91582253f2b37bf2.js",
+      "bytes": 67454,
+      "gzipBytes": 14311
+    },
+    {
+      "path": ".next/static/chunks/4bd1b696-93bf506b236d6248.js",
+      "bytes": 201055,
+      "gzipBytes": 63300
+    },
+    {
+      "path": ".next/static/chunks/5160.5aa520ae567c20b9.js",
+      "bytes": 28282,
+      "gzipBytes": 10450
+    },
+    {
+      "path": ".next/static/chunks/5589.aa46bde239284d82.js",
+      "bytes": 2429,
+      "gzipBytes": 1086
+    },
+    {
+      "path": ".next/static/chunks/5772.256dd74fa40c2a0a.js",
+      "bytes": 14919,
+      "gzipBytes": 5621
+    },
+    {
+      "path": ".next/static/chunks/6422-9a446afa73aaf036.js",
+      "bytes": 375360,
+      "gzipBytes": 109568
+    },
+    {
+      "path": ".next/static/chunks/6587.068f621f0a1bd0cb.js",
+      "bytes": 13511,
+      "gzipBytes": 4916
+    },
+    {
+      "path": ".next/static/chunks/6831.a15b47a54dd96207.js",
+      "bytes": 3914,
+      "gzipBytes": 1587
+    },
+    {
+      "path": ".next/static/chunks/7488.ced33e516a6bb796.js",
+      "bytes": 17411,
+      "gzipBytes": 5575
+    },
+    {
+      "path": ".next/static/chunks/750.e6769ceb3d4f014c.js",
+      "bytes": 16314,
+      "gzipBytes": 5753
+    },
+    {
+      "path": ".next/static/chunks/8500-f4d7bfbe7500f274.js",
+      "bytes": 8632,
+      "gzipBytes": 3554
+    },
+    {
+      "path": ".next/static/chunks/852.e44cda746b67a86b.js",
+      "bytes": 24747,
+      "gzipBytes": 8651
+    },
+    {
+      "path": ".next/static/chunks/8910-36953a1e3f76e9c7.js",
+      "bytes": 215157,
+      "gzipBytes": 64310
+    },
+    {
+      "path": ".next/static/chunks/8f005c66.ac3b855d470b0c54.js",
+      "bytes": 1191613,
+      "gzipBytes": 316793
+    },
+    {
+      "path": ".next/static/chunks/app/api/arpg/raids/actions/route-7ff43fc2d0b09412.js",
+      "bytes": 180,
+      "gzipBytes": 156
+    },
+    {
+      "path": ".next/static/chunks/app/api/arpg/raids/rooms/[roomId]/route-7ff43fc2d0b09412.js",
+      "bytes": 180,
+      "gzipBytes": 156
+    },
+    {
+      "path": ".next/static/chunks/app/api/arpg/raids/rooms/[roomId]/start/route-7ff43fc2d0b09412.js",
+      "bytes": 180,
+      "gzipBytes": 156
+    },
+    {
+      "path": ".next/static/chunks/app/api/arpg/run/route-7ff43fc2d0b09412.js",
+      "bytes": 180,
+      "gzipBytes": 156
+    },
+    {
+      "path": ".next/static/chunks/app/api/player/progress/route-7ff43fc2d0b09412.js",
+      "bytes": 180,
+      "gzipBytes": 156
+    },
+    {
+      "path": ".next/static/chunks/app/instalar/page-b682cc63adb88c4f.js",
+      "bytes": 2683,
+      "gzipBytes": 1284
+    },
+    {
+      "path": ".next/static/chunks/app/layout-7106a8c558069715.js",
+      "bytes": 1642,
+      "gzipBytes": 761
+    },
+    {
+      "path": ".next/static/chunks/app/not-found-30a079e1d90dd877.js",
+      "bytes": 188,
+      "gzipBytes": 164
+    },
+    {
+      "path": ".next/static/chunks/app/offline/page-534804174611f956.js",
+      "bytes": 149,
+      "gzipBytes": 138
+    },
+    {
+      "path": ".next/static/chunks/app/page-fe3fbc8611f07adf.js",
+      "bytes": 149,
+      "gzipBytes": 138
+    },
+    {
+      "path": ".next/static/chunks/app/_global-error/page-7ff43fc2d0b09412.js",
+      "bytes": 180,
+      "gzipBytes": 156
+    },
+    {
+      "path": ".next/static/chunks/app/_not-found/page-7ff43fc2d0b09412.js",
+      "bytes": 180,
+      "gzipBytes": 156
+    },
+    {
+      "path": ".next/static/chunks/framework-c4e651fe89edfa91.js",
+      "bytes": 218911,
+      "gzipBytes": 68865
+    },
+    {
+      "path": ".next/static/chunks/main-92d48d622367b8c7.js",
+      "bytes": 143068,
+      "gzipBytes": 41737
+    },
+    {
+      "path": ".next/static/chunks/main-app-2637c99990a2c9f0.js",
+      "bytes": 516,
+      "gzipBytes": 224
+    },
+    {
+      "path": ".next/static/chunks/next/dist/client/components/builtin/app-error-7ff43fc2d0b09412.js",
+      "bytes": 180,
+      "gzipBytes": 156
+    },
+    {
+      "path": ".next/static/chunks/next/dist/client/components/builtin/forbidden-7ff43fc2d0b09412.js",
+      "bytes": 180,
+      "gzipBytes": 156
+    },
+    {
+      "path": ".next/static/chunks/next/dist/client/components/builtin/global-error-a84b9b9d76e12e82.js",
+      "bytes": 183,
+      "gzipBytes": 163
+    },
+    {
+      "path": ".next/static/chunks/next/dist/client/components/builtin/unauthorized-7ff43fc2d0b09412.js",
+      "bytes": 180,
+      "gzipBytes": 156
+    },
+    {
+      "path": ".next/static/chunks/polyfills-42372ed130431b0a.js",
+      "bytes": 112594,
+      "gzipBytes": 39627
+    },
+    {
+      "path": ".next/static/chunks/webpack-a38095197fd11eb1.js",
+      "bytes": 5215,
+      "gzipBytes": 2621
+    },
+    {
+      "path": ".next/static/css/04d32445b9eefa98.css",
+      "bytes": 165963,
+      "gzipBytes": 34281
+    },
+    {
+      "path": ".next/static/css/07436a28ab98d559.css",
+      "bytes": 109820,
+      "gzipBytes": 23448
+    },
+    {
+      "path": ".next/static/css/1da2f61cd311c8b2.css",
+      "bytes": 103017,
+      "gzipBytes": 19515
+    },
+    {
+      "path": ".next/static/css/1e069485b3939839.css",
+      "bytes": 4603,
+      "gzipBytes": 1488
+    },
+    {
+      "path": ".next/static/css/6c912fd9012c6682.css",
+      "bytes": 29355,
+      "gzipBytes": 6718
+    },
+    {
+      "path": ".next/static/css/7875507b82f889e7.css",
+      "bytes": 28134,
+      "gzipBytes": 6514
+    },
+    {
+      "path": ".next/static/css/9dae90f238ec9279.css",
+      "bytes": 874,
+      "gzipBytes": 391
+    },
+    {
+      "path": ".next/static/css/ad01d2634c80074e.css",
+      "bytes": 20903,
+      "gzipBytes": 5155
+    },
+    {
+      "path": ".next/static/css/d08895a66f734aa0.css",
+      "bytes": 25434,
+      "gzipBytes": 6366
+    },
+    {
+      "path": ".next/static/css/eb226410f3af277b.css",
+      "bytes": 62172,
+      "gzipBytes": 11972
+    },
+    {
+      "path": ".next/static/css/ffd9c3a446447f09.css",
+      "bytes": 2921,
+      "gzipBytes": 1170
+    },
+    {
+      "path": ".next/static/EYfFYI7KyW1mHWkhaz--0/_buildManifest.js",
+      "bytes": 1214,
+      "gzipBytes": 414
+    },
+    {
+      "path": ".next/static/EYfFYI7KyW1mHWkhaz--0/_ssgManifest.js",
+      "bytes": 80,
+      "gzipBytes": 64
+    }
+  ]
+}

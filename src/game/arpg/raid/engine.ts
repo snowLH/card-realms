@@ -2,6 +2,7 @@ import { hasBossCombatStrategy } from "../bosses/boss-combat-strategies";
 import { CREATURE_BY_ID } from "@/game/catalog";
 import { createBossEncounter, advanceBossEncounter, damageBossEncounter, voteBossIntroSkip } from "../bosses/boss-encounter-controller";
 import { bossForRegion } from "../bosses/registry";
+import { bossRoomThronePosition } from "../bosses/boss-room-art";
 import { isBossInputLocked } from "../bosses/cinematic-input-lock";
 import { insideBossHazard } from "../bosses/king-arthur/patterns";
 import { purificationPosition, approachPurification } from "../bosses/boss-purification-controller";
@@ -430,7 +431,7 @@ function enterNextDungeonRoom(state: ArpgRaidState, atMs: number, events: ArpgRa
     const bossEnemy = ARPG_DUNGEON_CONFIGS[dungeon.regionId].enemies.boss;
     state.boss.name = definition.corruptedTitle;
     state.boss.hp = state.boss.maxHp = scaleCoopEnemyHealth(bossEnemy.maxHp, true, state.players.length);
-    state.boss.x = next.roomWidth / 2; state.boss.y = 144;
+    Object.assign(state.boss, bossRoomThronePosition(definition.id, next.roomWidth));
     state.bossEncounter = createBossEncounter(definition.id, atMs, state.players.map((player) => player.id), state.boss.maxHp, state.boss, state.players.every((player) => player.seenBossIntroIds?.includes(definition.id)));
     events.push(appendEvent(state, atMs, "system", "dungeon_room_entered", `${next.label}: ${state.boss.name} surgiu no caminho.`, { targetIds: [next.id] }));
   } else {

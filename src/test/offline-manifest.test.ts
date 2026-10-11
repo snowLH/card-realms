@@ -16,7 +16,7 @@ it("builds the public pack before HTML prerendering and invalidates it for shell
     await put("src/app/offline/page.tsx", 'const portrait = "/art/hero-v5.webp";');
     await put("src/ignored.test.ts", 'const portrait = "/art/missing.webp";');
     await put(".next/static/chunks/game.js", "public game bundle");
-    for (const path of ["offline.html", "manifest.webmanifest", "icon.svg", "apple-icon.png",
+    for (const path of ["offline.html", "manifest.webmanifest", "apple-icon.png",
       "icons/card-realms-192.png", "icons/card-realms-512.png", "icons/card-realms-maskable-512.png", "art/hero-v5.webp"]) {
       await put(`public/${path}`, "public asset");
     }
@@ -29,6 +29,7 @@ it("builds the public pack before HTML prerendering and invalidates it for shell
     expect(first.files).toContain("/_next/static/chunks/game.js");
     expect(first.files).toContain("/art/hero-v5.webp");
     expect(first.files).not.toContain("/art/missing.webp");
+    expect(first.files).not.toContain("/icon.svg");
     expect((await build()).version).toBe(first.version);
     await put("src/app/offline/page.tsx", 'const portrait = "/art/hero-v5.webp"; // updated public shell');
     expect((await build()).version).not.toBe(first.version);
@@ -39,4 +40,16 @@ it("builds the public pack before HTML prerendering and invalidates it for shell
     }
     await rm(absolute, { recursive: true, force: true });
   }
+});
+
+it("caches every fallback page image at installation and uses raster PWA icons", async () => {
+  const html = await readFile("public/offline.html", "utf8");
+  const worker = await readFile("public/sw.js", "utf8");
+  const core = worker.match(/const CORE_ASSETS = \[([\s\S]*?)\];/)![1];
+  for (const path of new Set([...html.matchAll(/"(\/(?:art|icons)\/[^"\s]+\.(?:webp|png))"/g)].map((match) => match[1]))) {
+    expect(core, `${path} must be available before a full offline download`).toContain(`"${path}"`);
+    expect((await readFile(`public${path}`)).length).toBeGreaterThan(0);
+  }
+  const manifest = JSON.parse(await readFile("public/manifest.webmanifest", "utf8"));
+  expect(manifest.icons.every((icon: { type: string }) => icon.type === "image/png")).toBe(true);
 });

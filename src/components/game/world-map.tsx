@@ -8,7 +8,7 @@ import {
   MapPin,
   Sparkles,
   TentTree,
-} from "lucide-react";
+} from "@/components/ui/pixel-icon";
 import { useMemo, useState } from "react";
 import { REGIONS } from "@/game/catalog";
 import type { GridPoint } from "@/game/exploration/pathfinding";
@@ -142,7 +142,7 @@ export function WorldMap({
       {selected ? (
         <aside className="region-panel" aria-live="polite">
           <div className="region-panel__topline">
-            <Badge className="border-transparent text-slate-950" style={{ backgroundColor: selected.accent }}>Nível {selected.recommendedLevel}</Badge>
+            <Badge className="border-transparent text-slate-950">Nível {selected.recommendedLevel}</Badge>
             <span>{selected.areas?.length ?? 0} áreas · {discoveredByRegion[selected.id] ?? 0}/{selected.totalCreatures} seres</span>
           </div>
           <h2>{selected.name}</h2>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Trophy } from "lucide-react";
+import { Trophy } from "@/components/ui/pixel-icon";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -898,4 +898,3 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
     </main>
   );
 }
-

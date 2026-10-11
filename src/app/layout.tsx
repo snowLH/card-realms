@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
+import { AuthoredCssAssets } from "@/components/ui/authored-css-assets";
 import "./globals.css";
 import "./game-ui.css";
 import "./medieval-theme.css";
@@ -10,6 +11,7 @@ import "./arpg.css";
 import "./folklard-art-pass.css";
 import "./arpg-raid.css";
 import "./dungeon-mobile-fixes.css";
+import "./authored-art.css";
 
 export const metadata: Metadata = {
   title: "Folklard — Crônicas de Aurória",
@@ -47,6 +49,7 @@ export default function RootLayout({
       <body>
         {children}
         <ServiceWorkerRegistration />
+        <AuthoredCssAssets />
       </body>
     </html>
   );

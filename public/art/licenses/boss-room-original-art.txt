@@ -1,0 +1,21 @@
+FOLKLARD — AUTHORED BOSS ARENAS V1
+
+Assets and usage:
+/art/boss-rooms/curupira/arena.webp — Forgotten forest clearing.
+/art/boss-rooms/iara/arena.webp — Forgotten aquatic temple.
+/art/boss-rooms/arthur/arena.webp — Ruined Camelot throne hall.
+
+Author: Codex/imagegen, created for snowLH/card-realms, 2026-10-10.
+Source: https://github.com/snowLH/card-realms
+Method: integrated imagegen, using this project's forest environment and the
+user-approved Naturalist character reference to match the existing pixel art.
+No commercial game sprites, downloaded illustrations or external art used.
+Exact prompts: docs/boss-room-art-prompts.md.
+Original PNG sources: workspace outputs/art-sources-boss-rooms/{id}.png.
+Export: node scripts/export-boss-room-art.mjs {id} {original.png}.
+
+License: CC0 1.0 Universal, to the extent applicable to generated artwork.
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+This notice applies only to the new arena drawings, not pre-existing references.
+Runtime use: opaque arena background retained after boss presentation cleanup.
+Invisible collision geometry is shared by the client and server tilemap.

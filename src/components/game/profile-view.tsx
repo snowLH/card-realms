@@ -1,6 +1,6 @@
 "use client";
 
-import { Album, Coins, ScrollText, Star, Trophy } from "lucide-react";
+import { Album, Coins, ScrollText, Star, Trophy } from "@/components/ui/pixel-icon";
 import type { PlayerBootstrap, RemotePlayerSnapshot } from "@/game/player";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
 import { getLegendAppearance, PLAYABLE_LEGEND_BY_ID } from "@/game/arpg/content/legends";

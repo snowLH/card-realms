@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, LockKeyhole, MapPinned, RotateCcw, Skull, Sparkles } from "lucide-react";
+import { ArrowRight, LockKeyhole, MapPinned, RotateCcw, Skull, Sparkles } from "@/components/ui/pixel-icon";
 import { useEffect, useState } from "react";
 import {
   ARPG_EXPEDITIONS,
@@ -80,7 +80,7 @@ export function ArpgExpeditionSelect({
           >
             <div
               className="arpg-expedition-card__art"
-              style={{ backgroundImage: `linear-gradient(180deg, transparent, rgba(17, 10, 8, .9)), url(${expedition.background})` }}
+              style={{ backgroundImage: `url(${expedition.background})` }}
             >
               <span>{expedition.available ? "DISPONÍVEL" : "EM PREPARAÇÃO"}</span>
               {!expedition.available ? <LockKeyhole aria-hidden="true" /> : null}

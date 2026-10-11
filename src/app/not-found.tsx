@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <main className="grid min-h-screen place-items-center bg-background p-6 text-foreground">
+    <main className="authored-panel grid min-h-screen place-items-center p-6 text-foreground">
       <div className="max-w-md text-center">
         <p className="font-mono text-sm uppercase tracking-[0.2em] text-primary">
           Região desconhecida
@@ -13,7 +13,7 @@ export default function NotFound() {
         </p>
         <Link
           href="/"
-          className="mt-6 inline-flex rounded-full bg-primary px-5 py-3 font-bold text-primary-foreground"
+          className="authored-button mt-6 inline-flex px-5 py-3 font-bold text-primary-foreground"
         >
           Voltar ao mapa
         </Link>

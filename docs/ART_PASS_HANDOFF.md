@@ -1,5 +1,7 @@
 # Handoff exclusivamente visual — ChatGPT Work
 
+> Registro histórico. A política atual exige arte externa para toda aparência visível, incluindo UI e VFX. Consulte [AUTHORED_ART.md](AUTHORED_ART.md) e [AUTHORED_ART_QA.md](AUTHORED_ART_QA.md) para a implementação e a validação da reforma; propostas procedurais abaixo não autorizam shapes no renderer atual.
+
 Este documento especifica o que Work deve produzir **quando solicitado**. O assistente que edita gameplay, backend ou banco não deve fazer a reforma visual.
 
 ## Base atual (não alterar)

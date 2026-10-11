@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import ts from "typescript";
 import sharp from "sharp";
 
-const source = await readFile(resolve("src/game/arpg/runtime/folklard-pixel-enemies.ts"), "utf8");
+const source = await readFile(resolve("scripts/art-archive/folklard-pixel-enemies.ts"), "utf8");
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const { FOLKLARD_PIXEL_ENEMIES, getFolklardPixelEnemyFrame } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
 const rects = (enemy, row, frame) => getFolklardPixelEnemyFrame(enemy, row, frame)

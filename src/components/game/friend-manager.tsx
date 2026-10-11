@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, LoaderCircle, Search, UserPlus, Users, X } from "lucide-react";
+import { Check, LoaderCircle, Search, UserPlus, Users, X } from "@/components/ui/pixel-icon";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 

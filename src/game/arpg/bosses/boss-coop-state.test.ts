@@ -65,6 +65,12 @@ describe("shared forgotten legend authority", () => {
     for (let step = 0; step < 8; step++) raid = advanceArpgRaid(raid, raid.serverTimeMs + 1000).state;
     expect(raid.bossEncounter!.state).toBe("RESTORED");
     expect(raid.status).toBe("active");
+    const startX = raid.players[0].x;
+    raid = applyArpgRaidAction(raid, raid.players[0].id, { kind: "input", actionId: "restored-move", moveX: 1, moveY: 0, aimX: 1, aimY: 0 }, raid.serverTimeMs + 20).state;
+    raid = advanceArpgRaid(raid, raid.serverTimeMs + 200).state;
+    expect(raid.bossEncounter!.state).toBe("RESTORED");
+    expect(raid.players[0].x).toBeGreaterThan(startX);
+    expect(raid.log.filter((event) => event.kind === "raid_victory")).toHaveLength(0);
     confirmBossRestoration(raid.bossEncounter!, "king-arthur", true, raid.serverTimeMs);
     raid = advanceArpgRaid(raid, raid.serverTimeMs + 50).state;
     expect(raid.status).toBe("victory");

@@ -16,12 +16,11 @@ if (previousCacheVersion === cacheVersion) throw new Error(`Versão do cache for
 const staticCacheName = `${cacheVersion}-static`;
 const previousStaticCacheName = `${previousCacheVersion}-static`;
 const expectedCachePaths = [...coreAssetsBody.matchAll(/"([^\"]+)"/g)].map((match) => match[1]);
-const requiredGameAssets = [
-  "/art/guild-bestiary-keeper-spritesheet-v1.webp",
-  "/art/treasure-chest-spritesheet-v2.webp",
+const requiredOfflineArt = [
+  "/art/authored/ui/panel-dark.webp", "/art/authored/ui/panel-parchment.webp",
+  "/art/authored/ui/button-normal.webp", "/art/authored/ui/button-hover.webp", "/art/authored/missing-texture.webp",
 ];
 const expectedIcons = [
-  { src: "/icon.svg", size: null, purpose: "any" },
   { src: "/icons/card-realms-192.png", size: 192, purpose: "any" },
   { src: "/icons/card-realms-512.png", size: 512, purpose: "any" },
   { src: "/icons/card-realms-maskable-512.png", size: 512, purpose: "maskable" },
@@ -29,8 +28,8 @@ const expectedIcons = [
 if (!expectedIcons.every((icon) => expectedCachePaths.includes(icon.src))) {
   throw new Error("O service worker não inclui todos os ícones PWA esperados no cache essencial.");
 }
-if (!requiredGameAssets.every((asset) => expectedCachePaths.includes(asset))) {
-  throw new Error("O service worker não inclui todos os sprites NPC essenciais ao HUB.");
+if (!requiredOfflineArt.every((asset) => expectedCachePaths.includes(asset))) {
+  throw new Error("O service worker não inclui a arte da página de recuperação offline.");
 }
 
 const target = await fetch(`${debugBase}/json/new?${encodeURIComponent("about:blank")}`, { method: "PUT" })
@@ -184,7 +183,7 @@ const result = {
       && report.appleIcon.dimensions?.width === 180
       && report.appleIcon.dimensions?.height === 180,
     coreIconsCached: expectedCachePaths.every((iconPath) => report?.cachedPaths.includes(iconPath)),
-    bestiaryKeeperCached: requiredGameAssets.every((asset) => report?.cachedPaths.includes(asset)),
+    offlineFallbackArtCached: requiredOfflineArt.every((asset) => report?.cachedPaths.includes(asset)),
     legacyCacheSeeded: report?.legacyCacheSeeded === true,
     previousCacheRemoved: !report?.cacheNames.includes(previousStaticCacheName),
   },

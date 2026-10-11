@@ -43,8 +43,8 @@ describe("Arthur shared Naturalist v5 presentation", () => {
     const reconnected = JSON.parse(JSON.stringify(encounter));
     expect(arthurArtFrame(reconnected)).toEqual(arthurArtFrame(encounter));
     const markup = renderToStaticMarkup(createElement(ForgottenLegendActor, { encounter: reconnected }));
-    expect(markup).toContain('href="' + ARTHUR_CHARACTER_ART.corrupted.path + '"');
-    expect(markup).toContain('viewBox="768 0 256 256"');
+    expect(markup).toContain('background-image:url(' + ARTHUR_CHARACTER_ART.corrupted.path + ')' );
+    expect(markup).toContain('background-position:100% 0%' );
     expect(markup).not.toContain("<rect");
   });
 });

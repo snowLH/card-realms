@@ -43,10 +43,11 @@ describe("RunHud minimap", () => {
   it("mantém identidade visual por tipo e destaca a sala atual", () => {
     const { container } = render(<RunHud state={createHud()} />);
 
-    expect(container.querySelector(".arpg-minimap-room.is-type-shop.is-current")).toBeInTheDocument();
-    expect(container.querySelector(".arpg-minimap-room.is-type-event title")).toHaveTextContent("Evento");
-    expect(container.querySelector(".arpg-minimap-room.is-type-rest title")).toHaveTextContent("Descanso");
-    expect(container.querySelector(".arpg-minimap-room.is-type-boss title")).toHaveTextContent("Chefe");
+    expect(screen.getByRole('img',{name:'Mercador · ativa'})).toBeInTheDocument();
+    expect(screen.getByRole('img',{name:'Evento · revelada'})).toBeInTheDocument();
+    expect(screen.getByRole('img',{name:'Descanso · revelada'})).toBeInTheDocument();
+    expect(screen.getByRole('img',{name:'Chefe · revelada'})).toBeInTheDocument();
+    expect(container.querySelector('svg')).toBeNull();
   });
 
   it("keeps equipment names accessible alongside compactable equipment icons", () => {
@@ -71,7 +72,7 @@ describe("RunHud minimap", () => {
 
     expect(screen.getByRole("dialog", { name: "Mapa" })).toHaveAttribute("aria-modal", "true");
     const map = screen.getByRole("img", { name: "2 salas descobertas" });
-    expect(map.querySelector(".arpg-minimap-room.is-type-unknown title")).toHaveTextContent("Sala desconhecida");
+    expect(map.querySelector('[aria-label="Sala desconhecida · revelada"]')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Fechar mapa" }));
     expect(onClose).toHaveBeenCalledOnce();

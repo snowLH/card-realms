@@ -12,8 +12,8 @@ describe("complete Naturalist-style portrait catalog", () => {
     }
   });
 
-  it("keeps every portrait visible, in bounds and on the 64px pixel grid", async () => {
-    for (const sheet of new Set(CREATURES.map((creature) => creature.sprite.sheet))) {
+  it.each([...new Set(CREATURES.map((creature) => creature.sprite.sheet))])(
+    "keeps portraits in %s visible, in bounds and on the 64px pixel grid", async (sheet) => {
       const { data, info } = await sharp(`public${sheet}`).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
       const portraits = CREATURES.filter((creature) => creature.sprite.sheet === sheet);
       const first = portraits[0].sprite;
@@ -40,6 +40,6 @@ describe("complete Naturalist-style portrait catalog", () => {
         }
         expect(count, creature.id).toBeGreaterThan(80);
       }
-    }
-  });
+    },
+  );
 });

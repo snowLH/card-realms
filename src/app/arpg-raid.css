@@ -5,9 +5,10 @@
   display: grid;
   grid-template-rows: 46px 58px minmax(0, 1fr) auto 104px;
   overflow: hidden;
-  background: #0d1118;
+  background: none;
   color: #f5e8c8;
   font-family: var(--font-geist-sans), sans-serif;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-arena--loading {
@@ -23,10 +24,11 @@
   justify-content: space-between;
   gap: 12px;
   padding: 5px 10px;
-  border-bottom: 3px solid #1b1013;
-  background: linear-gradient(180deg, #edf2f4, #cfdbe2);
+  border-bottom: 3px solid transparent;
+  background: none;
   color: #21313c;
   z-index: 30;
+  border-image: var(--art-panel-parchment) 16 fill / 8px / 0 stretch;
 }
 .arpg-raid-arena__topbar > div:first-child,
 .arpg-raid-arena__status {
@@ -51,10 +53,11 @@
   height: 34px;
   min-height: 34px;
   place-items: center;
-  border: 2px solid #82909a;
-  border-radius: 7px;
-  background: #263b4a;
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: none;
   color: white;
+  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-arena__status em {
@@ -67,9 +70,10 @@
   align-items: center;
   gap: 10px;
   padding: 6px 12px;
-  border-bottom: 3px solid #2a1718;
-  background: linear-gradient(180deg, #372029, #21151b);
+  border-bottom: 3px solid transparent;
+  background: none;
   z-index: 25;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-arena__boss-title {
@@ -98,27 +102,33 @@
   position: relative;
   height: 8px;
   overflow: hidden;
-  border: 2px solid #271719;
-  border-radius: 999px;
-  background: #3d2d2d;
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  border-image: var(--art-hp-bar-frame) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-bar i {
   display: block;
   height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #58b46c, #b9df79);
+  border-radius: 0;
+  background-image: var(--art-hp-bar-fill);
   transition: width 180ms ease-out;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 .arpg-raid-bar--boss {
   height: 13px;
-  border-color: #c78c45;
-  background: #1d1115;
+  border-color: transparent;
+  background: none;
+  border-image: var(--art-boss-hp-frame) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-bar--boss i {
-  background: linear-gradient(90deg, #9f3558, #ef7b5e);
+  background-image: var(--art-hp-bar-fill);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 .arpg-raid-world {
@@ -126,9 +136,8 @@
   min-height: 0;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 15%, rgba(134, 92, 159, .35), transparent 24%),
-    radial-gradient(circle at 50% 45%, rgba(58, 105, 128, .24), transparent 45%),
-    linear-gradient(180deg, #18232e, #11151b 68%, #24191b);
+    none;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 .arpg-raid-world::before {
   content: "";
@@ -136,10 +145,10 @@
   inset: 0;
   opacity: .22;
   background-image:
-    linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px);
+    none;
   background-size: 48px 48px;
   pointer-events: none;
+  border-image: var(--art-panel-parchment) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-boss,
@@ -163,16 +172,16 @@
   width: 92px;
   height: 92px;
   z-index: 2;
-  filter: drop-shadow(0 8px 8px rgba(4, 3, 5, .65));
+  filter: none;
 }
 
 .arpg-raid-boss__aura {
   position: absolute;
   width: 108px;
   height: 108px;
-  border: 3px solid rgba(234, 147, 91, .68);
-  border-radius: 50%;
-  box-shadow: 0 0 30px rgba(197, 77, 112, .48);
+  border: 3px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
   animation: raid-pulse 1.5s ease-in-out infinite;
 }
 .arpg-raid-boss strong,
@@ -182,7 +191,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font: 900 8px var(--font-game);
-  text-shadow: 2px 2px #0c0809;
+  text-shadow: none;
 }
 
 .arpg-raid-boss small,
@@ -203,12 +212,13 @@
   width: 34px;
   height: 34px;
   place-items: center;
-  border: 3px solid #b78a45;
-  border-radius: 50%;
-  background: #31566c;
+  border: 3px solid transparent;
+  border-radius: 0;
+  background: none;
   color: white;
   font: 1000 10px var(--font-game);
-  box-shadow: 0 4px 10px rgba(5, 4, 6, .45);
+  box-shadow: none;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-player .arpg-raid-bar {
@@ -216,9 +226,10 @@
   height: 6px;
 }
 .arpg-raid-player.is-self .arpg-raid-player__token {
-  border-color: #f2d478;
-  background: #3e7f62;
-  box-shadow: 0 0 0 3px rgba(242, 212, 120, .18), 0 5px 12px rgba(5, 4, 6, .45);
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-player.is-defeated {
@@ -228,8 +239,8 @@
 
 .arpg-raid-arena.is-enraged .arpg-raid-world {
   background:
-    radial-gradient(circle at 50% 15%, rgba(191, 61, 92, .46), transparent 28%),
-    linear-gradient(180deg, #281923, #171016 68%, #321a18);
+    none;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-hud {
@@ -238,9 +249,10 @@
   gap: 8px;
   align-items: center;
   padding: 5px 10px;
-  border-top: 3px solid #241417;
-  background: #e6d09a;
+  border-top: 3px solid transparent;
+  background: none;
   color: #38231c;
+  border-image: var(--art-panel-parchment) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-hud__player {
@@ -280,16 +292,17 @@
   align-items: center;
   gap: 3px;
   overflow: hidden;
-  border: 1px solid #a37648;
-  border-radius: 5px;
-  background: rgba(255, 239, 187, .72);
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: none;
   padding: 3px 5px;
   font-size: 6px;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border-image: var(--art-panel-parchment) 16 fill / 8px / 0 stretch;
 }
 
-.arpg-raid-hud__loadout svg {
+.arpg-raid-hud__loadout .pixel-icon {
   width: 11px;
   height: 11px;
   flex: 0 0 auto;
@@ -300,7 +313,7 @@
   max-height: 48px;
   gap: 2px;
   overflow: hidden;
-  border-left: 2px solid #ad8250;
+  border-left: 2px solid transparent;
   padding-left: 8px;
 }
 
@@ -324,9 +337,10 @@
   gap: 8px;
   align-items: center;
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
-  border-top: 3px solid #1d1113;
-  background: linear-gradient(180deg, #d9e4e9, #bac9d2);
+  border-top: 3px solid transparent;
+  background: none;
   color: #25313b;
+  border-image: var(--art-panel-parchment) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-dpad {
@@ -340,11 +354,12 @@
 
 .arpg-raid-dpad button {
   min-height: 0;
-  border: 2px solid #748590;
-  border-radius: 7px;
-  background: #304756;
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: none;
   color: white;
   font-weight: 900;
+  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-dpad button:nth-child(1) { grid-column: 2; grid-row: 1; }
@@ -366,11 +381,12 @@
   min-height: 74px;
   place-items: center;
   gap: 1px;
-  border: 3px solid #253440;
-  border-radius: 8px;
-  background: linear-gradient(180deg, #425f72, #263b49);
+  border: 3px solid transparent;
+  border-radius: 0;
+  background: none;
   color: #fff1c7;
-  box-shadow: inset 0 0 0 2px #66869a, 2px 3px rgba(60, 48, 40, .25);
+  box-shadow: none;
+  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-actions button strong,
@@ -388,16 +404,17 @@
   font-size: 6px;
 }
 
-.arpg-raid-actions button svg {
+.arpg-raid-actions button .pixel-icon {
   width: 18px;
   height: 18px;
   color: #f0c65f;
 }
 
 .arpg-raid-abilities button {
-  border-color: #694331;
-  background: linear-gradient(180deg, #7e5338, #4b2f27);
-  box-shadow: inset 0 0 0 2px #b48655, 2px 3px rgba(60, 48, 40, .25);
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-abilities button > span {
@@ -405,10 +422,11 @@
   width: 20px;
   height: 20px;
   place-items: center;
-  border-radius: 50%;
-  background: #f0cb6c;
+  border-radius: 0;
+  background: none;
   color: #3c271d;
   font: 1000 7px var(--font-game);
+  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-controls button:disabled {
@@ -427,12 +445,13 @@
   display: block;
   transform: translate(-50%, -50%);
   overflow: hidden;
-  border: 1px solid rgba(219, 183, 99, .28);
-  background: #0b1711;
+  border: 1px solid transparent;
+  background: none;
   color: #f4e7c5;
   font-family: var(--font-geist-sans), sans-serif;
-  box-shadow: 0 0 0 1px #050806, 0 14px 42px rgba(0, 0, 0, .5);
+  box-shadow: none;
   isolation: isolate;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-arena--loading {
@@ -449,11 +468,12 @@
   justify-content: space-between;
   gap: 6px;
   border: 0;
-  border-bottom: 2px solid #392a19;
-  background: linear-gradient(180deg, #304234, #17261c);
+  border-bottom: 2px solid transparent;
+  background: none;
   padding: 2px 5px;
   color: #f5e9ca;
-  box-shadow: inset 0 1px rgba(255, 227, 155, .18), 0 2px 0 #070c09;
+  box-shadow: none;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-arena__topbar > div:first-child {
@@ -470,8 +490,8 @@
   white-space: nowrap;
 }
 
-.arpg-raid-arena__topbar > div:first-child svg,
-.arpg-raid-arena__status svg {
+.arpg-raid-arena__topbar > div:first-child .pixel-icon,
+.arpg-raid-arena__status .pixel-icon {
   width: 11px;
   height: 11px;
 }
@@ -507,17 +527,18 @@
   width: 25px;
   height: 25px;
   min-height: 25px;
-  border: 2px solid #aa8e50;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #4a4231, #29251b);
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: none;
   color: #fff1c5;
-  box-shadow: 0 2px 0 #070c09;
+  box-shadow: none;
+  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-arena__topbar button:focus-visible,
 .arpg-raid-controls button:focus-visible,
 .arpg-raid-result button:focus-visible {
-  outline: 3px solid #7de1cb;
+  outline: 3px solid transparent;
   outline-offset: 2px;
 }
 
@@ -531,11 +552,12 @@
   grid-template-columns: minmax(72px, 1fr) minmax(70px, 2fr) auto;
   gap: 5px;
   overflow: hidden;
-  border: 2px solid #a57b40;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #43272b, #25181e);
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: none;
   padding: 2px 4px;
-  box-shadow: 0 2px 0 #090908, inset 0 0 0 1px rgba(251, 218, 149, .12);
+  box-shadow: none;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-arena__boss-title {
@@ -543,7 +565,7 @@
   gap: 4px;
 }
 
-.arpg-raid-arena__boss-title > svg {
+.arpg-raid-arena__boss-title > .pixel-icon {
   width: 13px;
   height: 13px;
   flex: 0 0 13px;
@@ -576,10 +598,11 @@
 
 .arpg-raid-bar {
   height: 7px;
-  border: 2px solid #16110f;
-  border-radius: 1px;
-  background: #493032;
-  box-shadow: inset 0 1px rgba(0, 0, 0, .5);
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-image: var(--art-hp-bar-frame) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-bar i {
@@ -589,12 +612,15 @@
 
 .arpg-raid-bar--boss {
   height: 11px;
-  border-color: #9b7143;
-  background: #1d1115;
+  border-color: transparent;
+  background: none;
+  border-image: var(--art-boss-hp-frame) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-bar--boss i {
-  background: repeating-linear-gradient(90deg, #c54d56 0 7px, #a83a4b 7px 9px);
+  background-image: var(--art-hp-bar-fill);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 .arpg-raid-world {
@@ -602,12 +628,11 @@
   z-index: 1;
   inset: 53px 0 49px;
   min-height: 0;
-  background-color: #23402f;
+  background-color: transparent;
   background-image:
-    linear-gradient(90deg, rgba(186, 206, 132, .055) 1px, transparent 1px),
-    linear-gradient(rgba(186, 206, 132, .055) 1px, transparent 1px),
-    repeating-linear-gradient(135deg, rgba(13, 32, 24, .1) 0 8px, transparent 8px 16px);
+    none;
   background-size: 32px 32px, 32px 32px, 64px 64px;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-world::before {
@@ -618,7 +643,7 @@
 .arpg-raid-boss .pixel-creature {
   width: clamp(42px, 6vw, 58px);
   height: clamp(42px, 6vw, 58px);
-  filter: drop-shadow(0 3px 0 rgba(4, 3, 5, .7));
+  filter: none;
 }
 
 .arpg-raid-boss__sprite {
@@ -628,7 +653,7 @@
   width: clamp(48px, 6vw, 68px);
   height: clamp(48px, 6vw, 68px);
   image-rendering: pixelated;
-  filter: drop-shadow(0 3px 0 rgba(4, 3, 5, .7));
+  filter: none;
 }
 
 .arpg-raid-boss {
@@ -639,16 +664,16 @@
 .arpg-raid-boss__aura {
   width: 60px;
   height: 60px;
-  border: 2px solid rgba(234, 147, 91, .7);
-  border-radius: 50%;
-  box-shadow: 0 0 14px rgba(197, 77, 112, .38);
+  border: 2px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .arpg-raid-boss strong,
 .arpg-raid-player strong {
   max-width: 84px;
   font: 900 6px/1.05 var(--font-game), monospace;
-  text-shadow: 1px 1px #080909;
+  text-shadow: none;
 }
 
 .arpg-raid-boss small,
@@ -665,11 +690,12 @@
 .arpg-raid-player__token {
   width: 22px;
   height: 22px;
-  border: 2px solid #c09a50;
-  border-radius: 2px;
-  background: #315c49;
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: none;
   font: 900 7px/1 var(--font-game), monospace;
-  box-shadow: 0 2px 0 rgba(5, 4, 6, .5);
+  box-shadow: none;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-player .arpg-raid-bar {
@@ -678,9 +704,10 @@
 }
 
 .arpg-raid-player.is-self .arpg-raid-player__token {
-  border-color: #f4d274;
-  background: #438466;
-  box-shadow: 0 0 0 2px rgba(242, 212, 120, .24), 0 2px 0 rgba(5, 4, 6, .5);
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-hud {
@@ -690,13 +717,14 @@
   left: 5px;
   display: block;
   width: min(190px, 42%);
-  border: 2px solid #ac8e4e;
-  border-radius: 2px;
-  background: rgba(12, 26, 18, .9);
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: none;
   padding: 3px 4px;
   color: #f3e8c7;
-  box-shadow: 0 2px 0 rgba(4, 8, 5, .86), inset 0 0 0 1px rgba(245, 221, 155, .1);
+  box-shadow: none;
   pointer-events: none;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-hud__player {
@@ -709,7 +737,7 @@
   color: #ff9381;
 }
 
-.arpg-raid-hud__identity > svg {
+.arpg-raid-hud__identity > .pixel-icon {
   width: 12px;
   height: 12px;
   fill: rgba(255, 125, 103, .25);
@@ -737,12 +765,15 @@
 
 .arpg-raid-bar--player {
   height: 7px;
-  border-color: #17120e;
-  background: #481f1e;
+  border-color: transparent;
+  background: none;
+  border-image: var(--art-hp-bar-frame) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-bar--player i {
-  background: repeating-linear-gradient(90deg, #ed6652 0 6px, #cf443e 6px 8px);
+  background-image: var(--art-hp-bar-fill);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 .arpg-raid-hud__loadout {
@@ -755,15 +786,16 @@
 .arpg-raid-hud__loadout span {
   min-width: 0;
   gap: 2px;
-  border: 1px solid rgba(176, 146, 80, .55);
-  border-radius: 1px;
-  background: rgba(42, 55, 37, .9);
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: none;
   padding: 2px 3px;
   color: #e8dcb9;
   font: 700 5px/1 var(--font-game), monospace;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
-.arpg-raid-hud__loadout svg {
+.arpg-raid-hud__loadout .pixel-icon {
   width: 9px;
   height: 9px;
 }
@@ -777,10 +809,11 @@
   gap: 1px;
   margin-top: 3px;
   overflow: hidden;
-  border: 1px solid rgba(173, 130, 80, .6);
+  border: 1px solid transparent;
   border-left-width: 2px;
-  background: rgba(9, 17, 12, .9);
+  background: none;
   padding: 2px 4px;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-log p {
@@ -801,10 +834,11 @@
   display: flex;
   justify-content: space-between;
   gap: 5px;
-  border-top: 2px solid #382719;
-  background: linear-gradient(180deg, rgba(16, 27, 20, .82), rgba(5, 11, 8, .98));
+  border-top: 2px solid transparent;
+  background: none;
   padding: 2px 5px;
   color: #f3e6c4;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-dpad {
@@ -822,13 +856,14 @@
   height: 24px;
   min-height: 24px;
   padding: 0;
-  border: 2px solid #b49a60;
-  border-radius: 50%;
-  background: rgba(26, 41, 31, .9);
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: none;
   color: #f6dfa1;
   font-size: 7px;
   line-height: 1;
-  box-shadow: 0 1px 0 #070c09;
+  box-shadow: none;
+  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-dpad button:nth-child(1) { top: 0; left: 20px; }
@@ -851,11 +886,12 @@
   height: 42px;
   min-height: 42px;
   gap: 1px;
-  border: 2px solid #987944;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #334638, #18291f);
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: none;
   color: #ffedc6;
-  box-shadow: 0 2px 0 #070c09, inset 0 0 0 1px rgba(239, 216, 156, .15);
+  box-shadow: none;
+  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-actions button strong,
@@ -872,24 +908,26 @@
   font: 800 5px/1 var(--font-game), monospace;
 }
 
-.arpg-raid-actions button svg {
+.arpg-raid-actions button .pixel-icon {
   width: 14px;
   height: 14px;
   color: #f0c65f;
 }
 
 .arpg-raid-abilities button {
-  border-color: #61b8aa;
-  background: linear-gradient(180deg, #225c53, #153831);
+  border-color: transparent;
+  background: none;
+  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-abilities button > span {
   width: 12px;
   height: 12px;
-  border-radius: 1px;
-  background: #edce70;
+  border-radius: 0;
+  background: none;
   color: #302419;
   font: 900 6px/1 var(--font-game), monospace;
+  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-controls button:disabled {
@@ -906,27 +944,29 @@
   justify-items: center;
   gap: 5px;
   overflow: auto;
-  background: rgba(4, 9, 6, .84);
+  background: none;
   padding: 12px;
   color: #f4e8c8;
   text-align: center;
   backdrop-filter: blur(2px);
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
-.arpg-raid-result > svg { width: 22px; height: 22px; color: #f0c964; }
+.arpg-raid-result > .pixel-icon { width: 22px; height: 22px; color: #f0c964; }
 .arpg-raid-result .view-eyebrow { color: #91deca; font: 900 7px var(--font-game), monospace; }
 .arpg-raid-result h2 { margin: 0; font: 900 clamp(10px, 2.2vw, 19px) var(--font-game), monospace; }
 .arpg-raid-result p { max-width: min(460px, 90%); margin: 0; font-size: 8px; }
 .arpg-raid-result > strong { color: #f5d778; font: 900 8px var(--font-game), monospace; }
 .arpg-raid-result button {
   min-height: 34px;
-  border: 2px solid #c19b53;
-  border-radius: 2px;
-  background: #d1ad5d;
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: none;
   padding: 0 12px;
   color: #21180e;
   font: 900 7px var(--font-game), monospace;
-  box-shadow: 0 3px 0 #090908;
+  box-shadow: none;
+  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
 }
 
 @media (max-width: 360px) {
@@ -936,7 +976,7 @@
   .arpg-raid-arena__topbar > div:last-child { gap: 3px; }
   .arpg-raid-arena__topbar button { width: 23px; height: 23px; min-height: 23px; }
   .arpg-raid-arena__boss-hud { top: 27px; left: 3px; right: 3px; height: 19px; grid-template-columns: minmax(50px, 1fr) minmax(48px, 1.6fr) auto; gap: 3px; padding-inline: 3px; }
-  .arpg-raid-arena__boss-title > svg { width: 10px; height: 10px; flex-basis: 10px; }
+  .arpg-raid-arena__boss-title > .pixel-icon { width: 10px; height: 10px; flex-basis: 10px; }
   .arpg-raid-arena__boss-title small { display: none; }
   .arpg-raid-arena__boss-hud > span:last-child { font-size: 5px; }
   .arpg-raid-world { inset: 48px 0 44px; }
@@ -1002,7 +1042,7 @@
   pointer-events: none;
   transform: translate(-50%, -50%);
   text-align: center;
-  text-shadow: 1px 1px #140d0d;
+  text-shadow: none;
 }
 
 .arpg-raid-enemy__token {
@@ -1010,25 +1050,26 @@
   width: 23px;
   height: 23px;
   place-items: center;
-  border: 2px solid #b66b52;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 28%, #e7b870, #8d3d38 70%);
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: none;
   color: #fff0c3;
   font: 900 11px/1 var(--font-game), monospace;
-  box-shadow: 0 0 0 2px rgba(12, 10, 10, .35), 0 2px 0 rgba(5, 4, 6, .6);
+  box-shadow: none;
+  border-image: var(--art-panel-parchment) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-enemy strong { max-width: 82px; font: 900 5px/1 var(--font-game), monospace; }
 .arpg-raid-enemy small { font: 700 5px/1 var(--font-game), monospace; }
 .arpg-raid-enemy .arpg-raid-bar { width: 38px; height: 4px; }
-.arpg-raid-enemy .arpg-raid-bar i { background: #d87754; }
+.arpg-raid-enemy .arpg-raid-bar i { background-image: var(--art-hp-bar-fill); background-size: 100% 100%; background-repeat: no-repeat; }
 .arpg-raid-player__presence { color: #91e0b5; }
 .arpg-raid-player__presence.is-disconnected,
 .arpg-raid-player__presence.is-reconnecting { color: #f1bf72; }
 .arpg-raid-player__presence.is-spectator { color: #c6b5dc; }
 .arpg-raid-revive-count { color: #f3d583; font: 700 6px/1.2 var(--font-game), monospace; }
-.arpg-raid-actions .arpg-raid-revive-button { width: min(108px, 22vw); border-color: #6cc5a3; }
-.arpg-raid-actions .arpg-raid-revive-button svg { color: #9aefd0; }
+.arpg-raid-actions .arpg-raid-revive-button { width: min(108px, 22vw); border-color: transparent; }
+.arpg-raid-actions .arpg-raid-revive-button .pixel-icon { color: #9aefd0; }
 
 @media (max-width: 480px) {
   .arpg-raid-arena__status > span:nth-child(2) { max-width: 42vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1044,7 +1085,7 @@
   z-index: 0;
   inset: 0 auto 0 0;
   box-sizing: border-box;
-  border: 5px solid rgba(190, 200, 131, .5);
+  border: 5px solid transparent;
   border-right: 0;
   pointer-events: none;
 }
@@ -1056,8 +1097,9 @@
   width: 5px;
   height: calc(50% - 48px);
   content: "";
-  background: #89905e;
-  box-shadow: 2px 0 #344832, -2px 0 rgba(11, 20, 14, .6);
+  background: none;
+  box-shadow: none;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-dungeon-room::before { top: 0; }
@@ -1070,12 +1112,12 @@
   height: clamp(44px, 34%, 96px);
   box-sizing: border-box;
   transform: translateY(-50%);
-  border-block: 5px solid #68764d;
+  border-block: 5px solid transparent;
   background:
-    repeating-linear-gradient(90deg, rgba(14, 31, 22, .28) 0 12px, transparent 12px 24px),
-    linear-gradient(180deg, #806d45, #5c6440 43%, #4f5738);
-  box-shadow: inset 0 4px rgba(205, 178, 109, .3), inset 0 -4px rgba(20, 31, 20, .45);
+    none;
+  box-shadow: none;
   pointer-events: none;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-dungeon-corridor::before {
@@ -1085,8 +1127,9 @@
   left: 0;
   width: 7px;
   content: "";
-  background: #8f5d45;
-  box-shadow: 2px 0 #342c23;
+  background: none;
+  box-shadow: none;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-dungeon-corridor.is-open::before {
@@ -1094,8 +1137,9 @@
   bottom: -5px;
   left: 0;
   width: 5px;
-  background: #84d59c;
-  box-shadow: 0 0 8px rgba(110, 227, 153, .7);
+  background: none;
+  box-shadow: none;
+  border-image: var(--art-panel-parchment) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-dungeon-corridor__path {
@@ -1103,7 +1147,8 @@
   inset: 50% 7px auto 7px;
   height: 2px;
   transform: translateY(-50%);
-  background: repeating-linear-gradient(90deg, rgba(242, 211, 134, .72) 0 5px, transparent 5px 12px);
+  background: none;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-dungeon-corridor__exit {
@@ -1112,12 +1157,13 @@
   right: 2px;
   padding: 2px 3px;
   transform: translate(50%, -50%);
-  border: 1px solid #d3b675;
-  background: #382f25;
+  border: 1px solid transparent;
+  background: none;
   color: #f7dda0;
   font: 900 5px/1 var(--font-game), monospace;
   letter-spacing: .04em;
   white-space: nowrap;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-room-transition {
@@ -1130,16 +1176,17 @@
   max-width: min(72%, 300px);
   padding: 4px 8px;
   transform: translateX(-50%);
-  border: 1px solid #8f6244;
-  background: rgba(36, 27, 22, .94);
+  border: 1px solid transparent;
+  background: none;
   color: #f3c788;
   font: 700 6px/1.3 var(--font-game), monospace;
   text-align: center;
   pointer-events: none;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
 }
 
 .arpg-raid-room-transition strong { font-size: 7px; }
-.arpg-raid-room-transition.is-open { border-color: #65b88c; color: #b5f0c5; }
+.arpg-raid-room-transition.is-open { border-color: transparent; color: #b5f0c5; }
 
 @media (max-width: 480px) {
   .arpg-raid-room-transition { top: 3px; padding: 3px 5px; font-size: 5px; }

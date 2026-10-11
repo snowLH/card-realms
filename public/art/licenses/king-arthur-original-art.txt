@@ -3,7 +3,7 @@ KING ARTHUR — ORIGINAL NATURALIST-BASE V5 PIXEL ART
 Assets:
 /art/legend-king-arthur-spritesheet-v5.webp
 /art/monster-king-arthur-corrupted-spritesheet-v5.webp
-Also covers Camelot procedural decoration in king-arthur/presentation.ts.
+Camelot's arena is documented separately in boss-room-original-art.txt.
 
 Author: Codex, created for snowLH/card-realms, 2026-10-09.
 Source: https://github.com/snowLH/card-realms
@@ -25,4 +25,5 @@ This notice does not relicense any pre-existing reference asset or source file.
 Usage: restored playable Arthur with empty idle/walk hands for floating weapons;
 corrupted boss seated, awakening, sword combat, kneeling alive and purification;
 throne, banners, pillars, battlefield memories and royal hall decoration.
-Character art follows the approved Naturalist v5 base; scenery is temporary.
+Character art follows the approved Naturalist v5 base. The geometric scenery
+was replaced by the authored Camelot arena in /art/boss-rooms/arthur/arena.webp.

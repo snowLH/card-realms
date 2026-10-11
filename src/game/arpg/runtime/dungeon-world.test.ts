@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { ART_ATLASES, PROP_ART } from "../art/manifest";
+import { EventEmitter } from "node:events";
+import { describe, expect, it, vi } from "vitest";
 import { generateDungeon } from "../dungeon/generator";
 import { ROOM_OBSTACLE_TILE, ROOM_RUNE_TILE, ROOM_WATER_TILE } from "../dungeon/room-tilemap";
 import type { DungeonGraph } from "../dungeon/types";
@@ -9,16 +11,17 @@ type MockVisual = {
   setDepth: (depth: number) => MockVisual;
   setOrigin: (x: number, y?: number) => MockVisual;
   setDisplaySize: (width: number, height: number) => MockVisual;
+  setAlpha:(alpha:number)=>MockVisual;
+  setTint:(color:number)=>MockVisual;
+  setRotation:(angle:number)=>MockVisual;
+  setVisible:(visible:boolean)=>MockVisual;
   setFlipX: (flipX: boolean) => MockVisual;
   setFlipY: (flipY: boolean) => MockVisual;
-  setStrokeStyle: (width: number, color: number, alpha?: number) => MockVisual;
-  fillStyle: (color: number, alpha?: number) => MockVisual;
-  fillRect: (x: number, y: number, width: number, height: number) => MockVisual;
 };
 
 function createSceneMock() {
   const visuals: MockVisual[] = [];
-  const graphicsRects: Array<{ x: number; y: number; width: number; height: number }> = [];
+  const images: Array<{x:number;y:number;key:string;frame:number}> = [];
   const tweens: Array<{ paused: boolean }> = [];
   const cameraBounds: Array<{ x: number; y: number; width: number; height: number }> = [];
   const addVisual = () => {
@@ -27,21 +30,14 @@ function createSceneMock() {
       setDepth() { return this; },
       setOrigin() { return this; },
       setDisplaySize() { return this; },
+      setAlpha() {return this;},
+      setTint() {return this;},
+      setRotation() {return this;},
+      setVisible(visible:boolean) {this.visible=visible;return this;},
       setFlipX() { return this; },
       setFlipY() { return this; },
-      setStrokeStyle() { return this; },
-      fillStyle() { return this; },
-      fillRect() { return this; },
     };
     visuals.push(visual);
-    return visual;
-  };
-  const addGraphics = () => {
-    const visual = addVisual();
-    visual.fillRect = (x, y, width, height) => {
-      graphicsRects.push({ x, y, width, height });
-      return visual;
-    };
     return visual;
   };
   const addTween = () => {
@@ -57,16 +53,10 @@ function createSceneMock() {
   };
   const scene = {
     add: {
-      circle: addVisual,
-      ellipse: addVisual,
-      graphics: addGraphics,
-      image: addVisual,
-      polygon: addVisual,
-      rectangle: addVisual,
-      triangle: addVisual,
+      image: (x:number,y:number,key:string,frame:number)=>{images.push({x,y,key,frame});return addVisual();},
     },
     tweens: { add: addTween },
-    textures: { exists: () => false },
+    textures: { exists: () => true },
     cameras: {
       main: {
         setBounds(x: number, y: number, width: number, height: number) {
@@ -77,7 +67,7 @@ function createSceneMock() {
       },
     },
   } as unknown as import("phaser").Scene;
-  return { scene, visuals, tweens, graphicsRects, cameraBounds };
+  return { scene, visuals, tweens, images, cameraBounds };
 }
 
 function makeAmbientTiles() {
@@ -90,6 +80,47 @@ function makeAmbientTiles() {
 }
 
 describe("DungeonWorldRuntime ambient room state", () => {
+  it("bounds the atmosphere canvas to the viewport through pan, zoom and resize, then removes its listener", () => {
+    const graph = generateDungeon({ seed: "viewport-atmosphere", regionId: "montanhas-runicas" });
+    const events = new EventEmitter();
+    const camera = { width: 1280, height: 720, zoom: 1, scrollX: 3000, scrollY: 2000 };
+    const background = {
+      width: camera.width, height: camera.height,
+      setScrollFactor: vi.fn().mockReturnThis(), setTint: vi.fn().mockReturnThis(),
+      setDepth: vi.fn().mockReturnThis(), setPosition: vi.fn().mockReturnThis(),
+      setScale: vi.fn().mockReturnThis(), setTileScale: vi.fn().mockReturnThis(),
+      setTilePosition: vi.fn().mockReturnThis(),
+      setSize: vi.fn(function (width: number, height: number) {
+        background.width = width; background.height = height;
+        return background;
+      }),
+    };
+    const tileSprite = vi.fn(() => background);
+    const scene = { add: { tileSprite }, cameras: { main: camera }, events } as unknown as import("phaser").Scene;
+    const world = new DungeonWorldRuntime(scene, graph);
+    (world as unknown as { drawWorldAtmosphere: () => void }).drawWorldAtmosphere();
+
+    expect(world.layout.width * world.layout.height).toBeGreaterThan(camera.width * camera.height * 20);
+    expect(tileSprite).toHaveBeenCalledWith(640, 360, 1280, 720, "card-realms-dungeon-tiles-montanhas-runicas", 1);
+    expect(background.setTilePosition).toHaveBeenLastCalledWith(3000, 2000);
+    camera.scrollX = 6000; camera.zoom = 0.8;
+    events.emit("prerender");
+    expect(background.setSize).not.toHaveBeenCalled();
+    expect(background.setScale).toHaveBeenLastCalledWith(1.25);
+    expect(background.setTileScale).toHaveBeenLastCalledWith(0.8);
+    expect(background.setTilePosition).toHaveBeenLastCalledWith(5840, 1910);
+    camera.width = 852; camera.height = 393;
+    events.emit("prerender"); events.emit("prerender");
+    expect(background.setSize).toHaveBeenCalledExactlyOnceWith(852, 393);
+    expect(background.setPosition).toHaveBeenLastCalledWith(426, 196.5);
+    events.emit("shutdown");
+    expect(events.listenerCount("prerender")).toBe(0);
+    expect(events.listenerCount("destroy")).toBe(0);
+    const syncCount = background.setPosition.mock.calls.length;
+    events.emit("prerender");
+    expect(background.setPosition).toHaveBeenCalledTimes(syncCount);
+  });
+
   it("pauses and hides distant room FX, then resumes the room in focus", () => {
     const graph = generateDungeon({ seed: "ambient-focus", regionId: "montanhas-runicas" });
     const { scene, visuals, tweens } = createSceneMock();
@@ -157,7 +188,7 @@ describe("DungeonWorldRuntime ambient room state", () => {
 });
 
 describe("Mata START room dressing", () => {
-  it("draws deterministic pixel-grid ruin clusters and two room-scoped warm torches", () => {
+  it("places the same authored ruin and lantern frames for a seed, with two room-scoped animations", () => {
     const graph = generateDungeon({ seed: "mata-start-ruins", regionId: "mata-encantada" });
     const room = graph.rooms[graph.startRoomId];
     const tiles = Array.from({ length: 15 }, () => Array<number>(15).fill(0));
@@ -178,9 +209,12 @@ describe("Mata START room dressing", () => {
     const first = draw();
     const second = draw();
 
-    expect(first.graphicsRects.length).toBeGreaterThan(0);
-    expect(first.graphicsRects).toEqual(second.graphicsRects);
-    expect(first.graphicsRects.every(({ x, y, width, height }) => [x, y, width, height].every(Number.isInteger))).toBe(true);
+    expect(first.images.map(({key,frame})=>({key,frame}))).toEqual([
+      {key:ART_ATLASES.props.key,frame:PROP_ART.ruin},{key:ART_ATLASES.props.key,frame:PROP_ART.lantern},
+      {key:ART_ATLASES.props.key,frame:PROP_ART.ruin},{key:ART_ATLASES.props.key,frame:PROP_ART.lantern},
+    ]);
+    expect(first.images).toEqual(second.images);
+    expect(first.images.every(({x,y})=>Number.isInteger(x)&&Number.isInteger(y))).toBe(true);
     expect(first.tweens).toHaveLength(2);
     expect(first.visualWorld.getAmbientDebugState().rooms.find((entry) => entry.roomId === room.id)?.fx).toEqual({ active: 0, paused: 2 });
     first.visualWorld.focusCamera(room.id);

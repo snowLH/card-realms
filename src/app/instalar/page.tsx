@@ -1,6 +1,6 @@
 import "./install.css";
 import Link from "next/link";
-import { Download, Monitor, Smartphone, ShieldCheck, Apple, Gamepad2 } from "lucide-react";
+import { Download, Monitor, Smartphone, ShieldCheck, Apple, Gamepad2 } from "@/components/ui/pixel-icon";
 import type { Metadata } from "next";
 import { getDownloadReleases, type DownloadRelease, type DownloadPlatform } from "@/server/downloads/releases";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Coins, Heart, Sparkles, Store } from "lucide-react";
+import { Coins, Heart, Sparkles, Store } from "@/components/ui/pixel-icon";
 import type { ArpgHudState } from "@/game/arpg/domain/types";
 import { ArpgBridge } from "@/game/arpg/runtime/bridge";
 import { useChoiceFocus } from "./use-choice-focus";

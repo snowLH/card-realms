@@ -1,0 +1,6 @@
+{
+  "blockedPath": "/art/authored/ui/button-normal.webp",
+  "buttonBorderImage": "url(\"http://127.0.0.1:3000/art/authored/missing-texture.webp\")",
+  "fallbackVariable": "url(\"/art/authored/missing-texture.webp\")",
+  "placeholderLoaded": true
+}

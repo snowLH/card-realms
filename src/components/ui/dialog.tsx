@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { X } from "lucide-react";
+import { X } from "@/components/ui/pixel-icon";
 import { cn } from "@/lib/utils";
 
 export const Dialog = DialogPrimitive.Root;
@@ -24,12 +24,12 @@ export function DialogContent({
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className={cn(
-        "fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm data-[state=closed]:animate-out data-[state=open]:animate-in",
+        "authored-dialog-scrim fixed inset-0 z-[1999] data-[state=closed]:animate-out data-[state=open]:animate-in",
         overlayClassName,
       )} />
       <DialogPrimitive.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-lg overflow-auto rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-2xl focus:outline-none",
+          "authored-dialog-panel fixed left-1/2 top-1/2 z-[2000] max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-lg overflow-auto p-5 text-card-foreground focus:outline-none",
           !disableCenterTranslate && "-translate-x-1/2 -translate-y-1/2",
           className,
         )}
@@ -37,7 +37,7 @@ export function DialogContent({
       >
         {children}
         {showClose ? (
-          <DialogPrimitive.Close className="absolute right-3 top-3 grid size-11 place-items-center rounded-full bg-black/35 text-white hover:bg-black/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <DialogPrimitive.Close className="absolute right-3 top-3 grid size-11 place-items-center text-white focus-visible:outline-none ">
             <X className="size-5" />
             <span className="sr-only">Fechar</span>
           </DialogPrimitive.Close>

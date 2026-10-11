@@ -1,10 +1,18 @@
 "use client";
+import { RaidEnemyArt, raidRoomBackground } from "./raid-authored-art";
+import { PixelHealthBar } from "@/components/ui/pixel-health-bar";
+import { ArtSprite } from "@/components/ui/art-sprite";
+import { DUNGEON_ART, WORLD_IMAGE_ART, FX_ART } from "@/game/arpg/art/manifest";
 import { BossEncounterView, ForgottenLegendActor, RoundTableWardView } from "./boss-encounter-view";
+import { BOSS_ROOM_ART } from "@/game/arpg/bosses/boss-room-art";
 import { isBossInputLocked } from "@/game/arpg/bosses/cinematic-input-lock";
 import { BossProgressSchema, bossProgressInventory, type BossProgress } from "@/game/arpg/bosses/boss-unlocks";
 import { getLegendSignatureAbilityIds } from "@/game/arpg/content/legends";
 
 import {
+  Check,
+  ArrowLeft,
+  ArrowRight,
   Crosshair,
   Heart,
   Radio,
@@ -13,7 +21,7 @@ import {
   Users,
   X,
   Zap,
-} from "lucide-react";
+} from "@/components/ui/pixel-icon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREATURE_BY_ID } from "@/game/catalog";
 import { ARPG_ABILITY_CARD_BY_ID } from "@/game/arpg/content/ability-cards";
@@ -205,16 +213,6 @@ function RaidBossSprite({
           cellWidth,
           cellHeight,
         );
-        const pixels = frameContext.getImageData(0, 0, cellWidth, cellHeight);
-        for (let pixel = 3; pixel < pixels.data.length; pixel += 4) {
-          if (pixels.data[pixel] < 96) {
-            pixels.data[pixel - 3] = 0;
-            pixels.data[pixel - 2] = 0;
-            pixels.data[pixel - 1] = 0;
-            pixels.data[pixel] = 0;
-          }
-        }
-        frameContext.putImageData(pixels, 0, 0);
         preparedFrames.push(frameCanvas);
       }
       setFailed(false);
@@ -652,8 +650,6 @@ export function ArpgRaidArena({
     );
   }
 
-  const bossHpPercent = state.boss.maxHp > 0 ? (state.boss.hp / state.boss.maxHp) * 100 : 0;
-  const playerHpPercent = player.maxHp > 0 ? (player.hp / player.maxHp) * 100 : 0;
   const downedTeammates = state.players.filter((entry) => (
     entry.id !== playerId && !entry.alive && entry.downedUntilMs > state.serverTimeMs
   ));
@@ -665,6 +661,10 @@ export function ArpgRaidArena({
   const livingPlayers = state.players.filter((entry) => entry.alive);
   const playersAtExit = livingPlayers.filter((entry) => entry.x >= exitX).length;
   const corridorOpen = currentDungeonRoom?.state === "awaiting_exit";
+  const regionId = state.dungeon?.regionId ?? "montanhas-runicas";
+  const roomBackground = raidRoomBackground(regionId);
+  const corridorTile = WORLD_IMAGE_ART[regionId === "mata-encantada" ? 0 : regionId === "arquipelago-das-mares" ? 8 : 16];
+  const bossRoomArt = state.bossEncounter ? BOSS_ROOM_ART[state.bossEncounter.bossId] : null;
 
   return (
     <div className={cn("arpg-raid-arena", state.boss.phase === 3 && "is-enraged")}>
@@ -683,24 +683,25 @@ export function ArpgRaidArena({
         </div>
       </header>
 
-      {isBossRoom ? (
+      {isBossRoom && !state.bossEncounter ? (
         <section className="arpg-raid-arena__boss-hud">
           <div className="arpg-raid-arena__boss-title">
             <Sparkles />
             <span><small>CHEFE FINAL</small><strong>{state.boss.name}</strong></span>
           </div>
-          <div className="arpg-raid-bar arpg-raid-bar--boss"><i style={{ width: `${bossHpPercent}%` }} /></div>
+          <PixelHealthBar className="arpg-raid-bar arpg-raid-bar--boss" hp={state.boss.hp} maxHp={state.boss.maxHp} boss/>
           <span>{state.boss.hp.toLocaleString("pt-BR")} / {state.boss.maxHp.toLocaleString("pt-BR")} HP</span>
         </section>
       ) : null}
-      <section className="arpg-raid-world" aria-label={currentDungeonRoom ? `${currentDungeonRoom.label}, dungeon cooperativa` : "Arena cooperativa"}>
+      <section className="arpg-raid-world" style={{backgroundImage:`url(${roomBackground})`,backgroundSize:"cover",borderImage:"none"}} aria-label={currentDungeonRoom ? `${currentDungeonRoom.label}, dungeon cooperativa` : "Arena cooperativa"}>
+        {bossRoomArt ? <div className={`forgotten-legend-arena${["RESTORED", "UNLOCK", "CLEARED"].includes(state.bossEncounter!.state) ? " is-restored" : ""}`} style={{ backgroundImage: `url(${bossRoomArt.background.path})` }} aria-hidden="true" /> : null}
         {state.bossEncounter ? <BossEncounterView encounter={state.bossEncounter} width={worldWidth} height={worldHeight} players={state.players} onSkip={() => void sendAction({ action: "skip_intro" })} /> : null}
         <RoundTableWardView players={state.players} width={worldWidth} height={worldHeight} nowMs={state.serverTimeMs} />
         {hasDungeonCorridor && currentDungeonRoom ? (
           <>
             <div
               className="arpg-raid-dungeon-room"
-              style={{ width: percent(currentDungeonRoom.roomWidth, worldWidth) }}
+              style={{ width: percent(currentDungeonRoom.roomWidth, worldWidth),backgroundImage:`url(${roomBackground})`,backgroundSize:"100% 100%",borderImage:"none" }}
               aria-hidden="true"
             />
             <div
@@ -708,10 +709,11 @@ export function ArpgRaidArena({
               style={{
                 left: percent(currentDungeonRoom.roomWidth, worldWidth),
                 width: percent(currentDungeonRoom.corridorWidth, worldWidth),
+                backgroundImage:`url(${corridorTile.path})`,backgroundSize:"32px 32px",borderImage:"none",
               }}
               aria-hidden="true"
             >
-              <span className="arpg-raid-dungeon-corridor__path" />
+              <ArtSprite pack="world" frame={DUNGEON_ART[regionId].doorFrame+(corridorOpen?0:4)} style={{position:"absolute",left:0,top:"50%",width:48,height:"100%",transform:"translate(-50%,-50%)"}}/>
               <span className="arpg-raid-dungeon-corridor__exit">SAÍDA</span>
             </div>
             <div className={cn("arpg-raid-room-transition", corridorOpen && "is-open")} role="status" aria-live="polite">
@@ -722,12 +724,12 @@ export function ArpgRaidArena({
             </div>
           </>
         ) : null}
-        {currentDungeonRoom?.type === "boss" ? (
+        {currentDungeonRoom?.type === "boss" && state.bossEncounter?.state !== "CLEARED" ? (
           <div
             className="arpg-raid-boss"
             style={{ left: percent(state.boss.x, worldWidth), top: percent(state.boss.y, worldHeight) }}
           >
-            <span className="arpg-raid-boss__aura" />
+            <ArtSprite pack="fx" frame={FX_ART.corruptionAura} className="arpg-raid-boss__aura" style={{position:"absolute",width:108,height:108,opacity:0.35}}/>
             {state.bossEncounter ? <ForgottenLegendActor encounter={state.bossEncounter} /> : <RaidBossSprite
               action={bossAction}
               active={state.status === "active"}
@@ -747,9 +749,9 @@ export function ArpgRaidArena({
             key={enemy.id}
             style={{ left: percent(enemy.x, worldWidth), top: percent(enemy.y, worldHeight) }}
           >
-            <span className="arpg-raid-enemy__token" aria-hidden="true">✦</span>
+            <RaidEnemyArt regionId={regionId} definitionId={enemy.definitionId} name={enemy.name} nowMs={state.serverTimeMs}/>
             <strong>{enemy.name}</strong>
-            <div className="arpg-raid-bar"><i style={{ width: `${enemy.maxHp > 0 ? (enemy.hp / enemy.maxHp) * 100 : 0}%` }} /></div>
+            <PixelHealthBar className="arpg-raid-bar" hp={enemy.hp} maxHp={enemy.maxHp}/>
             <small>{enemy.hp}/{enemy.maxHp} HP</small>
           </div>
         ))}
@@ -784,7 +786,7 @@ export function ArpgRaidArena({
               </div>
               <strong>{entry.name}{entry.id === playerId ? " · você" : ""}</strong>
               <small className={cn("arpg-raid-player__presence", `is-${presence}`)}>{presenceLabel}</small>
-              <div className="arpg-raid-bar"><i style={{ width: `${entry.maxHp > 0 ? (entry.hp / entry.maxHp) * 100 : 0}%` }} /></div>
+              <PixelHealthBar className="arpg-raid-bar" hp={entry.hp} maxHp={entry.maxHp}/>
               <small>{entry.hp}/{entry.maxHp}</small>
             </div>
           );
@@ -797,7 +799,7 @@ export function ArpgRaidArena({
             <Heart />
             <span><strong>{player.name}</strong><small>{player.alive ? "Em combate" : "Espectador"}</small></span>
           </div>
-          <div className="arpg-raid-bar arpg-raid-bar--player"><i style={{ width: `${playerHpPercent}%` }} /></div>
+          <PixelHealthBar className="arpg-raid-bar arpg-raid-bar--player" hp={player.hp} maxHp={player.maxHp}/>
           <span>{player.hp}/{player.maxHp} HP</span>
           <small className="arpg-raid-revive-count">Reanimações do grupo: {state.reviveCharges}</small>
           <div className="arpg-raid-hud__loadout" role="group" aria-label="Arma e relíquia desta Raid">
@@ -818,10 +820,10 @@ export function ArpgRaidArena({
 
       <section className="arpg-raid-controls" aria-label="Controles da Raid ARPG">
         <div className="arpg-raid-dpad">
-          <button type="button" aria-label="Mover para cima" onPointerDown={() => setTouchMovement(0, -1)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}>▲</button>
-          <button type="button" aria-label="Mover para a esquerda" onPointerDown={() => setTouchMovement(-1, 0)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}>◀</button>
-          <button type="button" aria-label="Mover para baixo" onPointerDown={() => setTouchMovement(0, 1)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}>▼</button>
-          <button type="button" aria-label="Mover para a direita" onPointerDown={() => setTouchMovement(1, 0)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}>▶</button>
+          <button type="button" aria-label="Mover para cima" onPointerDown={() => setTouchMovement(0, -1)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}><ArrowLeft style={{transform:'rotate(90deg)'}}/></button>
+          <button type="button" aria-label="Mover para a esquerda" onPointerDown={() => setTouchMovement(-1, 0)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}><ArrowLeft/></button>
+          <button type="button" aria-label="Mover para baixo" onPointerDown={() => setTouchMovement(0, 1)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}><ArrowLeft style={{transform:'rotate(-90deg)'}}/></button>
+          <button type="button" aria-label="Mover para a direita" onPointerDown={() => setTouchMovement(1, 0)} onPointerUp={clearTouchMovement} onPointerCancel={clearTouchMovement}><ArrowRight/></button>
         </div>
 
         <div className="arpg-raid-actions">
@@ -876,7 +878,7 @@ export function ArpgRaidArena({
               : "Revise seus ataques e equipamentos e tente novamente enquanto o evento estiver ativo."}
           </p>
           {state.status === "victory" && payload.eventReward?.obtained ? (
-            <strong>✓ {payload.eventReward.coinsAwarded} moedas · {payload.eventReward.xpAwarded} XP</strong>
+            <strong><Check/> {payload.eventReward.coinsAwarded} moedas · {payload.eventReward.xpAwarded} XP</strong>
           ) : null}
           <button type="button" onClick={onClose}>Voltar ao Atlas</button>
         </div>

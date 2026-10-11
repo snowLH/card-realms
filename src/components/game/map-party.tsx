@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Link2, LogIn, LogOut, Radio, Users } from "lucide-react";
+import { Copy, Link2, LogIn, LogOut, Radio, Users } from "@/components/ui/pixel-icon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GridPoint } from "@/game/exploration/pathfinding";
 import type { AvatarConfig } from "@/game/save/local-progress";

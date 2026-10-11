@@ -149,7 +149,7 @@ describe("ArpgRaidArena", () => {
     render(<ArpgRaidArena roomId={ROOM_ID} playerId={PLAYER_ID} onClose={() => undefined} />);
 
     await waitFor(() => expect(screen.getByText(/RAID ARPG ENCERRADA/i)).toBeInTheDocument());
-    expect(screen.getByText("✓ 250 moedas · 100 XP")).toBeInTheDocument();
+    expect(screen.getByText("250 moedas · 100 XP")).toBeInTheDocument();
     expect(screen.queryByText(/Criatura Mítica|Habilidade Mítica/)).not.toBeInTheDocument();
   });
 });

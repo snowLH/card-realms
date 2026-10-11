@@ -1,0 +1,15 @@
+{
+  "buildId": "7ACS83wMuARLhLqqCpkoF",
+  "mata": {
+    "durationMs": 5013.299999988085,
+    "fps": 60.04029282123859,
+    "jsHeapBytes": 40558966,
+    "p95Ms": 16.89999999999418,
+    "samples": 301,
+    "viewport": [
+      1536,
+      708
+    ]
+  },
+  "method": "5 second requestAnimationFrame sample, production localhost, idle room; no forced GC"
+}

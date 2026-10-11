@@ -1,0 +1,60 @@
+{
+  "before": {
+    "participants": [
+      "qa-a",
+      "qa-b"
+    ],
+    "players": [
+      {
+        "abilities": {
+          "arthur-camelot-cut": 1791660412578,
+          "arthur-round-table-oath": 1791660412578
+        },
+        "attacks": 0,
+        "id": "qa-a",
+        "x": 976,
+        "y": 248
+      },
+      {
+        "abilities": {
+          "iara-enchanting-song": 1791660412578,
+          "iara-living-spring": 1791660412578
+        },
+        "attacks": 0,
+        "id": "qa-b",
+        "x": 976,
+        "y": 744
+      }
+    ],
+    "state": "INTRO_LOCK"
+  },
+  "after": {
+    "participants": [
+      "qa-a",
+      "qa-b"
+    ],
+    "players": [
+      {
+        "abilities": {
+          "arthur-camelot-cut": 1791660412578,
+          "arthur-round-table-oath": 1791660412578
+        },
+        "attacks": 0,
+        "id": "qa-a",
+        "x": 976,
+        "y": 248
+      },
+      {
+        "abilities": {
+          "iara-enchanting-song": 1791660412578,
+          "iara-living-spring": 1791660412578
+        },
+        "attacks": 0,
+        "id": "qa-b",
+        "x": 976,
+        "y": 744
+      }
+    ],
+    "state": "INTRO_LOCK"
+  }
+}

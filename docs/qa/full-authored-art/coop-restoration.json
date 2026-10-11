@@ -1,0 +1,32 @@
+{
+  "bossId": "king-arthur",
+  "catalogId": "roc",
+  "element": "storm",
+  "enteredAtMs": 1791679987248,
+  "guardUntilMs": 0,
+  "hazards": [],
+  "hp": 0,
+  "introDurationMs": 7000,
+  "maxHp": 1680,
+  "name": "REI ARTHUR — O REI QUE SE RECUSOU A TERMINAR",
+  "nextAttackAtMs": 1791679988748,
+  "nextPatternAtMs": 1791679997453,
+  "participantIds": [
+    "qa-a",
+    "qa-b"
+  ],
+  "pattern": "royal-cut",
+  "patternIndex": 0,
+  "phase": 3,
+  "seenByAll": false,
+  "serverTimeMs": 1791680059309,
+  "skipVotes": [],
+  "slowedUntilMs": 1791679986327,
+  "speed": 92,
+  "state": "CLEARED",
+  "stateAtMs": 1791680059309,
+  "version": 1,
+  "weakUntilMs": 0,
+  "x": 976,
+  "y": 149.32
+}

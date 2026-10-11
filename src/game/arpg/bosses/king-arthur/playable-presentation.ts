@@ -1,22 +1,22 @@
-import type { Scene, GameObjects } from "phaser";
+import type { Scene } from "phaser";
 import { ARTHUR_WARD_RADIUS, type ArthurOaths } from "./playable-kit";
+import {AuthoredEffectLayer} from '../../art/runtime-art';
+import {FX_ART} from '../../art/manifest';
 export class ArthurWardPresentation {
-  private graphics: GameObjects.Graphics;
+  private art:AuthoredEffectLayer;
   constructor(scene: Scene) {
-    this.graphics = scene.add.graphics().setDepth(12);
-    scene.events.once("shutdown", () => this.graphics.destroy());
+    this.art=new AuthoredEffectLayer(scene,12);
+    scene.events.once("shutdown", () => this.art.destroy());
   }
   update(memory: ArthurOaths, nowMs: number, player: { x: number; y: number }, offset = { x: 0, y: 0 }) {
-    const g = this.graphics; g.clear();
+    this.art.begin();
     if (memory.ward && nowMs < memory.ward.expiresAtMs) {
       const x = memory.ward.x + offset.x, y = memory.ward.y + offset.y;
-      g.fillStyle(0x9daec6, 0.06).fillCircle(x, y, ARTHUR_WARD_RADIUS);
-      g.lineStyle(3, 0xd2bc82, 0.75).strokeCircle(x, y, ARTHUR_WARD_RADIUS);
-      for (let i = 0; i < 12; i++) {
-        const angle = i * Math.PI / 6;
-        g.fillStyle(0xc2c9d9).fillRect(Math.round(x + Math.cos(angle) * 168) - 3, Math.round(y + Math.sin(angle) * 168) - 3, 6, 6);
-      }
+      const remaining=memory.ward.expiresAtMs-nowMs;
+      const frame=remaining>4550?FX_ART.wardAppear:remaining<450?FX_ART.wardDisappear:Math.floor(nowMs/300)%4===0?FX_ART.wardPulse:FX_ART.wardIdle;
+      this.art.image('ward','fx',frame,x,y,ARTHUR_WARD_RADIUS*2,ARTHUR_WARD_RADIUS*2,0.5+Math.sin(nowMs/180)*0.08);
     }
-    if (nowMs < memory.lastOathUntilMs) g.lineStyle(3, 0xddd4b2, 0.75).strokeCircle(player.x, player.y, 30);
+    if (nowMs < memory.lastOathUntilMs)this.art.image('last-oath','fx',FX_ART.purificationRing,player.x,player.y,60,60,0.7);
+    this.art.end();
   }
 }

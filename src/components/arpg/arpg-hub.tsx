@@ -1,6 +1,6 @@
 "use client";
 
-import { Coins, ShieldCheck, Volume2, VolumeX } from "lucide-react";
+import { Coins, ShieldCheck, Volume2, VolumeX } from "@/components/ui/pixel-icon";
 import { useEffect, useRef, useState } from "react";
 import type { HubDestinationId } from "@/game/arpg/hub/content";
 import type { PlayableLegendId } from "@/game/arpg/content/legends";

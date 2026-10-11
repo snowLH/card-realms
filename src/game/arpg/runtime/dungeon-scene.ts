@@ -1,6 +1,10 @@
+import {spawnAbilityGroundArt,spawnAbilityProjectileArt,telegraphFrame} from '../art/combat-effects';
 import { hasBossCombatStrategy } from "../bosses/boss-combat-strategies";
 import { ARPG_ABILITY_CARD_BY_ID } from "../content/ability-cards";
 import { BossEncounterRuntime } from "../bosses/boss-encounter-runtime";
+import { BossEncounterCompletion } from "../bosses/boss-encounter-completion";
+import { BOSS_ROOM_ART, bossRoomThronePosition } from "../bosses/boss-room-art";
+import { clearProjectilePool, recycleArcadeProjectile } from "./projectile-recycling";
 import { createBossEncounter } from "../bosses/boss-encounter-controller";
 import { bossForRegion } from "../bosses/registry";
 import { queueBossPresentationAssets } from "../bosses/boss-presentations";
@@ -43,7 +47,7 @@ import type {
   ArpgRuntimeBridge,
 } from "../domain/types";
 import type { ArpgDungeonCombatCommand, ArpgDungeonCombatState } from "../dungeon/combat-authority";
-import { bossGateParentId } from "../dungeon/boss-access";
+import { bossGateParentId, isFinalBossConnectionLocked } from "../dungeon/boss-access";
 import type { DungeonManager } from "../dungeon/manager";
 import { DUNGEON_CORRIDOR_WIDTH } from "../dungeon/layout";
 import { buildDungeonNavigation } from "../dungeon/navigation";
@@ -65,14 +69,13 @@ import {
 import type { DungeonRoom } from "../dungeon/types";
 import { snapshotArpgRunCheckpoint, type ArpgRunCheckpoint } from "../dungeon/run-checkpoint";
 import {
-  DUNGEON_BIOME_PROPS_ASSET_PATH,
-  DUNGEON_BIOME_PROPS_FRAME_SIZE,
-  DUNGEON_BIOME_PROPS_TEXTURE_KEY,
   DungeonWorldRuntime,
 } from "./dungeon-world";
 import { ArpgAudio, type ArpgSoundCue } from "./arpg-audio";
 import { acceptServerConfirmedCombatResponse } from "./visual-events";
 import { createDungeonRuntimeTextures } from "./dungeon-runtime-textures";
+import { queueAuthoredArt, authoredImage, authoredPanel } from '../art/runtime-art';
+import { ART_ATLASES, FX_ART, PROP_ART, WORLD_ART } from '../art/manifest';
 import { createWeaponRuntimeTextures } from "./weapon-runtime-textures";
 import { getEnemyMovementIntent, type EnemyCombatRole } from "./enemy-behavior";
 import { indexRuntimeEntities } from "./entity-index";
@@ -169,7 +172,7 @@ type ChestLootPresentation = {
   phase: ChestPresentationPhase;
   chest: import("phaser").GameObjects.Sprite;
   item: import("phaser").GameObjects.Image | null;
-  shadow: import("phaser").GameObjects.Ellipse | null;
+  shadow: import("phaser").GameObjects.Image | null;
   effects: import("phaser").GameObjects.GameObject[];
   tweens: import("phaser").Tweens.Tween[];
   timers: import("phaser").Time.TimerEvent[];
@@ -269,12 +272,14 @@ export function createArpgDungeonScene(
 
   return class ArpgDungeonScene extends Phaser.Scene {
     private bossEncounterRuntime: BossEncounterRuntime | null = null;
+    private readonly bossCompletion = new BossEncounterCompletion();
     private arthurOaths = emptyArthurOaths();
     private wardPresentation: ArthurWardPresentation | null = null;
     private player!: ArcadeSprite;
     private floatingWeapon: import("phaser").GameObjects.Image | null = null;
     private floatingWeaponTextureKey: string | null = null;
-    private targetMarker: import("phaser").GameObjects.Graphics | null = null;
+    private floatingWeaponFrame: number | null = null;
+    private targetMarker: import("phaser").GameObjects.Image | null = null;
     private autoAimTarget: ArcadeSprite | null = null;
     private enemies!: import("phaser").Physics.Arcade.Group;
     private readonly entityGroundShadows = new Map<ArcadeSprite, import("phaser").GameObjects.Image>();
@@ -314,8 +319,8 @@ export function createArpgDungeonScene(
     private serverCombatRequestsInFlight = 0;
     private serverActionPending = false;
     private readonly serverDefeatedEnemyIds = new Set<string>();
-    private readonly serverProjectileVisuals = new Map<string, import("phaser").GameObjects.Arc>();
-    private readonly serverHazardVisuals = new Map<string, import("phaser").GameObjects.Shape>();
+    private readonly serverProjectileVisuals = new Map<string, import("phaser").GameObjects.Image>();
+    private readonly serverHazardVisuals = new Map<string, import("phaser").GameObjects.Image>();
     private serverProjectileRoomId: string | null = null;
     private serverHazardRoomId: string | null = null;
     private readonly runLootAssignments = dungeonManager ? createRunLootAssignments(dungeonManager.getGraph()) : {};
@@ -344,6 +349,7 @@ export function createArpgDungeonScene(
     private chestPresentation: ChestLootPresentation | null = null;
     private nextChestPresentationId = 1;
     private chestPhysicsPausedByPresentation = false;
+    private chestPromptFrame:import('phaser').GameObjects.NineSlice|null=null;
     private chestPrompt: import("phaser").GameObjects.Text | null = null;
     private dungeonDebugText: import("phaser").GameObjects.Text | null = null;
     private visualReferenceText: import("phaser").GameObjects.Text | null = null;
@@ -353,9 +359,9 @@ export function createArpgDungeonScene(
     private reducedMotionQuery: MediaQueryList | null = null;
     private exitPortalMotionTweens: import("phaser").Tweens.Tween[] = [];
     private exitPortalMotionVisuals: {
-      outer: import("phaser").GameObjects.Ellipse;
-      inner: import("phaser").GameObjects.Ellipse;
-      core: import("phaser").GameObjects.Ellipse;
+      outer: import("phaser").GameObjects.Image;
+      inner: import("phaser").GameObjects.Image;
+      core: import("phaser").GameObjects.Image;
     } | null = null;
     private playerLifecycleEvents: Array<{ event: string; sceneTime: number; stack?: string }> = [];
     private activeCurupiraRootBarriers = 0;
@@ -388,14 +394,15 @@ export function createArpgDungeonScene(
     }
 
     preload() {
-      this.load.spritesheet(
-        DUNGEON_BIOME_PROPS_TEXTURE_KEY,
-        DUNGEON_BIOME_PROPS_ASSET_PATH,
-        {
-          frameWidth: DUNGEON_BIOME_PROPS_FRAME_SIZE,
-          frameHeight: DUNGEON_BIOME_PROPS_FRAME_SIZE,
-        },
-      );
+      queueAuthoredArt(this,dungeon.id);
+      const externalWeaponSheet = ARPG_ASSET_MANIFEST.weapons.bennyboiHack;
+      if (!this.textures.exists(externalWeaponSheet.textureKey)) {
+        this.load.spritesheet(
+          externalWeaponSheet.textureKey,
+          externalWeaponSheet.path,
+          getArpgSpriteSheetFrameConfig(externalWeaponSheet),
+        );
+      }
       queueGeneratedLegendSpriteSheet(this, playerActorId, playerTextureKey);
       queueBossPresentationAssets(this, bossForRegion(dungeon.id).id);
       const enemyProfiles = new Set(
@@ -441,7 +448,7 @@ export function createArpgDungeonScene(
       this.runClock = bindActiveSceneClock(this);
       this.clickToMoveEnabled = typeof window !== "undefined"
         && new URLSearchParams(window.location.search).get("clickToMove") === "1";
-      this.cameras.main.setBackgroundColor("#102018");
+      this.cameras.main.setBackgroundColor("rgba(0,0,0,0)");
       this.setupReducedMotionPreference();
       const audio = new ArpgAudio(dungeonManager?.getGraph().regionId ?? dungeon.id);
       this.audio = audio;
@@ -552,7 +559,7 @@ export function createArpgDungeonScene(
         const background = this.add.image(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, "dungeon-arena");
         background.setDisplaySize(WORLD_WIDTH, WORLD_HEIGHT);
         background.setAlpha(1);
-        this.drawRoomFrame();
+
       }
 
       this.player = this.physics.add.sprite(playerStart.x, playerStart.y, playerTextureKey, 0);
@@ -577,9 +584,13 @@ export function createArpgDungeonScene(
         this.player.x,
         this.player.y,
         initialWeaponVisual.textureKey,
-      ).setOrigin(0.5, 0.5).setScale(initialWeaponVisual.displayScale).setDepth(11);
+        initialWeaponVisual.frame,
+      ).setOrigin(initialWeaponVisual.originX, initialWeaponVisual.originY)
+        .setTint(initialWeaponVisual.tint)
+        .setScale(initialWeaponVisual.displayScale).setDepth(11);
       this.floatingWeaponTextureKey = initialWeaponVisual.textureKey;
-      this.targetMarker = this.add.graphics().setDepth(18);
+      this.floatingWeaponFrame = initialWeaponVisual.frame;
+      this.targetMarker=authoredImage(this,0,0,'fx',FX_ART.crosshairDefault,48).setDepth(18).setVisible(false);
       this.events.once("shutdown", () => this.clearFloatingWeapon());
       this.events.once("destroy", () => this.clearFloatingWeapon());
       this.dungeonWorld?.attachPlayer(this.player);
@@ -741,7 +752,7 @@ export function createArpgDungeonScene(
     private ensureEntityGroundShadow(entity: ArcadeSprite, width: number) {
       let shadow = this.entityGroundShadows.get(entity);
       if (!shadow || !shadow.active) {
-        shadow = this.add.image(entity.x, entity.y, "arpg-ground-shadow")
+        shadow = authoredImage(this,entity.x,entity.y,"props",PROP_ART.shadowMedium)
           .setOrigin(0.5)
           .setAlpha(0.48)
           .setVisible(false);
@@ -784,14 +795,7 @@ export function createArpgDungeonScene(
       this.entityGroundShadows.clear();
     }
 
-    private drawRoomFrame() {
-      const frame = this.add.graphics();
-      frame.lineStyle(10, 0x221511, 0.9);
-      frame.strokeRoundedRect(18, 18, WORLD_WIDTH - 36, WORLD_HEIGHT - 36, 28);
-      frame.lineStyle(3, 0xb58a52, 0.6);
-      frame.strokeRoundedRect(28, 28, WORLD_WIDTH - 56, WORLD_HEIGHT - 56, 24);
-      frame.setDepth(3);
-    }
+
 
     private handleMovement(time: number) {
       const touch = bridge.getInput();
@@ -1076,10 +1080,12 @@ export function createArpgDungeonScene(
         distance: getFloatingWeaponReach(weapon.kind) + visual.holdDistanceOffset,
       });
 
-      if (this.floatingWeaponTextureKey !== visual.textureKey) {
-        this.floatingWeapon.setTexture(visual.textureKey);
+      if (this.floatingWeaponTextureKey !== visual.textureKey || this.floatingWeaponFrame !== visual.frame) {
+        this.floatingWeapon.setTexture(visual.textureKey, visual.frame);
         this.floatingWeaponTextureKey = visual.textureKey;
+        this.floatingWeaponFrame = visual.frame;
       }
+      this.floatingWeapon.setOrigin(visual.originX, visual.originY).setTint(visual.tint);
 
       const attackElapsed = this.lastWeaponAttackId === weapon.id
         ? this.runClock.now - this.lastWeaponAttackAt
@@ -1096,7 +1102,7 @@ export function createArpgDungeonScene(
       const y = pose.y
         + direction.y * motion.distanceOffset
         + perpendicular.y * (motion.sideOffset + idleBob);
-      const angle = getSnappedWeaponAngle(direction, motion.angleOffset, 16);
+      const angle = getSnappedWeaponAngle(direction, motion.angleOffset, 16) + visual.baseRotation;
 
       this.floatingWeapon
         .setPosition(Math.round(x), Math.round(y))
@@ -1106,51 +1112,22 @@ export function createArpgDungeonScene(
         .setDepth(this.player.depth + (direction.y >= 0 ? 2 : -1));
     }
 
-    private drawTargetMarker(target: ArcadeSprite | null) {
-      const marker = this.targetMarker;
-      if (!marker) return;
-      marker.clear();
-      if (!target) return;
-
-      const definitionId = String(target.getData("definitionId") ?? "");
-      const combatRole = String(target.getData("combatRole") ?? "melee");
-      const locked = target === this.autoAimTarget;
-      const accent = definitionId === "boss"
-        ? 0xffcb72
-        : definitionId === "miniBoss" || combatRole === "elite"
-          ? 0xff9278
-          : locked
-            ? 0x8fe4c2
-            : 0xf4dc8e;
-      const bodyRadius = Math.max(14, Math.min(24, Number(target.getData("radius")) || 14));
-      const pulse = locked ? (Math.sin(this.runClock.now / 95) + 1) * 1.25 : 0;
-      const radius = bodyRadius + pulse;
-      const arm = locked ? 7 : 5;
-      const left = target.x - radius;
-      const right = target.x + radius;
-      const top = target.y - radius;
-      const bottom = target.y + radius;
-
-      if (locked) {
-        marker.lineStyle(1, accent, 0.28);
-        marker.strokeCircle(target.x, target.y, radius + 7);
-      }
-      marker.lineStyle(locked ? 3 : 2, accent, locked ? 1 : 0.9);
-      marker.lineBetween(left, top + arm, left, top);
-      marker.lineBetween(left, top, left + arm, top);
-      marker.lineBetween(right - arm, top, right, top);
-      marker.lineBetween(right, top, right, top + arm);
-      marker.lineBetween(left, bottom - arm, left, bottom);
-      marker.lineBetween(left, bottom, left + arm, bottom);
-      marker.lineBetween(right - arm, bottom, right, bottom);
-      marker.lineBetween(right, bottom - arm, right, bottom);
-      marker.fillStyle(accent, locked ? 1 : 0.82).fillCircle(target.x, target.y, locked ? 2 : 1.5);
-    }
+    private drawTargetMarker(target:ArcadeSprite|null){
+  const marker=this.targetMarker;if(!marker)return;
+  marker.setVisible(Boolean(target));if(!target)return;
+  const locked=target===this.autoAimTarget;
+  const definitionId=String(target.getData('definitionId')??'');
+  const accent=definitionId==='boss'?0xffcb72:definitionId==='miniBoss'||target.getData('combatRole')==='elite'?0xff9278:locked?0x8fe4c2:0xf4dc8e;
+  const radius=Math.max(14,Math.min(24,Number(target.getData('radius'))||14));
+  const pulse=locked&&!this.prefersReducedMotion?(Math.sin(this.runClock.now/95)+1)*1.25:0;
+  marker.setPosition(target.x,target.y).setFrame(locked?FX_ART.crosshairLocked:FX_ART.crosshairDefault).setTint(accent).setDisplaySize((radius+pulse+7)*2,(radius+pulse+7)*2);
+}
 
     private clearFloatingWeapon() {
       this.floatingWeapon?.destroy();
       this.floatingWeapon = null;
       this.floatingWeaponTextureKey = null;
+      this.floatingWeaponFrame = null;
       this.targetMarker?.destroy();
       this.targetMarker = null;
     }
@@ -1242,352 +1219,17 @@ export function createArpgDungeonScene(
       }
     }
 
-    private spawnAbilityProjectileSignature(
-      card: (typeof selectedCards)[number],
-      direction: import("phaser").Math.Vector2,
-      originX: number,
-      originY: number,
-      speed: number,
-      lifeMs: number,
-    ) {
-      const ribbon = this.add.graphics();
-      const color = ABILITY_COLORS[card.element];
-      const container = this.add.container(originX, originY, [ribbon])
-        .setDepth(13)
-        .setRotation(Math.atan2(direction.y, direction.x));
+    private spawnAbilityProjectileSignature(card:(typeof selectedCards)[number],direction:import('phaser').Math.Vector2,originX:number,originY:number,speed:number,lifeMs:number){
+  spawnAbilityProjectileArt(this,card,direction,originX,originY,speed,lifeMs);
+}
 
-      const effectId = card.visualEffectId ?? card.id;
-      if (card.id === "arthur-camelot-cut") {
-        ribbon.fillStyle(0xdddfe9).fillTriangle(-40, -6, 32, 0, -40, 6);
-        ribbon.fillStyle(0x9d98bd).fillRect(-36, -3, 54, 3);
-        ribbon.fillStyle(0xd9bb75).fillRect(-44, -12, 4, 24);
-        ribbon.fillStyle(0x6b80a2).fillRect(-58, -3, 14, 6);
-      } else if (effectId === "boitata-flame") {
-        // A narrow, banded body, forked tail, and diamond head make this read as a
-        // small fire-serpent instead of another round projectile.
-        ribbon.lineStyle(9, 0x8d3023, 0.95).beginPath()
-          .moveTo(-34, 5).lineTo(-27, -2).lineTo(-20, 4).lineTo(-13, -4)
-          .lineTo(-6, 1).lineTo(1, -5).lineTo(8, 0).strokePath();
-        ribbon.lineStyle(5, 0xff7135, 1).beginPath()
-          .moveTo(-34, 5).lineTo(-27, -2).lineTo(-20, 4).lineTo(-13, -4)
-          .lineTo(-6, 1).lineTo(1, -5).lineTo(8, 0).strokePath();
-        ribbon.lineStyle(2, 0xffe48a, 0.98).beginPath()
-          .moveTo(-27, -2).lineTo(-20, 4).lineTo(-13, -4).lineTo(-6, 1).lineTo(1, -5).strokePath();
-        ribbon.fillStyle(0xffa23f, 1).fillPoints([
-          { x: 4, y: -7 }, { x: 15, y: 0 }, { x: 4, y: 7 }, { x: -1, y: 0 },
-        ], true);
-        ribbon.fillStyle(0xffef9c, 1).fillTriangle(4, -3, 13, 0, 4, 3);
-        ribbon.fillStyle(0x37251d, 1).fillRect(6, -3, 2, 2);
-        ribbon.lineStyle(2, 0xffb34f, 1).beginPath()
-          .moveTo(11, -3).lineTo(18, -7).moveTo(11, 3).lineTo(18, 7).strokePath();
-        ribbon.fillStyle(0xffd36c, 0.95).fillTriangle(-35, 4, -42, 0, -34, 0);
-      } else {
-        // Purchased shots keep their element, but use different silhouettes too.
-        if (card.element === "nature") {
-          ribbon.fillStyle(color, 0.96).fillPoints([
-            { x: 14, y: 0 }, { x: 3, y: -7 }, { x: -12, y: 0 }, { x: 3, y: 7 },
-          ], true);
-          ribbon.lineStyle(2, 0xe2f0a1, 0.95).beginPath().moveTo(-9, 0).lineTo(10, 0).strokePath();
-          ribbon.lineStyle(2, 0x477249, 0.95).beginPath().moveTo(-4, 0).lineTo(-9, -5).moveTo(1, 0).lineTo(-2, 5).strokePath();
-        } else if (card.element === "water") {
-          ribbon.lineStyle(7, 0x277d9a, 0.9).beginPath().moveTo(-15, 5).lineTo(-8, -4).lineTo(-1, 4).lineTo(6, -4).lineTo(14, 2).strokePath();
-          ribbon.lineStyle(3, 0xb7efff, 1).beginPath().moveTo(-15, 2).lineTo(-8, -7).lineTo(-1, 1).lineTo(6, -7).lineTo(14, -1).strokePath();
-        } else if (card.element === "storm") {
-          ribbon.fillStyle(color, 0.96).fillPoints([
-            { x: 15, y: 0 }, { x: 1, y: -4 }, { x: 5, y: -10 }, { x: -13, y: 1 },
-            { x: -1, y: 3 }, { x: -5, y: 9 },
-          ], true);
-          ribbon.lineStyle(2, 0xf1fbff, 0.95).beginPath().moveTo(-7, 1).lineTo(3, -1).lineTo(-1, 5).strokePath();
-        } else {
-          ribbon.fillStyle(color, 0.92).fillPoints([
-            { x: 13, y: 0 }, { x: 0, y: -9 }, { x: -13, y: 0 }, { x: 0, y: 9 },
-          ], true);
-          ribbon.fillStyle(0xf0e3ff, 0.9).fillPoints([
-            { x: 5, y: 0 }, { x: 0, y: -4 }, { x: -5, y: 0 }, { x: 0, y: 4 },
-          ], true);
-        }
-      }
+    private spawnAbilityImpactSignature(card:(typeof selectedCards)[number],x:number,y:number,radius:number){
+  spawnAbilityGroundArt(this,card,x,y,radius,false,this.prefersReducedMotion);
+}
 
-      this.tweens.add({
-        targets: container,
-        x: originX + direction.x * speed * lifeMs / 1000,
-        y: originY + direction.y * speed * lifeMs / 1000,
-        alpha: { from: 0.35, to: 1 },
-        duration: lifeMs,
-        ease: "Linear",
-        onComplete: () => container.destroy(),
-      });
-    }
-
-    private spawnAbilityImpactSignature(card: (typeof selectedCards)[number], x: number, y: number, radius: number) {
-      const art = this.add.graphics().setPosition(x, y).setDepth(12);
-      const color = ABILITY_COLORS[card.element];
-      const effectId = card.visualEffectId ?? card.id;
-
-      if (effectId === "ancestral-roots") {
-        // Eight crooked roots burst from the chosen point, with bark shadow,
-        // warm wood, and pale living cambium to preserve the pixel-cluster read.
-        for (let index = 0; index < 8; index += 1) {
-          const angle = index * Math.PI / 4 + Math.PI / 8;
-          const length = Math.min(96, radius * 0.62) * (index % 2 === 0 ? 1 : 0.76);
-          const side = index % 2 === 0 ? 1 : -1;
-          const ux = Math.cos(angle);
-          const uy = Math.sin(angle);
-          const px = -uy * side;
-          const py = ux * side;
-          const points = [
-            { x: 0, y: 0 },
-            { x: ux * length * 0.34 + px * 7, y: uy * length * 0.34 + py * 7 },
-            { x: ux * length * 0.7 - px * 6, y: uy * length * 0.7 - py * 6 },
-            { x: ux * length + px * 3, y: uy * length + py * 3 },
-          ];
-          art.lineStyle(13, 0x3b3025, 0.98).beginPath().moveTo(points[0].x, points[0].y)
-            .lineTo(points[1].x, points[1].y).lineTo(points[2].x, points[2].y).lineTo(points[3].x, points[3].y).strokePath();
-          art.lineStyle(8, 0x77543a, 1).beginPath().moveTo(points[0].x, points[0].y)
-            .lineTo(points[1].x, points[1].y).lineTo(points[2].x, points[2].y).lineTo(points[3].x, points[3].y).strokePath();
-          art.lineStyle(2, 0xb0c66b, 0.95).beginPath().moveTo(points[1].x, points[1].y)
-            .lineTo(points[2].x, points[2].y).strokePath();
-          const forkX = points[1].x + px * 13;
-          const forkY = points[1].y + py * 13;
-          art.lineStyle(5, 0x684b35, 0.96).beginPath().moveTo(points[1].x, points[1].y)
-            .lineTo(forkX, forkY).lineTo(forkX + ux * 9, forkY + uy * 9).strokePath();
-        }
-        art.fillStyle(0x49372a, 0.92).fillPoints([
-          { x: 0, y: -15 }, { x: 15, y: 0 }, { x: 0, y: 15 }, { x: -15, y: 0 },
-        ], true);
-        art.fillStyle(0xb6c96a, 0.96).fillPoints([
-          { x: 0, y: -8 }, { x: 8, y: 0 }, { x: 0, y: 8 }, { x: -8, y: 0 },
-        ], true);
-      } else if (effectId === "kraken-grasp") {
-        for (let arm = 0; arm < 6; arm += 1) {
-          const angle = arm * Math.PI / 3;
-          const ux = Math.cos(angle);
-          const uy = Math.sin(angle);
-          const px = -uy;
-          const py = ux;
-          const length = Math.min(76, radius * 0.55);
-          art.lineStyle(10, 0x174b56, 0.94).beginPath()
-            .moveTo(0, 0).lineTo(ux * 18 + px * 8, uy * 18 + py * 8)
-            .lineTo(ux * 39 - px * 9, uy * 39 - py * 9)
-            .lineTo(ux * length + px * 12, uy * length + py * 12).strokePath();
-          art.lineStyle(4, 0x65c2b6, 0.96).beginPath()
-            .moveTo(0, 0).lineTo(ux * 18 + px * 8, uy * 18 + py * 8)
-            .lineTo(ux * 39 - px * 9, uy * 39 - py * 9)
-            .lineTo(ux * length + px * 12, uy * length + py * 12).strokePath();
-          art.fillStyle(0xd7e7a2, 0.9).fillCircle(ux * 28 + px * 4, uy * 28 + py * 4, 2);
-        }
-      } else if (effectId === "medusa-gaze") {
-        for (let index = 0; index < 8; index += 1) {
-          const angle = index * Math.PI / 4;
-          const ux = Math.cos(angle);
-          const uy = Math.sin(angle);
-          const px = -uy;
-          const py = ux;
-          const cx = ux * 42;
-          const cy = uy * 42;
-          art.fillStyle(0x59666a, 0.9).fillPoints([
-            { x: cx - ux * 8 + px * 8, y: cy - uy * 8 + py * 8 },
-            { x: cx + ux * 15, y: cy + uy * 15 },
-            { x: cx - ux * 8 - px * 8, y: cy - uy * 8 - py * 8 },
-          ], true);
-          art.lineStyle(2, 0xd3cfaa, 0.86).beginPath()
-            .moveTo(cx - ux * 7, cy - uy * 7).lineTo(cx + ux * 11, cy + uy * 11).strokePath();
-        }
-      } else if (card.element === "water") {
-        for (let ring = 0; ring < 3; ring += 1) {
-          const r = 22 + ring * 17;
-          art.lineStyle(3 - ring * 0.4, ring === 0 ? 0xc1f2ed : color, 0.9 - ring * 0.12)
-            .strokeCircle(0, 0, r);
-          art.fillStyle(0xc9f8e8, 0.88).fillPoints([
-            { x: r, y: -4 }, { x: r + 7, y: 0 }, { x: r, y: 4 }, { x: r - 3, y: 0 },
-          ], true);
-        }
-      } else if (card.element === "storm") {
-        for (let ray = 0; ray < 4; ray += 1) {
-          const angle = ray * Math.PI / 2 + Math.PI / 4;
-          const ux = Math.cos(angle);
-          const uy = Math.sin(angle);
-          const px = -uy;
-          const py = ux;
-          const tipX = ux * 64;
-          const tipY = uy * 64;
-          art.lineStyle(7, 0x526e8a, 0.9).beginPath()
-            .moveTo(-ux * 12, -uy * 12).lineTo(ux * 17 + px * 8, uy * 17 + py * 8)
-            .lineTo(tipX, tipY).strokePath();
-          art.lineStyle(3, 0xd7f5ff, 0.98).beginPath()
-            .moveTo(-ux * 12, -uy * 12).lineTo(ux * 17 + px * 8, uy * 17 + py * 8)
-            .lineTo(tipX, tipY).strokePath();
-        }
-      } else if (card.element === "spirit") {
-        for (let rune = 0; rune < 6; rune += 1) {
-          const angle = rune * Math.PI / 3;
-          const cx = Math.cos(angle) * 45;
-          const cy = Math.sin(angle) * 45;
-          art.lineStyle(2, 0xe8daff, 0.96).strokePoints([
-            { x: cx, y: cy - 7 }, { x: cx + 6, y: cy }, { x: cx, y: cy + 7 }, { x: cx - 6, y: cy }, { x: cx, y: cy - 7 },
-          ]);
-          art.fillStyle(color, 0.9).fillRect(cx - 2, cy - 2, 4, 4);
-        }
-      } else {
-        for (let ray = 0; ray < 8; ray += 1) {
-          const angle = ray * Math.PI / 4;
-          const ux = Math.cos(angle);
-          const uy = Math.sin(angle);
-          art.fillTriangle(ux * 18, uy * 18, ux * 56 - uy * 7, uy * 56 + ux * 7, ux * 56 + uy * 7, uy * 56 - ux * 7);
-        }
-      }
-
-      art.setScale(0.42).setAlpha(0);
-      this.tweens.add({
-        targets: art,
-        scale: { from: 0.42, to: 1 },
-        alpha: { from: 0, to: 0.94 },
-        duration: 145,
-        ease: "Back.easeOut",
-        onComplete: () => this.tweens.add({
-          targets: art,
-          alpha: 0,
-          scale: 1.1,
-          duration: 350,
-          delay: 100,
-          ease: "Quad.easeIn",
-          onComplete: () => art.destroy(),
-        }),
-      });
-    }
-
-    private spawnAbilityAreaSignature(card: (typeof selectedCards)[number], x: number, y: number, radius: number) {
-      const art = this.add.graphics().setPosition(x, y).setDepth(12);
-      const color = ABILITY_COLORS[card.element];
-      const span = Math.min(82, radius * 0.55);
-      const effectId = card.visualEffectId ?? card.id;
-
-      if (effectId === "saci-whirlwind") {
-        for (let turn = 0; turn < 3; turn += 1) {
-          const offset = turn * 9;
-          art.lineStyle(4 - turn * 0.6, turn === 1 ? 0xe2d5a2 : color, 0.9);
-          art.beginPath().moveTo(-span * 0.62 + offset, -span * 0.2)
-            .lineTo(-span * 0.3, -span * 0.52 + offset)
-            .lineTo(span * 0.15, -span * 0.44)
-            .lineTo(span * 0.5, -span * 0.08 + offset)
-            .lineTo(span * 0.22, span * 0.28)
-            .lineTo(-span * 0.28 + offset, span * 0.33)
-            .lineTo(-span * 0.08, -span * 0.02).strokePath();
-        }
-      } else if (effectId === "kappa-splash") {
-        for (let drop = 0; drop < 10; drop += 1) {
-          const angle = drop * Math.PI / 5;
-          const distance = span * (0.45 + (drop % 2) * 0.22);
-          const dx = Math.cos(angle) * distance;
-          const dy = Math.sin(angle) * distance;
-          art.fillStyle(drop % 2 ? 0x9de6e9 : 0xe0f8cc, 0.95)
-            .fillTriangle(dx, dy - 8, dx + 5, dy + 4, dx - 5, dy + 4);
-        }
-        art.lineStyle(3, color, 0.92).strokeCircle(0, 0, span * 0.3);
-      } else if (effectId === "iara-song" || card.element === "water") {
-        for (let wave = 0; wave < 4; wave += 1) {
-          const yy = (wave - 1.5) * 14;
-          art.lineStyle(wave === 0 ? 4 : 2, wave % 2 === 0 ? 0xc8f5ef : color, 0.92 - wave * 0.08)
-            .beginPath().moveTo(-span, yy)
-            .lineTo(-span * 0.62, yy - 7).lineTo(-span * 0.24, yy + 5)
-            .lineTo(span * 0.15, yy - 6).lineTo(span * 0.58, yy + 6).lineTo(span, yy)
-            .strokePath();
-        }
-        for (let drop = 0; drop < 6; drop += 1) {
-          const angle = drop * Math.PI / 3;
-          const dx = Math.cos(angle) * span * 0.75;
-          const dy = Math.sin(angle) * span * 0.62;
-          art.fillTriangle(dx, dy - 5, dx + 4, dy + 2, dx - 4, dy + 2);
-        }
-      } else if (effectId === "tengu-gust" || card.element === "storm") {
-        for (let ray = 0; ray < 5; ray += 1) {
-          const yy = (ray - 2) * 11;
-          art.lineStyle(ray === 2 ? 5 : 3, ray % 2 ? 0xe0f7ff : color, 0.94);
-          art.beginPath().moveTo(-span * 0.78, yy + 12).lineTo(-span * 0.32, yy + 5)
-            .lineTo(span * 0.1, yy - 4).lineTo(span * 0.72, yy - 14).strokePath();
-        }
-      } else if (effectId === "banshee-wail") {
-        for (let ring = 0; ring < 3; ring += 1) {
-          art.lineStyle(3 - ring * 0.6, ring === 1 ? 0xf5eaff : color, 0.88)
-            .strokeCircle(0, 0, 22 + ring * 18);
-        }
-        for (let rune = 0; rune < 4; rune += 1) {
-          const angle = rune * Math.PI / 2 + Math.PI / 4;
-          const cx = Math.cos(angle) * 53;
-          const cy = Math.sin(angle) * 53;
-          art.fillStyle(0xf5eaff, 0.94).fillPoints([
-            { x: cx, y: cy - 6 }, { x: cx + 5, y: cy }, { x: cx, y: cy + 6 }, { x: cx - 5, y: cy },
-          ], true);
-        }
-      } else if (card.behavior === "renewal") {
-        art.lineStyle(3, 0xf3ddaa, 0.96).strokeCircle(0, 0, 34);
-        for (let wing = 0; wing < 6; wing += 1) {
-          const angle = wing * Math.PI / 3;
-          const ux = Math.cos(angle);
-          const uy = Math.sin(angle);
-          art.fillPoints([
-            { x: ux * 29, y: uy * 29 },
-            { x: ux * 61 - uy * 8, y: uy * 61 + ux * 8 },
-            { x: ux * 43, y: uy * 43 },
-            { x: ux * 61 + uy * 8, y: uy * 61 - ux * 8 },
-          ], true);
-        }
-      } else if (card.element === "nature") {
-        for (let leaf = 0; leaf < 6; leaf += 1) {
-          const angle = leaf * Math.PI / 3;
-          const ux = Math.cos(angle);
-          const uy = Math.sin(angle);
-          const cx = ux * span * 0.62;
-          const cy = uy * span * 0.62;
-          art.fillStyle(color, 0.94).fillPoints([
-            { x: cx - uy * 8, y: cy + ux * 8 },
-            { x: cx + ux * 11, y: cy + uy * 11 },
-            { x: cx + uy * 8, y: cy - ux * 8 },
-            { x: cx - ux * 11, y: cy - uy * 11 },
-          ], true);
-          art.lineStyle(2, 0xd8e69d, 0.92).beginPath().moveTo(0, 0).lineTo(cx, cy).strokePath();
-        }
-      } else if (card.element === "spirit") {
-        for (let rune = 0; rune < 6; rune += 1) {
-          const angle = rune * Math.PI / 3;
-          const cx = Math.cos(angle) * span * 0.64;
-          const cy = Math.sin(angle) * span * 0.64;
-          art.lineStyle(2, 0xf4e8ff, 0.95).strokePoints([
-            { x: cx, y: cy - 7 }, { x: cx + 6, y: cy }, { x: cx, y: cy + 7 }, { x: cx - 6, y: cy }, { x: cx, y: cy - 7 },
-          ]);
-        }
-      } else {
-        for (let flame = 0; flame < 8; flame += 1) {
-          const angle = flame * Math.PI / 4;
-          const ux = Math.cos(angle);
-          const uy = Math.sin(angle);
-          const cx = ux * span * 0.58;
-          const cy = uy * span * 0.58;
-          art.fillStyle(flame % 2 ? 0xff8a3b : 0xffd16b, 0.95).fillTriangle(
-            cx - uy * 5 - ux * 8, cy + ux * 5 - uy * 8,
-            cx + ux * 11, cy + uy * 11,
-            cx + uy * 5 - ux * 8, cy - ux * 5 - uy * 8,
-          );
-        }
-      }
-
-      art.setScale(0.68).setAlpha(0);
-      this.tweens.add({
-        targets: art,
-        scale: { from: 0.68, to: 1.08 },
-        alpha: { from: 0, to: 0.9 },
-        rotation: effectId === "saci-whirlwind" ? Math.PI * 2 : Math.PI / 24,
-        duration: 440,
-        ease: "Quad.easeOut",
-        onComplete: () => this.tweens.add({
-          targets: art,
-          alpha: 0,
-          duration: 250,
-          ease: "Quad.easeIn",
-          onComplete: () => art.destroy(),
-        }),
-      });
-    }
+    private spawnAbilityAreaSignature(card:(typeof selectedCards)[number],x:number,y:number,radius:number){
+  spawnAbilityGroundArt(this,card,x,y,radius,true,this.prefersReducedMotion);
+}
 
     private fireProjectile(
       direction: import("phaser").Math.Vector2,
@@ -1647,8 +1289,7 @@ export function createArpgDungeonScene(
     }
 
     private recycleProjectile(projectile: ArcadeSprite) {
-      projectile.setActive(false).setVisible(false).setVelocity(0, 0);
-      if (projectile.body) projectile.body.enable = false;
+      recycleArcadeProjectile(projectile);
     }
 
     private clearEnemyProjectiles() {
@@ -1704,7 +1345,7 @@ export function createArpgDungeonScene(
         enemy.setData("hp", this.bossEncounterRuntime.snapshot.hp);
         if (this.bossEncounterRuntime.snapshot.state === "DEFEATED") {
           this.clearEnemyProjectiles();
-          this.projectiles.clear(true, true);
+          clearProjectilePool(this.projectiles.getChildren() as ArcadeSprite[]);
           enemy.setData("damageEnabled", false).setVelocity(0, 0);
         }
         return;
@@ -1835,21 +1476,21 @@ export function createArpgDungeonScene(
       const graph = dungeonManager.getGraph();
       const parentId = bossGateParentId(graph);
       if (!parentId) return;
-      const locked = !dungeonManager.isBossRoomUnlocked();
-      const changed = this.dungeonWorld.setConnectionLocked(parentId, graph.bossRoomId, locked);
+      const sealed = !dungeonManager.isBossRoomUnlocked();
+      const changed = this.dungeonWorld.setConnectionLocked(parentId, graph.bossRoomId, isFinalBossConnectionLocked(graph));
       const current = dungeonManager.getCurrentRoom();
-      if (locked && current.id === parentId && this.finalBossGateNoticeRoomId !== current.id) {
+      if (sealed && current.id === parentId && this.finalBossGateNoticeRoomId !== current.id) {
         const remaining = dungeonManager.getUnclearedBossPrerequisiteRoomIds().length;
         bridge.emitMessage(`A passagem final está selada. Conclua as ${remaining} salas restantes antes de enfrentar a Lenda Esquecida.`);
         this.finalBossGateNoticeRoomId = current.id;
       } else if (current.id !== parentId) {
         this.finalBossGateNoticeRoomId = null;
       }
-      if (!locked && (this.finalBossGateLocked || changed)) {
+      if (!sealed && (this.finalBossGateLocked || (changed && current.id !== graph.bossRoomId))) {
         bridge.emitMessage("Todas as salas foram concluídas. O selo da arena final se rompeu.");
         this.playSound("door-open");
       }
-      this.finalBossGateLocked = locked;
+      this.finalBossGateLocked = sealed;
     }
 
     private activateProceduralRoom(room: DungeonRoom, time: number) {
@@ -1888,21 +1529,12 @@ export function createArpgDungeonScene(
             this.bossEncounterRuntime?.destroy();
             this.bossEncounterRuntime = new BossEncounterRuntime({
               scene: this, bridge, actor, player: this.player, arena,
-              snapshot: saved ?? createBossEncounter(definition.id, time, ["solo"], dungeon.enemies.boss.maxHp, { x: arena.width / 2, y: 144 }, bridge.getSeenBossIntroIds?.().includes(definition.id)),
+              snapshot: saved ?? createBossEncounter(definition.id, time, ["solo"], dungeon.enemies.boss.maxHp, bossRoomThronePosition(definition.id, arena.width), bridge.getSeenBossIntroIds?.().includes(definition.id)),
               reducedMotion: this.prefersReducedMotion, legendId: avatarConfig.legendId, audio: this.audio,
               requestSkip: () => this.submitServerCombatCommand(room.id, "skip_intro", this.runClock.now),
+              onPurificationVisualFinished: () => this.dungeonWorld?.restoreBossRoomArt(room.id),
               damagePlayer: (damage, at) => { if (at >= this.nextPlayerDamageAt && at >= this.dashingUntil) this.applyPlayerDamage(damage, at); },
-              onCleared: () => {
-                this.pendingEnemySpawns.delete(actor);
-                actor.setActive(false).setVelocity(0, 0).setData("spawnReady", false);
-                if (actor.body) actor.body.enable = false;
-                if (!bridge.isServerAuthoritativeCombat()) {
-                  this.xpEarned += Math.round(dungeon.enemies.boss.rewardXp * getRelicXpMultiplier(selectedRelic));
-                  this.runShards += getRunShardReward(dungeon.enemies.boss.rewardXp);
-                }
-                // Completion is emitted once, after persistence confirms restoration.
-                this.proceduralController?.enemyDefeated();
-              },
+              onCleared: () => this.completeBossEncounter(room, actor),
             });
             this.bossEncounterRuntime.update(time);
           }
@@ -2007,7 +1639,7 @@ export function createArpgDungeonScene(
       this.spawnPulse(object.x, object.y, 30, debrisColor);
       for (let index = 0; index < 6; index += 1) {
         const angle = (Math.PI * 2 * index) / 6;
-        const debris = this.add.rectangle(object.x, object.y, 5, 5, debrisColor).setDepth(12);
+        const debris=authoredImage(this,object.x,object.y,'fx',kind==='shrub'?FX_ART.leaf:FX_ART.dust,10).setTint(debrisColor).setDepth(12);
         this.tweens.add({
           targets: debris,
           x: object.x + Math.cos(angle) * 24,
@@ -2066,93 +1698,19 @@ export function createArpgDungeonScene(
       this.emitHud(time);
     }
 
-    private ensureSpecialRoomAnchor(room: DungeonRoom, encounter: SpecialRoomEncounter) {
-      if (!this.dungeonWorld || this.specialRoomAnchors.has(room.id)) return;
-      const layout = this.dungeonWorld.layout.rooms[room.id];
-      if (!layout) return;
-
-      const marker = this.add.container(layout.centerX, layout.centerY).setDepth(8);
-      const art = this.add.graphics();
-      const sea = dungeon.id === "arquipelago-das-mares";
-      const mountain = dungeon.id === "montanhas-runicas";
-      const stone = sea ? 0x426b76 : mountain ? 0x64798b : 0x68624e;
-      const shade = sea ? 0x1b3b47 : mountain ? 0x334452 : 0x35392f;
-      const accent = sea ? 0x76d4d1 : mountain ? 0x9edcff : 0xb7d77a;
-      const warm = sea ? 0xf0bf73 : mountain ? 0xe5f2ff : 0xf2bd62;
-
-      art.fillStyle(0x101a1d, 0.34);
-      art.fillEllipse(0, 42, 208, 62);
-      art.fillStyle(shade, 1);
-      art.fillEllipse(0, 34, 168, 46);
-      art.fillStyle(stone, 1);
-      art.fillEllipse(0, 30, 132, 34);
-
-      if (encounter.type === "rest") {
-        art.fillStyle(0x6a4530, 1);
-        art.fillRect(-48, 11, 96, 12);
-        art.fillRect(-40, 1, 80, 10);
-        art.fillStyle(warm, 1);
-        art.fillTriangle(0, -37, -17, 4, 17, 4);
-        art.fillStyle(0xff7b43, 1);
-        art.fillTriangle(0, -22, -10, 5, 10, 5);
-        art.fillStyle(0xffe59a, 1);
-        art.fillTriangle(0, -13, -4, 2, 4, 2);
-        art.fillStyle(accent, 0.9);
-        art.fillRect(-68, 23, 15, 6);
-        art.fillRect(53, 23, 15, 6);
-      } else if (encounter.type === "shop") {
-        art.fillStyle(shade, 1);
-        art.fillRect(-58, -48, 116, 12);
-        art.fillStyle(accent, 1);
-        art.fillTriangle(-70, -47, 0, -94, 70, -47);
-        art.fillStyle(warm, 1);
-        art.fillRect(-56, -46, 112, 7);
-        art.fillStyle(0x714831, 1);
-        art.fillRect(-67, -2, 134, 15);
-        art.fillStyle(stone, 1);
-        art.fillRect(-56, 12, 112, 13);
-        art.fillStyle(0x8c5f44, 1);
-        art.fillRect(-49, 25, 9, 24);
-        art.fillRect(40, 25, 9, 24);
-        art.fillStyle(warm, 1);
-        art.fillCircle(0, -23, 13);
-        art.fillStyle(shade, 1);
-        art.fillTriangle(-20, -30, 0, -56, 20, -30);
-        art.fillRect(-13, -22, 26, 22);
-        art.fillStyle(sea ? 0x8de2c4 : mountain ? 0xbde6ff : 0xc1cf83, 1);
-        art.fillRect(-36, 0, 12, 18);
-        art.fillRect(24, 0, 12, 18);
-      } else {
-        art.fillStyle(shade, 1);
-        art.fillRect(-36, -42, 72, 84);
-        art.fillStyle(stone, 1);
-        art.fillRect(-29, -51, 58, 14);
-        art.fillRect(-29, 28, 58, 17);
-        art.fillStyle(accent, 1);
-        art.fillTriangle(0, -83, -19, -46, 19, -46);
-        art.fillStyle(warm, 0.95);
-        art.fillCircle(0, -59, 8);
-        art.fillStyle(sea ? 0x4fbab9 : mountain ? 0x8bc9f2 : 0x91bb5e, 0.72);
-        art.fillEllipse(0, 5, 22, 31);
-      }
-
-      marker.add(art);
-      const prompt = this.add.text(0, -116, "INTERAGIR", {
-        color: "#fff0bf",
-        fontFamily: "monospace",
-        fontSize: "12px",
-        backgroundColor: "#241d18",
-        padding: { x: 7, y: 4 },
-      }).setOrigin(0.5);
-      marker.add(prompt);
-      this.specialRoomAnchors.set(room.id, {
-        encounter,
-        x: layout.centerX,
-        y: layout.centerY,
-        display: marker,
-        prompt,
-      });
-    }
+    private ensureSpecialRoomAnchor(room:DungeonRoom,encounter:SpecialRoomEncounter){
+  if(!this.dungeonWorld||this.specialRoomAnchors.has(room.id))return;
+  const layout=this.dungeonWorld.layout.rooms[room.id];if(!layout)return;
+  const marker=this.add.container(layout.centerX,layout.centerY).setDepth(8);
+  const altar=dungeon.id==='arquipelago-das-mares'?PROP_ART.waterAltar:dungeon.id==='montanhas-runicas'?PROP_ART.runicAltar:PROP_ART.forestAltar;
+  const frame=encounter.type==='rest'?PROP_ART.campfire:encounter.type==='shop'?PROP_ART.merchant:altar;
+  marker.add(authoredImage(this,0,36,'props',PROP_ART.shadowLarge,180,50).setAlpha(0.5));
+  const prop=authoredImage(this,0,-14,'props',frame,160,160);marker.add(prop);
+  if(encounter.type==='rest')this.tweens.add({targets:prop,alpha:{from:0.85,to:1},duration:900,yoyo:true,repeat:-1});
+  marker.add(authoredPanel(this,0,-116,'tooltip-frame',94,28));
+  const prompt=this.add.text(0,-116,'INTERAGIR',{color:'#fff0bf',fontFamily:'monospace',fontSize:'12px'}).setOrigin(0.5);marker.add(prompt);
+  this.specialRoomAnchors.set(room.id,{encounter,x:layout.centerX,y:layout.centerY,display:marker,prompt});
+}
 
     private tryInteractSpecialRoom(time: number) {
       if (!dungeonManager || !this.dungeonWorld) return;
@@ -2374,9 +1932,7 @@ export function createArpgDungeonScene(
         const y = layout.top + projectile.y;
         const visual = this.serverProjectileVisuals.get(projectile.id);
         if (!visual) {
-          const created = this.add.circle(x, y, projectile.radius, dungeon.colors.projectile, 0.9)
-            .setStrokeStyle(2, 0xf4e7c8, 0.8)
-            .setDepth(11);
+          const created=authoredImage(this,x,y,'world',WORLD_ART.enemyProjectile,projectile.radius*2).setAlpha(0.9).setDepth(11);
           this.serverProjectileVisuals.set(projectile.id, created);
           continue;
         }
@@ -2394,57 +1950,29 @@ export function createArpgDungeonScene(
       this.serverProjectileRoomId = null;
     }
 
-    private syncServerHazardVisuals(
-      state: ArpgDungeonCombatState,
-      layout: NonNullable<DungeonWorldRuntime["layout"]["rooms"][string]>,
-    ) {
-      if (this.serverHazardRoomId !== state.roomId) {
-        this.clearServerHazardVisuals();
-        this.serverHazardRoomId = state.roomId;
-      }
-      const currentIds = new Set(state.hazards.map((hazard) => hazard.id));
-      for (const [id, visual] of this.serverHazardVisuals) {
-        if (currentIds.has(id)) continue;
-        this.tweens.killTweensOf(visual);
-        this.tweens.add({ targets: visual, alpha: 0, duration: 90, onComplete: () => visual.destroy() });
-        this.serverHazardVisuals.delete(id);
-      }
-
-      for (const hazard of state.hazards) {
-        let visual = this.serverHazardVisuals.get(hazard.id);
-        const color = hazard.pattern.includes("ice") || hazard.pattern.includes("frost") || hazard.pattern.includes("whiteout")
-          ? dungeon.colors.phaseThree
-          : hazard.pattern.includes("tide") || hazard.pattern.includes("undertow") || hazard.pattern.includes("current")
-            ? dungeon.colors.phaseTwo
-            : hazard.pattern.includes("phase") || hazard.pattern.includes("teleport")
-              ? dungeon.colors.phaseThree
-              : dungeon.colors.phaseTwo;
-        const x = layout.left + hazard.x;
-        const y = layout.top + hazard.y;
-        if (!visual) {
-          visual = hazard.shape === "circle"
-            ? this.add.circle(x, y, hazard.radius, color, 0.11)
-            : this.add.rectangle(x, y, hazard.width, hazard.height, color, 0.14).setRotation(hazard.angle);
-          visual.setStrokeStyle(3, color, 0.92).setDepth(6);
-          this.serverHazardVisuals.set(hazard.id, visual);
-        } else {
-          visual.setPosition(x, y);
-        }
-        const activeRootBarrier = hazard.pattern === "root-arena"
-          && state.serverTimeMs >= hazard.detonateAtMs
-          && state.serverTimeMs < hazard.activeUntilMs;
-        visual.setFillStyle(activeRootBarrier ? 0x694731 : color, activeRootBarrier ? 0.96 : 0.12);
-        visual.setStrokeStyle(3, activeRootBarrier ? 0x91ab5a : color, activeRootBarrier ? 1 : 0.92);
-        if (activeRootBarrier) {
-          visual.setAlpha(1);
-          this.tweens.killTweensOf(visual);
-          continue;
-        }
-        const remainingMs = Math.max(80, hazard.detonateAtMs - state.serverTimeMs);
-        this.tweens.killTweensOf(visual);
-        this.tweens.add({ targets: visual, alpha: 0.56, duration: remainingMs, ease: "Sine.easeIn" });
-      }
-    }
+    private syncServerHazardVisuals(state:ArpgDungeonCombatState,layout:NonNullable<DungeonWorldRuntime['layout']['rooms'][string]>){
+  if(this.serverHazardRoomId!==state.roomId){this.clearServerHazardVisuals();this.serverHazardRoomId=state.roomId;}
+  const currentIds=new Set(state.hazards.map(hazard=>hazard.id));
+  for(const [id,visual]of this.serverHazardVisuals){if(currentIds.has(id))continue;
+    this.tweens.killTweensOf(visual);this.tweens.add({targets:visual,alpha:0,duration:90,onComplete:()=>visual.destroy()});this.serverHazardVisuals.delete(id);
+  }
+  for(const hazard of state.hazards){
+    const x=layout.left+hazard.x,y=layout.top+hazard.y;
+    const active=state.serverTimeMs>=hazard.detonateAtMs&&state.serverTimeMs<hazard.activeUntilMs;
+    const root=active&&hazard.pattern==='root-arena';
+    const pack=root?'props':'fx';
+    const frame=root?PROP_ART.roots:telegraphFrame(dungeon.id,hazard.shape==='circle'?'circle':'rectangle',active);
+    const width=hazard.shape==='circle'?hazard.radius*2:hazard.width;
+    const height=hazard.shape==='circle'?hazard.radius*2:hazard.height;
+    let visual=this.serverHazardVisuals.get(hazard.id);
+    if(!visual){visual=authoredImage(this,x,y,pack,frame,width,height).setDepth(6);this.serverHazardVisuals.set(hazard.id,visual);}
+    visual.setTexture(ART_ATLASES[pack].key,frame).setPosition(x,y).setDisplaySize(width,height).setRotation(hazard.shape==='circle'?0:hazard.angle);
+    this.tweens.killTweensOf(visual);
+    if(active){visual.setAlpha(root?1:0.9);continue;}
+    visual.setAlpha(0.5);
+    this.tweens.add({targets:visual,alpha:0.8,duration:Math.max(80,hazard.detonateAtMs-state.serverTimeMs),ease:'Sine.easeIn'});
+  }
+}
 
     private clearServerHazardVisuals() {
       for (const visual of this.serverHazardVisuals.values()) {
@@ -2519,13 +2047,55 @@ export function createArpgDungeonScene(
       this.chestOpening = false;
       this.chest = this.createTreasureChest(center.x, center.y + 80, 0.75).setAlpha(0);
       this.tweens.add({ targets: this.chest, scale: TREASURE_CHEST_DISPLAY_SCALE, alpha: 1, y: center.y + 78, duration: 260, ease: "Back.easeOut" });
-      const ring = this.add.circle(center.x, center.y + 80, 20, loot ? 0xf0c961 : 0x8fc56b, 0.2).setDepth(7);
+      const ring=authoredImage(this,center.x,center.y+80,'fx',FX_ART.ringWarning,40).setTint(loot?0xf0c961:0x8fc56b).setDepth(7);
       this.tweens.add({ targets: ring, scale: 2.3, alpha: 0, duration: 420, onComplete: () => ring.destroy() });
       bridge.emitMessage(loot
         ? "Recompensa da sala. Aproxime-se do baú e pressione E para abrir."
         : "Um pequeno cache de viagem apareceu. Aproxime-se e pressione E para recolher.");
       this.emitRunCheckpoint();
       this.emitHud(time);
+    }
+
+    private completeBossEncounter(room: DungeonRoom, actor: ArcadeSprite) {
+      const runtime = this.bossEncounterRuntime;
+      if (!runtime || !dungeonManager || !this.dungeonWorld) return;
+      this.bossCompletion.complete(room.id, runtime.snapshot, {
+        destroyRuntime: () => { runtime.destroy(); this.bossEncounterRuntime = null; },
+        removeActor: () => {
+          this.pendingEnemySpawns.delete(actor);
+          this.tweens.killTweensOf(actor);
+          actor.setData("damageEnabled", false).setData("spawnReady", false);
+          actor.disableBody(true, true);
+          this.enemies.remove(actor, true, true);
+        },
+        clearCombatEffects: () => {
+          this.clearEnemyProjectiles();
+          this.projectiles.clear(true, true);
+          this.clearServerProjectileVisuals();
+          this.clearServerHazardVisuals();
+        },
+        restorePlayer: () => {
+          this.clearClickPath(); bridge.clearGameplayInput();
+          this.dashingUntil = 0; this.player.setVelocity(0, 0);
+          this.cameras.main.startFollow(this.player, true, 0.16, 0.16);
+          this.audio?.setMusicMode("exploration");
+        },
+        grantCombatReward: () => {
+          if (bridge.isServerAuthoritativeCombat()) return;
+          this.xpEarned += Math.round(dungeon.enemies.boss.rewardXp * getRelicXpMultiplier(selectedRelic));
+          this.runShards += getRunShardReward(dungeon.enemies.boss.rewardXp);
+        },
+        completeRoom: () => {
+          this.proceduralController?.completeRoom(); this.proceduralController = null;
+          this.proceduralWaveTransitionScheduled = false;
+          const cleared = dungeonManager!.clearRoom(room.id);
+          this.dungeonWorld!.restoreBossRoomArt(room.id);
+          this.spawnProceduralReward(cleared, this.runClock.now);
+          this.dungeonWorld!.setDoorsLocked(room.id, false);
+        },
+        createExit: () => this.createExitPortal(room),
+        publish: () => { this.emitRunCheckpoint(); this.emitHud(this.runClock.now); },
+      });
     }
 
     private proceduralRoomLabel(room: DungeonRoom) {
@@ -2609,9 +2179,9 @@ export function createArpgDungeonScene(
       if (!definition || !enemy) return;
 
       const tint = definition.tint;
-      const ring = this.add.circle(x, y, 13, tint, 0.12).setStrokeStyle(3, tint, 0.92).setDepth(8);
-      const root = this.add.rectangle(x, y, 8, 26, tint, 0.86).setAngle(-32).setDepth(8);
-      const leaf = this.add.rectangle(x + 8, y - 4, 7, 16, 0xa6c76a, 0.82).setAngle(28).setDepth(8);
+      const ring=authoredImage(this,x,y,'fx',telegraphFrame(dungeon.id,'circle'),26).setTint(tint).setAlpha(0.65).setDepth(8);
+      const root=authoredImage(this,x,y,'props',PROP_ART.roots,16,26).setTint(tint).setAlpha(0.86).setAngle(-32).setDepth(8);
+      const leaf=authoredImage(this,x+8,y-4,'fx',FX_ART.leaf,12,16).setAlpha(0.82).setAngle(28).setDepth(8);
       this.tweens.add({
         targets: [ring, root, leaf],
         scale: { from: 0.5, to: 2.2 },
@@ -2739,7 +2309,7 @@ export function createArpgDungeonScene(
         if (!enemy.active || !enemy.getData("spawnReady")) return;
 
         const definitionId = String(enemy.getData("definitionId"));
-        if (definitionId === "boss" && this.bossEncounterRuntime && (this.bossEncounterRuntime.lock.locked || hasBossCombatStrategy(this.bossEncounterRuntime.snapshot.bossId) || this.bossEncounterRuntime.snapshot.state === "CLEARED")) {
+        if (definitionId === "boss" && this.bossEncounterRuntime && (this.bossEncounterRuntime.snapshot.state !== "COMBAT" || hasBossCombatStrategy(this.bossEncounterRuntime.snapshot.bossId))) {
           enemy.setVelocity(0, 0);
           return;
         }
@@ -3071,9 +2641,7 @@ export function createArpgDungeonScene(
           .setTint(dungeon.colors.phaseTwo)
           .setAlpha(0.62)
           .setDepth(enemy.depth + 0.1);
-        const trail = this.add.ellipse(x, y + 26, 76, 22, dungeon.colors.phaseTwo, 0.34)
-          .setStrokeStyle(2, 0xe8d59b, 0.74)
-          .setDepth(enemy.depth - 0.1);
+        const trail=authoredImage(this,x,y+26,'fx',FX_ART.rootZone,76,22).setAlpha(0.5).setDepth(enemy.depth-0.1);
         this.playTrackedEnemyAnimation(decoy, profile, "walk", true);
         this.spawnPulse(x, y, 64, dungeon.colors.phaseTwo);
         this.tweens.add({
@@ -3092,19 +2660,10 @@ export function createArpgDungeonScene(
 
     private telegraphCurupiraRootBurst(x: number, y: number, damage: number, delayMs: number) {
       const radius = 86;
-      const marker = this.add.circle(x, y, radius, dungeon.colors.phaseTwo, 0.08)
-        .setStrokeStyle(4, dungeon.colors.phaseTwo, 0.86)
-        .setDepth(6);
+      const marker=authoredImage(this,x,y,'fx',FX_ART.forestCircleWarning,radius*2).setAlpha(0.5).setDepth(6);
       const roots = Array.from({ length: 6 }, (_, index) => {
         const angle = index * Math.PI / 3;
-        return this.add.rectangle(
-          x + Math.cos(angle) * 42,
-          y + Math.sin(angle) * 42,
-          8,
-          42,
-          0x8d6544,
-          0.34,
-        ).setRotation(angle).setDepth(7);
+        return authoredImage(this,x+Math.cos(angle)*42,y+Math.sin(angle)*42,'props',PROP_ART.roots,14,42).setRotation(angle).setAlpha(0.34).setDepth(7);
       });
       this.tweens.add({ targets: marker, alpha: 0.35, duration: delayMs, ease: "Sine.easeIn" });
       this.tweens.add({ targets: roots, alpha: 0.96, scaleY: 1.12, duration: delayMs, ease: "Back.easeOut" });
@@ -3134,23 +2693,19 @@ export function createArpgDungeonScene(
           Phaser.Math.Distance.Between(candidate.x, candidate.y, this.player.x, this.player.y) < 104
           || Phaser.Math.Distance.Between(candidate.x, candidate.y, enemy.x, enemy.y) < 104
         ) return;
-        const warning = this.add.rectangle(candidate.x, candidate.y, candidate.width, candidate.height, dungeon.colors.phaseTwo, 0.12)
-          .setStrokeStyle(3, dungeon.colors.phaseTwo, 0.9)
-          .setDepth(7);
+        const warning=authoredImage(this,candidate.x,candidate.y,'fx',FX_ART.forestRectangleWarning,candidate.width,candidate.height).setAlpha(0.55).setDepth(7);
         this.tweens.add({ targets: warning, alpha: 0.74, duration: 360, yoyo: true, repeat: 0 });
         this.time.delayedCall(380, () => {
           warning.destroy();
           if (this.runEnded || !enemy.active || Number(enemy.getData("hp")) <= 0) return;
-          const root = this.add.rectangle(candidate.x, candidate.y, candidate.width, candidate.height, 0x694731, 1)
-            .setStrokeStyle(3, 0x91ab5a, 1)
-            .setDepth(8);
+          const root=authoredImage(this,candidate.x,candidate.y,'props',PROP_ART.roots,candidate.width,candidate.height).setDepth(8);
           this.physics.add.existing(root, true);
           const playerCollider = this.physics.add.collider(this.player, root);
           const enemyCollider = this.physics.add.collider(this.enemies, root);
           this.activeCurupiraRootBarriers += 1;
-          const leafA = this.add.rectangle(candidate.x - candidate.width / 3, candidate.y - 8, 22, 8, 0x8eb658, 0.95)
+          const leafA=authoredImage(this,candidate.x-candidate.width/3,candidate.y-8,'fx',FX_ART.leaf,22,8)
             .setAngle(-24).setDepth(9);
-          const leafB = this.add.rectangle(candidate.x + candidate.width / 3, candidate.y + 8, 18, 7, 0xacc76b, 0.9)
+          const leafB=authoredImage(this,candidate.x+candidate.width/3,candidate.y+8,'fx',FX_ART.leaf,18,7)
             .setAngle(24).setDepth(9);
           this.time.delayedCall(1720, () => {
             playerCollider.destroy();
@@ -3186,14 +2741,7 @@ export function createArpgDungeonScene(
 
     private telegraphCharge(enemy: ArcadeSprite, direction: import("phaser").Math.Vector2, color: number) {
       const length = 300;
-      const warning = this.add.rectangle(
-        enemy.x + direction.x * length / 2,
-        enemy.y + direction.y * length / 2,
-        length,
-        12,
-        color,
-        0.34,
-      ).setRotation(direction.angle()).setDepth(8);
+      const warning=authoredImage(this,enemy.x+direction.x*length/2,enemy.y+direction.y*length/2,'fx',telegraphFrame(dungeon.id,'line'),length,12).setTint(color).setAlpha(0.6).setRotation(direction.angle()).setDepth(8);
       this.tweens.add({
         targets: warning,
         alpha: 0,
@@ -3211,9 +2759,7 @@ export function createArpgDungeonScene(
       color: number,
       delayMs: number,
     ) {
-      const marker = this.add.circle(x, y, radius, color, 0.08)
-        .setStrokeStyle(4, color, 0.8)
-        .setDepth(6);
+      const marker=authoredImage(this,x,y,'fx',telegraphFrame(dungeon.id,'circle'),radius*2).setTint(color).setAlpha(0.5).setDepth(6);
       this.tweens.add({ targets: marker, alpha: 0.32, duration: delayMs, ease: "Sine.easeIn" });
       this.time.delayedCall(delayMs, () => {
         marker.destroy();
@@ -3288,11 +2834,12 @@ export function createArpgDungeonScene(
         .setDepth(8);
       alignTreasureChestToGround(chest);
       chest.on("animationupdate", () => alignTreasureChestToGround(chest));
+      this.chestPromptFrame=authoredPanel(this,x,y,'tooltip-frame',96,28).setDepth(13.9).setVisible(false);
       this.chestPrompt = this.add.text(x, y, "[E] Abrir", {
         color: "#fff0bf",
         fontFamily: "monospace",
         fontSize: "12px",
-        backgroundColor: "#241d18",
+
         padding: { x: 7, y: 4 },
       }).setOrigin(0.5).setDepth(14).setVisible(false);
       return chest;
@@ -3301,6 +2848,7 @@ export function createArpgDungeonScene(
     private updateTreasureChestPrompt() {
       if (!this.chestAvailable || !this.chest || !this.chestPrompt || this.pendingLoot) {
         this.chestPrompt?.setVisible(false);
+        this.chestPromptFrame?.setVisible(false);
         return;
       }
 
@@ -3315,9 +2863,11 @@ export function createArpgDungeonScene(
           - 10,
       );
       this.chestPrompt.setVisible(inRange || this.chestOpening);
+      this.chestPromptFrame?.setPosition(this.chestPrompt.x,this.chestPrompt.y).setVisible(this.chestPrompt.visible);
     }
 
     private destroyTreasureChestPrompt() {
+      this.chestPromptFrame?.destroy();this.chestPromptFrame=null;
       this.chestPrompt?.destroy();
       this.chestPrompt = null;
     }
@@ -3396,7 +2946,7 @@ export function createArpgDungeonScene(
         phase: "rise",
         chest,
         item: null,
-        shadow: this.add.ellipse(landingPoint.x, landingPoint.y, 24, 8, 0x10150f, 0.55)
+        shadow:authoredImage(this,landingPoint.x,landingPoint.y,'props',PROP_ART.shadowSmall,24,8).setAlpha(0.55)
           .setDepth(7).setAlpha(0.2),
         effects: [],
         tweens: [],
@@ -3411,19 +2961,25 @@ export function createArpgDungeonScene(
       if (!claimChestLootVisualSlot(presentation.visualSlot)) return;
       presentation.itemSpawnCount += 1;
       const texture = details?.textureKey ?? "arpg-run-fragment";
-      presentation.item = this.add.image(chest.x, chest.y - 28, texture)
+      presentation.item = this.add.image(
+        chest.x, chest.y - 28, texture,
+        details && "frame" in details ? details.frame : undefined,
+      )
+        .setTint(details && "tint" in details ? details.tint : 0xffffff)
         .setDisplaySize(loot ? 32 : 24, loot ? 32 : 24)
         .setAlpha(0)
         .setDepth(12);
       if (details) this.audio?.playLootReveal(details.rarity);
 
       const item = presentation.item;
+      // A 16px external weapon frame is shown at 32px throughout the reveal.
+      const revealScale = details && "frame" in details ? 2 : 1;
       const rise = this.tweens.add({
         targets: item,
         y: chest.y - 84,
         alpha: 1,
-        scaleX: 1,
-        scaleY: 1,
+        scaleX: revealScale,
+        scaleY: revealScale,
         duration: 260,
         ease: "Quad.easeOut",
         onComplete: () => {
@@ -3496,62 +3052,21 @@ export function createArpgDungeonScene(
       presentation.tweens.push(fall);
     }
 
-    private createChestLandingEffects(presentation: ChestLootPresentation) {
-      const style = presentation.rarity
-        ? CHEST_LOOT_RARITY_PRESENTATION[presentation.rarity]
-        : CACHE_FRAGMENT_FEEDBACK;
-      const item = presentation.item;
-      if (!item) return;
-      for (let index = 0; index < style.outlineCount; index += 1) {
-        const centerX = Math.round(item.x);
-        const centerY = Math.round(item.y);
-        const width = 34 + index * 6;
-        const height = 24 + index * 4;
-        const left = centerX - width / 2;
-        const right = centerX + width / 2;
-        const top = centerY - height / 2;
-        const bottom = centerY + height / 2;
-        const cut = 5 + index;
-        const outline = this.add.graphics().setDepth(13);
-        outline.lineStyle(2, style.color, 0.82);
-        outline.strokePoints([
-          { x: left + cut, y: top }, { x: right - cut, y: top },
-          { x: right, y: top + cut }, { x: right, y: bottom - cut },
-          { x: right - cut, y: bottom }, { x: left + cut, y: bottom },
-          { x: left, y: bottom - cut }, { x: left, y: top + cut },
-        ], true);
-        presentation.effects.push(outline);
-        const tween = this.tweens.add({
-          targets: outline,
-          y: -4,
-          alpha: { from: 0.8, to: 0 },
-          duration: 440 + index * 90,
-          repeat: 0,
-          delay: index * 70,
-          onComplete: () => outline.destroy(),
-        });
-        presentation.tweens.push(tween);
-      }
-      for (let index = 0; index < style.sparkleCount; index += 1) {
-        const angle = (Math.PI * 2 * index) / style.sparkleCount;
-        const radius = 17 + (index % 3) * 5;
-        const x = Math.round(item.x + Math.cos(angle) * radius);
-        const y = Math.round(item.y + Math.sin(angle) * radius * 0.72);
-        const sparkle = this.add.rectangle(x, y, index % 3 === 0 ? 3 : 2, index % 3 === 0 ? 3 : 2, style.color)
-          .setDepth(13);
-        presentation.effects.push(sparkle);
-        const tween = this.tweens.add({
-          targets: sparkle,
-          y: Math.round(y - 4 - (index % 3) * 2),
-          alpha: { from: 0.9, to: 0 },
-          duration: 320 + (index % 4) * 80,
-          repeat: 0,
-          delay: index * 27,
-          onComplete: () => sparkle.destroy(),
-        });
-        presentation.tweens.push(tween);
-      }
-    }
+    private createChestLandingEffects(presentation:ChestLootPresentation){
+  const style=presentation.rarity?CHEST_LOOT_RARITY_PRESENTATION[presentation.rarity]:CACHE_FRAGMENT_FEEDBACK;
+  const item=presentation.item;if(!item)return;
+  for(let index=0;index<style.outlineCount;index++){
+    const outline=authoredImage(this,Math.round(item.x),Math.round(item.y),'fx',FX_ART.ringWarning,34+index*6,24+index*4).setTint(style.color).setDepth(13);
+    presentation.effects.push(outline);
+    presentation.tweens.push(this.tweens.add({targets:outline,y:outline.y-4,alpha:{from:0.8,to:0},duration:440+index*90,delay:index*70,onComplete:()=>outline.destroy()}));
+  }
+  for(let index=0;index<style.sparkleCount;index++){
+    const angle=Math.PI*2*index/style.sparkleCount,radius=17+(index%3)*5;
+    const x=Math.round(item.x+Math.cos(angle)*radius),y=Math.round(item.y+Math.sin(angle)*radius*0.72);
+    const sparkle=authoredImage(this,x,y,'fx',FX_ART.spark,8).setTint(style.color).setDepth(13);presentation.effects.push(sparkle);
+    presentation.tweens.push(this.tweens.add({targets:sparkle,y:y-4-(index%3)*2,alpha:{from:0.9,to:0},duration:320+(index%4)*80,delay:index*27,onComplete:()=>sparkle.destroy()}));
+  }
+}
 
     private completeChestLootPresentation(presentation: ChestLootPresentation) {
       if (!this.isCurrentChestPresentation(presentation)) return;
@@ -3768,25 +3283,25 @@ export function createArpgDungeonScene(
     }
 
     private createExitPortal(room: DungeonRoom) {
-      if (!this.dungeonWorld) return;
+      if (!this.dungeonWorld || this.exitPortalAvailable) return;
       this.playSound("portal");
       this.clearExitPortalMotion();
       this.exitPortal?.destroy(true);
       const center = this.dungeonWorld.getRoomCenter(room.id);
-      if (room.type === "boss" && this.bossEncounterRuntime) {
-        const arena = this.dungeonWorld.layout.rooms[room.id], boss = this.bossEncounterRuntime.snapshot;
-        if (Math.hypot(center.x - arena.left - boss.x, center.y + 80 - arena.top - boss.y) < 140) center.x += 220;
-      }
+      // The encounter is already destroyed here. Keep the exit beside the
+      // central reward chest instead of covering it or retaining a dead boss.
+      if (room.type === "boss") center.x += 220;
       const x = center.x;
       const y = center.y;
-      const outer = this.add.ellipse(0, 0, 88, 116, 0x30213c, 0.78).setStrokeStyle(6, dungeon.colors.phase, 0.95);
-      const inner = this.add.ellipse(0, 0, 54, 82, dungeon.colors.phaseTwo, 0.44).setStrokeStyle(3, 0xf2db9d, 0.9);
-      const core = this.add.ellipse(0, 0, 24, 58, dungeon.colors.phaseThree, 0.72);
+      const outer=authoredImage(this,0,0,'props',PROP_ART.portalActivating,88,116);
+      const inner=authoredImage(this,0,0,'fx',FX_ART.purificationRays,54,82).setAlpha(0.44);
+      const core=authoredImage(this,0,0,'fx',FX_ART.purificationFragments,24,58).setAlpha(0.72);
+      this.time.delayedCall(450,()=>{if(outer.active)outer.setFrame(PROP_ART.portalOpen);});
       this.exitPortalMotionVisuals = { outer, inner, core };
       this.exitPortal = this.add.container(x, y, [outer, inner, core]).setDepth(8);
       this.syncExitPortalMotion();
       this.exitPortalAvailable = true;
-      bridge.emitMessage("Loot recolhido. Aproxime-se do portal e pressione E para voltar à Guilda.");
+      bridge.emitMessage(this.chestAvailable ? "Lenda restaurada. Recolha o baú e use o portal para voltar à Guilda." : "Loot recolhido. Aproxime-se do portal e pressione E para voltar à Guilda.");
       this.emitRunCheckpoint();
       this.emitHud(this.runClock.now);
     }
@@ -3918,7 +3433,7 @@ export function createArpgDungeonScene(
         nowMs: time,
         hp: this.hp,
         maxHp: this.maxHp,
-        room: proceduralRoom ? proceduralRoom.distanceFromStart + 1 : this.roomIndex + 1,
+        room: proceduralRoom?.type === "boss" ? proceduralRoomCount! : proceduralRoom ? proceduralRoom.distanceFromStart + 1 : this.roomIndex + 1,
         roomCount: proceduralRoomCount ?? this.roomWaves.length,
         enemiesRemaining: this.enemies?.countActive(true) ?? 0,
         weaponId: this.currentWeaponId,
@@ -3995,6 +3510,11 @@ export function createArpgDungeonScene(
         wave: this.proceduralController?.snapshot() ?? null,
         bossEncounter: this.bossEncounterRuntime?.snapshot ?? null,
         cinematicLocked: this.bossEncounterRuntime?.lock.locked ?? false,
+        combatInput: {leftDown:this.input.activePointer.leftButtonDown(),pointerWorldX:this.input.activePointer.worldX,pointerWorldY:this.input.activePointer.worldY,lastAttackAt:this.lastWeaponAttackAt},
+        playerProjectiles: this.projectiles.getChildren().filter(child=>child.active).map(child=>{
+          const projectile=child as ArcadeSprite;
+          return {x:projectile.x,y:projectile.y,enabled:projectile.body?.enable,damage:projectile.getData("damage"),velocityX:projectile.body?.velocity.x,velocityY:projectile.body?.velocity.y};
+        }),
         reducedMotion: this.prefersReducedMotion,
         activeCurupiraRootBarriers: this.activeCurupiraRootBarriers,
         runtime: {
@@ -4029,6 +3549,8 @@ export function createArpgDungeonScene(
             maxHp: Number(enemy.getData("maxHp")),
             animation: enemy.anims.currentAnim?.key ?? null,
             defeatPending: Boolean(enemy.getData("defeatPending")),
+            bodyEnabled:enemy.body?.enable,
+            bodyCenter:enemy.body?{x:enemy.body.center.x,y:enemy.body.center.y,radius:enemy.body.halfWidth}:null,
           };
         }) ?? [],
         animatedEnemies: this.enemies?.getChildren().filter((child) => {
@@ -4123,6 +3645,7 @@ export function createArpgDungeonScene(
      * reference without shipping it in the game.
      */
     private createVisualReferenceOverlay() {
+      if(process.env.NODE_ENV === "production")return;
       if (!dungeonManager || typeof window === "undefined") return;
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get("visualReference") !== "1") return;
@@ -4188,6 +3711,7 @@ export function createArpgDungeonScene(
     }
 
     private createDungeonDebugOverlay() {
+      if(process.env.NODE_ENV === "production")return;
       if (!dungeonManager || typeof window === "undefined") return;
       const searchParams = new URLSearchParams(window.location.search);
       const debugEnabled = searchParams.get("debugDungeon") === "1";
@@ -4235,7 +3759,7 @@ export function createArpgDungeonScene(
         __cardRealmsDungeonMoveToWorld?: (x: number, y: number) => boolean;
         __cardRealmsDungeonSetPerformanceLoad?: (load: { enemies: number; projectiles: number; particles: number }) => object;
         __cardRealmsDungeonGetPerformanceState?: () => object;
-        __cardRealmsBossQA?: (command: "enter" | "damage" | "read", amount?: number) => object;
+        __cardRealmsBossQA?: (command: "enter" | "room" | "damage" | "read", value?: number | string) => object;
       };
       const debugReader = () => this.readDungeonDebugState();
       const debugOverlay = (visible: boolean) => this.dungeonDebugText?.setVisible(visible);
@@ -4255,15 +3779,20 @@ export function createArpgDungeonScene(
         // Deliberately unavailable in production or online runs. Exercises the
         // integrated arena/runtime/save, skipping only the preceding dungeon.
         if (process.env.NODE_ENV === "development" && searchParams.get("bossQA") === "1" && !bridge.isServerAuthoritativeCombat()) {
-          debugWindow.__cardRealmsBossQA = (command, amount = 0) => {
-            if (command === "enter" && this.dungeonWorld) {
+          debugWindow.__cardRealmsBossQA = (command, value = 0) => {
+            if ((command === "enter" || command === "room") && this.dungeonWorld) {
               const graph = dungeonManager!.getGraph();
+              const target = command === "room" && typeof value === "string" ? value : graph.bossRoomId;
+              if (!graph.rooms[target]) return this.readDungeonDebugState();
+              if (command === "enter") {
+                for (const room of Object.values(graph.rooms)) if (room.type !== "boss") dungeonManager!.clearRoom(room.id);
+              }
               const queue = [[dungeonManager!.getCurrentRoom().id]];
               const visited = new Set<string>();
               let route: string[] = [];
               while (queue.length) {
                 const path = queue.shift()!; const id = path.at(-1)!;
-                if (id === graph.bossRoomId) { route = path; break; }
+                if (id === target) { route = path; break; }
                 if (visited.has(id)) continue; visited.add(id);
                 for (const next of Object.values(graph.rooms[id].connections)) if (next) queue.push([...path, next]);
               }
@@ -4273,14 +3802,16 @@ export function createArpgDungeonScene(
               this.enemies.getChildren().forEach((enemy) => (enemy as ArcadeSprite).disableBody(true, true));
               this.pendingEnemySpawns.clear();
               const arena = this.dungeonWorld.layout.rooms[room.id];
-              this.player.setPosition(arena.centerX, arena.top + arena.height - 100).setVelocity(0, 0);
+              const art = room.type === "boss" ? BOSS_ROOM_ART[bossForRegion(dungeon.id).id] : undefined;
+              const spawn = art?.width === arena.width ? art.spawn : { x: arena.width / 2, y: arena.height - 100 };
+              this.player.setPosition(arena.left + spawn.x, arena.top + spawn.y).setVelocity(0, 0);
               this.nextPlayerDamageAt = this.runClock.now + 3600000; // QA can inspect every attack without dying.
               this.proceduralRoomId = room.id; this.proceduralController = null;
               this.proceduralWaveTransitionScheduled = false;
               this.clearClickPath(); this.dungeonWorld.focusCamera(room.id);
               this.activateProceduralRoom(room, this.runClock.now);
             }
-            if (command === "damage") this.bossEncounterRuntime?.damage(Math.max(0, amount), this.runClock.now);
+            if (command === "damage" && typeof value === "number") this.bossEncounterRuntime?.damage(Math.max(0, value), this.runClock.now);
             return this.readDungeonDebugState();
           };
           this.events.once("shutdown", () => { delete debugWindow.__cardRealmsBossQA; });

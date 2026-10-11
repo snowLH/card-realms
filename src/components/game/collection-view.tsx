@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, ChevronLeft, ChevronRight, Filter, MapPin, Search, Shield, Sparkles, Swords } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, Filter, MapPin, Search, Shield, Sparkles, Swords } from "@/components/ui/pixel-icon";
 import type { CSSProperties } from "react";
 import { useMemo, useState } from "react";
 import { ARPG_DUNGEON_CONFIGS } from "@/game/arpg/content/dungeons";

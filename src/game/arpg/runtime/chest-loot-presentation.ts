@@ -34,6 +34,8 @@ export function getChestLootVisualDetails(loot: DungeonLoot) {
       rarity: definition.rarity,
       silhouette: definition.kind,
       textureKey: visual.textureKey,
+      frame: visual.frame,
+      tint: visual.tint,
     } as const;
   }
 

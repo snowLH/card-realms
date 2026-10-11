@@ -1,7 +1,10 @@
 "use client";
+import {ArtSprite} from '@/components/ui/art-sprite';
+import {UI_ART} from '@/game/arpg/art/manifest';
+
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Download, Play, Settings, ShieldCheck, UsersRound } from "lucide-react";
+import { Download, Play, Settings, ShieldCheck, UsersRound } from "@/components/ui/pixel-icon";
 import Link from "next/link";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -70,15 +73,10 @@ export function TitleScreen({
 
       <div className={styles.content}>
         <div className={styles.brand}>
-          <span className={styles.kicker}><span aria-hidden="true">✦</span> Uma jornada de folclore</span>
+          <span className={styles.kicker}><ArtSprite pack="ui" frame={UI_ART.star.frame} style={{width:16,height:16}}/> Uma jornada de folclore</span>
           <h1 id="title-screen-heading">
             <span className={styles.logoMark} aria-hidden="true">
-              <svg viewBox="0 0 32 32" shapeRendering="crispEdges">
-                <path d="M10 2h12v4h4v4h4v16h-4v4H6v-4H2V10h4V6h4z" fill="currentColor" />
-                <path d="M12 8h8v4h4v12h-4v4h-8v-4H8V12h4z" fill="#10291f" />
-                <path d="M13 12h6v3h3v8h-3v3h-8v-3h-3v-8h3v-3z" fill="#70dfc3" />
-                <path d="M15 16h2v2h-2zm-4 6h2v2h-2zm8-8h2v2h-2z" fill="#f5d582" />
-              </svg>
+              <ArtSprite pack="ui" frame={UI_ART.hero.frame} style={{width:48,height:48}}/>
             </span>
             Folklard
           </h1>

@@ -7,8 +7,9 @@
     height: calc(52px + env(safe-area-inset-top));
     min-height: 52px;
     padding: calc(4px + env(safe-area-inset-top)) max(9px, env(safe-area-inset-right)) 4px max(9px, env(safe-area-inset-left));
-    background: linear-gradient(180deg,rgba(5,17,14,.98),rgba(6,22,18,.94));
-    border-bottom: 2px solid #8f7748;
+    background: none;
+    border-bottom: 2px solid transparent;
+    border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
   }
   .arpg-shell .arpg-shell__topbar > div:first-child {
     flex: 1 1 auto;
@@ -27,8 +28,8 @@
   .arpg-shell .arpg-shell__topbar > div:last-child { z-index: 2; gap: 5px; }
   .arpg-shell .arpg-shell__topbar button {
     width: 44px; height: 44px; min-width: 44px; min-height: 44px; flex: 0 0 44px;
-    border: 1px solid #c1a367; border-radius: 3px;
-    background: #1d372e; color: #fce8b9;
+    border: 1px solid transparent; border-radius: 0;
+    background: none; color: #fce8b9; border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
   }
   .arpg-shell .arpg-hud { z-index: 32; }
   .arpg-shell .arpg-hud__status {
@@ -37,16 +38,17 @@
     max-width: min(390px, calc(100% - 128px));
     height: 38px; min-height: 38px;
     gap: 7px; padding: 4px 9px;
-    overflow: hidden; border: 1px solid #ae945f;
-    border-radius: 4px;
-    background: rgba(8,24,20,.94);
-    box-shadow: 0 3px 0 #06100d;
+    overflow: hidden; border: 1px solid transparent;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
   }
   .arpg-shell .arpg-hud__status-item { flex: 0 0 auto; font: 700 12px/1.2 system-ui, sans-serif; }
   .arpg-shell .arpg-hud__status-health { font-size: 14px !important; }
   .arpg-shell .arpg-hud__status-item b { font: inherit; }
   .arpg-shell .arpg-hud__status-room small { font: 700 10px/1.2 system-ui, sans-serif; }
-  .arpg-shell .arpg-hud__status-health svg { width: 14px; height: 14px; flex-basis: 14px; }
+  .arpg-shell .arpg-hud__status-health .pixel-icon { width: 14px; height: 14px; flex-basis: 14px; }
   .arpg-shell .arpg-hud__hp {
     flex: 1 1 46px; width: clamp(35px, 7vw, 80px);
     min-width: 25px; height: 10px;
@@ -55,13 +57,13 @@
   .arpg-shell .arpg-hud__status-room i,
   .arpg-shell .arpg-hud__enemy-count,
   .arpg-shell .arpg-hud__status-shards small { display: none !important; }
-  .arpg-shell .arpg-hud__status-shards svg { width: 12px; height: 12px; flex-basis: 12px; }
+  .arpg-shell .arpg-hud__status-shards .pixel-icon { width: 12px; height: 12px; flex-basis: 12px; }
   .arpg-shell .arpg-hud__loadout {
     top: calc(101px + env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); right: auto;
     display: flex; align-items: center; gap: 5px;
     max-width: 150px; height: 28px; min-height: 28px;
     padding: 3px 7px; overflow: hidden;
-    border: 1px solid #90764b; border-radius: 4px;
+    border: 1px solid transparent; border-radius: 0;
   }
   .arpg-shell .arpg-hud__loadout .arpg-hud__equipment {
     min-width: 22px; min-height: 19px; padding: 1px 2px;
@@ -80,10 +82,11 @@
   .arpg-shell .arpg-hud__minimap {
     top: calc(58px + env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right));
     width: 86px; max-width: 86px; padding: 5px;
-    border: 1px solid #bca269;
-    background: rgba(8,24,19,.94);
+    border: 1px solid transparent;
+    background: none;
+    border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
   }
-  .arpg-shell .arpg-hud__minimap svg { max-height: 48px; }
+  .arpg-shell .arpg-hud__minimap .pixel-icon { max-height: 48px; }
   .arpg-shell .arpg-hud__minimap > span { font: 800 10px/1.3 system-ui, sans-serif; }
   .arpg-shell .arpg-touch__actions {
     right: max(12px, env(safe-area-inset-right));
@@ -108,8 +111,9 @@
     height: 80px; min-height: 80px;
     grid-template-rows: 10px 18px 1fr 12px;
     gap: 2px; padding: 5px 4px 3px;
-    border: 2px solid #58b9a7; border-radius: 5px;
-    background: linear-gradient(160deg,#245c51,#12372e);
+    border: 2px solid transparent; border-radius: 0;
+    background: none;
+    border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
   }
   .arpg-shell .arpg-touch__cards .arpg-touch__card-name {
     display: -webkit-box;
@@ -126,7 +130,7 @@
     width: 71px; min-width: 71px;
     height: 52px; min-height: 52px;
     gap: 2px; padding: 4px 2px;
-    border-radius: 5px;
+    border-radius: 0;
   }
   .arpg-shell .arpg-touch__combat button:not(.arpg-touch__attack) span {
     max-width: 100%; font: 800 11px/1.1 system-ui,sans-serif;
@@ -135,15 +139,16 @@
   .arpg-shell .arpg-touch__combat .arpg-touch__attack {
     width: 71px; min-width: 71px;
     height: 71px; min-height: 71px;
-    border-radius: 50% !important;
+    border-radius: 0 !important;
     font: 900 12px/1.1 system-ui,sans-serif !important;
   }
   .arpg-shell .arpg-stick {
     left: max(22px, env(safe-area-inset-left));
     bottom: max(20px, env(safe-area-inset-bottom));
     width: clamp(100px, 12vw, 124px);
-    border-color: rgba(229,205,146,.7);
-    background: rgba(11,24,19,.56);
+    border-color: transparent;
+    background: none;
+    border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
   }
   .arpg-shell .arpg-stick__nub { inset: 31%; }
 }

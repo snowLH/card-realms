@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type SyntheticEvent } from "react";
-import { X } from "lucide-react";
+import { X, ArrowLeft } from "@/components/ui/pixel-icon";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -82,7 +82,7 @@ export function GameMenu({
 
           {currentView !== "hub" ? (
             <button type="button" className="game-menu__return" onClick={(event) => choose(event, "lobby")}>
-              <span aria-hidden="true">↩</span> Voltar à Guilda
+              <ArrowLeft aria-hidden="true" /> Voltar à Guilda
             </button>
           ) : null}
 

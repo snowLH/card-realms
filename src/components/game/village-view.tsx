@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { ArrowLeft, Check, Coins, PackagePlus, ShoppingBag, TentTree } from "lucide-react";
+import { ArrowLeft, Check, Coins, PackagePlus, ShoppingBag, TentTree } from "@/components/ui/pixel-icon";
 import { ARPG_MERCHANT_PRODUCTS } from "@/game/arpg/content/merchant-catalog";
 import { ArpgItemPixelIcon } from "@/components/arpg/item-pixel-icon";
 import { Button } from "@/components/ui/button";

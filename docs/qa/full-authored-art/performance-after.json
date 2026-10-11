@@ -1,0 +1,15 @@
+{
+  "buildId": "7ACS83wMuARLhLqqCpkoF",
+  "guild": {
+    "durationMs": 5012.600000011924,
+    "fps": 60.0486773329777,
+    "jsHeapBytes": 22352449,
+    "p95Ms": 16.899999999997817,
+    "samples": 301,
+    "viewport": [
+      1536,
+      708
+    ]
+  },
+  "method": "5 second requestAnimationFrame sample, production localhost, idle Guild; no forced GC"
+}

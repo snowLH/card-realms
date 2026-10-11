@@ -1,6 +1,6 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download } from "@/components/ui/pixel-icon";
 import { useEffect, useState } from "react";
 
 type InstallPromptEvent = Event & {

@@ -1,7 +1,10 @@
 import type { BossState } from "./boss-definition";
 
 export function isBossInputLocked(state?: BossState) {
-  return state !== undefined && state !== "INACTIVE" && state !== "COMBAT" && state !== "CLEARED";
+  // RESTORED means the visual choreography finished. Persistence is a separate
+  // confirmation, shared by the solo authority and co-op simulation.
+  return state === "ROOM_ENTERED" || state === "INTRO_LOCK" || state === "AWAKENING"
+    || state === "DEFEATED" || state === "PURIFICATION";
 }
 /** A lock has an owner, so ending one cinematic cannot release another lock. */
 export class CinematicInputLock {

@@ -1,35 +1,22 @@
-import { describe, expect, it, vi } from "vitest";
-import { createDungeonRuntimeTextures } from "./dungeon-runtime-textures";
-
-function fakeScene(alreadyPresent: boolean) {
-  const graphics = new Proxy({} as Record<string, ReturnType<typeof vi.fn>>, {
-    get(target, method) {
-      const key = String(method);
-      return target[key] ?? (target[key] = vi.fn());
-    },
+import {describe,expect,it,vi,afterEach} from "vitest";
+import {createDungeonRuntimeTextures} from './dungeon-runtime-textures';
+import {LEGACY_IMAGE_ART,FOLKLARD_ART_MANIFEST} from '../art/manifest';
+afterEach(()=>vi.restoreAllMocks());
+describe("authored dungeon textures",()=>{
+  it("reports a missing image instead of creating a drawing surface",()=>{
+    const error=vi.spyOn(console,"error").mockImplementation(()=>{});
+    const image={} as HTMLImageElement;
+    const add=vi.fn();
+    const addImage=vi.fn(()=>({add}));
+    createDungeonRuntimeTextures({textures:{exists:(key:string)=>key===FOLKLARD_ART_MANIFEST.missing.key,get:()=>({getSourceImage:()=>image,get:()=>({width:64,height:64})}),addImage}} as unknown as import("phaser").Scene);
+    expect(error).toHaveBeenCalledTimes(Object.keys(LEGACY_IMAGE_ART).length);
+    expect(addImage).toHaveBeenCalledTimes(Object.keys(LEGACY_IMAGE_ART).length);
+    expect(addImage).toHaveBeenCalledWith('arpg-projectile',image);
+    expect(add).toHaveBeenCalledWith(0,0,0,0,64,64);
   });
-  const scene = {
-    add: { graphics: () => graphics },
-    textures: { exists: () => alreadyPresent },
-  } as unknown as import("phaser").Scene;
-  return { scene, graphics };
-}
-
-describe("dungeon runtime textures", () => {
-  it("registers every texture exactly once per uncached texture set", () => {
-    const { scene, graphics } = fakeScene(false);
-    createDungeonRuntimeTextures(scene);
-    const keys = graphics.generateTexture.mock.calls.map(([key]) => key);
-    expect(keys).toContain("arpg-projectile");
-    expect(keys).toContain("arpg-ground-shadow");
-    expect(keys).toContain("arpg-loot-sword");
-    expect(new Set(keys).size).toBe(keys.length);
-    expect(graphics.destroy).toHaveBeenCalledOnce();
-  });
-
-  it("skips all pixel rasterization when the previous dungeon already registered textures", () => {
-    const { scene, graphics } = fakeScene(true);
-    createDungeonRuntimeTextures(scene);
-    expect(graphics.generateTexture).not.toHaveBeenCalled();
+  it("reuses preloaded images",()=>{
+    const error=vi.spyOn(console,"error").mockImplementation(()=>{});
+    createDungeonRuntimeTextures({textures:{exists:()=>true}} as unknown as import("phaser").Scene);
+    expect(error).not.toHaveBeenCalled();
   });
 });

@@ -1,0 +1,13 @@
+{
+  "commit": "018df58",
+  "guild": {
+    "fps": 60.02592481817056,
+    "p95Ms": 16.9,
+    "jsHeapBytes": 30000048,
+    "viewport": [
+      1536,
+      708
+    ]
+  },
+  "durationSeconds": 5
+}

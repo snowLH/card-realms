@@ -16,7 +16,7 @@ import {
   Trophy,
   Users,
   X,
-} from "lucide-react";
+} from "@/components/ui/pixel-icon";
 import { useCallback, useEffect, useState } from "react";
 import type { PlayerBootstrap } from "@/game/player";
 import { CREATURE_BY_ID, ELEMENT_META } from "@/game/catalog";
