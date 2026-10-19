@@ -707,7 +707,11 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
           />
         ) : null}
         {!showWelcome && view === "expeditions" ? (
-          <ArpgExpeditionSelect restoreRemoteRun={bootstrap.source === "supabase"} onSelect={(id) => void handleStartArpg(id)} />
+          <ArpgExpeditionSelect
+            restoreRemoteRun={bootstrap.source === "supabase"}
+            onSelect={(id) => void handleStartArpg(id)}
+            onBack={() => navigate("hub")}
+          />
         ) : null}
         {!showWelcome && view === "play" ? (
           <ArpgGame
@@ -809,7 +813,7 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
           />
         ) : null}
         {!showWelcome && view === "collection" ? (
-          <CollectionView />
+          <CollectionView onBack={() => navigate("hub")} />
         ) : null}
         {!showWelcome && view === "loadout" ? (
           <ArpgLoadoutView
@@ -837,6 +841,7 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
             savedLayout={bootstrap.source === "supabase" ? undefined : localRefuge}
             source={bootstrap.source}
             onSave={handleSaveRefuge}
+            onBack={() => navigate("hub")}
           />
         ) : null}
         {!showWelcome && view === "raid" ? (
@@ -852,6 +857,7 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
               setDismissedRaidRoomId(null);
               setRaidRoomId(roomId);
             }}
+            onBack={() => navigate("hub")}
           />
         ) : null}
         {!showWelcome && view === "profile" ? (
@@ -863,6 +869,7 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
             source={bootstrap.source}
             snapshot={remoteSnapshot}
             avatar={activeAvatar}
+            onBack={() => navigate("hub")}
           />
         ) : null}
       </div> : null}

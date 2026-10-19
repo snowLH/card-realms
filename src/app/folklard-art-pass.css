@@ -228,7 +228,10 @@
 .arpg-loadout-hero p { color: #e0d7bd; }
 
 .arpg-loadout-hero > button,
+.arpg-loadout-hero__actions button,
 .arpg-expedition-resume button,
+.arpg-expeditions__back,
+.arpg-expeditions__guide-link,
 .arpg-expedition-card button {
   border: 2px solid transparent;
   border-radius: 0;

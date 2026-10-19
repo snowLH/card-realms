@@ -190,4 +190,15 @@ describe("RaidView reconnect", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/serviço da expedição não foi encontrado/i);
     expect(screen.queryByText(/Unexpected token/i)).not.toBeInTheDocument();
   });
+
+  it("renderiza o botão Voltar à Guilda e responde ao clique", () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ schedule: [], rewards: [] })));
+    const onBack = vi.fn();
+    render(<RaidView bootstrap={bootstrap} onOpenRaid={vi.fn()} onBack={onBack} />);
+
+    const backButton = screen.getByRole("button", { name: /Voltar à Guilda/i });
+    expect(backButton).toBeInTheDocument();
+    fireEvent.click(backButton);
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
 });

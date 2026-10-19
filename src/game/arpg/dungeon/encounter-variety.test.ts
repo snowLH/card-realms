@@ -48,4 +48,15 @@ describe("deterministic encounter variety", () => {
     }
     expect(compositions.size).toBeGreaterThan(4);
   });
+
+  it("adapta a seleção de ondas de combate conforme a zona/estágio da expedição", () => {
+    const seed = createArpgDungeonSeed("mata-encantada", "stage-waves-verification");
+    const dungeon = populateArpgDungeonContent(generateDungeon({ seed, regionId: "mata-encantada" }));
+    const combatRooms = Object.values(dungeon.rooms).filter((r) => r.type === "combat");
+    expect(combatRooms.length).toBeGreaterThan(0);
+    for (const room of combatRooms) {
+      expect(room.waves.length).toBeGreaterThanOrEqual(1);
+      expect(room.waves.flat()).not.toContain("boss");
+    }
+  });
 });

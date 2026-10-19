@@ -15,7 +15,7 @@ export default function NotFound() {
           href="/"
           className="authored-button mt-6 inline-flex px-5 py-3 font-bold text-primary-foreground"
         >
-          Voltar ao mapa
+          Voltar à Guilda
         </Link>
       </div>
     </main>

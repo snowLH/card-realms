@@ -146,7 +146,8 @@
 .play .buttonCopy small { color: #f3dfb1; font-size: 13px; }
 .playIcon { display: grid; width: 38px; height: 38px; flex: 0 0 auto; place-items: center; border: 2px solid transparent; background: none; border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch; }
 .playIcon .pixel-icon { width: 18px; height: 18px; fill: currentColor; }
-.playArrow { margin-left: auto; font: 700 25px/1 var(--font-game), monospace; }
+.playArrow { display: flex; align-items: center; margin-left: auto; font: 700 25px/1 var(--font-game), monospace; }
+.playArrow .pixel-icon { width: 22px; height: 22px; }
 .download { border-color: transparent; background: none; border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch; }
 .action:hover:not(:disabled) { background-color: transparent; transform: translateY(-2px); border-image: var(--art-button-hover) 16 fill / 8px / 0 stretch; }
 .play:hover:not(:disabled) { background-color: transparent; border-image: var(--art-button-hover) 16 fill / 8px / 0 stretch; }

@@ -54,7 +54,9 @@ function DungeonMiniMap({map,expanded=false}:{map:ArpgDungeonMapState;expanded?:
       {map.rooms.map(room=>{
         const center=point(room.gridX,room.gridY),current=room.id===map.currentRoomId;
         const icon=current?'minimap-room-current':room.state==='cleared'?'minimap-room-cleared':typed[room.type as keyof typeof typed]??'minimap-room';
-        return <ArtSprite key={room.id} pack="ui" frame={UI_ART[icon].frame} label={roomTypeLabel(room.type)+' · '+roomStateLabel(room.state)} style={coords(center.x,center.y,20,20)}/>;
+        const stagePrefix = room.stageName ? `${room.stageName} · ` : "";
+        const label = `${stagePrefix}${roomTypeLabel(room.type)} · ${roomStateLabel(room.state)}`;
+        return <ArtSprite key={room.id} pack="ui" frame={UI_ART[icon].frame} label={label} style={coords(center.x,center.y,20,20)}/>;
       })}
       {map.rooms.filter(room=>room.id===map.currentRoomId).map(room=>{const center=point(room.gridX,room.gridY);return <ArtSprite key="player" pack="ui" frame={UI_ART['minimap-player'].frame} style={coords(center.x,center.y,8,8)}/>;})}
     </div>
@@ -100,12 +102,29 @@ export function DungeonMapOverlay({
       >
         <header>
           <div>
-            <small>ROTA DA EXPEDIÇÃO</small>
+            <small>ROTA DA EXPEDIÇÃO {map.currentStageName ? `· ${map.currentStageName}` : ""}</small>
             <DialogTitle asChild><h1>Mapa</h1></DialogTitle>
             <DialogDescription className="sr-only">{mapSummary}</DialogDescription>
           </div>
           <button type="button" aria-label="Fechar mapa" onClick={onClose}>×</button>
         </header>
+        {map.stages?.length ? (
+          <div className="arpg-map-overlay__stages" role="group" aria-label="Zonas da expedição">
+            {map.stages.map((stg) => {
+              const isCurrent = stg.index === map.currentStageIndex;
+              const isCleared = (map.currentStageIndex ?? 1) > stg.index;
+              return (
+                <div
+                  key={stg.id}
+                  className={`arpg-map-stage-pill ${isCurrent ? "is-current" : isCleared ? "is-cleared" : ""}`}
+                >
+                  <span className="arpg-map-stage-pill__badge">{stg.badge}</span>
+                  <span className="arpg-map-stage-pill__name">{stg.name}</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
         <DungeonMiniMap map={map} expanded />
         <p className="arpg-map-overlay__legend">
           <span>Sala atual</span>
@@ -134,8 +153,20 @@ export function RunHud({ state }: { state: ArpgHudState | null }) {
           <Heart aria-hidden="true" /><b>{Math.ceil(state.hp)}/{state.maxHp}</b>
         </span>
         <PixelHealthBar hp={state.hp} maxHp={state.maxHp} className="arpg-hud__hp arpg-hud__status-item"/>
-        <span className="arpg-hud__status-item arpg-hud__status-room">
-          <b>{state.room}/{state.roomCount}</b><small>SALA</small><i aria-hidden="true" />
+        <span
+          className="arpg-hud__status-item arpg-hud__status-room"
+          title={state.currentStage ? `${state.currentStage.name} (${state.currentStage.badge}): ${state.currentStage.subtitle}` : `Sala ${state.room}/${state.roomCount}`}
+        >
+          {state.currentStage ? (
+            <>
+              <b>{state.currentStage.name}</b><small>{state.currentStage.badge}</small>
+            </>
+          ) : (
+            <>
+              <b>{state.room}/{state.roomCount}</b><small>SALA</small>
+            </>
+          )}
+          <i aria-hidden="true" />
           <span className="arpg-hud__enemy-count">{state.enemiesRemaining} inimigos</span>
         </span>
         <span className="arpg-hud__status-item arpg-hud__status-shards">

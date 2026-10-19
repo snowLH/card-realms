@@ -1,12 +1,14 @@
 "use client";
 
-import { ArrowRight, LockKeyhole, MapPinned, RotateCcw, Skull, Sparkles } from "@/components/ui/pixel-icon";
+import Link from "next/link";
+import { ArrowLeft, ArrowRight, BookOpen, Crown, LockKeyhole, MapPinned, RotateCcw, Skull, Sparkles } from "@/components/ui/pixel-icon";
 import { useEffect, useState } from "react";
 import {
   ARPG_EXPEDITIONS,
   getArpgExpedition,
   type ArpgExpeditionId,
 } from "@/game/arpg/content/expeditions";
+import { getExpeditionStages } from "@/game/arpg/content/stages";
 import { readJsonResponse } from "@/lib/http/read-json-response";
 
 type ActiveRunSummary = {
@@ -21,9 +23,11 @@ type ActiveRunSummary = {
 export function ArpgExpeditionSelect({
   onSelect,
   restoreRemoteRun = true,
+  onBack,
 }: {
   onSelect: (id: ArpgExpeditionId) => void;
   restoreRemoteRun?: boolean;
+  onBack?: () => void;
 }) {
   const [activeRun, setActiveRun] = useState<ActiveRunSummary | null>(null);
 
@@ -52,6 +56,16 @@ export function ArpgExpeditionSelect({
     <section className="arpg-expeditions">
       <header className="arpg-expeditions__hero">
         <div>
+          <div className="arpg-expeditions__hero-nav">
+            {onBack ? (
+              <button type="button" className="arpg-expeditions__back" onClick={onBack}>
+                <ArrowLeft aria-hidden="true" /> Voltar à Guilda
+              </button>
+            ) : null}
+            <Link href="/guia" className="arpg-expeditions__guide-link" title="Guia do Explorador">
+              <BookOpen aria-hidden="true" /> Guia das Rotas
+            </Link>
+          </div>
           <small>ROTAS DO CARTÓGRAFO</small>
           <h1>Escolha sua expedição</h1>
           <p>Escolha uma rota folclórica. Cada run monta 8–12 salas até um encontro folclórico final.</p>
@@ -95,6 +109,20 @@ export function ArpgExpeditionSelect({
                 <span><Sparkles /> {expedition.elementLabel}</span>
                 <span>{expedition.roomCount} salas</span>
               </div>
+              <div className="arpg-expedition-card__stages">
+                <small>ROTA DA EXPEDIÇÃO (3 ZONAS + CHEFE):</small>
+                <div className="arpg-expedition-card__stages-list">
+                  {getExpeditionStages(expedition.id).slice(0, 3).map((stage) => (
+                    <span key={stage.id} className="arpg-expedition-stage-tag" title={stage.subtitle}>
+                      {stage.index}. {stage.name}
+                    </span>
+                  ))}
+                  <span className="arpg-expedition-stage-tag is-boss" title={`Confronto: ${expedition.bossName}`}>
+                    <Crown aria-hidden="true" /> {expedition.bossName}
+                  </span>
+                </div>
+              </div>
+
               <div className="arpg-expedition-card__folklore">
                 {expedition.folklore.map((name) => <span key={name}>{name}</span>)}
               </div>

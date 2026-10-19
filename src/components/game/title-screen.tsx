@@ -4,7 +4,7 @@ import {UI_ART} from '@/game/arpg/art/manifest';
 
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Download, Play, Settings, ShieldCheck, UsersRound } from "@/components/ui/pixel-icon";
+import { ArrowRight, BookOpen, Download, Play, Settings, ShieldCheck, UsersRound } from "@/components/ui/pixel-icon";
 import Link from "next/link";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -56,6 +56,10 @@ export function TitleScreen({
       <header className={styles.toolbar}>
         <span className={styles.worldNote}>14 Lendas <span aria-hidden="true">·</span> 3 biomas</span>
         <nav className={styles.utility} aria-label="Conta e opções">
+          <Link href="/guia" className={styles.utilityButton} title="Guia do jogo">
+            <BookOpen aria-hidden="true" />
+            <span className={styles.settingsLabel}>Guia</span>
+          </Link>
           {!offlineMode ? <LoginDialog label={loginEnabled ? "CONTA" : "ENTRAR"} className={styles.utilityButton} /> : null}
           <button
             ref={settingsButtonRef}
@@ -92,7 +96,7 @@ export function TitleScreen({
               <strong>{offlineMode ? "AVENTURA OFFLINE" : "JOGAR"}</strong>{" "}
               <small>{offlineMode ? "Jogar neste aparelho" : signedIn ? "Entrar na Guilda" : "Começar como visitante"}</small>
             </span>
-            <span className={styles.playArrow} aria-hidden="true">→</span>
+            <span className={styles.playArrow} aria-hidden="true"><ArrowRight /></span>
           </button>
           {!offlineMode ? <button type="button" className={`${styles.action} ${styles.cooperative}`} onClick={onCooperative} disabled={!onCooperative}>
             <UsersRound aria-hidden="true" />

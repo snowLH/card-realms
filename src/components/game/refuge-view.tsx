@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import {
+  ArrowLeft,
   Lock,
   Move,
   RotateCw,
@@ -43,6 +44,7 @@ type RefugeViewProps = {
   savedLayout?: RefugeSavePayload;
   source?: ProgressSource;
   onSave?: (payload: RefugeSavePayload) => Promise<void>;
+  onBack?: () => void;
 };
 
 const THEME_META: Record<RefugeTheme, { label: string; description: string }> = {
@@ -108,6 +110,7 @@ export function RefugeView({
   savedLayout,
   source = "local",
   onSave,
+  onBack,
 }: RefugeViewProps) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -221,6 +224,11 @@ export function RefugeView({
   return (
     <section className="content-view refuge-view">
       <header className="view-heading">
+        {onBack ? (
+          <Button type="button" variant="secondary" onClick={onBack} disabled={saving} className="self-start gap-2">
+            <ArrowLeft /> Voltar à Guilda
+          </Button>
+        ) : null}
         <div>
           <span className="view-eyebrow">Base pessoal</span>
           <h1>Meu Refúgio</h1>

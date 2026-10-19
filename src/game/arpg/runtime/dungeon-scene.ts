@@ -37,6 +37,11 @@ import {
   DEFAULT_ARPG_LOADOUT,
   MATA_CARDS,
 } from "../content/mata-encantada";
+import {
+  getExpeditionStages,
+  getRoomStage,
+  type ArpgStageDefinition,
+} from "../content/stages";
 import type {
   ArpgDungeonMapState,
   ArpgHudState,
@@ -311,6 +316,7 @@ export function createArpgDungeonScene(
     private suppressDesktopAttackUntil = 0;
     private audio: ArpgAudio | null = null;
     private proceduralRoomId: string | null = dungeonManager?.getCurrentRoom().id ?? null;
+    private currentStage: ArpgStageDefinition | null = null;
     private proceduralController: CombatRoomController | null = null;
     private proceduralWaveTransitionScheduled = false;
     private serverCombatState: ArpgDungeonCombatState | null = checkpoint?.serverCombatState ?? null;
@@ -658,6 +664,14 @@ export function createArpgDungeonScene(
         this.dungeonWorld.focusCamera(dungeonManager.getCurrentRoom().id);
         this.createDungeonDebugOverlay();
         this.createVisualReferenceOverlay();
+        const initialRoom = dungeonManager.getCurrentRoom();
+        this.currentStage = getRoomStage(dungeonManager.getGraph(), initialRoom.id);
+        bridge.emitStageTransition?.({
+          previousStage: null,
+          stage: this.currentStage,
+          roomId: initialRoom.id,
+        });
+        if (this.currentStage) this.audio?.setStageIndex(this.currentStage.index);
         if (checkpoint) {
           const room = dungeonManager.getCurrentRoom();
           if (checkpoint.exitPortalAvailable) this.createExitPortal(room);
@@ -830,6 +844,8 @@ export function createArpgDungeonScene(
         const dashArmor = ARPG_ARMOR_BY_ID.get(this.currentArmorId) ?? ARPG_ARMORS[0];
         this.dashVector.copy(source).normalize();
         this.facePlayer(this.dashVector);
+        this.playSound("dash");
+        this.spawnPulse(this.player.x, this.player.y, 22, 0x86e8cb);
         if (bridge.isServerAuthoritativeCombat() && this.proceduralController && this.proceduralRoomId) {
           if (!this.serverActionPending) {
             this.submitServerCombatCommand(this.proceduralRoomId, "dash", time, undefined, {
@@ -1023,6 +1039,7 @@ export function createArpgDungeonScene(
       }
       if (proc.restoreHp > 0) {
         this.hp = Math.min(this.maxHp, this.hp + proc.restoreHp);
+        this.playSound("heal");
         this.flashPlayer(ABILITY_COLORS.water, 150);
         bridge.emitMessage(`${weapon.name}: Eco Restaurador recupera vida.`);
       }
@@ -1185,6 +1202,7 @@ export function createArpgDungeonScene(
         this.damageEnemiesInRadius(x, y, radius, card.damage, true, time + (card.durationMs ?? 1600));
       } else if (card.behavior === "renewal") {
         this.hp = Math.min(this.maxHp, this.hp + (card.restoreHp ?? 40));
+        this.playSound("heal");
         if (card.id === "arthur-round-table-oath") grantRoundTableWard(this.arthurOaths, this.player, time);
         this.flashPlayer(color, 220);
       }
@@ -1437,6 +1455,23 @@ export function createArpgDungeonScene(
           this.proceduralController = null;
           this.proceduralWaveTransitionScheduled = false;
           this.dungeonWorld.focusCamera(entered.id);
+
+          const graph = dungeonManager.getGraph();
+          const nextStage = getRoomStage(graph, entered.id);
+          if (!this.currentStage || this.currentStage.id !== nextStage.id) {
+            const previousStage = this.currentStage;
+            this.currentStage = nextStage;
+            this.audio?.setStageIndex(nextStage.index);
+            bridge.emitStageTransition?.({
+              previousStage,
+              stage: nextStage,
+              roomId: entered.id,
+            });
+            bridge.emitMessage(`Você adentrou: ${nextStage.name} (${nextStage.badge})`);
+            this.cameras.main.flash(350, 245, 240, 230, false);
+            this.playSound("portal");
+          }
+
           this.emitRunCheckpoint();
           this.activateProceduralRoom(entered, time);
         } catch {
@@ -1554,7 +1589,7 @@ export function createArpgDungeonScene(
         return;
       }
 
-      const encounter = getSpecialRoomEncounter(dungeon.id, room.type);
+      const encounter = getSpecialRoomEncounter(dungeon.id, room.type, this.currentStage?.index);
       if (encounter) {
         this.playSound("special-room");
         this.ensureSpecialRoomAnchor(room, encounter);
@@ -2542,6 +2577,8 @@ export function createArpgDungeonScene(
         enemy.setData("bossPatternIndex", 0);
         bridge.emitMessage(phase === 2 ? dungeon.messages.phaseTwo : dungeon.messages.phaseThree);
         this.spawnPulse(enemy.x, enemy.y, 110, dungeon.colors.phase);
+        if (!this.prefersReducedMotion) this.cameras.main.shake(140, 0.003);
+        this.playSound("boss");
       }
 
       if (dungeon.id === "mata-encantada") {
@@ -3091,6 +3128,7 @@ export function createArpgDungeonScene(
         this.chestRoomId = null;
         this.chestCacheReward = null;
         this.playSound("loot");
+        if (reward.healing > 0) this.playSound("heal");
         this.runShards += reward.shards;
         this.hp = Math.min(this.maxHp, this.hp + reward.healing);
         if (room) this.dungeonWorld?.setDoorsLocked(room.id, false);
@@ -3159,6 +3197,7 @@ export function createArpgDungeonScene(
         const roomId = this.chestRoomId;
         const relicHeal = getRelicChestHeal(selectedRelic);
         this.hp = Math.min(this.maxHp, this.hp + 14 + relicHeal);
+        this.playSound("heal");
         const room = dungeonManager.getRoom(roomId);
         if (room && room.state !== "cleared") dungeonManager.clearRoom(room.id);
         if (room) this.dungeonWorld.setDoorsLocked(room.id, false);
@@ -3187,6 +3226,7 @@ export function createArpgDungeonScene(
       this.roomTransitionScheduled = true;
       const relicHeal = getRelicChestHeal(selectedRelic);
       this.hp = Math.min(this.maxHp, this.hp + 14 + relicHeal);
+      this.playSound("heal");
       this.roomIndex += 1;
       const relicNote = relicHeal > 0 ? ` ${selectedRelic.name} recuperou +${relicHeal} HP.` : "";
       const choiceNote = decision === "equip" ? `${loot.label} equipado.` : `${loot.label} guardado; equipamento atual mantido.`;
@@ -3408,17 +3448,33 @@ export function createArpgDungeonScene(
       const visibleRooms = dungeonManager.getVisibleRooms();
       const visitedRoomIds = new Set(dungeonManager.getVisitedRoomIds());
       const visibleIds = new Set(visibleRooms.map((room) => room.id));
+      const graph = dungeonManager.getGraph();
+      const stages = getExpeditionStages(graph.regionId);
+      const currentStage = this.currentStage ?? getRoomStage(graph, current.id);
       return {
         currentRoomId: current.id,
+        currentStageIndex: currentStage.index,
+        currentStageName: currentStage.name,
+        currentStageSubtitle: currentStage.subtitle,
+        stages: stages.map((s) => ({
+          index: s.index,
+          id: s.id,
+          name: s.name,
+          subtitle: s.subtitle,
+          badge: s.badge,
+        })),
         rooms: visibleRooms.map((room) => {
           const state: ArpgMiniMapRoomState = room.state === "unvisited" ? "discovered" : room.state;
           const revealType = visitedRoomIds.has(room.id) || room.state === "cleared" || room.type === "start";
+          const roomStage = getRoomStage(graph, room.id);
           return {
             id: room.id,
             gridX: room.gridX,
             gridY: room.gridY,
             type: revealType ? room.type : "unknown",
             state,
+            stageIndex: roomStage.index,
+            stageName: roomStage.name,
             connections: Object.values(room.connections)
               .filter((id): id is string => typeof id === "string" && visibleIds.has(id)),
           };
@@ -3429,12 +3485,16 @@ export function createArpgDungeonScene(
     private buildHudState(time: number): ArpgHudState {
       const proceduralRoom = dungeonManager?.getCurrentRoom();
       const proceduralRoomCount = dungeonManager ? Object.keys(dungeonManager.getGraph().rooms).length : null;
+      const currentStage = dungeonManager && proceduralRoom
+        ? (this.currentStage ?? getRoomStage(dungeonManager.getGraph(), proceduralRoom.id))
+        : undefined;
       return {
         nowMs: time,
         hp: this.hp,
         maxHp: this.maxHp,
         room: proceduralRoom?.type === "boss" ? proceduralRoomCount! : proceduralRoom ? proceduralRoom.distanceFromStart + 1 : this.roomIndex + 1,
         roomCount: proceduralRoomCount ?? this.roomWaves.length,
+        currentStage,
         enemiesRemaining: this.enemies?.countActive(true) ?? 0,
         weaponId: this.currentWeaponId,
         weaponSlots: this.weaponSlots,

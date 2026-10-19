@@ -3,15 +3,19 @@ import type {
   ArpgInputState,
   ArpgRunCheckpointState,
   ArpgRuntimeBridge,
+  ArpgStageTransition,
 } from "../domain/types";
 import type { ArpgVisualEvent } from "../domain/visual-events";
 import type { ArpgDungeonCombatCommand, ArpgDungeonCombatState } from "../dungeon/combat-authority";
+
+export type { ArpgStageTransition };
 
 type HudListener = (state: ArpgHudState) => void;
 type MessageListener = (message: string) => void;
 type CheckpointListener = (state: ArpgRunCheckpointState) => void;
 type SoundEnabledListener = (enabled: boolean) => void;
 type VisualEventListener = (event: ArpgVisualEvent) => void;
+type StageTransitionListener = (transition: ArpgStageTransition) => void;
 type EncounterActionHandler = (
   roomId: string,
   command: ArpgDungeonCombatCommand,
@@ -61,6 +65,7 @@ export class ArpgBridge implements ArpgRuntimeBridge {
   private checkpointListeners = new Set<CheckpointListener>();
   private soundEnabledListeners = new Set<SoundEnabledListener>();
   private visualEventListeners = new Set<VisualEventListener>();
+  private stageTransitionListeners = new Set<StageTransitionListener>();
 
   getSoundEnabled() {
     return this.soundEnabled;
@@ -245,6 +250,21 @@ export class ArpgBridge implements ArpgRuntimeBridge {
   onRunEnd(listener: HudListener) {
     this.endListeners.add(listener);
     return () => this.endListeners.delete(listener);
+  }
+
+  emitStageTransition(transition: ArpgStageTransition) {
+    this.stageTransitionListeners.forEach((listener) => {
+      try {
+        listener(transition);
+      } catch (error) {
+        console.error("ARPG stage transition listener failed", error);
+      }
+    });
+  }
+
+  onStageTransition(listener: StageTransitionListener) {
+    this.stageTransitionListeners.add(listener);
+    return () => this.stageTransitionListeners.delete(listener);
   }
 
   onRunCheckpoint(listener: CheckpointListener) {

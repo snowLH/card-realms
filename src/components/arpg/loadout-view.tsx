@@ -124,11 +124,12 @@ export function ArpgLoadoutView({
             <p>{header.description}</p>
           </div>
         </div>
-        {focus === "all" ? (
-          <button type="button" onClick={onPlay}>Escolher expedição</button>
-        ) : (
+        <div className="arpg-loadout-hero__actions">
           <button type="button" onClick={onBack}><ArrowLeft aria-hidden="true" /> Voltar à Guilda</button>
-        )}
+          {focus === "all" ? (
+            <button type="button" onClick={onPlay}>Escolher expedição</button>
+          ) : null}
+        </div>
       </header> : null}
 
       {focus === "legend" ? (

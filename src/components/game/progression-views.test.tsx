@@ -21,6 +21,16 @@ describe("telas de progressão da conta", () => {
     expect(screen.queryByText("Carta não descoberta")).not.toBeInTheDocument();
   });
 
+  it("permite retornar à Guilda a partir do Bestiário", () => {
+    const onBack = vi.fn();
+    render(<CollectionView onBack={onBack} />);
+
+    const backButton = screen.getByRole("button", { name: /Voltar à Guilda/i });
+    expect(backButton).toBeInTheDocument();
+    fireEvent.click(backButton);
+    expect(onBack).toHaveBeenCalledOnce();
+  });
+
   it("mantém a loja focada em suprimentos e cosméticos sem ofertas de armadura", () => {
     render(
       <VillageView

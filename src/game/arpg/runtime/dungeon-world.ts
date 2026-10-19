@@ -8,6 +8,7 @@ import type { DungeonDirection, DungeonGraph } from "../dungeon/types";
 import { ARPG_ASSET_MANIFEST } from "../assets";
 import { bossForRegion } from "../bosses/registry";
 import { createBossRoomPresentation, type BossRoomPresentation } from "../bosses/boss-room-presentation";
+import { getRoomStage } from "../content/stages";
 
 
 type DoorEntry = {
@@ -286,6 +287,7 @@ export class DungeonWorldRuntime {
     }
 
     const roomTemplate = ARPG_ROOM_TEMPLATE_BY_ID.get(room.templateId);
+    const stage = getRoomStage(this.graph, room.id);
     const count = roomTemplate?.size === "large" ? 6 : roomTemplate?.size === "small" ? 4 : 5;
     const picks = createSeededRandom(`${this.graph.seed}:${room.id}:edge-set-dressing-v1`)
       .shuffle(candidates)
@@ -293,53 +295,86 @@ export class DungeonWorldRuntime {
     picks.forEach((point, index) => {
       const depthBias = point.y / Math.max(1, this.layout.height) * 0.14;
       if (this.graph.regionId === "mata-encantada") {
-        this.drawForestEdgeCluster(point.x, point.y, index, depthBias);
+        this.drawForestEdgeCluster(point.x, point.y, index, depthBias, stage.index);
       } else if (this.graph.regionId === "arquipelago-das-mares") {
-        this.drawMaresEdgeCluster(point.x, point.y, index, depthBias);
+        this.drawMaresEdgeCluster(point.x, point.y, index, depthBias, stage.index);
       } else {
-        this.drawRunicEdgeCluster(point.x, point.y, index, depthBias);
+        this.drawRunicEdgeCluster(point.x, point.y, index, depthBias, stage.index);
       }
     });
   }
 
-  private drawForestEdgeCluster(x:number,y:number,variant:number,depthBias:number) {
-  authoredImage(this.scene,x,y+10,'props',PROP_ART.shadowMedium,46,14).setDepth(1.16).setAlpha(0.55);
-  authoredImage(this.scene,x,y,'props',[PROP_ART.tree,PROP_ART.stump,PROP_ART.ruin][variant%3],54,64).setOrigin(0.5,0.7).setDepth(2.4+depthBias);
-}
-
-  private drawMaresEdgeCluster(x:number,y:number,variant:number,depthBias:number) {
-  authoredImage(this.scene,x,y,'props',[PROP_ART.coral,PROP_ART.seaweed,PROP_ART.shipwreck][variant%3],54,64).setOrigin(0.5,0.7).setDepth(3.1+depthBias);
-}
-
-  private drawRunicEdgeCluster(x:number,y:number,variant:number,depthBias:number) {
-  authoredImage(this.scene,x,y,'props',[PROP_ART.pine,PROP_ART.crystal,PROP_ART.rock][variant%3],54,64).setOrigin(0.5,0.7).setDepth(3.1+depthBias);
-}
-
-
-
-  private drawBiomeFloorMarks(room:DungeonGraph['rooms'][string],tiles:number[][],layout:DungeonPixelLayout['rooms'][string]) {
-  const random=createSeededRandom(this.graph.seed+':'+room.id+':authored-decals');
-  tiles.forEach((row,y)=>row.forEach((tile,x)=>{
-    if(tile!==ROOM_FLOOR_TILE||random.next()>0.03)return;
-    const frame=this.graph.regionId==='mata-encantada'?PROP_ART.moss:this.graph.regionId==='arquipelago-das-mares'?PROP_ART.puddle:PROP_ART.snow;
-    authoredImage(this.scene,layout.left+(x+0.5)*32,layout.top+(y+0.5)*32,'props',frame,30,30).setDepth(1.02).setAlpha(0.4);
-  }));
-}
-
-
-
-
-
-  private drawAmbientDetails(room:DungeonGraph['rooms'][string],tiles:number[][],layout:DungeonPixelLayout['rooms'][string]) {
-  const random=createSeededRandom(this.graph.seed+':'+room.id+':authored-ambient');
-  const points=createSafeRoomSpawnPoints({width:tiles[0]?.length??0,height:tiles.length,data:tiles},4);
-  for(const [index,point]of points.entries()){
-    const frame=this.graph.regionId==='mata-encantada'?FX_ART.leaf:this.graph.regionId==='arquipelago-das-mares'?FX_ART.waterDrop:FX_ART.snow;
-    const visual=authoredImage(this.scene,layout.left+point.x,layout.top+point.y,'fx',frame,9,9).setDepth(7);
-    const tween=this.scene.tweens.add({targets:visual,y:visual.y-15,alpha:{from:0.18,to:0.7},duration:random.int(1000,1600),delay:index*230,yoyo:true,repeat:-1});
-    this.registerAmbientFx(room.id,[visual],tween);
+  private drawForestEdgeCluster(x: number, y: number, variant: number, depthBias: number, stageIndex = 1) {
+    const frames = stageIndex === 1
+      ? [PROP_ART.tree, PROP_ART.stump, PROP_ART.shrub]
+      : stageIndex === 2
+        ? [PROP_ART.roots, PROP_ART.stump, PROP_ART.tree]
+        : [PROP_ART.ruin, PROP_ART.roots, PROP_ART.tree];
+    authoredImage(this.scene, x, y + 10, 'props', PROP_ART.shadowMedium, 46, 14).setDepth(1.16).setAlpha(0.55);
+    authoredImage(this.scene, x, y, 'props', frames[variant % frames.length], 54, 64).setOrigin(0.5, 0.7).setDepth(2.4 + depthBias);
   }
-}
+
+  private drawMaresEdgeCluster(x: number, y: number, variant: number, depthBias: number, stageIndex = 1) {
+    const frames = stageIndex === 1
+      ? [PROP_ART.coral, PROP_ART.seaweed, PROP_ART.tideSpring]
+      : stageIndex === 2
+        ? [PROP_ART.seaweed, PROP_ART.shipwreck, PROP_ART.coral]
+        : [PROP_ART.shipwreck, PROP_ART.coral, PROP_ART.seaweed];
+    authoredImage(this.scene, x, y, 'props', frames[variant % frames.length], 54, 64).setOrigin(0.5, 0.7).setDepth(3.1 + depthBias);
+  }
+
+  private drawRunicEdgeCluster(x: number, y: number, variant: number, depthBias: number, stageIndex = 1) {
+    const frames = stageIndex === 1
+      ? [PROP_ART.pine, PROP_ART.rock, PROP_ART.brazier]
+      : stageIndex === 2
+        ? [PROP_ART.rock, PROP_ART.pine, PROP_ART.crystal]
+        : [PROP_ART.crystal, PROP_ART.rock, PROP_ART.ruin];
+    authoredImage(this.scene, x, y, 'props', frames[variant % frames.length], 54, 64).setOrigin(0.5, 0.7).setDepth(3.1 + depthBias);
+  }
+
+  private drawBiomeFloorMarks(room: DungeonGraph['rooms'][string], tiles: number[][], layout: DungeonPixelLayout['rooms'][string]) {
+    const stage = getRoomStage(this.graph, room.id);
+    const random = createSeededRandom(this.graph.seed + ':' + room.id + ':authored-decals');
+    tiles.forEach((row, y) => row.forEach((tile, x) => {
+      if (tile !== ROOM_FLOOR_TILE || random.next() > 0.035) return;
+      let frame: number;
+      if (this.graph.regionId === 'mata-encantada') {
+        frame = stage.index === 1 ? PROP_ART.moss : stage.index === 2 ? PROP_ART.puddle : PROP_ART.roots;
+      } else if (this.graph.regionId === 'arquipelago-das-mares') {
+        frame = stage.index === 1 ? PROP_ART.tideMark : stage.index === 2 ? PROP_ART.puddle : PROP_ART.cracks;
+      } else {
+        frame = stage.index === 1 ? PROP_ART.snow : stage.index === 2 ? PROP_ART.snow : PROP_ART.rune;
+      }
+      authoredImage(this.scene, layout.left + (x + 0.5) * 32, layout.top + (y + 0.5) * 32, 'props', frame, 30, 30).setDepth(1.02).setAlpha(0.42);
+    }));
+  }
+
+  private drawAmbientDetails(room: DungeonGraph['rooms'][string], tiles: number[][], layout: DungeonPixelLayout['rooms'][string]) {
+    const stage = getRoomStage(this.graph, room.id);
+    const random = createSeededRandom(this.graph.seed + ':' + room.id + ':authored-ambient');
+    const points = createSafeRoomSpawnPoints({ width: tiles[0]?.length ?? 0, height: tiles.length, data: tiles }, 4);
+    for (const [index, point] of points.entries()) {
+      let frame: number;
+      if (this.graph.regionId === 'mata-encantada') {
+        frame = stage.index === 2 ? FX_ART.ember : stage.index >= 3 ? FX_ART.dust : FX_ART.leaf;
+      } else if (this.graph.regionId === 'arquipelago-das-mares') {
+        frame = stage.index >= 3 ? FX_ART.spark : FX_ART.waterDrop;
+      } else {
+        frame = stage.index >= 3 ? FX_ART.lightningFragment : FX_ART.snow;
+      }
+      const visual = authoredImage(this.scene, layout.left + point.x, layout.top + point.y, 'fx', frame, 9, 9).setDepth(7);
+      const tween = this.scene.tweens.add({
+        targets: visual,
+        y: visual.y - 15,
+        alpha: { from: 0.18, to: 0.7 },
+        duration: random.int(1000, 1600),
+        delay: index * 230,
+        yoyo: true,
+        repeat: -1,
+      });
+      this.registerAmbientFx(room.id, [visual], tween);
+    }
+  }
 
   private drawMataStartRoomDressing(room:DungeonGraph['rooms'][string],tiles:number[][],layout:DungeonPixelLayout['rooms'][string]) {
   if(this.graph.regionId!=='mata-encantada'||room.type!=='start')return;

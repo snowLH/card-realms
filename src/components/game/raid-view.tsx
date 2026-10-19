@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowLeft,
   CalendarDays,
   Check,
   Clock3,
@@ -118,11 +119,15 @@ export function RaidView({
   dismissedRoomId = null,
   onDismissRaid,
   onOpenRaid,
+  onBack,
+  backLabel,
 }: {
   bootstrap: PlayerBootstrap;
   dismissedRoomId?: string | null;
   onDismissRaid?: (roomId: string | null) => void;
   onOpenRaid: (roomId: string, mode: RaidGameplayMode) => void;
+  onBack?: () => void;
+  backLabel?: string;
 }) {
   const playerId = bootstrap.identity?.id ?? null;
   const [schedule, setSchedule] = useState<RaidScheduleItem[]>([]);
@@ -311,6 +316,11 @@ export function RaidView({
   return (
     <section className="content-view raid-view">
       <header className="view-heading raid-heading">
+        {onBack ? (
+          <Button type="button" variant="secondary" onClick={onBack} className="self-start gap-2">
+            <ArrowLeft /> {backLabel ?? "Voltar à Guilda"}
+          </Button>
+        ) : null}
         <div>
           <span className="view-eyebrow">Dungeon cooperativa online</span>
           <h1>Jogue dungeons com amigos</h1>

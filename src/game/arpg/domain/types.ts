@@ -1,6 +1,13 @@
 import type { Element, Rarity } from "@/game/types";
 import type { ArpgDungeonCombatCommand, ArpgDungeonCombatState } from "../dungeon/combat-authority";
 import type { ArpgVisualEvent } from "./visual-events";
+import type { ArpgStageDefinition } from "../content/stages";
+
+export type ArpgStageTransition = {
+  previousStage: ArpgStageDefinition | null;
+  stage: ArpgStageDefinition;
+  roomId: string;
+};
 
 export type ArpgVector = { x: number; y: number };
 export type WeaponKind = "sword" | "bow" | "staff";
@@ -155,10 +162,16 @@ export type ArpgMiniMapRoom = {
   type: ArpgMiniMapRoomType;
   state: ArpgMiniMapRoomState;
   connections: string[];
+  stageIndex?: number;
+  stageName?: string;
 };
 export type ArpgDungeonMapState = {
   currentRoomId: string;
   rooms: ArpgMiniMapRoom[];
+  stages?: Array<{ index: number; id: string; name: string; subtitle: string; badge: string }>;
+  currentStageIndex?: number;
+  currentStageName?: string;
+  currentStageSubtitle?: string;
 };
 
 export type ArpgRoomChoiceState = {
@@ -179,6 +192,18 @@ export type ArpgHudState = {
   maxHp: number;
   room: number;
   roomCount: number;
+  currentStage?: {
+    index: number;
+    total: number;
+    id: string;
+    name: string;
+    subtitle: string;
+    description: string;
+    folkloreQuote: string;
+    accentColor: string;
+    badge: string;
+    environmentalDetail: string;
+  };
   enemiesRemaining: number;
   weaponId: string;
   weaponSlots?: { A: string; B: string | null; active: "A" | "B" };
@@ -230,6 +255,8 @@ export type ArpgRuntimeBridge = {
   emitRunEnd(state: ArpgHudState): void;
   emitRunCheckpoint(state: ArpgRunCheckpointState): void;
   emitVisualEvent(event: ArpgVisualEvent): void;
+  emitStageTransition?(transition: ArpgStageTransition): void;
+  onStageTransition?(listener: (transition: ArpgStageTransition) => void): () => void;
   onVisualEvent(listener: (event: ArpgVisualEvent) => void): () => void;
   onAttackHit(listener: (event: Extract<ArpgVisualEvent, { type: "attack.hit" }>) => void): () => void;
   onBattleVictory(listener: (event: Extract<ArpgVisualEvent, { type: "battle.finished" }>) => void): () => void;

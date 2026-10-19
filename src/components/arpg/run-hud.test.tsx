@@ -50,6 +50,13 @@ describe("RunHud minimap", () => {
     expect(container.querySelector('svg')).toBeNull();
   });
 
+  it("exibe o nome da zona/estágio no rótulo acessível da sala do minimapa quando disponível", () => {
+    const hud = createHud();
+    hud.dungeonMap!.rooms[1].stageName = "Travessia do Rio Boitatá";
+    render(<RunHud state={hud} />);
+    expect(screen.getByRole("img", { name: "Travessia do Rio Boitatá · Mercador · ativa" })).toBeInTheDocument();
+  });
+
   it("keeps equipment names accessible alongside compactable equipment icons", () => {
     const { container } = render(<RunHud state={createHud()} />);
 

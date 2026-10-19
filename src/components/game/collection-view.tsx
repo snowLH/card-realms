@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, ChevronLeft, ChevronRight, Filter, MapPin, Search, Shield, Sparkles, Swords } from "@/components/ui/pixel-icon";
+import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, Filter, MapPin, Search, Shield, Sparkles, Swords } from "@/components/ui/pixel-icon";
 import type { CSSProperties } from "react";
 import { useMemo, useState } from "react";
 import { ARPG_DUNGEON_CONFIGS } from "@/game/arpg/content/dungeons";
@@ -75,11 +75,11 @@ const BOSS_COUNT = BESTIARY_ENTRIES.filter((entry) => entry.kind === "boss").len
 type CollectionViewProps = {
   /** @deprecated Bestiary entries are public and do not depend on ownership. */
   ownedCatalogIds?: string[];
+  onBack?: () => void;
+  backLabel?: string;
 };
 
-export function CollectionView(props: CollectionViewProps = {}) {
-  // Keep the previous caller shape compatible while the encyclopedia ignores progress.
-  void props;
+export function CollectionView({ onBack, backLabel }: CollectionViewProps = {}) {
   const [query, setQuery] = useState("");
   const [element, setElement] = useState<Element | "all">("all");
   const [habitat, setHabitat] = useState("all");
@@ -116,6 +116,11 @@ export function CollectionView(props: CollectionViewProps = {}) {
   return (
     <section className="content-view collection-view" aria-labelledby="bestiary-title">
       <header className="view-heading">
+        {onBack ? (
+          <Button type="button" variant="secondary" onClick={onBack} className="self-start gap-2">
+            <ArrowLeft /> {backLabel ?? "Voltar à Guilda"}
+          </Button>
+        ) : null}
         <div>
           <span className="view-eyebrow">Enciclopédia de inimigos</span>
           <h1 id="bestiary-title">Bestiário de Folklard</h1>
@@ -211,6 +216,13 @@ export function CollectionView(props: CollectionViewProps = {}) {
               <div><dt>Origem</dt><dd>{selected.creature.folklore.origin}</dd></div>
               <div><dt>Traços</dt><dd>{selected.creature.traits.map((trait) => traitNames.get(trait) ?? trait).join(" · ")}</dd></div>
               <div><dt>Comportamento</dt><dd>{selected.behavior}</dd></div>
+              <div><dt>Afinidade</dt><dd>
+                {selected.creature.element === "water" && "Apaga chamas ardentes, mas conduz a eletricidade das tempestades."}
+                {selected.creature.element === "fire" && "Incinera raízes e folhagens, mas retrocede perante as correntezas."}
+                {selected.creature.element === "nature" && "Enraíza invasores das águas, mas teme a combustão da mata."}
+                {selected.creature.element === "storm" && "Descarrega trovões paralisantes sobre a umidade das marés."}
+                {selected.creature.element === "spirit" && "Atravessa névoas e barreiras materiais com passos silenciados."}
+              </dd></div>
             </dl>
           </article>
         </section>

@@ -27,11 +27,39 @@ describe("ArpgBridge gameplay input clearing", () => {
     expect(bridge.consumeLootDecision()).toBe("equip");
   });
 
-  it("queues a weapon swap once", () => {
+  it("notifica ouvintes quando uma transição de estágio de mundo é emitida", () => {
     const bridge = new ArpgBridge();
-    bridge.queueWeaponSwitch();
+    const transitions: unknown[] = [];
+    const unsubscribe = bridge.onStageTransition((t) => transitions.push(t));
 
-    expect(bridge.consumeWeaponSwitch()).toBe(true);
-    expect(bridge.consumeWeaponSwitch()).toBe(false);
+    const mockStage = {
+      index: 2,
+      total: 3,
+      id: "mata-boitata",
+      name: "Travessia do Boitatá",
+      subtitle: "Margens Pantanosas",
+      description: "Águas escuras",
+      folkloreQuote: "Cuidado com o fogo",
+      accentColor: "#4f7d8c",
+      badge: "Zona 2/3",
+      environmentalDetail: "Água e pontes",
+    };
+
+    bridge.emitStageTransition({
+      previousStage: null,
+      stage: mockStage,
+      roomId: "room-2",
+    });
+
+    expect(transitions).toHaveLength(1);
+    expect((transitions[0] as { stage: typeof mockStage }).stage.name).toBe("Travessia do Boitatá");
+
+    unsubscribe();
+    bridge.emitStageTransition({
+      previousStage: mockStage,
+      stage: { ...mockStage, index: 3, name: "Santuário das Raízes" },
+      roomId: "room-5",
+    });
+    expect(transitions).toHaveLength(1);
   });
 });

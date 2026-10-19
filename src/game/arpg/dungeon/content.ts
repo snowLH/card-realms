@@ -5,6 +5,8 @@ import type { DungeonGraph, DungeonRoom } from "./types";
 import { createSeededRandom } from "./rng";
 import { hasCurrentArpgEncounterRules } from "./encounter-seed";
 
+import { getRoomStage } from "../content/stages";
+
 /** Stable encounter variety: identical seed+room yields identical waves client/server.
  * Prevents easy memorization of the same three waves by graph distance.
  */
@@ -27,12 +29,24 @@ export function populateArpgDungeonContent(graph: DungeonGraph) {
   const runic = graph.regionId === "montanhas-runicas";
   const waves = mares ? MARES_ROOM_WAVES : runic ? RUNIC_ROOM_WAVES : MATA_ROOM_WAVES;
   // Existing checkpoints retain their exact enemies and reward ceilings.
-  const combatWaves = hasCurrentArpgEncounterRules(graph.seed, graph.regionId)
+  const isCurrentRules = hasCurrentArpgEncounterRules(graph.seed, graph.regionId);
+  const combatWaves = isCurrentRules
     ? waves.filter((wave) => !wave.includes("boss"))
     : waves;
   for (const room of Object.values(graph.rooms)) {
     if (room.type === "combat") {
-      room.waves = commonWaves(graph, room, combatWaves);
+      let stageWaves = combatWaves;
+      if (isCurrentRules && combatWaves.length >= 4) {
+        const stage = getRoomStage(graph, room.id);
+        if (stage.index === 1) {
+          stageWaves = combatWaves.slice(0, 2);
+        } else if (stage.index === 2) {
+          stageWaves = combatWaves.slice(1, 3);
+        } else {
+          stageWaves = combatWaves.slice(2, 4);
+        }
+      }
+      room.waves = commonWaves(graph, room, stageWaves);
     } else if (room.type === "elite") {
       room.waves = mares
         ? [["guardian", "skirmisher", "elite"], ["miniBoss"]]

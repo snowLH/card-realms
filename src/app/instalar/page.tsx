@@ -1,6 +1,6 @@
 import "./install.css";
 import Link from "next/link";
-import { Download, Monitor, Smartphone, ShieldCheck, Apple, Gamepad2 } from "@/components/ui/pixel-icon";
+import { ArrowLeft, BookOpen, Download, Monitor, Smartphone, ShieldCheck, Apple, Gamepad2 } from "@/components/ui/pixel-icon";
 import type { Metadata } from "next";
 import { getDownloadReleases, type DownloadRelease, type DownloadPlatform } from "@/server/downloads/releases";
 
@@ -71,7 +71,10 @@ export default async function InstallPage() {
         <span className="folklard-install__eyebrow"><Gamepad2 size={18} aria-hidden="true" /> CRÔNICAS DE AURÓRIA</span>
         <h1>Baixe e jogue sem depender de lojas.</h1>
         <p>Instale Folklard diretamente pelo site. Windows e Linux recebem o aplicativo de computador, Android recebe o APK, e iPhone/iPad instala o jogo pela tela de início em modo de aplicativo.</p>
-        <Link href="/">← Voltar ao jogo</Link>
+        <div style={{ display: "flex", gap: "20px", marginTop: "12px", flexWrap: "wrap" }}>
+          <Link href="/"><ArrowLeft aria-hidden="true" /> Voltar ao jogo</Link>
+          <Link href="/guia"><BookOpen aria-hidden="true" /> Guia do Explorador</Link>
+        </div>
         <div className="folklard-install__connection"><strong>Sem App Store, Play Store ou Microsoft Store por enquanto.</strong> Conexão com a internet é necessária para carregar o jogo e sincronizar o progresso da conta.</div>
       </div>
       <div className="folklard-install__grid">

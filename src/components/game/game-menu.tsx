@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type SyntheticEvent } from "react";
-import { X, ArrowLeft } from "@/components/ui/pixel-icon";
+import { X, ArrowLeft, BookOpen } from "@/components/ui/pixel-icon";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -24,9 +25,13 @@ type MenuItem = {
 };
 
 const menuItems: MenuItem[] = [
+  { action: "expeditions", label: "Expedições", detail: "Masmorras e rotas de exploração", art: "map" },
   { action: "arsenal", label: "Arsenal da Lenda", detail: "Armas e relíquias encontradas nas masmorras", art: "sword" },
   { action: "powers", label: "Ataques da Lenda", detail: "Seus dois ataques próprios", art: "staff" },
   { action: "appearance", label: "Lendas jogáveis", detail: "Escolha sua Lenda ativa", art: "books" },
+  { action: "refuge", label: "Refúgio do Explorador", detail: "Decore sua base e instale mobílias", art: "chest" },
+  { action: "bestiary", label: "Bestiário das Lendas", detail: "Enciclopédia de entidades e chefes", art: "books" },
+  { action: "profile", label: "Perfil do Cartógrafo", detail: "Estatísticas, nível e maestria", art: "books" },
 ];
 
 export function GameMenu({
@@ -104,6 +109,15 @@ export function GameMenu({
 
           <div className="game-menu__footer">
             <LoginDialog label="Conta e progresso" className="game-menu__account" />
+            <Link
+              href="/guia"
+              className="game-menu__account"
+              onClick={() => setOpen(false)}
+              title="Guia do Explorador"
+            >
+              <BookOpen aria-hidden="true" />
+              <span>Guia do Explorador</span>
+            </Link>
           </div>
 
         </DialogContent>

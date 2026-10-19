@@ -4,6 +4,8 @@ import { CHEST_LOOT_RARITY_PRESENTATION } from "./chest-loot-presentation";
 export type ArpgSoundCue =
   | "attack"
   | "ability"
+  | "dash"
+  | "heal"
   | "player-hit"
   | "enemy-hit"
   | "breakable-hit"
@@ -43,6 +45,8 @@ const THEME_STEP_SECONDS = 0.48;
 const SOUND_PATTERNS: Record<ArpgSoundCue, SoundPattern> = {
   attack: { notes: [410], duration: 0.12, waveform: "sawtooth", volume: 0.035, slide: -170 },
   ability: { notes: [440, 660, 880], duration: 0.2, waveform: "triangle", volume: 0.04 },
+  dash: { notes: [240, 380], duration: 0.11, waveform: "sine", volume: 0.032, slide: 140 },
+  heal: { notes: [330, 440, 554, 659], duration: 0.28, waveform: "sine", volume: 0.038 },
   "player-hit": { notes: [155], duration: 0.16, waveform: "square", volume: 0.055, slide: -70 },
   "enemy-hit": { notes: [235], duration: 0.1, waveform: "triangle", volume: 0.028, slide: -85 },
   "breakable-hit": { notes: [275], duration: 0.075, waveform: "square", volume: 0.018, slide: -65 },
@@ -66,6 +70,7 @@ export class ArpgAudio {
   private themeStep = 0;
   private musicMode: "exploration" | "boss" | "intro" | "purification" = "exploration";
   private enabled = true;
+  private stageIndex = 1;
   private removeGestureListeners: (() => void) | null = null;
 
   constructor(private readonly regionId: string) {
@@ -95,6 +100,15 @@ export class ArpgAudio {
     if (!THEME_NOTES[this.regionId] || !this.context || this.context.state !== "running") return;
     this.stopTheme();
     this.startTheme();
+  }
+
+  setStageIndex(stageIndex: number) {
+    if (this.stageIndex === stageIndex) return;
+    this.stageIndex = stageIndex;
+  }
+
+  getStageIndex() {
+    return this.stageIndex;
   }
 
   async unlock() {
@@ -222,6 +236,11 @@ export class ArpgAudio {
       const envelope = context.createGain();
       oscillator.type = "triangle";
       oscillator.frequency.setValueAtTime(frequency, startsAt);
+      if (this.stageIndex === 2 && oscillator.detune) {
+        oscillator.detune.setValueAtTime(8, startsAt);
+      } else if (this.stageIndex >= 3 && oscillator.detune) {
+        oscillator.detune.setValueAtTime(-12, startsAt);
+      }
       envelope.gain.setValueAtTime(0.0001, startsAt);
       envelope.gain.exponentialRampToValueAtTime(0.012, startsAt + 0.045);
       envelope.gain.exponentialRampToValueAtTime(0.0001, startsAt + duration);

@@ -56,13 +56,23 @@ describe("ArpgLoadoutView", () => {
     expect(screen.queryByText(/Faltam \d+ moedas/i)).not.toBeInTheDocument();
   });
 
-  it("keeps the selected legend attacks visible in Arsenal", () => {
-    renderLoadout({ focus: "all" });
+  it("keeps the selected legend attacks visible in Arsenal and offers direct return to Guilda", () => {
+    const { props } = renderLoadout({ focus: "all" });
 
     expect(screen.getByText("Os dois ataques de Curupira")).toBeInTheDocument();
     expect(screen.getByText("Raízes do Curupira")).toBeInTheDocument();
     expect(screen.getByText("Flecha de Brasa")).toBeInTheDocument();
     expect(screen.queryByText("Saldo disponível:")).not.toBeInTheDocument();
+
+    const backBtn = screen.getByRole("button", { name: /Voltar à Guilda/i });
+    expect(backBtn).toBeInTheDocument();
+    fireEvent.click(backBtn);
+    expect(props.onBack).toHaveBeenCalledTimes(1);
+
+    const playBtn = screen.getByRole("button", { name: /Escolher expedição/i });
+    expect(playBtn).toBeInTheDocument();
+    fireEvent.click(playBtn);
+    expect(props.onPlay).toHaveBeenCalledTimes(1);
   });
 
   it("hides legacy armor from the Arsenal while preserving it in loadout edits", () => {

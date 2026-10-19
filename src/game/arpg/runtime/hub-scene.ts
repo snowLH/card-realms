@@ -181,6 +181,7 @@ export function createArpgHubScene(
     // Direct movement is the normal game flow. Click-to-move remains available
     // as an explicit accessibility option through ?clickToMove=1.
     private clickToMoveEnabled = false;
+    private audio: ArpgAudio | null = null;
 
     constructor() {
       super("card-realms-hub");
@@ -204,11 +205,13 @@ export function createArpgHubScene(
       this.clickToMoveEnabled = typeof window !== "undefined"
         && new URLSearchParams(window.location.search).get("clickToMove") === "1";
       const audio = new ArpgAudio("guild-hub");
+      this.audio = audio;
       audio.setEnabled(bridge.getSoundEnabled());
       const offSoundEnabled = bridge.onSoundEnabled((enabled) => audio.setEnabled(enabled));
       const disposeAudio = () => {
         offSoundEnabled();
         audio.destroy();
+        this.audio = null;
       };
       this.events.once("shutdown", disposeAudio);
       this.events.once("destroy", disposeAudio);
@@ -395,6 +398,7 @@ export function createArpgHubScene(
           event: import("phaser").Types.Input.EventData,
         ) => {
           event.stopPropagation();
+          this.audio?.play("special-room");
           onNavigate("avatar", actorId);
         });
         setGuildActorRestPose(legend, actorId);
@@ -576,7 +580,10 @@ export function createArpgHubScene(
       const interact = Phaser.Input.Keyboard.JustDown(this.keys.interact)
         || bridge.consumeInteract()
         || this.gamepad.interactPressed;
-      if (interact && nearest) onNavigate(nearest.id);
+      if (interact && nearest) {
+        this.audio?.play("portal");
+        onNavigate(nearest.id);
+      }
     }
 
     private updateHighlight(nextId: HubDestinationId | null) {

@@ -80,6 +80,12 @@ describe("ArpgAudio", () => {
 
     audio.setEnabled(true);
     expect(FakeAudioContext.latest?.oscillators).toHaveLength(5);
+
+    audio.play("dash");
+    expect(FakeAudioContext.latest?.oscillators).toHaveLength(7);
+    audio.play("heal");
+    expect(FakeAudioContext.latest?.oscillators).toHaveLength(11);
+
     audio.destroy();
 
     expect(vi.getTimerCount()).toBe(0);
@@ -113,6 +119,19 @@ describe("ArpgAudio", () => {
     audio.setMusicMode("boss");
     expect(context?.oscillators).toHaveLength(2);
     expect(context?.oscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(bossNote, 0.04);
+    audio.destroy();
+  });
+
+  it("modula a afinação sutilmente ao progredir de zona/estágio", async () => {
+    vi.useFakeTimers();
+    Object.defineProperty(window, "AudioContext", { configurable: true, value: FakeAudioContext });
+
+    const audio = new ArpgAudio("mata-encantada");
+    expect(audio.getStageIndex()).toBe(1);
+    audio.setStageIndex(2);
+    expect(audio.getStageIndex()).toBe(2);
+    audio.setStageIndex(3);
+    expect(audio.getStageIndex()).toBe(3);
     audio.destroy();
   });
 });

@@ -1,0 +1,240 @@
+.folklard-guide {
+  min-height: 100dvh;
+  padding: clamp(30px, 7vw, 90px) max(20px, calc((100vw - 1120px) / 2));
+  background: none;
+  color: #f5e8c5;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
+}
+
+.folklard-guide__hero {
+  max-width: 780px;
+}
+
+.folklard-guide__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  letter-spacing: .22em;
+  color: #dfbd74;
+  font-weight: 900;
+}
+
+.folklard-guide h1 {
+  font-size: clamp(32px, 5.5vw, 62px);
+  line-height: 1.1;
+  font-weight: 950;
+  letter-spacing: -.04em;
+  margin: 14px 0;
+}
+
+.folklard-guide p {
+  line-height: 1.7;
+  color: #c3d2c7;
+}
+
+.folklard-guide a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffe3a1;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.folklard-guide__nav {
+  display: flex;
+  gap: 20px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.folklard-guide__section {
+  margin-top: 52px;
+}
+
+.folklard-guide__section h2 {
+  font-size: clamp(22px, 3.5vw, 32px);
+  font-weight: 900;
+  color: #fce2a6;
+  margin-bottom: 8px;
+}
+
+.folklard-guide__section > p {
+  max-width: 760px;
+  margin-bottom: 24px;
+}
+
+.folklard-guide__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.folklard-guide__card {
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  border: 2px solid transparent;
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
+}
+
+.folklard-guide__card h3 {
+  font-size: 19px;
+  font-weight: 900;
+  color: #ffe8b5;
+  margin: 10px 0 6px;
+}
+
+.folklard-guide__card p {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #b8ccbe;
+}
+
+.folklard-guide__card ol,
+.folklard-guide__card ul {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #c3d2c7;
+}
+
+.folklard-guide__tag {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #e9c97b;
+  margin-bottom: 4px;
+}
+
+.folklard-guide__controls-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  font-size: 13px;
+}
+
+.folklard-guide__controls-table th,
+.folklard-guide__controls-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid transparent;
+}
+
+.folklard-guide__controls-table th {
+  color: #dfbd74;
+  font-weight: 850;
+  letter-spacing: .05em;
+}
+
+.folklard-guide__controls-table td {
+  color: #c5d4cb;
+}
+
+.folklard-guide__controls-table code {
+  color: #ffe8b5;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
+  border: 1px solid transparent;
+  background: none;
+}
+
+.folklard-guide__cta {
+  margin-top: 60px;
+  padding: 32px;
+  text-align: center;
+  border: 2px solid transparent;
+  background: none;
+  border-radius: 0;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
+}
+
+.folklard-guide__cta h2 {
+  font-size: 26px;
+  font-weight: 950;
+  color: #fce2a6;
+  margin-bottom: 10px;
+}
+
+.folklard-guide__cta-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+.folklard-guide__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 24px;
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #17251f;
+  font-weight: 950;
+  font-size: 13px;
+  letter-spacing: .04em;
+  text-decoration: none;
+  border-image: var(--art-button-normal) 16 fill / 8px / 0 stretch;
+}
+
+.folklard-guide__button:hover {
+  filter: brightness(1.12);
+}
+
+.folklard-guide__legend-powers {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid transparent;
+}
+
+.folklard-guide__legend-powers small {
+  display: block;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  color: #dfbd74;
+  margin-bottom: 6px;
+}
+
+.folklard-guide__legend-powers ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.folklard-guide__legend-powers li {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #c9ded1;
+}
+
+.folklard-guide__legend-powers strong {
+  color: #ffe3a1;
+}
+
+@media (max-width: 600px) {
+  .folklard-guide {
+    padding: 30px 18px 100px;
+  }
+  .folklard-guide__grid {
+    grid-template-columns: 1fr;
+  }
+}

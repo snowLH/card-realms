@@ -59,4 +59,35 @@ describe("salas especiais procedurais", () => {
     expect(isWithinSpecialRoomInteractionRange(0, 0, 129, 0)).toBe(false);
     expect(isWithinSpecialRoomInteractionRange(Number.NaN, 0, 0, 0)).toBe(false);
   });
+
+  it("personaliza o título e atmosfera das salas especiais de acordo com o estágio da expedição", () => {
+    expect(getSpecialRoomEncounter("mata-encantada", "rest", 1)?.title).toBe("Clareira da borda");
+    expect(getSpecialRoomEncounter("mata-encantada", "rest", 2)?.title).toBe("Remanso do Boitatá");
+    expect(getSpecialRoomEncounter("mata-encantada", "rest", 3)?.title).toBe("Santuário das raízes antigas");
+    expect(getSpecialRoomEncounter("mata-encantada", "shop", 2)?.title).toBe("Mercador canoeiro do rio");
+    expect(getSpecialRoomEncounter("mata-encantada", "event", 2)?.title).toBe("Fogo fátuo sobre o rio");
+  });
+
+  it("oferece opções temáticas de descanso para cada bioma com os mesmos efeitos canônicos", () => {
+    const forestRest = getSpecialRoomEncounter("mata-encantada", "rest");
+    expect(forestRest?.options.map((option) => option.label)).toEqual([
+      "Bálsamo da Mata",
+      "Passos da Caipora",
+      "Meditação das Raízes",
+    ]);
+
+    const maresRest = getSpecialRoomEncounter("arquipelago-das-mares", "rest");
+    expect(maresRest?.options.map((option) => option.label)).toEqual([
+      "Banho de Nascente",
+      "Brisa do Litoral",
+      "Ressonância das Conchas",
+    ]);
+
+    const runicRest = getSpecialRoomEncounter("montanhas-runicas", "rest");
+    expect(runicRest?.options.map((option) => option.label)).toEqual([
+      "Fogueira dos Picos",
+      "Vento das Alturas",
+      "Foco no Cristal",
+    ]);
+  });
 });

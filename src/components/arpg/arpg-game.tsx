@@ -23,6 +23,7 @@ import { bindInputLifecycle } from "@/game/arpg/runtime/input-lifecycle";
 import { createBossSaveQaDelay } from "@/game/arpg/runtime/boss-save-qa";
 import { LootChoice } from "./loot-choice";
 import { RoomChoice } from "./room-choice";
+import { StageTransitionOverlay } from "./stage-transition-overlay";
 import { DungeonMapOverlay, RunHud } from "./run-hud";
 import { TouchControls } from "./touch-controls";
 import { ArpgToast } from "./arpg-toast";
@@ -602,6 +603,7 @@ export function ArpgGame({
               activeWeaponSlot={hud?.weaponSlots?.active ?? "A"}
             />
           ) : null}
+          <StageTransitionOverlay bridge={bridge} />
           <LootChoice state={hud} bridge={bridge} />
           <RoomChoice state={hud} bridge={bridge} />
           {paused && !runResult ? (

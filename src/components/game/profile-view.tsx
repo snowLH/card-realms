@@ -1,10 +1,11 @@
 "use client";
 
-import { Album, Coins, ScrollText, Star, Trophy } from "@/components/ui/pixel-icon";
+import { Album, ArrowLeft, Coins, ScrollText, Star, Trophy } from "@/components/ui/pixel-icon";
 import type { PlayerBootstrap, RemotePlayerSnapshot } from "@/game/player";
 import { DEFAULT_AVATAR_CONFIG, type AvatarConfig } from "@/game/save/local-progress";
 import { getLegendAppearance, PLAYABLE_LEGEND_BY_ID } from "@/game/arpg/content/legends";
 import { LoginDialog } from "@/components/auth/login-dialog";
+import { Button } from "@/components/ui/button";
 import { CharacterAvatar2D } from "./character-avatar";
 
 export function ProfileView({
@@ -15,6 +16,7 @@ export function ProfileView({
   source,
   snapshot,
   avatar,
+  onBack,
 }: {
   coins: number;
   xp: number;
@@ -23,6 +25,7 @@ export function ProfileView({
   source: PlayerBootstrap["source"];
   snapshot: RemotePlayerSnapshot | null;
   avatar: AvatarConfig;
+  onBack?: () => void;
 }) {
   const online = source === "supabase";
   const favoriteLegend = avatar.favoriteLegendId
@@ -35,6 +38,11 @@ export function ProfileView({
   return (
     <section className="content-view profile-view">
       <header className="view-heading">
+        {onBack ? (
+          <Button type="button" variant="secondary" onClick={onBack} className="self-start gap-2">
+            <ArrowLeft /> Voltar à Guilda
+          </Button>
+        ) : null}
         <div>
           <span className="view-eyebrow">Jornada pessoal</span>
           <h1>Seu Cartógrafo</h1>
