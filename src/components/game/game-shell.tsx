@@ -81,7 +81,12 @@ const ArpgHub = dynamic(
   { ssr: false, loading: () => <div className="battle-loading">Abrindo a Guilda dos Cartógrafos...</div> },
 );
 
-type View = "hub" | "expeditions" | "play" | "map" | "village" | "collection" | "loadout" | "refuge" | "raid" | "profile";
+const CardRealmsMatch = dynamic(
+  () => import("@/components/card-realms/card-realms-match").then((module) => module.CardRealmsMatch),
+  { ssr: false, loading: () => <div className="battle-loading">Preparando o Tabuleiro Vivo de Card Realms...</div> },
+);
+
+type View = "card-realms" | "hub" | "expeditions" | "play" | "map" | "village" | "collection" | "loadout" | "refuge" | "raid" | "profile";
 
 function readArpgLoadout(storageKey: string): ArpgLoadout {
   try {
@@ -123,7 +128,7 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
   const remoteSnapshot = bootstrap.snapshot;
   const [bossProgress, setBossProgress] = useState<BossProgress>(remoteSnapshot?.bossProgress ?? EMPTY_BOSS_PROGRESS);
   const [titleOpen, setTitleOpen] = useState(true);
-  const [view, setView] = useState<View>("hub");
+  const [view, setView] = useState<View>("card-realms");
   const [loadoutFocus, setLoadoutFocus] = useState<ArpgLoadoutFocus>("all");
   const [focusedLegendId, setFocusedLegendId] = useState<PlayableLegendId | null>(null);
   const [pendingLegendId, setPendingLegendId] = useState<PlayableLegendId | null>(null);
@@ -626,7 +631,7 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
   const beginTitleMode = (nextView: View) => {
     if (showWelcome) setGuestPreview(true);
     setTitleOpen(false);
-    if (nextView !== "hub") void navigate(nextView);
+    void navigate(nextView);
   };
 
   const handleGameMenuAction = (action: GameMenuAction) => {
@@ -680,13 +685,20 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
           loginEnabled={!offlineMode && isSupabaseConfigured()}
           signedIn={Boolean(bootstrap.identity)}
           offlineMode={offlineMode}
-          onPlay={() => beginTitleMode("hub")}
+          onPlay={() => beginTitleMode("card-realms")}
           onCooperative={offlineMode ? undefined : () => beginTitleMode("raid")}
         />
       ) : null}
 
       {!titleOpen ? <div className={cn("app-content", !showWelcome && "app-content--game", showWelcome && "app-content--welcome")}>
         {showWelcome ? <WelcomeView onPreview={() => setGuestPreview(true)} /> : null}
+        {!showWelcome && view === "card-realms" ? (
+          <CardRealmsMatch
+            playerName={playerName}
+            onOpenBestiary={() => void navigate("collection")}
+            onOpenGuild={() => void navigate("hub")}
+          />
+        ) : null}
         {!showWelcome && view === "hub" ? (
             <ArpgHub
             playerName={playerName}

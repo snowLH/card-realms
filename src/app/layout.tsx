@@ -12,6 +12,7 @@ import "./folklard-art-pass.css";
 import "./arpg-raid.css";
 import "./dungeon-mobile-fixes.css";
 import "./authored-art.css";
+import "./card-realms.css";
 
 export const metadata: Metadata = {
   title: "Folklard — Crônicas de Aurória",

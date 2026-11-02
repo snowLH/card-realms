@@ -1,0 +1,422 @@
+/* Card Realms — Tactical Tabletop & Living Board Layout (100% Authored Art Slices) */
+
+.card-realms-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-height: 100dvh;
+  padding: 10px 14px 84px;
+  color: #f6e7c1;
+}
+
+.card-realms-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
+}
+
+.card-realms-topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card-realms-topbar__brand h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #ffe8a3;
+}
+
+.card-realms-topbar__brand small {
+  display: block;
+  font-size: 0.72rem;
+  color: #d6c59a;
+}
+
+.card-realms-topbar__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-realms-topbar__controls button {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.card-realms-guided-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 0;
+  border-image: var(--art-dialogue-frame) 16 fill / 8px / 0 stretch;
+  color: #fff3c4;
+}
+
+.card-realms-guided-banner strong {
+  display: block;
+  font-size: 0.86rem;
+  color: #ffe27a;
+}
+
+.card-realms-guided-banner p {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: #f4e6c1;
+}
+
+.card-realms-arena-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 310px;
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 1120px) {
+  .card-realms-arena-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card-realms-board-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-realms-kingdom-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
+}
+
+.card-realms-kingdom-strip__identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-realms-kingdom-strip__identity strong {
+  font-size: 0.9rem;
+  color: #ffe8a3;
+}
+
+.card-realms-kingdom-strip__identity small {
+  display: block;
+  font-size: 0.72rem;
+  color: #cbb88c;
+}
+
+.card-realms-kingdom-strip__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.card-realms-phaser-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 460px;
+  overflow: hidden;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
+}
+
+.card-realms-phaser-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.card-realms-phaser-canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.card-realms-tactical-lanes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .card-realms-tactical-lanes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.card-realms-lane-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 6px / 0 stretch;
+}
+
+.card-realms-lane-column__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #e8d39e;
+}
+
+.card-realms-slot-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  min-height: 82px;
+  padding: 8px;
+  text-align: left;
+  border: 0 !important;
+  border-image: var(--art-slot-empty) 16 fill / 8px / 0 stretch !important;
+}
+
+.card-realms-slot-button.is-highlighted,
+.card-realms-slot-button.is-selected {
+  border-image: var(--art-slot-active) 16 fill / 8px / 0 stretch !important;
+}
+
+.card-realms-slot-button__biome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #d9c698;
+}
+
+.card-realms-slot-button__creature {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.card-realms-slot-button__creature strong {
+  font-size: 0.8rem;
+  color: #fff2c6;
+}
+
+.card-realms-slot-button__creature small {
+  display: block;
+  font-size: 0.68rem;
+  color: #b7f5a8;
+}
+
+.card-realms-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 0;
+  border-image: var(--art-tooltip-frame) 16 fill / 8px / 0 stretch;
+}
+
+.card-realms-action-bar__summary strong {
+  display: block;
+  font-size: 0.88rem;
+  color: #ffe89e;
+}
+
+.card-realms-action-bar__summary small {
+  display: block;
+  font-size: 0.74rem;
+  color: #e6d4a7;
+}
+
+.card-realms-action-bar__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.card-realms-action-bar__buttons button {
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.card-realms-hand-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
+}
+
+.card-realms-hand-dock__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.card-realms-hand-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  gap: 10px;
+}
+
+.card-realms-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 10px;
+  min-height: 196px;
+  text-align: left;
+  border: 0 !important;
+  border-image: var(--art-panel-parchment) 16 fill / 8px / 0 stretch !important;
+  color: #2b1f14 !important;
+}
+
+.card-realms-card.is-selected {
+  border-image: var(--art-slot-active) 16 fill / 8px / 0 stretch !important;
+  color: #fff2c6 !important;
+}
+
+.card-realms-card:disabled {
+  opacity: 0.58;
+}
+
+.card-realms-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.card-realms-card__art {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.card-realms-card__title strong {
+  display: block;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.card-realms-card__title small {
+  display: block;
+  font-size: 0.68rem;
+  opacity: 0.85;
+}
+
+.card-realms-card__desc {
+  margin: 0;
+  font-size: 0.71rem;
+  line-height: 1.35;
+}
+
+.card-realms-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.card-realms-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-realms-inspector,
+.card-realms-chronicle {
+  padding: 12px;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
+}
+
+.card-realms-inspector h2,
+.card-realms-chronicle h2 {
+  margin: 0 0 8px;
+  font-size: 0.86rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #ffe8a3;
+}
+
+.card-realms-chronicle__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 270px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card-realms-chronicle__item {
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  border: 0;
+  border-image: var(--art-slot-empty) 16 fill / 6px / 0 stretch;
+}
+
+.card-realms-chronicle__item strong {
+  display: block;
+  color: #ffe699;
+}
+
+.card-realms-chronicle__item span {
+  display: block;
+  color: #dfd0ad;
+}
+
+.card-realms-victory-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px;
+  text-align: center;
+  border: 0;
+  border-image: var(--art-dialogue-frame) 16 fill / 10px / 0 stretch;
+}

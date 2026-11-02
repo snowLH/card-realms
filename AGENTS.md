@@ -8,22 +8,20 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# FOLKLARD: gameplay is exclusively a real-time ARPG
+# CARD REALMS: strategy, cards, and living folklore tabletop board
 
 The user explicitly authorized direct implementation on `main`. Do not create development branches; the separate branch workflow has caused deploy issues. Preserve history and commit cohesive, reviewed changes; never force-push main. A code commit is not permission to deploy to production.
 
 ## Product rules
-- `src/game/arpg` is the primary gameplay: Phaser top-down action, procedural dungeons, folklore playable legends, two signature powers, two weapon slots, bosses, loot, online progression, co-op ARPG.
+- `src/game/card-realms` is the primary gameplay: a strategic card and living tabletop board game (Phaser 2.5D tilted board + React tactical hand/HUD) where world folklores and mythologies (starting with Brazil vs Japan in the Vertical Slice) clash across dynamic territories, structures, events, and materialized creatures that choose between Attack (`Investida`) or Awakening Power (`Despertar Ancestral`) to destroy the opponent's Kingdom Heart (`Coração do Reino`).
+- `src/game/arpg` is archived/frozen legacy code kept only for backward compatibility with existing database snapshots and legacy routes; do not expand the old real-time WASD dungeon crawler.
 - `src/components/game/game-shell.tsx` is navigation only, not a second game engine.
-- Retired TCG, energy packs, turn-based PvP and board-picking must not be added back to the playable UI. Internal legacy API, schema and snapshot fields exist only to preserve past saves and database compatibility until an audited migration is possible.
-- Never copy code/assets/map layouts of Soul Knight or any other proprietary title. Reuse abstract genre conventions and build original IP.
-- **Visual assets, spritesheets, UI art, animation, color and layout passes are reserved for ChatGPT Work.** Gameplay/API tasks may modify structural markup required to support interaction, but never block or rewrite art passes.
-- Preserve the detailed hero and NPC designs in the active sprite catalog. The user rejected the simplified 32px v3 character studies as a regression on 2026-10-09. Keep those studies archived; do not activate them again. Compare future art changes with the established designs inside the actual Guild and dungeons, preserving detail, personality and consistency with the scenery.
-- The user's later reference on 2026-10-09 defines ALL active characters: match Luzia the Naturalist's compact chibi pixel art, large expressive head, short limbs, stepped dark outlines and small color ramps. The reference is saved in `docs/folklard-character-style-reference.png`. Use the v5 catalog consistently in gameplay, portraits and co-op; archive unused v4 character studies. The original NPCs already follow this reference and keep their identities.
+- Never copy code, proprietary rules, card names, or assets of Card Wars, Soul Knight, or any other proprietary title. Reuse abstract genre conventions and build original IP rooted in world folklore.
+- **Visual assets, spritesheets, UI art, animation, color and layout passes must stay cohesive.** Reuse the established authored pixel-art atlases (`FOLKLARD_ART_MANIFEST`) and v5 character catalog (`docs/folklard-character-style-reference.png`) consistently across cards, portraits, and materialized board actors.
 
 ## Code quality and release safety
-- Keep domain and simulation functions pure/testable; avoid adding methods to the already-large Phaser DungeonScene when they belong in independent modules.
-- Changes to encounter generation must stay seed deterministic and match client/server.
+- Keep domain, board, and gameplay simulation functions pure and testable in `src/game/card-realms/{domain,board,gameplay}` without depending on Phaser; Phaser (`src/game/card-realms/runtime`) materializes the board state visually.
+- Changes to match simulation and AI must stay deterministic.
 - Supabase performs persisted economy and authorization. Never trust client loot, run clears or coins; never commit secrets.
 - Before deployment, `npm run verify:deploy` must pass fully (typecheck, lint, Vitest, Next production build). Inspect latest GitHub Actions status if only remote testing is available.
 - Migrations cannot be presumed applied. Do not touch an unrelated Supabase project or promote code requiring unverified schema.

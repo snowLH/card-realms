@@ -43,6 +43,57 @@ export default function GuidePage() {
         </nav>
       </header>
 
+      <section className="folklard-guide__section" aria-labelledby="guide-card-realms-heading">
+        <h2 id="guide-card-realms-heading">
+          <Crown aria-hidden="true" /> Card Realms — O Tabuleiro Vivo das Lendas
+        </h2>
+        <p>
+          Em Card Realms, dois estrategistas posicionam-se diante de um tabuleiro mágico inclinado composto por 4
+          Faixas de Território. Cartas ganham presença física, terrenos se transformam ao vivo e criaturas folclóricas
+          do Brasil e do Japão são materializadas sobre suas cartas para conquistar o Coração do Reino adversário.
+        </p>
+
+        <div className="folklard-guide__grid">
+          <article className="folklard-guide__card">
+            <span className="folklard-guide__tag">Tabuleiro Vivo</span>
+            <h3>8 Territórios Dinâmicos</h3>
+            <p>
+              Construa o mundo onde suas lendas batalham: Mata Encantada, Rio dos Espíritos, Montanha Antiga, Terra
+              Vulcânica, Reino Congelado, Campos Ancestrais, Deserto Sagrado e Reino Espiritual. Cada criatura recebe
+              sinergias visuais e táticas no seu bioma nativo.
+            </p>
+          </article>
+
+          <article className="folklard-guide__card">
+            <span className="folklard-guide__tag">Decisão Tática</span>
+            <h3>Investida ou Despertar Ancestral</h3>
+            <p>
+              A cada turno, cada lenda materializada realiza uma escolha estratégica única: executar sua{" "}
+              <strong>Investida</strong> (ataque direto contra a faixa inimiga ou Coração do Reino) ou canalizar seu{" "}
+              <strong>Despertar Ancestral</strong> para transformar terrenos, confundir rivais ou invocar neblinas.
+            </p>
+          </article>
+
+          <article className="folklard-guide__card">
+            <span className="folklard-guide__tag">4 Categorias</span>
+            <h3>Território, Lenda, Estrutura & Evento</h3>
+            <p>
+              Combine cartas de Território que remodelam o solo, Lendas folclóricas (Curupira, Iara, Saci, Boitatá,
+              Kitsune, Kappa, Oni, Tengu), Estruturas sagradas e Eventos climáticos como Pororoca e Eclipse Yokai.
+            </p>
+          </article>
+
+          <article className="folklard-guide__card">
+            <span className="folklard-guide__tag">Objetivo Físico</span>
+            <h3>Coração do Reino</h3>
+            <p>
+              Proteja a Árvore Ancestral de Pindorama (Brasil) ou o Santuário Torii das Mil Eras (Japão). Quando uma
+              faixa está desprotegida, a Investida de uma lenda atinge diretamente o monumento rival.
+            </p>
+          </article>
+        </div>
+      </section>
+
       <section className="folklard-guide__section" aria-labelledby="guide-expeditions-heading">
         <h2 id="guide-expeditions-heading">
           <MapPinned aria-hidden="true" /> Rotas & Fases Sequenciais
