@@ -116,6 +116,41 @@ export function resetBoardCamera(
   camera.zoomTo(1, 300, "Sine.easeInOut", true);
 }
 
+export function focusCameraOnHeart(
+  camera: Cameras.Scene2D.Camera | undefined,
+  side: PlayerSide,
+  reducedMotion = false,
+) {
+  if (!camera || reducedMotion) return;
+  const heart = getKingdomHeartCoordinates(side);
+  const targetOffsetY = side === "player" ? 18 : -18;
+  camera.pan(
+    heart.x,
+    CARD_REALMS_BOARD_VIEWPORT.height / 2 + targetOffsetY,
+    280,
+    "Cubic.easeOut",
+    true,
+  );
+  camera.zoomTo(1.05, 280, "Cubic.easeOut", true);
+}
+
+export function applyBoardParallax(
+  camera: Cameras.Scene2D.Camera | undefined,
+  worldX: number,
+  worldY: number,
+  reducedMotion = false,
+) {
+  if (!camera || reducedMotion) return;
+  const relX = (worldX - CARD_REALMS_BOARD_VIEWPORT.width / 2) / (CARD_REALMS_BOARD_VIEWPORT.width / 2);
+  const relY = (worldY - CARD_REALMS_BOARD_VIEWPORT.height / 2) / (CARD_REALMS_BOARD_VIEWPORT.height / 2);
+  const maxPanX = 6;
+  const maxPanY = 4;
+  const targetX = Math.max(-maxPanX, Math.min(maxPanX, relX * maxPanX));
+  const targetY = Math.max(-maxPanY, Math.min(maxPanY, relY * maxPanY));
+  camera.scrollX += (targetX - camera.scrollX) * 0.08;
+  camera.scrollY += (targetY - camera.scrollY) * 0.08;
+}
+
 export function shakeCameraForImpact(
   camera: Cameras.Scene2D.Camera | undefined,
   intensity = 0.004,

@@ -102,7 +102,9 @@ export function createInitialKingdomHeart(owner: PlayerSide, cultureId: CultureI
 export function getKingdomHeartVisualState(heart: KingdomHeartState): KingdomHeartVisualState {
   if (heart.currentHp <= 0) return "destroyed";
   const ratio = heart.currentHp / Math.max(1, heart.maxHp);
-  if (ratio <= 0.35) return "critical";
-  if (ratio <= 0.7) return "damaged";
+  if (ratio <= 0.2) return "critical";
+  if (ratio <= 0.4) return "severely-damaged";
+  if (ratio <= 0.6) return "damaged";
+  if (ratio <= 0.8) return "under-pressure";
   return "intact";
 }

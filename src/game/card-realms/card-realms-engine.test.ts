@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { ALL_CARD_REALMS_CARDS } from "./content/cards";
 import { computeEffectiveCreatureStats } from "./domain/creatures";
+import { getKingdomHeartVisualState } from "./domain/cultures";
 import { resolveElementalBiomeReaction } from "./domain/territories";
 import {
   applyMatchAction,
   createInitialMatchState,
   runAiTurnToCompletion,
 } from "./gameplay/engine";
+import { chooseNextAiAction, type AiProfile } from "./gameplay/ai-strategist";
+import { CardRealmsAudio } from "./runtime/audio";
 import { CardRealmsBridge } from "./runtime/bridge";
 import { getKingdomHeartCoordinates, getLaneBoardCoordinates } from "./runtime/camera";
 import { resolveBoardPointerTarget } from "./runtime/input";
@@ -250,5 +253,59 @@ describe("Card Realms — Tabuleiro Vivo, Territórios, Cartas e Batalha de Lend
 
     expect(stateSpy).toHaveBeenCalledWith(state);
     expect(clickSpy).toHaveBeenCalledWith({ kind: "lane-slot", side: "player", lane: 2 });
+  });
+
+  it("avalia progressivamente os 6 estágios visuais de destruição do Coração do Reino", () => {
+    const heart = {
+      owner: "opponent" as const,
+      culture: "japao" as const,
+      name: "Santuário Torii",
+      subtitle: "Portal Sagrado",
+      currentHp: 20,
+      maxHp: 20,
+      shield: 0,
+    };
+
+    expect(getKingdomHeartVisualState({ ...heart, currentHp: 20 })).toBe("intact");
+    expect(getKingdomHeartVisualState({ ...heart, currentHp: 15 })).toBe("under-pressure");
+    expect(getKingdomHeartVisualState({ ...heart, currentHp: 11 })).toBe("damaged");
+    expect(getKingdomHeartVisualState({ ...heart, currentHp: 7 })).toBe("severely-damaged");
+    expect(getKingdomHeartVisualState({ ...heart, currentHp: 3 })).toBe("critical");
+    expect(getKingdomHeartVisualState({ ...heart, currentHp: 0 })).toBe("destroyed");
+  });
+
+  it("executa a IA com os 4 perfis táticos determinísticos (agressivo, defensivo, estratégico, adaptativo)", () => {
+    const profiles: AiProfile[] = ["aggressive", "defensive", "strategic", "adaptive"];
+
+    for (const profile of profiles) {
+      let state = createInitialMatchState({ mode: "vs-ai" });
+      // Fast forward player turn
+      state = applyMatchAction(state, { type: "end-turn", side: "player" }).state;
+      expect(state.activeSide).toBe("opponent");
+
+      const nextAction = chooseNextAiAction(state, "opponent", profile);
+      expect(nextAction).toBeDefined();
+      expect(["play-card", "creature-investida", "creature-despertar", "end-turn"]).toContain(
+        nextAction.type,
+      );
+
+      const aiTurn = runAiTurnToCompletion(state, profile);
+      expect(aiTurn.state.activeSide).toBe("player");
+      expect(aiTurn.state.turn).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("gerencia volumes de áudio em canais independentes (master, sfx, music)", () => {
+    const audio = new CardRealmsAudio("brasil");
+    audio.setMasterVolume(0.9);
+    audio.setSfxVolume(0.7);
+    audio.setMusicVolume(0.5);
+
+    const volumes = audio.getVolumes();
+    expect(volumes.master).toBe(0.9);
+    expect(volumes.sfx).toBe(0.7);
+    expect(volumes.music).toBe(0.5);
+
+    audio.destroy();
   });
 });

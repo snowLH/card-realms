@@ -44,7 +44,14 @@ import {
   createInitialMatchState,
   runAiTurnToCompletion,
 } from "@/game/card-realms/gameplay/engine";
-import { CardRealmsAudio } from "@/game/card-realms/runtime/audio";
+import {
+  AI_PROFILE_LABELS,
+  type AiProfile,
+} from "@/game/card-realms/gameplay/ai-strategist";
+import {
+  CardRealmsAudio,
+  type AudioVolumeSettings,
+} from "@/game/card-realms/runtime/audio";
 import { CardRealmsBridge } from "@/game/card-realms/runtime/bridge";
 import { cn } from "@/lib/utils";
 import { CardRealmsCardButton } from "./card-realms-card-button";
@@ -88,6 +95,10 @@ export function CardRealmsMatch({
   );
 
   const [selectedCardInstanceId, setSelectedCardInstanceId] = useState<string | null>(null);
+  const [hoveredDropSlot, setHoveredDropSlot] = useState<{
+    side: PlayerSide;
+    lane: LaneIndex;
+  } | null>(null);
   const [selectedCreatureSlot, setSelectedCreatureSlot] = useState<{
     side: PlayerSide;
     lane: LaneIndex;
@@ -99,6 +110,26 @@ export function CardRealmsMatch({
   const [grimoireOpen, setGrimoireOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
+  const [aiProfile, setAiProfile] = useState<AiProfile>("strategic");
+  const [showVolumeControls, setShowVolumeControls] = useState(false);
+  const [volumes, setVolumes] = useState<AudioVolumeSettings>(() => {
+    if (typeof window === "undefined") return { master: 0.8, sfx: 0.8, music: 0.6 };
+    try {
+      const raw = window.localStorage.getItem("card-realms-volume");
+      if (raw) return JSON.parse(raw);
+    } catch {
+      // Ignore storage errors
+    }
+    return { master: 0.8, sfx: 0.8, music: 0.6 };
+  });
+
+  const handleVolumeChange = (channel: keyof AudioVolumeSettings, value: number) => {
+    const next = { ...volumes, [channel]: value };
+    setVolumes(next);
+    if (channel === "master") audioRef.current?.setMasterVolume(value);
+    if (channel === "sfx") audioRef.current?.setSfxVolume(value);
+    if (channel === "music") audioRef.current?.setMusicVolume(value);
+  };
 
   const bridgeRef = useRef<CardRealmsBridge | null>(null);
   const audioRef = useRef<CardRealmsAudio | null>(null);
@@ -136,6 +167,63 @@ export function CardRealmsMatch({
         : [],
     [activeSide, selectedCardInHand, state],
   );
+
+  const updatePreviewSlot = useCallback(
+    (slot: { side: PlayerSide; lane: LaneIndex } | null) => {
+      setHoveredDropSlot(slot);
+      if (!slot || !selectedCardDef) {
+        bridgeRef.current?.setPreviewSlot(null);
+      } else {
+        bridgeRef.current?.setPreviewSlot({
+          side: slot.side,
+          lane: slot.lane,
+          cardId: selectedCardDef.id,
+        });
+      }
+    },
+    [selectedCardDef],
+  );
+
+  const previewProjection = useMemo(() => {
+    if (!hoveredDropSlot || !selectedCardDef) return null;
+    const targetSlot = state.lanes[hoveredDropSlot.side][hoveredDropSlot.lane];
+    const biome = getTerritoryBiome(targetSlot.biomeId);
+
+    if (selectedCardDef.category === "creature") {
+      const isFavored = selectedCardDef.favoredBiomes.includes(targetSlot.biomeId);
+      const effectiveAttack =
+        selectedCardDef.attack + (isFavored ? selectedCardDef.biomeAttackBonus : 0);
+      const effectiveHp = selectedCardDef.maxHp;
+      return {
+        title: `Prévia de Invocação: ${selectedCardDef.name} na Faixa ${hoveredDropSlot.lane + 1} (${biome.name})`,
+        detail: `⚔️ ${effectiveAttack} ATQ · ❤️ ${effectiveHp} PV ${
+          isFavored
+            ? `· ✨ Bônus de Bioma Favorecido (+${selectedCardDef.biomeAttackBonus} ATQ) ativado!`
+            : ""
+        }`,
+      };
+    }
+    if (selectedCardDef.category === "territory") {
+      const newBiome = getTerritoryBiome(selectedCardDef.biomeId);
+      return {
+        title: `Prévia de Mutação: Terreno da Faixa ${hoveredDropSlot.lane + 1}`,
+        detail: `🗺️ Converte de ${biome.name} para ${newBiome.name}`,
+      };
+    }
+    if (selectedCardDef.category === "structure") {
+      return {
+        title: `Prévia de Estrutura: ${selectedCardDef.name} na Faixa ${hoveredDropSlot.lane + 1}`,
+        detail: `🏛️ ${selectedCardDef.maxHp} PV de fortificação territorial`,
+      };
+    }
+    if (selectedCardDef.category === "event") {
+      return {
+        title: `Prévia de Evento: ${selectedCardDef.name}`,
+        detail: `✨ ${selectedCardDef.description}`,
+      };
+    }
+    return null;
+  }, [hoveredDropSlot, selectedCardDef, state.lanes]);
 
   const selectedBoardSlot = useMemo(
     () =>
@@ -220,6 +308,8 @@ export function CardRealmsMatch({
             });
             if (res.ok) {
               setSelectedCardInstanceId(null);
+              setHoveredDropSlot(null);
+              bridgeRef.current?.setPreviewSlot(null);
               const updatedSlot = res.state.lanes[activeSide][lane];
               if (updatedSlot.creature) {
                 setSelectedCreatureSlot({ side: activeSide, lane });
@@ -341,8 +431,10 @@ export function CardRealmsMatch({
       turnRes.state.activeSide === "opponent" &&
       !turnRes.state.winner
     ) {
-      const aiRes = runAiTurnToCompletion(turnRes.state);
-      setStatusBanner("O Estrategista adversário concluiu suas invocações e manobras.");
+      const aiRes = runAiTurnToCompletion(turnRes.state, aiProfile);
+      setStatusBanner(
+        `O Estrategista adversário (${AI_PROFILE_LABELS[aiProfile].name}) concluiu suas invocações e manobras.`,
+      );
       applyTransition(aiRes.state, [...turnRes.events, ...aiRes.events]);
       return;
     }
@@ -460,21 +552,84 @@ export function CardRealmsMatch({
           <button type="button" onClick={() => setGrimoireOpen((prev) => !prev)}>
             <BookOpen size={14} aria-hidden="true" /> Grimório (22 Cartas)
           </button>
-          <button
-            type="button"
-            aria-label={soundEnabled ? "Silenciar efeitos sonoros" : "Ativar efeitos sonoros"}
-            onClick={() => {
-              const next = !soundEnabled;
-              setSoundEnabled(next);
-              audioRef.current?.setEnabled(next);
-            }}
-          >
-            {soundEnabled ? (
-              <Volume2 size={14} aria-hidden="true" />
-            ) : (
-              <VolumeX size={14} aria-hidden="true" />
+          {mode !== "local-pass-and-play" && (
+            <label className="card-realms-ai-select-label">
+              <span>IA:</span>
+              <select
+                aria-label="Perfil tático da IA"
+                value={aiProfile}
+                onChange={(e) => setAiProfile(e.target.value as AiProfile)}
+                className="card-realms-topbar-select"
+              >
+                <option value="strategic">Estratégica (Sinergia)</option>
+                <option value="aggressive">Agressiva (Investida)</option>
+                <option value="defensive">Defensiva (Muralha)</option>
+                <option value="adaptive">Adaptativa (Dinâmica)</option>
+              </select>
+            </label>
+          )}
+          <div style={{ position: "relative", display: "inline-flex" }}>
+            <button
+              type="button"
+              aria-label={soundEnabled ? "Silenciar efeitos sonoros" : "Ativar efeitos sonoros"}
+              onClick={() => {
+                const next = !soundEnabled;
+                setSoundEnabled(next);
+                audioRef.current?.setEnabled(next);
+              }}
+            >
+              {soundEnabled ? (
+                <Volume2 size={14} aria-hidden="true" />
+              ) : (
+                <VolumeX size={14} aria-hidden="true" />
+              )}
+            </button>
+            <button
+              type="button"
+              aria-label="Ajustar volumes da música e efeitos"
+              title="Ajustar volumes de áudio"
+              onClick={() => setShowVolumeControls((p) => !p)}
+            >
+              🎚️
+            </button>
+            {showVolumeControls && (
+              <div className="card-realms-volume-popover">
+                <label>
+                  <span>Geral:</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={volumes.master}
+                    onChange={(e) => handleVolumeChange("master", Number(e.target.value))}
+                  />
+                </label>
+                <label>
+                  <span>Efeitos:</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={volumes.sfx}
+                    onChange={(e) => handleVolumeChange("sfx", Number(e.target.value))}
+                  />
+                </label>
+                <label>
+                  <span>Música:</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={volumes.music}
+                    onChange={(e) => handleVolumeChange("music", Number(e.target.value))}
+                  />
+                </label>
+              </div>
             )}
-          </button>
+          </div>
           {onOpenBestiary ? (
             <button type="button" onClick={onOpenBestiary}>
               Bestiário
@@ -516,6 +671,28 @@ export function CardRealmsMatch({
             {getCulture(state.players[state.winner].culture).name})!
           </h2>
           <p>{state.winReason}</p>
+          <div className="card-realms-victory-stats" aria-label="Estatísticas da Partida">
+            <div>
+              <strong>Turnos Disputados</strong>
+              <span>{state.turn} Turnos</span>
+            </div>
+            <div>
+              <strong>Coração Aliado</strong>
+              <span>
+                {bottomPlayer.heart.currentHp}/{bottomPlayer.heart.maxHp} PV
+              </span>
+            </div>
+            <div>
+              <strong>Coração Inimigo</strong>
+              <span>
+                {topPlayer.heart.currentHp}/{topPlayer.heart.maxHp} PV
+              </span>
+            </div>
+            <div>
+              <strong>Ações no Tabuleiro</strong>
+              <span>{state.log.length} Manobras</span>
+            </div>
+          </div>
           <button type="button" onClick={() => startNewMatch(mode, playerCulture)}>
             <RotateCcw size={14} aria-hidden="true" /> Jogar Nova Batalha no Tabuleiro
           </button>
@@ -602,9 +779,41 @@ export function CardRealmsMatch({
                     type="button"
                     data-testid={`slot-opponent-${lane}`}
                     onClick={() => handleSlotInteraction("opponent", lane)}
+                    onDragOver={(e) => {
+                      if (isTopValidTarget) {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        updatePreviewSlot({ side: "opponent", lane });
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (hoveredDropSlot?.side === "opponent" && hoveredDropSlot.lane === lane) {
+                        updatePreviewSlot(null);
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (isTopValidTarget) {
+                        handleSlotInteraction("opponent", lane);
+                        updatePreviewSlot(null);
+                      }
+                    }}
+                    onPointerEnter={() => {
+                      if (selectedCardDef && isTopValidTarget) {
+                        updatePreviewSlot({ side: "opponent", lane });
+                      }
+                    }}
+                    onPointerLeave={() => {
+                      if (hoveredDropSlot?.side === "opponent" && hoveredDropSlot.lane === lane) {
+                        updatePreviewSlot(null);
+                      }
+                    }}
                     className={cn(
                       "card-realms-slot-button",
                       isTopValidTarget && "is-highlighted",
+                      hoveredDropSlot?.side === "opponent" &&
+                        hoveredDropSlot.lane === lane &&
+                        "is-drop-target",
                       inspectedSlot.side === "opponent" &&
                         inspectedSlot.lane === lane &&
                         "is-selected",
@@ -652,9 +861,41 @@ export function CardRealmsMatch({
                     type="button"
                     data-testid={`slot-player-${lane}`}
                     onClick={() => handleSlotInteraction("player", lane)}
+                    onDragOver={(e) => {
+                      if (isBottomValidTarget) {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        updatePreviewSlot({ side: "player", lane });
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (hoveredDropSlot?.side === "player" && hoveredDropSlot.lane === lane) {
+                        updatePreviewSlot(null);
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (isBottomValidTarget) {
+                        handleSlotInteraction("player", lane);
+                        updatePreviewSlot(null);
+                      }
+                    }}
+                    onPointerEnter={() => {
+                      if (selectedCardDef && isBottomValidTarget) {
+                        updatePreviewSlot({ side: "player", lane });
+                      }
+                    }}
+                    onPointerLeave={() => {
+                      if (hoveredDropSlot?.side === "player" && hoveredDropSlot.lane === lane) {
+                        updatePreviewSlot(null);
+                      }
+                    }}
                     className={cn(
                       "card-realms-slot-button",
                       isBottomValidTarget && "is-highlighted",
+                      hoveredDropSlot?.side === "player" &&
+                        hoveredDropSlot.lane === lane &&
+                        "is-drop-target",
                       ((selectedCreatureSlot?.side === "player" &&
                         selectedCreatureSlot.lane === lane) ||
                         (inspectedSlot.side === "player" && inspectedSlot.lane === lane)) &&
@@ -710,7 +951,14 @@ export function CardRealmsMatch({
             role="region"
             aria-label="Decisão Tática da Lenda"
           >
-            {selectedBoardCreature && selectedBoardCreatureDef && selectedBoardCreatureStats ? (
+            {previewProjection ? (
+              <div className="card-realms-action-bar__summary">
+                <strong style={{ color: "var(--amber-gold, #f6d267)" }}>
+                  {previewProjection.title}
+                </strong>
+                <small>{previewProjection.detail}</small>
+              </div>
+            ) : selectedBoardCreature && selectedBoardCreatureDef && selectedBoardCreatureStats ? (
               <>
                 <div className="card-realms-action-bar__summary">
                   <strong>
@@ -830,6 +1078,7 @@ export function CardRealmsMatch({
                   <CardRealmsCardButton
                     key={handItem.instanceId}
                     card={cardDef}
+                    instanceId={handItem.instanceId}
                     selected={isSelected}
                     affordable={affordable}
                     disabled={!affordable || Boolean(state.winner)}
@@ -838,6 +1087,13 @@ export function CardRealmsMatch({
                       setSelectedCardInstanceId((prev) =>
                         prev === handItem.instanceId ? null : handItem.instanceId,
                       );
+                    }}
+                    onDragStartCard={(_card, instId) => {
+                      setSelectedCreatureSlot(null);
+                      setSelectedCardInstanceId(instId);
+                    }}
+                    onDragEndCard={() => {
+                      updatePreviewSlot(null);
                     }}
                   />
                 );

@@ -17,9 +17,31 @@ import {
   type PlayerSide,
 } from "../domain/types";
 
+export type AiProfile = "aggressive" | "defensive" | "strategic" | "adaptive";
+
+export const AI_PROFILE_LABELS: Readonly<Record<AiProfile, { name: string; description: string }>> = {
+  aggressive: {
+    name: "Agressivo (Investida Direta)",
+    description: "Prioriza atacar o Coração do Reino adversário por faixas abertas e pressionar sem recuar.",
+  },
+  defensive: {
+    name: "Defensivo (Fortaleza Ancestral)",
+    description: "Foca em bloquear ameaças, erguer estruturas de defesa e curar ou proteger suas lendas.",
+  },
+  strategic: {
+    name: "Estratégico (Sinergia dos Biomas)",
+    description: "Maximiza terrenos favorecidos, combinações de poderes e vantagens territoriais.",
+  },
+  adaptive: {
+    name: "Adaptativo (Mestre dos Folclores)",
+    description: "Lê a saúde dos reinos e a mesa, alternando dinamicamente entre defesa e investida total.",
+  },
+};
+
 export function chooseNextAiAction(
   state: MatchState,
   aiSide: PlayerSide = "opponent",
+  profile: AiProfile = "strategic",
 ): MatchAction {
   if (state.winner !== null || state.activeSide !== aiSide) {
     return { type: "end-turn", side: aiSide };
@@ -27,6 +49,21 @@ export function chooseNextAiAction(
 
   const aiPlayer = state.players[aiSide];
   const enemySide = getOppositeSide(aiSide);
+
+  // Dynamic evaluation for Adaptive profile
+  let activeProfile: Exclude<AiProfile, "adaptive"> =
+    profile === "adaptive" ? "strategic" : profile;
+  if (profile === "adaptive") {
+    const myHeartHp = aiPlayer.heart.currentHp;
+    const enemyHeartHp = state.players[enemySide].heart.currentHp;
+    if (myHeartHp <= 8 && enemyHeartHp > 8) {
+      activeProfile = "defensive";
+    } else if (enemyHeartHp <= 10) {
+      activeProfile = "aggressive";
+    } else {
+      activeProfile = "strategic";
+    }
+  }
 
   // Special choreography for Turn 1 of Demo Guided Mode (Section 14)
   if (state.mode === "demo-guided" && state.turn === 1 && aiSide === "opponent") {
@@ -110,9 +147,21 @@ export function chooseNextAiAction(
           const allySlot = getLaneSlot(state, aiSide, lane);
           const enemySlot = getLaneSlot(state, enemySide, lane);
           let score = 0;
-          if (chosen.card.favoredBiomes.includes(allySlot.biomeId)) score += 4;
-          if (enemySlot.creature) score += 3; // Block enemy creature
-          if (allySlot.structure) score += 2;
+          const isFavored = chosen.card.favoredBiomes.includes(allySlot.biomeId);
+
+          if (activeProfile === "aggressive") {
+            if (!enemySlot.creature && !enemySlot.structure) score += 7;
+            if (isFavored) score += 3;
+            if (enemySlot.creature) score += 1;
+          } else if (activeProfile === "defensive") {
+            if (enemySlot.creature) score += 8;
+            if (allySlot.structure) score += 3;
+            if (isFavored) score += 2;
+          } else {
+            if (isFavored) score += 6;
+            if (enemySlot.creature) score += 4;
+            if (allySlot.structure) score += 2;
+          }
           return { lane, score };
         })
         .sort((a, b) => b.score - a.score);
@@ -203,13 +252,38 @@ export function chooseNextAiAction(
       };
     }
 
-    // Decide strategically whether to use Awakening Power
+    // Decide between Attack and Awakening Power based on active Profile
     const notOnFavoredTerrain = !creatureDef.favoredBiomes.includes(allySlot.biomeId);
     const hasEnemyInLane = enemySlot.creature !== null;
-    const shouldAwaken =
-      (creature.usedPowerCount === 0 && (notOnFavoredTerrain || hasEnemyInLane)) ||
-      (enemySlot.structure !== null && creatureDef.id === "legend-oni") ||
-      (enemyCreatureLanes.length >= 2 && creatureDef.id === "legend-mapinguari");
+    const isDefensivePower =
+      creatureDef.awakeningPower.id === "iara-canto-da-margem" ||
+      creatureDef.awakeningPower.id === "kappa-desafio-prato-dagua" ||
+      creatureDef.awakeningPower.id === "kitsune-miragem-kitsunebi";
+
+    let shouldAwaken = false;
+
+    if (activeProfile === "aggressive") {
+      if (!enemySlot.creature && !enemySlot.structure) {
+        shouldAwaken = false;
+      } else {
+        shouldAwaken =
+          creature.usedPowerCount === 0 &&
+          (hasEnemyInLane ||
+            creatureDef.id === "legend-boitata" ||
+            creatureDef.id === "legend-oni");
+      }
+    } else if (activeProfile === "defensive") {
+      shouldAwaken =
+        creature.usedPowerCount === 0 &&
+        (isDefensivePower ||
+          hasEnemyInLane ||
+          creature.currentHp < creature.maxHp);
+    } else {
+      shouldAwaken =
+        (creature.usedPowerCount === 0 && (notOnFavoredTerrain || hasEnemyInLane)) ||
+        (enemySlot.structure !== null && creatureDef.id === "legend-oni") ||
+        (enemyCreatureLanes.length >= 2 && creatureDef.id === "legend-mapinguari");
+    }
 
     if (shouldAwaken) {
       return {

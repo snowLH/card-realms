@@ -16,22 +16,33 @@ export type SelectedBoardSlot = {
   lane: LaneIndex;
 } | null;
 
+export type PreviewBoardSlot = {
+  side: PlayerSide;
+  lane: LaneIndex;
+  cardId?: string;
+} | null;
+
 type StateListener = (state: MatchState) => void;
 type EventsListener = (events: readonly MatchVisualEvent[]) => void;
 type HighlightListener = (highlighted: HighlightedBoardLanes) => void;
 type SelectionListener = (selected: SelectedBoardSlot) => void;
+type PreviewListener = (preview: PreviewBoardSlot) => void;
 type TargetClickListener = (target: BoardPointerTarget) => void;
+type PointerMoveListener = (x: number, y: number) => void;
 
 export class CardRealmsBridge {
   private currentState: MatchState | null = null;
   private highlighted: HighlightedBoardLanes = null;
   private selected: SelectedBoardSlot = null;
+  private preview: PreviewBoardSlot = null;
 
   private readonly stateListeners = new Set<StateListener>();
   private readonly eventsListeners = new Set<EventsListener>();
   private readonly highlightListeners = new Set<HighlightListener>();
   private readonly selectionListeners = new Set<SelectionListener>();
+  private readonly previewListeners = new Set<PreviewListener>();
   private readonly targetClickListeners = new Set<TargetClickListener>();
+  private readonly pointerMoveListeners = new Set<PointerMoveListener>();
 
   getState(): MatchState | null {
     return this.currentState;
@@ -43,6 +54,10 @@ export class CardRealmsBridge {
 
   getSelectedSlot(): SelectedBoardSlot {
     return this.selected;
+  }
+
+  getPreviewSlot(): PreviewBoardSlot {
+    return this.preview;
   }
 
   setState(state: MatchState) {
@@ -73,9 +88,22 @@ export class CardRealmsBridge {
     }
   }
 
+  setPreviewSlot(preview: PreviewBoardSlot) {
+    this.preview = preview;
+    for (const listener of this.previewListeners) {
+      listener(preview);
+    }
+  }
+
   emitBoardTargetClick(target: BoardPointerTarget) {
     for (const listener of this.targetClickListeners) {
       listener(target);
+    }
+  }
+
+  emitPointerMove(x: number, y: number) {
+    for (const listener of this.pointerMoveListeners) {
+      listener(x, y);
     }
   }
 
@@ -110,10 +138,25 @@ export class CardRealmsBridge {
     };
   }
 
+  onPreviewSlot(listener: PreviewListener): () => void {
+    this.previewListeners.add(listener);
+    listener(this.preview);
+    return () => {
+      this.previewListeners.delete(listener);
+    };
+  }
+
   onBoardTargetClick(listener: TargetClickListener): () => void {
     this.targetClickListeners.add(listener);
     return () => {
       this.targetClickListeners.delete(listener);
+    };
+  }
+
+  onPointerMove(listener: PointerMoveListener): () => void {
+    this.pointerMoveListeners.add(listener);
+    return () => {
+      this.pointerMoveListeners.delete(listener);
     };
   }
 }

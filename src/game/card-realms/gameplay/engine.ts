@@ -28,7 +28,7 @@ import type {
   MatchVisualEvent,
 } from "../domain/types";
 import { executeCreatureDespertar } from "./abilities";
-import { chooseNextAiAction } from "./ai-strategist";
+import { type AiProfile, chooseNextAiAction } from "./ai-strategist";
 import { executeCreatureInvestida } from "./combat";
 import { executeEventCardOnBoard } from "./events";
 import { executeEndTurn } from "./turn-system";
@@ -276,6 +276,7 @@ export function applyMatchAction(
  */
 export function runAiTurnToCompletion(
   state: MatchState,
+  profile: AiProfile = "strategic",
 ): { state: MatchState; events: MatchVisualEvent[] } {
   if (
     state.mode === "local-pass-and-play" ||
@@ -291,7 +292,7 @@ export function runAiTurnToCompletion(
 
   while (current.activeSide === "opponent" && current.winner === null && safetyCounter < 14) {
     safetyCounter += 1;
-    const nextAction = chooseNextAiAction(current, "opponent");
+    const nextAction = chooseNextAiAction(current, "opponent", profile);
     const result = applyMatchAction(current, nextAction);
     if (!result.ok) {
       const forcedEnd = executeEndTurn(current, getOppositeSide("player"));

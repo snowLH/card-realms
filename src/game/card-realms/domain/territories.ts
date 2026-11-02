@@ -7,6 +7,7 @@ export type TerritoryVisualConfig = {
   tileFrames: readonly [number, number, number, number];
   primaryPropFrame: number;
   secondaryPropFrame: number;
+  tertiaryPropFrame: number;
   groundOverlayPropFrame: number;
   ambientFxFrame: number;
   summonAuraFxFrame: number;
@@ -52,6 +53,7 @@ export const TERRITORY_BIOMES: Readonly<Record<TerritoryBiomeId, TerritoryBiomeD
       tileFrames: [0, 1, 2, 0],
       primaryPropFrame: PROP_ART.shrub,
       secondaryPropFrame: PROP_ART.rock,
+      tertiaryPropFrame: PROP_ART.relic,
       groundOverlayPropFrame: PROP_ART.moss,
       ambientFxFrame: FX_ART.dust,
       summonAuraFxFrame: FX_ART.purificationRing,
@@ -74,6 +76,7 @@ export const TERRITORY_BIOMES: Readonly<Record<TerritoryBiomeId, TerritoryBiomeD
       tileFrames: [1, 2, 3, 4],
       primaryPropFrame: PROP_ART.tree,
       secondaryPropFrame: PROP_ART.stump,
+      tertiaryPropFrame: PROP_ART.roots,
       groundOverlayPropFrame: PROP_ART.roots,
       ambientFxFrame: FX_ART.leaf,
       summonAuraFxFrame: FX_ART.rootZone,
@@ -100,6 +103,7 @@ export const TERRITORY_BIOMES: Readonly<Record<TerritoryBiomeId, TerritoryBiomeD
       tileFrames: [0, 1, 2, 3],
       primaryPropFrame: PROP_ART.coral,
       secondaryPropFrame: PROP_ART.tideSpring,
+      tertiaryPropFrame: PROP_ART.seaweed,
       groundOverlayPropFrame: PROP_ART.puddle,
       ambientFxFrame: FX_ART.waterDrop,
       summonAuraFxFrame: FX_ART.waterZone,
@@ -122,6 +126,7 @@ export const TERRITORY_BIOMES: Readonly<Record<TerritoryBiomeId, TerritoryBiomeD
       tileFrames: [0, 1, 2, 3],
       primaryPropFrame: PROP_ART.rock,
       secondaryPropFrame: PROP_ART.pine,
+      tertiaryPropFrame: PROP_ART.crystal,
       groundOverlayPropFrame: PROP_ART.rune,
       ambientFxFrame: FX_ART.lightningFragment,
       summonAuraFxFrame: FX_ART.wardIdle,
@@ -144,6 +149,7 @@ export const TERRITORY_BIOMES: Readonly<Record<TerritoryBiomeId, TerritoryBiomeD
       tileFrames: [2, 3, 4, 5],
       primaryPropFrame: PROP_ART.brazier,
       secondaryPropFrame: PROP_ART.campfire,
+      tertiaryPropFrame: PROP_ART.cracks,
       groundOverlayPropFrame: PROP_ART.cracks,
       ambientFxFrame: FX_ART.ember,
       summonAuraFxFrame: FX_ART.corruptionBurst,
@@ -170,6 +176,7 @@ export const TERRITORY_BIOMES: Readonly<Record<TerritoryBiomeId, TerritoryBiomeD
       tileFrames: [1, 3, 5, 6],
       primaryPropFrame: PROP_ART.crystal,
       secondaryPropFrame: PROP_ART.pine,
+      tertiaryPropFrame: PROP_ART.snow,
       groundOverlayPropFrame: PROP_ART.snow,
       ambientFxFrame: FX_ART.snow,
       summonAuraFxFrame: FX_ART.wardPulse,
@@ -192,6 +199,7 @@ export const TERRITORY_BIOMES: Readonly<Record<TerritoryBiomeId, TerritoryBiomeD
       tileFrames: [4, 5, 6, 4],
       primaryPropFrame: PROP_ART.ruin,
       secondaryPropFrame: PROP_ART.relic,
+      tertiaryPropFrame: PROP_ART.rubble,
       groundOverlayPropFrame: PROP_ART.rubble,
       ambientFxFrame: FX_ART.spark,
       summonAuraFxFrame: FX_ART.purificationRays,
@@ -214,6 +222,7 @@ export const TERRITORY_BIOMES: Readonly<Record<TerritoryBiomeId, TerritoryBiomeD
       tileFrames: [4, 5, 6, 7],
       primaryPropFrame: PROP_ART.lantern,
       secondaryPropFrame: PROP_ART.legendShrine,
+      tertiaryPropFrame: PROP_ART.rune,
       groundOverlayPropFrame: PROP_ART.rune,
       ambientFxFrame: FX_ART.magicStar,
       summonAuraFxFrame: FX_ART.purificationRing,

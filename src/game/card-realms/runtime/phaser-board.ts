@@ -18,7 +18,7 @@ import {
   queueGeneratedLegendSpriteSheet,
 } from "@/game/arpg/runtime/legend-sprite-sheets";
 import { ARPG_PIXEL_RENDER_SETTINGS } from "@/game/arpg/runtime/render-config";
-import { getCardDefinition, isStructureCard } from "../domain/cards";
+import { findCardDefinition, getCardDefinition, isStructureCard } from "../domain/cards";
 import {
   computeEffectiveCreatureStats,
   getCreatureCardDefinition,
@@ -35,16 +35,26 @@ import {
 import {
   playAttackChoreography,
   playAwakeningChoreography,
+  playCreatureDefeatedChoreography,
   playKingdomHeartHitChoreography,
+  playMatchWonChoreography,
+  playStructureDestroyedChoreography,
   playSummonChoreography,
   playTerritoryShiftChoreography,
 } from "./animations";
 import type { CardRealmsAudio } from "./audio";
-import type { CardRealmsBridge, HighlightedBoardLanes, SelectedBoardSlot } from "./bridge";
+import type {
+  CardRealmsBridge,
+  HighlightedBoardLanes,
+  PreviewBoardSlot,
+  SelectedBoardSlot,
+} from "./bridge";
 import {
   CARD_REALMS_BOARD_VIEWPORT,
+  applyBoardParallax,
   getKingdomHeartCoordinates,
   getLaneBoardCoordinates,
+  type LaneBoardCoordinates,
 } from "./camera";
 import { LivingBoardAmbientController, spawnElementalBurst } from "./effects";
 import { resolveBoardPointerTarget } from "./input";
@@ -86,6 +96,7 @@ export function createCardRealmsBoardScene(
     private currentState: MatchState | null = null;
     private highlightedLanes: HighlightedBoardLanes = null;
     private selectedSlot: SelectedBoardSlot = null;
+    private previewSlot: PreviewBoardSlot = null;
     private unsubscribers: Array<() => void> = [];
 
     constructor() {
@@ -155,6 +166,11 @@ export function createCardRealmsBoardScene(
         }
       });
 
+      this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+        bridge.emitPointerMove(pointer.worldX, pointer.worldY);
+        applyBoardParallax(this.cameras?.main, pointer.worldX, pointer.worldY, false);
+      });
+
       this.unsubscribers.push(
         bridge.onState((nextState) => {
           this.currentState = nextState;
@@ -168,6 +184,10 @@ export function createCardRealmsBoardScene(
           this.selectedSlot = selected;
           this.renderBoardState();
         }),
+        bridge.onPreviewSlot((prev) => {
+          this.previewSlot = prev;
+          this.renderBoardState();
+        }),
         bridge.onVisualEvents((events) => {
           this.playVisualEvents(events);
         }),
@@ -179,6 +199,7 @@ export function createCardRealmsBoardScene(
       this.currentState = bridge.getState();
       this.highlightedLanes = bridge.getHighlightedLanes();
       this.selectedSlot = bridge.getSelectedSlot();
+      this.previewSlot = bridge.getPreviewSlot();
       this.renderBoardState();
     }
 
@@ -188,35 +209,41 @@ export function createCardRealmsBoardScene(
     }
 
     private createStaticTabletopSurface() {
-      // Outer Sanctuary Table Frame
+      // 1. Outer Sanctuary Table Frame (carved wood/stone rim)
       authoredPanel(
         this,
         CARD_REALMS_BOARD_VIEWPORT.width / 2,
         CARD_REALMS_BOARD_VIEWPORT.height / 2,
         "panel-dark",
-        944,
-        526,
+        950,
+        532,
       ).setDepth(1);
 
-      // Inner Cartographer War Table Surface (tilted 2.5D board)
+      // 2. Four Carved Corner Rune Insets
+      authoredImage(this, 30, 30, "props", PROP_ART.rubble, 36, 36).setDepth(2).setAlpha(0.7);
+      authoredImage(this, 930, 30, "props", PROP_ART.rubble, 36, 36).setDepth(2).setAlpha(0.7);
+      authoredImage(this, 30, 510, "props", PROP_ART.rubble, 36, 36).setDepth(2).setAlpha(0.7);
+      authoredImage(this, 930, 510, "props", PROP_ART.rubble, 36, 36).setDepth(2).setAlpha(0.7);
+
+      // 3. Inner Cartographer War Table Surface (tilted 2.5D board)
       authoredPanel(
         this,
         CARD_REALMS_BOARD_VIEWPORT.width / 2,
         268,
         "panel-parchment",
-        878,
-        366,
+        882,
+        370,
       )
         .setDepth(2)
-        .setAlpha(0.24);
+        .setAlpha(0.26);
 
-      // Corner Sanctuary Braziers & Lanterns giving physical tabletop presence
+      // 4. Corner Sanctuary Braziers & Lanterns giving physical tabletop presence
       authoredImage(this, 62, 92, "props", PROP_ART.brazier, 44, 44).setDepth(4);
       authoredImage(this, 898, 92, "props", PROP_ART.brazier, 44, 44).setDepth(4);
       authoredImage(this, 56, 448, "props", PROP_ART.lantern, 48, 48).setDepth(4);
       authoredImage(this, 904, 448, "props", PROP_ART.lantern, 48, 48).setDepth(4);
 
-      // Center Conflict Frontier Line
+      // 5. Center Conflict Frontier Line with Runes and Banners
       for (let idx = 0; idx < 7; idx += 1) {
         authoredImage(
           this,
@@ -228,7 +255,14 @@ export function createCardRealmsBoardScene(
           26,
         )
           .setDepth(5)
-          .setAlpha(0.68);
+          .setAlpha(0.72);
+      }
+
+      // 6. Partition Runes along top and bottom rims for the 4 lanes
+      const lanePartitions = [296, 480, 664];
+      for (const px of lanePartitions) {
+        authoredImage(this, px, 88, "props", PROP_ART.rune, 18, 18).setDepth(3).setAlpha(0.5);
+        authoredImage(this, px, 448, "props", PROP_ART.rune, 18, 18).setDepth(3).setAlpha(0.5);
       }
     }
 
@@ -279,9 +313,9 @@ export function createCardRealmsBoardScene(
       const visualState = getKingdomHeartVisualState(heart);
 
       const propFrame =
-        visualState === "intact"
+        visualState === "intact" || visualState === "under-pressure"
           ? culture.kingdomHeart.intactPropFrame
-          : visualState === "damaged"
+          : visualState === "damaged" || visualState === "severely-damaged"
             ? culture.kingdomHeart.damagedPropFrame
             : visualState === "critical"
               ? culture.kingdomHeart.criticalPropFrame
@@ -298,38 +332,167 @@ export function createCardRealmsBoardScene(
         0.75,
       );
 
-      this.dynamicLayer.image(
-        `heart-monument-left-${side}`,
-        "props",
-        propFrame,
-        coords.x - 132 * coords.scale,
-        coords.y,
-        46 * coords.scale,
-        46 * coords.scale,
-        1,
-      );
+      // Left and right monuments representing the Kingdom Heart
+      if (visualState === "destroyed") {
+        this.dynamicLayer.image(
+          `heart-monument-left-${side}`,
+          "props",
+          culture.kingdomHeart.destroyedPropFrame,
+          coords.x - 132 * coords.scale,
+          coords.y + 4 * coords.scale,
+          44 * coords.scale,
+          44 * coords.scale,
+          0.9,
+        );
+        this.dynamicLayer.image(
+          `heart-monument-right-${side}`,
+          "props",
+          culture.kingdomHeart.destroyedPropFrame,
+          coords.x + 132 * coords.scale,
+          coords.y + 4 * coords.scale,
+          44 * coords.scale,
+          44 * coords.scale,
+          0.9,
+        );
+      } else {
+        this.dynamicLayer.image(
+          `heart-monument-left-${side}`,
+          "props",
+          propFrame,
+          coords.x - 132 * coords.scale,
+          coords.y,
+          46 * coords.scale,
+          46 * coords.scale,
+          1,
+        );
+        this.dynamicLayer.image(
+          `heart-monument-right-${side}`,
+          "props",
+          propFrame,
+          coords.x + 132 * coords.scale,
+          coords.y,
+          46 * coords.scale,
+          46 * coords.scale,
+          1,
+        );
+      }
 
-      this.dynamicLayer.image(
-        `heart-monument-right-${side}`,
-        "props",
-        propFrame,
-        coords.x + 132 * coords.scale,
-        coords.y,
-        46 * coords.scale,
-        46 * coords.scale,
-        1,
-      );
-
-      if (visualState === "damaged" || visualState === "critical") {
+      // Progressive 6-Stage Destruction Visuals
+      if (visualState === "intact") {
+        this.dynamicLayer.image(
+          `heart-fx-${side}`,
+          "fx",
+          FX_ART.wardIdle,
+          coords.x,
+          coords.y,
+          96 * coords.scale,
+          36 * coords.scale,
+          0.4,
+        );
+      } else if (visualState === "under-pressure") {
+        this.dynamicLayer.image(
+          `heart-fx-${side}`,
+          "fx",
+          FX_ART.dust,
+          coords.x - 132 * coords.scale,
+          coords.y + 12 * coords.scale,
+          28 * coords.scale,
+          20 * coords.scale,
+          0.65,
+        );
+      } else if (visualState === "damaged") {
+        this.dynamicLayer.image(
+          `heart-fx-${side}`,
+          "fx",
+          FX_ART.corruptionSmoke,
+          coords.x - 132 * coords.scale,
+          coords.y - 6,
+          44 * coords.scale,
+          44 * coords.scale,
+          0.75,
+        );
+        this.dynamicLayer.image(
+          `heart-cracks-${side}`,
+          "props",
+          PROP_ART.cracks,
+          coords.x,
+          coords.y + 10 * coords.scale,
+          92 * coords.scale,
+          22 * coords.scale,
+          0.7,
+        );
+      } else if (visualState === "severely-damaged") {
+        this.dynamicLayer.image(
+          `heart-fx-${side}`,
+          "fx",
+          FX_ART.spark,
+          coords.x + 132 * coords.scale,
+          coords.y - 8,
+          32 * coords.scale,
+          32 * coords.scale,
+          0.9,
+        );
         this.dynamicLayer.image(
           `heart-smoke-${side}`,
           "fx",
-          visualState === "critical" ? FX_ART.corruptionBurst : FX_ART.corruptionSmoke,
+          FX_ART.corruptionSmoke,
           coords.x - 132 * coords.scale,
-          coords.y - 6,
-          44,
-          44,
-          0.75,
+          coords.y - 8,
+          48 * coords.scale,
+          48 * coords.scale,
+          0.85,
+        );
+        this.dynamicLayer.image(
+          `heart-cracks-${side}`,
+          "props",
+          PROP_ART.cracks,
+          coords.x,
+          coords.y + 10 * coords.scale,
+          112 * coords.scale,
+          26 * coords.scale,
+          0.85,
+        );
+      } else if (visualState === "critical") {
+        this.dynamicLayer.image(
+          `heart-fx-${side}`,
+          "fx",
+          FX_ART.circleDanger,
+          coords.x,
+          coords.y,
+          86 * coords.scale,
+          46 * coords.scale,
+          0.85,
+        );
+        this.dynamicLayer.image(
+          `heart-smoke-${side}`,
+          "fx",
+          FX_ART.corruptionBurst,
+          coords.x - 132 * coords.scale,
+          coords.y - 10,
+          54 * coords.scale,
+          54 * coords.scale,
+          0.88,
+        );
+        this.dynamicLayer.image(
+          `heart-cracks-${side}`,
+          "props",
+          PROP_ART.cracks,
+          coords.x,
+          coords.y + 10 * coords.scale,
+          130 * coords.scale,
+          30 * coords.scale,
+          0.95,
+        );
+      } else if (visualState === "destroyed") {
+        this.dynamicLayer.image(
+          `heart-fx-${side}`,
+          "fx",
+          FX_ART.corruptionDissolve,
+          coords.x,
+          coords.y,
+          74 * coords.scale,
+          74 * coords.scale,
+          0.9,
         );
       }
 
@@ -337,6 +500,17 @@ export function createCardRealmsBoardScene(
       bar?.update(coords.x, coords.y + (side === "opponent" ? 12 : -12), heart.currentHp, heart.maxHp, true);
 
       const shieldSuffix = heart.shield > 0 ? ` (+${heart.shield} Escudo)` : "";
+      const titleColor =
+        visualState === "critical"
+          ? "#ff6b6b"
+          : visualState === "severely-damaged"
+            ? "#ff9e78"
+            : visualState === "damaged"
+              ? "#ffc285"
+              : visualState === "destroyed"
+                ? "#884444"
+                : "#ffe8b3";
+
       this.setLabel(
         `heart-title-${side}`,
         coords.x,
@@ -346,7 +520,7 @@ export function createCardRealmsBoardScene(
           fontFamily: "monospace",
           fontSize: side === "opponent" ? "11px" : "12px",
           fontStyle: "bold",
-          color: visualState === "critical" ? "#ff9e8e" : "#ffe8b3",
+          color: titleColor,
         },
         105,
         true,
@@ -369,9 +543,21 @@ export function createCardRealmsBoardScene(
       const isSelected =
         this.selectedSlot?.side === side && this.selectedSlot.lane === lane;
 
-      // 1. Render 2x2 biome tiles forming the physical territory base
+      // 1. Pedestal Drop Shadow for 2.5D contact occlusion
       const halfTileW = Math.round(coords.tileWidth / 2);
       const halfTileH = Math.round(coords.tileHeight / 2);
+      this.dynamicLayer.image(
+        `lane-pedestal-shadow-${side}-${lane}`,
+        "props",
+        PROP_ART.shadowLarge,
+        coords.centerX,
+        coords.centerY + halfTileH * 0.86,
+        coords.tileWidth * 1.05,
+        28,
+        0.65,
+      );
+
+      // 2. Render 2x2 biome tiles forming the physical territory base
       const tileOffsets: readonly [number, number, number][] = [
         [-halfTileW / 2, -halfTileH / 2, biome.visual.tileFrames[0]],
         [halfTileW / 2, -halfTileH / 2, biome.visual.tileFrames[1]],
@@ -394,7 +580,7 @@ export function createCardRealmsBoardScene(
           .setTint(biome.visual.tintHex);
       });
 
-      // 2. Render Living Biome Environment Props (trees, corals, rocks, braziers, crystals, lanterns)
+      // 3. Render Living Biome Environment Props in Perspective (primary, secondary, tertiary)
       const propScale = coords.perspectiveScale;
       this.dynamicLayer.image(
         `lane-prop-primary-${side}-${lane}`,
@@ -416,6 +602,31 @@ export function createCardRealmsBoardScene(
         36 * propScale,
         0.9,
       );
+      this.dynamicLayer.image(
+        `lane-prop-tertiary-${side}-${lane}`,
+        "props",
+        biome.visual.tertiaryPropFrame,
+        coords.centerX + (side === "player" ? -64 : 64) * propScale,
+        coords.centerY + 24 * propScale,
+        30 * propScale,
+        30 * propScale,
+        0.88,
+      );
+
+      // Preview Ghost when hovered/dragged over valid territory
+      const isPreviewTarget = this.previewSlot?.side === side && this.previewSlot.lane === lane;
+      if (isPreviewTarget) {
+        const previewCard = this.previewSlot?.cardId
+          ? findCardDefinition(this.previewSlot.cardId)
+          : undefined;
+        this.ambientController.renderPreviewGhost(
+          side,
+          lane,
+          previewCard?.element ?? biome.element,
+          timeMs,
+          false,
+        );
+      }
 
       // Highlight ring when player is choosing a target lane
       if (isHighlighted || isSelected) {
@@ -602,6 +813,9 @@ export function createCardRealmsBoardScene(
           );
         }
 
+        // Folklore character visual aura signatures (embers, kitsunebi, water rings, etc.)
+        this.renderFolkloreLegendAura(side, lane, cardDef.id, coords, propScale, timeMs);
+
         hpBar?.update(
           coords.creatureX,
           coords.creatureY + 32 * propScale,
@@ -665,6 +879,269 @@ export function createCardRealmsBoardScene(
       }
     }
 
+    private renderFolkloreLegendAura(
+      side: PlayerSide,
+      lane: LaneIndex,
+      cardId: string,
+      coords: LaneBoardCoordinates,
+      propScale: number,
+      timeMs: number,
+    ) {
+      switch (cardId) {
+        case "legend-curupira": {
+          const emberY = coords.creatureY - 32 * propScale - Math.sin(timeMs * 0.007) * 4;
+          const emberX = coords.creatureX + Math.sin(timeMs * 0.009) * 4;
+          this.dynamicLayer.image(
+            `folklore-curupira-ember-${side}-${lane}`,
+            "fx",
+            FX_ART.ember,
+            emberX,
+            emberY,
+            18 * propScale,
+            18 * propScale,
+            0.88,
+          );
+          this.dynamicLayer.image(
+            `folklore-curupira-dust-${side}-${lane}`,
+            "fx",
+            FX_ART.dust,
+            coords.creatureX - 10 * propScale,
+            coords.creatureY + 22 * propScale,
+            16 * propScale,
+            14 * propScale,
+            0.65,
+          );
+          break;
+        }
+        case "legend-boitata": {
+          const ringScale = 1 + Math.sin(timeMs * 0.006) * 0.12;
+          this.dynamicLayer
+            .image(
+              `folklore-boitata-ring-${side}-${lane}`,
+              "fx",
+              FX_ART.purificationRing,
+              coords.creatureX,
+              coords.creatureY + 12 * propScale,
+              72 * propScale * ringScale,
+              44 * propScale * ringScale,
+              0.82,
+            )
+            .setTint(0xff6611);
+          const sparkX = coords.creatureX + Math.cos(timeMs * 0.008) * 22;
+          const sparkY = coords.creatureY + Math.sin(timeMs * 0.008) * 12;
+          this.dynamicLayer.image(
+            `folklore-boitata-spark-${side}-${lane}`,
+            "fx",
+            FX_ART.spark,
+            sparkX,
+            sparkY,
+            16 * propScale,
+            16 * propScale,
+            0.9,
+          );
+          break;
+        }
+        case "legend-saci": {
+          const vortexX = coords.creatureX + Math.sin(timeMs * 0.016) * 7;
+          this.dynamicLayer.image(
+            `folklore-saci-vortex-${side}-${lane}`,
+            "fx",
+            FX_ART.dust,
+            vortexX,
+            coords.creatureY + 24 * propScale,
+            24 * propScale,
+            16 * propScale,
+            0.85,
+          );
+          const smokeOffset = ((timeMs * 0.04) % 24) * propScale;
+          this.dynamicLayer
+            .image(
+              `folklore-saci-smoke-${side}-${lane}`,
+              "fx",
+              FX_ART.corruptionSmoke,
+              coords.creatureX + 16 * propScale,
+              coords.creatureY - 14 * propScale - smokeOffset,
+              18 * propScale,
+              18 * propScale,
+              0.6,
+            )
+            .setTint(0xeeeeee);
+          break;
+        }
+        case "legend-iara": {
+          const pulse = 1 + Math.sin(timeMs * 0.005) * 0.1;
+          this.dynamicLayer
+            .image(
+              `folklore-iara-water-${side}-${lane}`,
+              "fx",
+              FX_ART.waterZone,
+              coords.creatureX,
+              coords.creatureY + 16 * propScale,
+              64 * propScale * pulse,
+              36 * propScale * pulse,
+              0.72,
+            )
+            .setTint(0x55ccff);
+          const dropX = coords.creatureX + Math.sin(timeMs * 0.006) * 18;
+          this.dynamicLayer.image(
+            `folklore-iara-drop-${side}-${lane}`,
+            "fx",
+            FX_ART.waterDrop,
+            dropX,
+            coords.creatureY - 8 * propScale,
+            14 * propScale,
+            14 * propScale,
+            0.8,
+          );
+          break;
+        }
+        case "legend-kitsune": {
+          const angle = timeMs * 0.004;
+          const k1X = coords.creatureX + Math.cos(angle) * 26 * propScale;
+          const k1Y = coords.creatureY + Math.sin(angle) * 14 * propScale - 8;
+          const k2X = coords.creatureX + Math.cos(angle + Math.PI) * 26 * propScale;
+          const k2Y = coords.creatureY + Math.sin(angle + Math.PI) * 14 * propScale - 8;
+          this.dynamicLayer
+            .image(
+              `folklore-kitsune-fire1-${side}-${lane}`,
+              "fx",
+              FX_ART.magicStar,
+              k1X,
+              k1Y,
+              18 * propScale,
+              18 * propScale,
+              0.92,
+            )
+            .setTint(0x77eeff);
+          this.dynamicLayer
+            .image(
+              `folklore-kitsune-fire2-${side}-${lane}`,
+              "fx",
+              FX_ART.magicStar,
+              k2X,
+              k2Y,
+              18 * propScale,
+              18 * propScale,
+              0.92,
+            )
+            .setTint(0x77eeff);
+          break;
+        }
+        case "legend-oni": {
+          this.dynamicLayer
+            .image(
+              `folklore-oni-vapor-${side}-${lane}`,
+              "fx",
+              FX_ART.corruptionSmoke,
+              coords.creatureX - 16 * propScale,
+              coords.creatureY - 24 * propScale,
+              26 * propScale,
+              26 * propScale,
+              0.7,
+            )
+            .setTint(0xcc2222);
+          this.dynamicLayer.image(
+            `folklore-oni-crack-${side}-${lane}`,
+            "props",
+            PROP_ART.cracks,
+            coords.creatureX,
+            coords.creatureY + 22 * propScale,
+            36 * propScale,
+            18 * propScale,
+            0.8,
+          );
+          break;
+        }
+        case "legend-tengu": {
+          const tenguAngle = timeMs * 0.008;
+          const featherX = coords.creatureX + Math.cos(tenguAngle) * 24 * propScale;
+          const featherY = coords.creatureY + Math.sin(tenguAngle) * 14 * propScale - 6;
+          this.dynamicLayer.image(
+            `folklore-tengu-feather-${side}-${lane}`,
+            "fx",
+            FX_ART.leaf,
+            featherX,
+            featherY,
+            16 * propScale,
+            16 * propScale,
+            0.85,
+          );
+          this.dynamicLayer.image(
+            `folklore-tengu-gust-${side}-${lane}`,
+            "fx",
+            FX_ART.wardPulse,
+            coords.creatureX,
+            coords.creatureY,
+            56 * propScale,
+            56 * propScale,
+            0.35,
+          );
+          break;
+        }
+        case "legend-kappa": {
+          this.dynamicLayer.image(
+            `folklore-kappa-dish-${side}-${lane}`,
+            "fx",
+            FX_ART.waterDrop,
+            coords.creatureX,
+            coords.creatureY - 26 * propScale,
+            18 * propScale,
+            18 * propScale,
+            0.95,
+          );
+          this.dynamicLayer.image(
+            `folklore-kappa-drip-${side}-${lane}`,
+            "fx",
+            FX_ART.waterDrop,
+            coords.creatureX - 8 * propScale,
+            coords.creatureY + 6 * propScale,
+            12 * propScale,
+            12 * propScale,
+            0.7,
+          );
+          break;
+        }
+        case "legend-mapinguari": {
+          this.dynamicLayer.image(
+            `folklore-mapinguari-cracks-${side}-${lane}`,
+            "props",
+            PROP_ART.cracks,
+            coords.creatureX,
+            coords.creatureY + 24 * propScale,
+            42 * propScale,
+            20 * propScale,
+            0.85,
+          );
+          this.dynamicLayer.image(
+            `folklore-mapinguari-dust-${side}-${lane}`,
+            "fx",
+            FX_ART.dust,
+            coords.creatureX + 12 * propScale,
+            coords.creatureY + 20 * propScale,
+            22 * propScale,
+            16 * propScale,
+            0.75,
+          );
+          break;
+        }
+        case "legend-raiju": {
+          const sparkX = coords.creatureX + Math.sin(timeMs * 0.025) * 18 * propScale;
+          const sparkY = coords.creatureY + Math.cos(timeMs * 0.02) * 16 * propScale;
+          this.dynamicLayer.image(
+            `folklore-raiju-spark-${side}-${lane}`,
+            "fx",
+            FX_ART.lightningFragment,
+            sparkX,
+            sparkY,
+            20 * propScale,
+            20 * propScale,
+            0.92,
+          );
+          break;
+        }
+      }
+    }
+
     private creatureSprites = new Map<string, GameObjects.Image>();
 
     private renderMaterializedCreatureActor(
@@ -701,9 +1178,14 @@ export function createCardRealmsBoardScene(
         image.setTexture(textureKey, frameIndex);
       }
 
+      const isVictor = this.currentState?.winner === side;
+      const victoryHop = isVictor ? Math.abs(Math.sin(timeMs * 0.012 + lane)) * -14 : 0;
+      const breatheScaleX = (1 - Math.sin(timeMs * 0.005 + lane) * 0.025) * size;
+      const breatheScaleY = (1 + Math.sin(timeMs * 0.005 + lane) * 0.035) * size;
+
       image
-        .setPosition(Math.round(x), Math.round(y))
-        .setDisplaySize(Math.round(size), Math.round(size))
+        .setPosition(Math.round(x), Math.round(y + victoryHop))
+        .setDisplaySize(Math.round(breatheScaleX), Math.round(breatheScaleY))
         .setFlipX(side === "opponent")
         .setVisible(true);
 
@@ -733,6 +1215,9 @@ export function createCardRealmsBoardScene(
           case "creature-awakening":
             playAwakeningChoreography(this, event, audio, false);
             break;
+          case "creature-defeated":
+            playCreatureDefeatedChoreography(this, event, audio, false);
+            break;
           case "territory-transformed":
             playTerritoryShiftChoreography(this, event, audio, false);
             break;
@@ -745,6 +1230,9 @@ export function createCardRealmsBoardScene(
             spawnElementalBurst(this, coords.structureX, coords.structureY, "nature", 40, false);
             break;
           }
+          case "structure-destroyed":
+            playStructureDestroyedChoreography(this, event, audio, false);
+            break;
           case "event-triggered": {
             audio?.play("event-cast");
             const lane = event.lane ?? 1;
@@ -756,7 +1244,7 @@ export function createCardRealmsBoardScene(
             audio?.play("turn-change");
             break;
           case "match-won":
-            audio?.play(event.winner === "player" ? "victory" : "defeat");
+            playMatchWonChoreography(this, event, audio, false);
             break;
         }
       }

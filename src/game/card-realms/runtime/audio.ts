@@ -102,9 +102,45 @@ const CUE_PATTERNS: Readonly<Record<CardRealmsSoundCue, SoundPattern>> = {
   },
 };
 
+export type AudioVolumeSettings = {
+  master: number;
+  sfx: number;
+  music: number;
+};
+
+const DEFAULT_VOLUMES: AudioVolumeSettings = { master: 0.8, sfx: 0.8, music: 0.6 };
+
+function loadSavedVolumes(): AudioVolumeSettings {
+  if (typeof window === "undefined") return DEFAULT_VOLUMES;
+  try {
+    const raw = window.localStorage.getItem("card-realms-volume");
+    if (!raw) return DEFAULT_VOLUMES;
+    const parsed = JSON.parse(raw);
+    return {
+      master: typeof parsed.master === "number" ? parsed.master : 0.8,
+      sfx: typeof parsed.sfx === "number" ? parsed.sfx : 0.8,
+      music: typeof parsed.music === "number" ? parsed.music : 0.6,
+    };
+  } catch {
+    return DEFAULT_VOLUMES;
+  }
+}
+
+function saveVolumes(volumes: AudioVolumeSettings) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem("card-realms-volume", JSON.stringify(volumes));
+  } catch {
+    // Ignore storage restrictions
+  }
+}
+
 export class CardRealmsAudio {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
+  private sfxGain: GainNode | null = null;
+  private musicGain: GainNode | null = null;
+  private volumes: AudioVolumeSettings = loadSavedVolumes();
   private enabled = true;
   private culture: CultureId = "brasil";
   private themeTimer: number | null = null;
@@ -126,12 +162,48 @@ export class CardRealmsAudio {
   setEnabled(enabled: boolean) {
     this.enabled = enabled;
     if (!this.context || !this.master) return;
-    this.master.gain.setTargetAtTime(enabled ? 0.48 : 0, this.context.currentTime, 0.03);
+    this.master.gain.setTargetAtTime(
+      enabled ? this.volumes.master * 0.48 : 0,
+      this.context.currentTime,
+      0.03,
+    );
     if (enabled && this.context.state === "running") {
       this.startTheme();
     } else {
       this.stopTheme();
     }
+  }
+
+  setMasterVolume(val: number) {
+    this.volumes.master = Math.max(0, Math.min(1, val));
+    saveVolumes(this.volumes);
+    if (this.context && this.master) {
+      this.master.gain.setTargetAtTime(
+        this.enabled ? this.volumes.master * 0.48 : 0,
+        this.context.currentTime,
+        0.03,
+      );
+    }
+  }
+
+  setSfxVolume(val: number) {
+    this.volumes.sfx = Math.max(0, Math.min(1, val));
+    saveVolumes(this.volumes);
+    if (this.context && this.sfxGain) {
+      this.sfxGain.gain.setTargetAtTime(this.volumes.sfx, this.context.currentTime, 0.03);
+    }
+  }
+
+  setMusicVolume(val: number) {
+    this.volumes.music = Math.max(0, Math.min(1, val));
+    saveVolumes(this.volumes);
+    if (this.context && this.musicGain) {
+      this.musicGain.gain.setTargetAtTime(this.volumes.music, this.context.currentTime, 0.03);
+    }
+  }
+
+  getVolumes(): AudioVolumeSettings {
+    return { ...this.volumes };
   }
 
   setCulture(culture: CultureId) {
@@ -146,8 +218,16 @@ export class CardRealmsAudio {
       if (!this.context) {
         this.context = new window.AudioContext();
         this.master = this.context.createGain();
-        this.master.gain.value = this.enabled ? 0.48 : 0;
+        this.master.gain.value = this.enabled ? this.volumes.master * 0.48 : 0;
         this.master.connect(this.context.destination);
+
+        this.sfxGain = this.context.createGain();
+        this.sfxGain.gain.value = this.volumes.sfx;
+        this.sfxGain.connect(this.master);
+
+        this.musicGain = this.context.createGain();
+        this.musicGain.gain.value = this.volumes.music;
+        this.musicGain.connect(this.master);
       }
       if (this.context.state === "suspended") {
         await this.context.resume();
@@ -163,8 +243,8 @@ export class CardRealmsAudio {
   play(cue: CardRealmsSoundCue) {
     const pattern = CUE_PATTERNS[cue];
     const context = this.context;
-    const master = this.master;
-    if (!this.enabled || !context || !master || context.state !== "running") return;
+    const sfx = this.sfxGain;
+    if (!this.enabled || !context || !sfx || context.state !== "running") return;
 
     const noteDuration = pattern.duration / Math.max(1, pattern.notes.length);
     const startAt = context.currentTime + 0.005;
@@ -186,7 +266,7 @@ export class CardRealmsAudio {
       envelope.gain.exponentialRampToValueAtTime(pattern.volume, startsAt + 0.012);
       envelope.gain.exponentialRampToValueAtTime(0.0001, startsAt + duration);
       oscillator.connect(envelope);
-      envelope.connect(master);
+      envelope.connect(sfx);
       oscillator.start(startsAt);
       oscillator.stop(startsAt + duration + 0.01);
       oscillator.onended = () => {
@@ -198,12 +278,12 @@ export class CardRealmsAudio {
 
   private startTheme() {
     const context = this.context;
-    const master = this.master;
+    const music = this.musicGain;
     const notes = CULTURE_THEME_NOTES[this.culture];
     if (
       !this.enabled ||
       !context ||
-      !master ||
+      !music ||
       context.state !== "running" ||
       this.themeTimer !== null
     ) {
@@ -222,13 +302,51 @@ export class CardRealmsAudio {
       envelope.gain.exponentialRampToValueAtTime(0.01, startsAt + 0.04);
       envelope.gain.exponentialRampToValueAtTime(0.0001, startsAt + duration);
       oscillator.connect(envelope);
-      envelope.connect(master);
+      envelope.connect(music);
       oscillator.start(startsAt);
       oscillator.stop(startsAt + duration + 0.02);
       oscillator.onended = () => {
         oscillator.disconnect();
         envelope.disconnect();
       };
+
+      // Layered cultural accompaniment
+      if (this.culture === "brasil" && this.themeStep % 2 === 0) {
+        // Syncopated low berimbau root tone
+        const berimbau = context.createOscillator();
+        const bEnv = context.createGain();
+        berimbau.type = "sine";
+        berimbau.frequency.setValueAtTime(146.83, startsAt);
+        berimbau.frequency.exponentialRampToValueAtTime(130.81, startsAt + 0.28);
+        bEnv.gain.setValueAtTime(0.0001, startsAt);
+        bEnv.gain.exponentialRampToValueAtTime(0.008, startsAt + 0.02);
+        bEnv.gain.exponentialRampToValueAtTime(0.0001, startsAt + 0.28);
+        berimbau.connect(bEnv);
+        bEnv.connect(music);
+        berimbau.start(startsAt);
+        berimbau.stop(startsAt + 0.29);
+        berimbau.onended = () => {
+          berimbau.disconnect();
+          bEnv.disconnect();
+        };
+      } else if (this.culture === "japao") {
+        // High crystalline koto pluck harmonic
+        const koto = context.createOscillator();
+        const kEnv = context.createGain();
+        koto.type = "sine";
+        koto.frequency.setValueAtTime(frequency * 2, startsAt);
+        kEnv.gain.setValueAtTime(0.0001, startsAt);
+        kEnv.gain.exponentialRampToValueAtTime(0.004, startsAt + 0.015);
+        kEnv.gain.exponentialRampToValueAtTime(0.0001, startsAt + 0.2);
+        koto.connect(kEnv);
+        kEnv.connect(music);
+        koto.start(startsAt);
+        koto.stop(startsAt + 0.21);
+        koto.onended = () => {
+          koto.disconnect();
+          kEnv.disconnect();
+        };
+      }
     }
 
     this.themeStep = (this.themeStep + 1) % notes.length;
@@ -251,6 +369,10 @@ export class CardRealmsAudio {
     this.stopTheme();
     const context = this.context;
     this.context = null;
+    this.sfxGain?.disconnect();
+    this.sfxGain = null;
+    this.musicGain?.disconnect();
+    this.musicGain = null;
     this.master?.disconnect();
     this.master = null;
     if (context && context.state !== "closed") {

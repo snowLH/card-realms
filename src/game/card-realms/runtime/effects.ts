@@ -140,6 +140,8 @@ export class LivingBoardAmbientController {
     }
 
     const sides: readonly PlayerSide[] = ["opponent", "player"];
+    this.renderTorchHalos(nowMs, reducedMotion);
+
     for (const side of sides) {
       for (const lane of BOARD_LANES) {
         const slot = state.lanes[side][lane];
@@ -148,6 +150,32 @@ export class LivingBoardAmbientController {
     }
 
     this.layer.end();
+  }
+
+  private renderTorchHalos(nowMs: number, reducedMotion: boolean) {
+    const torchPositions = [
+      { id: "torch-tl", x: 62, y: 92, frame: FX_ART.wardIdle, tint: 0xffaa55, size: 58 },
+      { id: "torch-tr", x: 898, y: 92, frame: FX_ART.wardIdle, tint: 0xffaa55, size: 58 },
+      { id: "lantern-bl", x: 56, y: 448, frame: FX_ART.wardAppear, tint: 0x88ccff, size: 52 },
+      { id: "lantern-br", x: 904, y: 448, frame: FX_ART.wardAppear, tint: 0x88ccff, size: 52 },
+    ];
+
+    torchPositions.forEach((torch, idx) => {
+      const flicker = reducedMotion ? 0.35 : 0.35 + 0.14 * Math.sin(nowMs * 0.005 + idx * 1.7);
+      const scale = reducedMotion ? 1 : 0.95 + 0.08 * Math.cos(nowMs * 0.004 + idx * 2.1);
+      this.layer
+        .image(
+          torch.id,
+          "fx",
+          torch.frame,
+          torch.x,
+          torch.y - 6,
+          torch.size * scale,
+          torch.size * scale,
+          flicker,
+        )
+        .setTint(torch.tint);
+    });
   }
 
   private renderSlotAmbience(
@@ -161,11 +189,12 @@ export class LivingBoardAmbientController {
     const biome = getTerritoryBiome(biomeId);
     const phaseBase = (lane * 1.3 + (side === "player" ? 0 : 2.1)) + nowMs * 0.0018;
 
+    // 1. Primary ambient drifting particles
     for (let i = 0; i < 2; i += 1) {
       const p = phaseBase + i * Math.PI;
       const offsetX = reducedMotion ? (i === 0 ? -34 : 34) : Math.sin(p) * 44;
       const offsetY = reducedMotion ? (i === 0 ? -18 : 14) : Math.cos(p * 0.85) * 24;
-      const alpha = reducedMotion ? 0.55 : 0.42 + 0.32 * Math.sin(p * 1.4);
+      const alpha = reducedMotion ? 0.55 : 0.38 + 0.28 * Math.sin(p * 1.4);
 
       this.layer.image(
         `ambient-${side}-${lane}-${i}`,
@@ -178,6 +207,74 @@ export class LivingBoardAmbientController {
         alpha,
       );
     }
+
+    // 2. Secondary elemental accent
+    if (!reducedMotion) {
+      const p2 = phaseBase * 1.3 + lane;
+      const offsetX2 = Math.cos(p2) * 36;
+      const offsetY2 = Math.sin(p2 * 0.9) * 18 - 8;
+      const alpha2 = 0.26 + 0.22 * Math.sin(p2 * 1.7);
+      const secondaryFrame =
+        biome.element === "fire"
+          ? FX_ART.spark
+          : biome.element === "water"
+            ? FX_ART.waterDrop
+            : biome.element === "nature"
+              ? FX_ART.leaf
+              : biome.element === "storm"
+                ? FX_ART.lightningFragment
+                : FX_ART.magicStar;
+
+      this.layer.image(
+        `ambient-accent-${side}-${lane}`,
+        "fx",
+        secondaryFrame,
+        coords.centerX + offsetX2,
+        coords.centerY + offsetY2,
+        14,
+        14,
+        alpha2,
+      );
+    }
+  }
+
+  renderPreviewGhost(
+    side: PlayerSide,
+    lane: LaneIndex,
+    element: Element,
+    nowMs: number,
+    reducedMotion: boolean,
+  ) {
+    const coords = getLaneBoardCoordinates(side, lane);
+    const pulse = reducedMotion ? 0.8 : 0.65 + 0.25 * Math.sin(nowMs * 0.007);
+    const scale = reducedMotion ? 1.05 : 1.0 + 0.08 * Math.cos(nowMs * 0.007);
+    const fx = getElementFxConfig(element);
+
+    // Glowing preview halo on the targeted pedestal
+    this.layer
+      .image(
+        `preview-halo-${side}-${lane}`,
+        "fx",
+        fx.auraFrame,
+        coords.centerX,
+        coords.centerY,
+        coords.tileWidth * 0.92 * scale,
+        coords.tileHeight * 0.92 * scale,
+        pulse,
+      )
+      .setTint(0xffe888);
+
+    // Target lock marker above the pedestal
+    this.layer.image(
+      `preview-marker-${side}-${lane}`,
+      "fx",
+      FX_ART.crosshairLocked,
+      coords.creatureX,
+      coords.creatureY - 14,
+      36 * coords.perspectiveScale,
+      36 * coords.perspectiveScale,
+      0.95,
+    );
   }
 
   destroy() {

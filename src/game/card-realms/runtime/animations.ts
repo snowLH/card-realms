@@ -5,6 +5,7 @@ import { getTerritoryBiome } from "../domain/territories";
 import type { MatchVisualEvent } from "../domain/types";
 import type { CardRealmsAudio } from "./audio";
 import {
+  focusCameraOnHeart,
   focusCameraOnLane,
   getKingdomHeartCoordinates,
   getLaneBoardCoordinates,
@@ -166,6 +167,12 @@ export function playAttackChoreography(
 
   audio?.play("attack-clash");
 
+  if (event.hitHeart) {
+    focusCameraOnHeart(scene.cameras?.main, enemySide, reducedMotion);
+  } else {
+    focusCameraOnLane(scene.cameras?.main, enemySide, event.targetLane, reducedMotion);
+  }
+
   const projectile = authoredImage(
     scene,
     fromCoords.creatureX,
@@ -187,7 +194,8 @@ export function playAttackChoreography(
       const impactFrame = event.blockedByVeil ? FX_ART.wardPulse : FX_ART.swordImpact;
       const impact = authoredImage(scene, targetX, targetY, "fx", impactFrame, 78, 78).setDepth(49);
 
-      shakeCameraForImpact(scene.cameras?.main, 0.004, 140, reducedMotion);
+      const intensity = Math.min(0.012, 0.003 + event.damage * 0.002);
+      shakeCameraForImpact(scene.cameras?.main, intensity, 160, reducedMotion);
 
       const label = event.blockedByVeil
         ? "ILUSÃO DESFEITA (0 DANO)"
@@ -210,7 +218,10 @@ export function playAttackChoreography(
         scaleY: 1.3,
         alpha: 0,
         duration: 280,
-        onComplete: () => impact.destroy(),
+        onComplete: () => {
+          impact.destroy();
+          resetBoardCamera(scene.cameras?.main, reducedMotion);
+        },
       });
     },
   });
@@ -334,5 +345,196 @@ export function playKingdomHeartHitChoreography(
     alpha: 0,
     duration: 380,
     onComplete: () => burst.destroy(),
+  });
+}
+
+export function playCreatureDefeatedChoreography(
+  scene: Scene,
+  event: Extract<MatchVisualEvent, { kind: "creature-defeated" }>,
+  audio: CardRealmsAudio | null,
+  reducedMotion = false,
+) {
+  const coords = getLaneBoardCoordinates(event.side, event.lane);
+  audio?.play("defeat");
+  shakeCameraForImpact(scene.cameras?.main, 0.003, 120, reducedMotion);
+
+  const burst = authoredImage(
+    scene,
+    coords.creatureX,
+    coords.creatureY,
+    "fx",
+    FX_ART.corruptionDissolve,
+    84,
+    84,
+  ).setDepth(47);
+
+  const fragments = authoredImage(
+    scene,
+    coords.creatureX,
+    coords.creatureY - 12,
+    "fx",
+    FX_ART.purificationFragments,
+    72,
+    72,
+  ).setDepth(48);
+
+  spawnFloatingBannerText(
+    scene,
+    coords.creatureX,
+    coords.creatureY - 28,
+    `💀 ${event.creatureName.toUpperCase()} DERROTADA!`,
+    "#ff8b8b",
+    1200,
+  );
+
+  scene.tweens.add({
+    targets: [burst, fragments],
+    scaleX: 1.4,
+    scaleY: 1.4,
+    alpha: 0,
+    y: "-=24",
+    duration: 420,
+    ease: "Sine.easeOut",
+    onComplete: () => {
+      burst.destroy();
+      fragments.destroy();
+    },
+  });
+}
+
+export function playStructureDestroyedChoreography(
+  scene: Scene,
+  event: Extract<MatchVisualEvent, { kind: "structure-destroyed" }>,
+  audio: CardRealmsAudio | null,
+  reducedMotion = false,
+) {
+  const coords = getLaneBoardCoordinates(event.side, event.lane);
+  audio?.play("attack-clash");
+  shakeCameraForImpact(scene.cameras?.main, 0.005, 160, reducedMotion);
+
+  const rubble = authoredImage(
+    scene,
+    coords.structureX,
+    coords.structureY,
+    "props",
+    PROP_ART.rubble,
+    52,
+    52,
+  ).setDepth(45);
+
+  const dust = authoredImage(
+    scene,
+    coords.structureX,
+    coords.structureY - 10,
+    "fx",
+    FX_ART.dust,
+    64,
+    48,
+  ).setDepth(46);
+
+  spawnFloatingBannerText(
+    scene,
+    coords.structureX,
+    coords.structureY - 24,
+    `🏛️ ${event.structureName.toUpperCase()} DESTRUÍDA!`,
+    "#ffad7b",
+    1100,
+  );
+
+  scene.tweens.add({
+    targets: dust,
+    alpha: 0,
+    scaleX: 1.5,
+    scaleY: 1.5,
+    duration: 380,
+    onComplete: () => dust.destroy(),
+  });
+
+  scene.tweens.add({
+    targets: rubble,
+    alpha: 0,
+    duration: 700,
+    delay: 400,
+    onComplete: () => rubble.destroy(),
+  });
+}
+
+export function playMatchWonChoreography(
+  scene: Scene,
+  event: Extract<MatchVisualEvent, { kind: "match-won" }>,
+  audio: CardRealmsAudio | null,
+  reducedMotion = false,
+) {
+  const loserSide = event.winner === "player" ? "opponent" : "player";
+  const loserHeart = getKingdomHeartCoordinates(loserSide);
+  const winnerHeart = getKingdomHeartCoordinates(event.winner);
+
+  audio?.play(event.winner === "player" ? "victory" : "defeat");
+  focusCameraOnHeart(scene.cameras?.main, loserSide, reducedMotion);
+  shakeCameraForImpact(scene.cameras?.main, 0.009, 320, reducedMotion);
+
+  const collapse = authoredImage(
+    scene,
+    loserHeart.x,
+    loserHeart.y,
+    "fx",
+    FX_ART.corruptionBurst,
+    132,
+    132,
+  ).setDepth(55);
+
+  scene.tweens.add({
+    targets: collapse,
+    scaleX: 1.6,
+    scaleY: 1.6,
+    alpha: 0,
+    duration: 480,
+    onComplete: () => {
+      collapse.destroy();
+      focusCameraOnHeart(scene.cameras?.main, event.winner, reducedMotion);
+
+      const rays = authoredImage(
+        scene,
+        winnerHeart.x,
+        winnerHeart.y - 12,
+        "fx",
+        FX_ART.purificationRays,
+        140,
+        140,
+      ).setDepth(56);
+
+      const ring = authoredImage(
+        scene,
+        winnerHeart.x,
+        winnerHeart.y,
+        "fx",
+        FX_ART.purificationRing,
+        150,
+        100,
+      ).setDepth(55);
+
+      spawnFloatingBannerText(
+        scene,
+        winnerHeart.x,
+        winnerHeart.y - 42,
+        `👑 VITÓRIA DE ${event.winner === "player" ? "SEU REINO" : "ADVERSÁRIO"}!`,
+        "#ffe89e",
+        2400,
+      );
+
+      scene.tweens.add({
+        targets: [rays, ring],
+        scaleX: 1.5,
+        scaleY: 1.5,
+        alpha: 0,
+        duration: 800,
+        ease: "Sine.easeOut",
+        onComplete: () => {
+          rays.destroy();
+          ring.destroy();
+          resetBoardCamera(scene.cameras?.main, reducedMotion);
+        },
+      });
+    },
   });
 }

@@ -175,7 +175,13 @@ export type TerritorySlotState = {
   turnModified: number;
 };
 
-export type KingdomHeartVisualState = "intact" | "damaged" | "critical" | "destroyed";
+export type KingdomHeartVisualState =
+  | "intact"
+  | "under-pressure"
+  | "damaged"
+  | "severely-damaged"
+  | "critical"
+  | "destroyed";
 
 export type KingdomHeartState = {
   owner: PlayerSide;

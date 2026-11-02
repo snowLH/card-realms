@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { PixelCreature } from "@/components/game/pixel-creature";
 import { Gem, Heart, Shield, Sparkles, Swords } from "@/components/ui/pixel-icon";
 import { CARD_CATEGORY_LABELS } from "@/game/card-realms/domain/cards";
@@ -17,17 +18,37 @@ const CATEGORY_EMOJI: Readonly<Record<CardCategory, string>> = {
 
 export function CardRealmsCardButton({
   card,
+  instanceId,
   selected = false,
   affordable = true,
   disabled = false,
   onClick,
+  onDragStartCard,
+  onDragEndCard,
 }: {
   card: CardDefinition;
+  instanceId?: string;
   selected?: boolean;
   affordable?: boolean;
   disabled?: boolean;
   onClick?: () => void;
+  onDragStartCard?: (card: CardDefinition, instanceId: string) => void;
+  onDragEndCard?: () => void;
 }) {
+  const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (disabled) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width - 0.5;
+    const y = (event.clientY - rect.top) / rect.height - 0.5;
+    setTilt({ rx: -y * 14, ry: x * 14 });
+  };
+
+  const handlePointerLeave = () => {
+    setTilt({ rx: 0, ry: 0 });
+  };
+
   const categoryLabel = CARD_CATEGORY_LABELS[card.category];
   const categoryEmoji = CATEGORY_EMOJI[card.category];
   const cultureBadge =
@@ -37,19 +58,51 @@ export function CardRealmsCardButton({
         ? `🇧🇷 ${getCulture("brasil").countryLabel}`
         : `🇯🇵 ${getCulture("japao").countryLabel}`;
 
+  const transformStyle = selected
+    ? "translateY(-10px) scale(1.04)"
+    : tilt.rx !== 0 || tilt.ry !== 0
+      ? `perspective(600px) rotateX(${tilt.rx.toFixed(1)}deg) rotateY(${tilt.ry.toFixed(1)}deg) translateY(-6px)`
+      : undefined;
+
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+      draggable={affordable && !disabled && Boolean(instanceId)}
+      onDragStart={(event) => {
+        if (instanceId && onDragStartCard) {
+          event.dataTransfer.setData("text/plain", instanceId);
+          event.dataTransfer.effectAllowed = "move";
+          onDragStartCard(card, instanceId);
+        }
+      }}
+      onDragEnd={() => {
+        onDragEndCard?.();
+      }}
       aria-pressed={selected}
-      className={cn("card-realms-card", selected && "is-selected")}
+      className={cn(
+        "card-realms-card",
+        `card-realms-card--${card.category}`,
+        selected && "is-selected",
+        !affordable && "is-unaffordable",
+      )}
+      style={{
+        transform: transformStyle,
+        transition: "transform 0.12s ease-out",
+        cursor: disabled ? "not-allowed" : affordable ? "grab" : "default",
+      }}
     >
       <div className="card-realms-card__top">
         <span>
           {categoryEmoji} {categoryLabel} · {cultureBadge}
         </span>
-        <span title="Custo de Sopro Ancestral">
+        <span
+          title="Custo de Sopro Ancestral"
+          className={cn(!affordable && "card-realms-card__cost-unaffordable")}
+        >
           <Gem size={14} aria-hidden="true" /> {card.cost} {!affordable ? "(Sem Sopro)" : ""}
         </span>
       </div>

@@ -205,6 +205,12 @@
   border-image: var(--art-slot-active) 16 fill / 8px / 0 stretch !important;
 }
 
+.card-realms-slot-button.is-drop-target {
+  border-image: var(--art-slot-active) 16 fill / 8px / 0 stretch !important;
+  transform: translateY(-2px) scale(1.02);
+  transition: transform 0.12s ease-out;
+}
+
 .card-realms-slot-button__biome {
   display: flex;
   align-items: center;
@@ -308,6 +314,14 @@
 .card-realms-card.is-selected {
   border-image: var(--art-slot-active) 16 fill / 8px / 0 stretch !important;
   color: #fff2c6 !important;
+}
+
+.card-realms-card.is-unaffordable {
+  opacity: 0.65;
+}
+
+.card-realms-card__cost-unaffordable {
+  color: #ff9999 !important;
 }
 
 .card-realms-card:disabled {
@@ -419,4 +433,82 @@
   text-align: center;
   border: 0;
   border-image: var(--art-dialogue-frame) 16 fill / 10px / 0 stretch;
+}
+
+.card-realms-ai-select-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ffe27a;
+}
+
+.card-realms-topbar-select {
+  background: transparent;
+  color: #ffe27a;
+  font-family: monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 0;
+  border-image: var(--art-button-normal) 14 fill / 4px / 0 stretch;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.card-realms-volume-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 120;
+  min-width: 170px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.74rem;
+  color: #fff3c4;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
+}
+
+.card-realms-volume-popover label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-realms-volume-popover input[type="range"] {
+  width: 90px;
+  cursor: pointer;
+}
+
+.card-realms-victory-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: 600px;
+  margin: 10px 0;
+  padding: 10px;
+  border: 0;
+  border-image: var(--art-slot-empty) 16 fill / 6px / 0 stretch;
+}
+
+.card-realms-victory-stats div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.card-realms-victory-stats strong {
+  font-size: 0.82rem;
+  color: #ffe27a;
+}
+
+.card-realms-victory-stats span {
+  font-size: 0.74rem;
+  color: #e8dcb5;
 }
