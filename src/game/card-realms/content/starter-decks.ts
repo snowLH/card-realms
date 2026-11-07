@@ -38,8 +38,76 @@ export const JAPAO_STARTER_DECK_CARD_IDS: readonly string[] = [
   "event-neblina-dos-espiritos",
 ];
 
+export const NORDICO_STARTER_DECK_CARD_IDS: readonly string[] = [
+  "legend-ratatoskr",
+  "legend-ratatoskr",
+  "legend-kelpie",
+  "legend-kelpie",
+  "legend-amarok",
+  "legend-yeti",
+  "legend-amarok",
+  "legend-yeti",
+  "territory-reino-congelado",
+  "territory-reino-congelado",
+  "territory-picos-montanha",
+  "structure-monolito-runico",
+  "structure-monolito-runico",
+  "event-fimbulwinter",
+  "event-fimbulwinter",
+  "event-neblina-dos-espiritos",
+];
+
+export const GRECIA_STARTER_DECK_CARD_IDS: readonly string[] = [
+  "legend-minotauro",
+  "legend-minotauro",
+  "legend-medusa",
+  "legend-medusa",
+  "legend-fenix",
+  "legend-fenix",
+  "legend-minotauro",
+  "legend-medusa",
+  "territory-terra-vulcanica",
+  "territory-terra-vulcanica",
+  "territory-picos-montanha",
+  "structure-templo-olimpico",
+  "structure-templo-olimpico",
+  "event-ira-titas",
+  "event-ira-titas",
+  "event-incendio-brasa-viva",
+];
+
+export const EGITO_STARTER_DECK_CARD_IDS: readonly string[] = [
+  "legend-ahuizotl",
+  "legend-ahuizotl",
+  "legend-esfinge",
+  "legend-esfinge",
+  "legend-ammit",
+  "legend-ammit",
+  "legend-esfinge",
+  "legend-ahuizotl",
+  "territory-deserto-sagrado",
+  "territory-deserto-sagrado",
+  "territory-nascente-espiritos",
+  "structure-obelisco-solar",
+  "structure-obelisco-solar",
+  "event-tempestade-khamsin",
+  "event-tempestade-khamsin",
+  "event-enchente-pororoca",
+];
+
 export function getStarterDeckForCulture(culture: CultureId): readonly string[] {
-  return culture === "brasil" ? BRASIL_STARTER_DECK_CARD_IDS : JAPAO_STARTER_DECK_CARD_IDS;
+  switch (culture) {
+    case "brasil":
+      return BRASIL_STARTER_DECK_CARD_IDS;
+    case "japao":
+      return JAPAO_STARTER_DECK_CARD_IDS;
+    case "nordico":
+      return NORDICO_STARTER_DECK_CARD_IDS;
+    case "grecia":
+      return GRECIA_STARTER_DECK_CARD_IDS;
+    case "egito":
+      return EGITO_STARTER_DECK_CARD_IDS;
+  }
 }
 
 /**
@@ -88,6 +156,9 @@ export const DEMO_GUIDED_DECKS: Readonly<Record<CultureId, readonly string[]>> =
     "territory-santuario-espiritual",
     "event-neblina-dos-espiritos",
   ],
+  nordico: NORDICO_STARTER_DECK_CARD_IDS,
+  grecia: GRECIA_STARTER_DECK_CARD_IDS,
+  egito: EGITO_STARTER_DECK_CARD_IDS,
 };
 
 export const DEMO_GUIDED_HINTS: readonly GuidedStepHint[] = [

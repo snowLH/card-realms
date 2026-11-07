@@ -74,4 +74,22 @@ describe("CardRealmsMatch — Vertical Slice no Tabuleiro Vivo", () => {
     fireEvent.click(cultureBtn);
     expect(screen.getByRole("button", { name: /Reino: 🇯🇵 Folclore Japonês/i })).toBeInTheDocument();
   });
+
+  it("permite abrir o Construtor de Decks e o Modo Campanha Crônicas", () => {
+    render(<CardRealmsMatch playerName="Mestre" />);
+
+    // Open Deck Builder
+    const deckBuilderBtn = screen.getByRole("button", { name: /Forja/i });
+    fireEvent.click(deckBuilderBtn);
+    expect(screen.getByText(/FORJA DO REINO — CONSTRUTOR DE BARALHOS/i)).toBeInTheDocument();
+
+    // Close Deck Builder
+    const closeDeckBtn = screen.getByRole("button", { name: /Fechar Construtor de Baralhos/i });
+    fireEvent.click(closeDeckBtn);
+
+    // Open Campaign
+    const campaignBtn = screen.getByRole("button", { name: /Campanha/i });
+    fireEvent.click(campaignBtn);
+    expect(screen.getByText(/CRÔNICAS DE AURÓRIA — CAMPANHA FOLCLÓRICA MUNDIAL/i)).toBeInTheDocument();
+  });
 });

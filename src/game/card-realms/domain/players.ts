@@ -58,15 +58,18 @@ export function createPlayerMatchState(options: {
   mode: MatchMode;
   rngState: number;
   initialBreath?: number;
+  customDeckCardIds?: readonly string[];
 }): { player: PlayerMatchState; nextRngState: number } {
-  const { side, name, culture, mode, rngState } = options;
+  const { side, name, culture, mode, rngState, customDeckCardIds } = options;
   let nextRngState = rngState;
   let orderedCardIds: string[];
 
-  if (mode === "demo-guided") {
+  if (mode === "demo-guided" && (culture === "brasil" || culture === "japao")) {
     orderedCardIds = [...DEMO_GUIDED_DECKS[culture]];
   } else {
-    const baseDeck = getStarterDeckForCulture(culture);
+    const baseDeck = customDeckCardIds && customDeckCardIds.length >= 8
+      ? customDeckCardIds
+      : getStarterDeckForCulture(culture);
     const shuffled = shuffleCardIdsDeterministically(baseDeck, nextRngState);
     orderedCardIds = shuffled.shuffled;
     nextRngState = shuffled.nextState;

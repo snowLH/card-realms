@@ -544,3 +544,428 @@
   font-size: 0.74rem;
   color: #e8dcb5;
 }
+
+/* ============================================================================
+   CLIMA MÍTICO & BADGES
+   ============================================================================ */
+.card-realms-weather-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 0;
+  border-image: var(--art-button-normal) 14 fill / 4px / 0 stretch;
+  color: #ffe082;
+  font-size: 0.76rem;
+}
+
+/* ============================================================================
+   FORJA DO REINO — CONSTRUTOR DE BARALHOS & CAMPANHA
+   ============================================================================ */
+.card-realms-deck-builder-overlay,
+.card-realms-campaign-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
+}
+
+.card-realms-deck-builder-window,
+.card-realms-campaign-window {
+  width: 100%;
+  max-width: 1140px;
+  max-height: 90vh;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.card-realms-deck-builder-header,
+.card-realms-campaign-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 6px / 0 stretch;
+}
+
+.card-realms-deck-builder-title,
+.card-realms-campaign-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card-realms-deck-builder-title h2,
+.card-realms-campaign-title h2 {
+  font-size: 0.95rem;
+  color: #ffd875;
+  margin: 0;
+}
+
+.card-realms-deck-builder-title small,
+.card-realms-campaign-title small {
+  font-size: 0.74rem;
+  color: #c4b594;
+}
+
+.card-realms-deck-builder-cultures,
+.card-realms-campaign-map {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 6px / 0 stretch;
+  overflow-x: auto;
+}
+
+.card-realms-deck-builder-cultures button,
+.card-realms-campaign-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 0;
+  border-image: var(--art-button-normal) 14 fill / 4px / 0 stretch;
+  color: #e6dfcc;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.card-realms-deck-builder-cultures button.is-active,
+.card-realms-campaign-step.is-selected {
+  border-image: var(--art-button-hover) 14 fill / 4px / 0 stretch;
+  color: #ffe699;
+}
+
+.card-realms-campaign-step.is-cleared {
+  border-image: var(--art-slot-active) 16 fill / 4px / 0 stretch;
+}
+
+.card-realms-campaign-step-num {
+  font-weight: bold;
+  color: #ffd875;
+}
+
+.card-realms-deck-builder-banner {
+  padding: 6px 16px;
+  border: 0;
+  border-image: var(--art-dialogue-frame) 16 fill / 6px / 0 stretch;
+  font-size: 0.78rem;
+  color: #ffe89e;
+}
+
+.card-realms-deck-builder-body,
+.card-realms-campaign-body {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  flex: 1;
+  overflow: hidden;
+}
+
+.card-realms-deck-summary,
+.card-realms-campaign-story {
+  padding: 14px;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 6px / 0 stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.card-realms-deck-summary-header h3,
+.card-realms-campaign-story h3 {
+  font-size: 0.88rem;
+  color: #ffe89e;
+  margin: 0;
+}
+
+.card-realms-deck-stats-pill {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  color: #d8ceb4;
+  padding: 4px 6px;
+  border: 0;
+  border-image: var(--art-slot-empty) 16 fill / 4px / 0 stretch;
+}
+
+.card-realms-deck-stats-breakdown {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: #b8ad90;
+}
+
+.card-realms-deck-card-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 380px;
+}
+
+.card-realms-deck-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border: 0;
+  border-image: var(--art-slot-empty) 16 fill / 6px / 0 stretch;
+}
+
+.card-realms-deck-item-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: #e4dcbe;
+}
+
+.card-realms-deck-item-cost {
+  color: #6ed0ff;
+  font-weight: bold;
+}
+
+.card-realms-deck-item-remove {
+  background: transparent;
+  border: 0;
+  color: #ff7878;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.card-realms-deck-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 6px / 0 stretch;
+}
+
+.card-realms-deck-actions button {
+  padding: 7px;
+  border: 0;
+  border-image: var(--art-button-normal) 14 fill / 4px / 0 stretch;
+  color: #f0e8d0;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.card-realms-deck-actions button.is-primary {
+  border-image: var(--art-button-hover) 14 fill / 4px / 0 stretch;
+  color: #ffe89e;
+  font-weight: bold;
+}
+
+.card-realms-deck-pool,
+.card-realms-campaign-rewards-panel {
+  padding: 14px;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 6px / 0 stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.card-realms-deck-pool-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-realms-deck-pool-filters {
+  display: flex;
+  gap: 4px;
+}
+
+.card-realms-deck-pool-filters button {
+  padding: 4px 8px;
+  border: 0;
+  border-image: var(--art-button-normal) 14 fill / 4px / 0 stretch;
+  color: #d0c6ac;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.card-realms-deck-pool-filters button.is-active {
+  border-image: var(--art-button-hover) 14 fill / 4px / 0 stretch;
+  color: #ffe699;
+}
+
+.card-realms-deck-search {
+  padding: 5px 10px;
+  border: 0;
+  border-image: var(--art-slot-empty) 16 fill / 4px / 0 stretch;
+  background: transparent;
+  color: #f6ecd2;
+  font-size: 0.76rem;
+  width: 240px;
+}
+
+.card-realms-deck-pool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.card-realms-pool-card {
+  padding: 8px;
+  border: 0;
+  border-image: var(--art-panel-dark) 16 fill / 6px / 0 stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.card-realms-pool-card-art {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-realms-pool-card-heading strong {
+  font-size: 0.8rem;
+  color: #ffe285;
+}
+
+.card-realms-pool-card-heading small {
+  display: block;
+  font-size: 0.68rem;
+  color: #b0a486;
+}
+
+.card-realms-pool-card-desc {
+  font-size: 0.72rem;
+  color: #c8bfab;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.card-realms-pool-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 6px;
+  border: 0;
+  border-image: var(--art-slot-empty) 16 fill / 4px / 0 stretch;
+}
+
+.card-realms-pool-card-copies {
+  font-size: 0.68rem;
+  color: #9c9074;
+}
+
+.card-realms-pool-card-footer button {
+  padding: 3px 8px;
+  border: 0;
+  border-image: var(--art-button-normal) 14 fill / 4px / 0 stretch;
+  color: #ffe89e;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+/* Campaign specific details */
+.card-realms-campaign-prologue {
+  font-size: 0.82rem;
+  color: #ded4bc;
+  line-height: 1.45;
+  padding: 10px;
+  border: 0;
+  border-image: var(--art-dialogue-frame) 16 fill / 6px / 0 stretch;
+}
+
+.card-realms-campaign-adversary-box {
+  padding: 10px;
+  border: 0;
+  border-image: var(--art-slot-empty) 16 fill / 6px / 0 stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.card-realms-campaign-adversary-header strong {
+  font-size: 0.84rem;
+  color: #ff8888;
+}
+
+.card-realms-campaign-adversary-header small {
+  display: block;
+  font-size: 0.72rem;
+  color: #e0d0b0;
+}
+
+.card-realms-campaign-adversary-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: #c4b89a;
+}
+
+.card-realms-campaign-rewards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.card-realms-campaign-reward-card {
+  padding: 10px;
+  border: 0;
+  border-image: var(--art-slot-empty) 16 fill / 6px / 0 stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.card-realms-campaign-reward-card strong {
+  font-size: 0.78rem;
+  color: #ffe89e;
+}
+
+.card-realms-campaign-reward-card small {
+  font-size: 0.7rem;
+  color: #a4987a;
+}
+
+.card-realms-campaign-start-btn {
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-image: var(--art-button-hover) 14 fill / 6px / 0 stretch;
+  color: #fff2b2;
+  font-size: 0.92rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+@media (max-width: 860px) {
+  .card-realms-deck-builder-body,
+  .card-realms-campaign-body {
+    grid-template-columns: 1fr;
+  }
+}
+

@@ -16,7 +16,7 @@ import {
   VolumeX,
   X,
 } from "@/components/ui/pixel-icon";
-import { ALL_CARD_REALMS_CARDS } from "@/game/card-realms/content/cards";
+import { ALL_CARD_REALMS_CARDS, VERTICAL_SLICE_CARDS } from "@/game/card-realms/content/cards";
 import {
   CARD_RARITY_LABELS,
   ELEMENT_LABELS,
@@ -42,7 +42,9 @@ import {
   type MatchVisualEvent,
   type PlayerSide,
   type TerritoryBiomeId,
+  type WeatherEffectId,
 } from "@/game/card-realms/domain/types";
+import { getWeatherDefinition } from "@/game/card-realms/domain/weather";
 import {
   applyMatchAction,
   createInitialMatchState,
@@ -59,6 +61,8 @@ import {
 import { CardRealmsBridge } from "@/game/card-realms/runtime/bridge";
 import { cn } from "@/lib/utils";
 import { CardRealmsCardButton } from "./card-realms-card-button";
+import { CardRealmsCampaign } from "./card-realms-campaign";
+import { CardRealmsDeckBuilder } from "./card-realms-deck-builder";
 
 const BIOME_EMOJI: Readonly<Record<TerritoryBiomeId, string>> = {
   "campos-ancestrais": "🌾",
@@ -74,6 +78,9 @@ const BIOME_EMOJI: Readonly<Record<TerritoryBiomeId, string>> = {
 const CULTURE_FLAG: Readonly<Record<CultureId, string>> = {
   brasil: "🇧🇷",
   japao: "🇯🇵",
+  nordico: "❄️",
+  grecia: "🏛️",
+  egito: "☀️",
 };
 
 export function CardRealmsMatch({
@@ -87,6 +94,9 @@ export function CardRealmsMatch({
 }) {
   const [playerCulture, setPlayerCulture] = useState<CultureId>("brasil");
   const [mode, setMode] = useState<MatchMode>("demo-guided");
+  const [deckBuilderOpen, setDeckBuilderOpen] = useState(false);
+  const [campaignOpen, setCampaignOpen] = useState(false);
+  const [grimoireTab, setGrimoireTab] = useState<"vertical" | "all">("vertical");
 
   const [state, setState] = useState<MatchState>(() =>
     createInitialMatchState({
@@ -271,14 +281,29 @@ export function CardRealmsMatch({
   );
 
   const startNewMatch = useCallback(
-    (nextMode: MatchMode, nextPlayerCulture: CultureId) => {
-      const nextOpponentCulture: CultureId = nextPlayerCulture === "brasil" ? "japao" : "brasil";
+    (
+      nextMode: MatchMode,
+      nextPlayerCulture: CultureId,
+      options?: {
+        opponentCulture?: CultureId;
+        weather?: WeatherEffectId;
+        campaignChapter?: number;
+        playerDeckCardIds?: readonly string[];
+        opponentDeckCardIds?: readonly string[];
+      },
+    ) => {
+      const defaultOpponent: CultureId = nextPlayerCulture === "brasil" ? "japao" : "brasil";
+      const nextOpponentCulture = options?.opponentCulture ?? defaultOpponent;
       const fresh = createInitialMatchState({
         mode: nextMode,
         playerCulture: nextPlayerCulture,
         opponentCulture: nextOpponentCulture,
         playerName: `${playerName} (${getCulture(nextPlayerCulture).countryLabel})`,
-        seed: "card-realms-vertical-slice-seed",
+        seed: `card-realms-${Date.now()}`,
+        weather: options?.weather,
+        campaignChapter: options?.campaignChapter,
+        playerDeckCardIds: options?.playerDeckCardIds,
+        opponentDeckCardIds: options?.opponentDeckCardIds,
       });
       setSelectedCardInstanceId(null);
       setSelectedCreatureSlot(null);
@@ -419,6 +444,63 @@ export function CardRealmsMatch({
     applyTransition(res.state, res.events);
   };
 
+  const handleMoveCreature = (fromLane: LaneIndex, toLane: LaneIndex) => {
+    const res = applyMatchAction(state, {
+      type: "creature-move",
+      side: activeSide,
+      fromLane,
+      toLane,
+    });
+    if (!res.ok) {
+      setStatusBanner(res.error ?? "Não foi possível deslocar a criatura.");
+      return;
+    }
+    setSelectedCreatureSlot({ side: activeSide, lane: toLane });
+    setStatusBanner(`Lenda deslocada da Faixa ${fromLane + 1} para a Faixa ${toLane + 1}!`);
+    applyTransition(res.state, res.events);
+  };
+
+  const handleSacrifice = (lane: LaneIndex) => {
+    const res = applyMatchAction(state, {
+      type: "sacrifice-slot",
+      side: activeSide,
+      lane,
+    });
+    if (!res.ok) {
+      setStatusBanner(res.error ?? "Não foi possível realizar o sacrifício ritual.");
+      return;
+    }
+    setSelectedCreatureSlot(null);
+    setStatusBanner("✨ Sacrifício ritual canalizado com sucesso!");
+    applyTransition(res.state, res.events);
+  };
+
+  const canMoveLeft = useMemo(() => {
+    if (
+      !selectedCreatureSlot ||
+      selectedCreatureSlot.side !== activeSide ||
+      selectedCreatureSlot.lane <= 0
+    ) {
+      return false;
+    }
+    const targetLane = (selectedCreatureSlot.lane - 1) as LaneIndex;
+    const targetSlot = state.lanes[activeSide][targetLane];
+    return targetSlot.creature === null && activePlayer.breath >= 1 && !state.winner;
+  }, [activePlayer.breath, activeSide, selectedCreatureSlot, state.lanes, state.winner]);
+
+  const canMoveRight = useMemo(() => {
+    if (
+      !selectedCreatureSlot ||
+      selectedCreatureSlot.side !== activeSide ||
+      selectedCreatureSlot.lane >= 3
+    ) {
+      return false;
+    }
+    const targetLane = (selectedCreatureSlot.lane + 1) as LaneIndex;
+    const targetSlot = state.lanes[activeSide][targetLane];
+    return targetSlot.creature === null && activePlayer.breath >= 1 && !state.winner;
+  }, [activePlayer.breath, activeSide, selectedCreatureSlot, state.lanes, state.winner]);
+
   const handleEndTurn = () => {
     if (state.winner) return;
     setSelectedCardInstanceId(null);
@@ -510,6 +592,15 @@ export function CardRealmsMatch({
               Estrategista {playerName} · Lendas do Folclore Mundial em Territórios Vivos
             </small>
           </div>
+          {state.weather && (
+            <div
+              className="card-realms-weather-pill"
+              title={getWeatherDefinition(state.weather).description}
+            >
+              <span>{getWeatherDefinition(state.weather).icon}</span>
+              <span>{getWeatherDefinition(state.weather).name}</span>
+            </div>
+          )}
         </div>
 
         <div className="card-realms-topbar__controls">
@@ -545,8 +636,29 @@ export function CardRealmsMatch({
           </button>
           <button
             type="button"
+            onClick={() => setCampaignOpen(true)}
+            aria-pressed={mode === "campaign-chronicles"}
+          >
+            🗺️ Campanha (Crônicas)
+          </button>
+          <button
+            type="button"
+            onClick={() => setDeckBuilderOpen(true)}
+          >
+            🛠️ Forja (Baralhos)
+          </button>
+          <button
+            type="button"
             onClick={() => {
-              const nextCulture: CultureId = playerCulture === "brasil" ? "japao" : "brasil";
+              const CULTURES_ORDER: readonly CultureId[] = [
+                "brasil",
+                "japao",
+                "nordico",
+                "grecia",
+                "egito",
+              ];
+              const currentIndex = CULTURES_ORDER.indexOf(playerCulture);
+              const nextCulture = CULTURES_ORDER[(currentIndex + 1) % CULTURES_ORDER.length];
               setPlayerCulture(nextCulture);
               startNewMatch(mode, nextCulture);
             }}
@@ -997,6 +1109,44 @@ export function CardRealmsMatch({
                     <Sparkles size={14} aria-hidden="true" /> 🔮 DESPERTAR ANCESTRAL (
                     {selectedBoardCreatureDef.awakeningPower.name})
                   </button>
+                  {canMoveLeft && selectedCreatureSlot && (
+                    <button
+                      type="button"
+                      disabled={Boolean(state.winner)}
+                      onClick={() =>
+                        handleMoveCreature(
+                          selectedCreatureSlot.lane,
+                          (selectedCreatureSlot.lane - 1) as LaneIndex,
+                        )
+                      }
+                    >
+                      Mover p/ Faixa {selectedCreatureSlot.lane} (1 Sopro)
+                    </button>
+                  )}
+                  {canMoveRight && selectedCreatureSlot && (
+                    <button
+                      type="button"
+                      disabled={Boolean(state.winner)}
+                      onClick={() =>
+                        handleMoveCreature(
+                          selectedCreatureSlot.lane,
+                          (selectedCreatureSlot.lane + 1) as LaneIndex,
+                        )
+                      }
+                    >
+                      Mover p/ Faixa {selectedCreatureSlot.lane + 2} (1 Sopro)
+                    </button>
+                  )}
+                  {selectedCreatureSlot && (
+                    <button
+                      type="button"
+                      disabled={Boolean(state.winner)}
+                      onClick={() => handleSacrifice(selectedCreatureSlot.lane)}
+                      title="Dissolver criatura para recuperar 1 Sopro e conceder +1 Escudo ao Coração do Reino"
+                    >
+                      ✨ Sacrifício (+1 Sopro)
+                    </button>
+                  )}
                 </div>
               </>
             ) : selectedCardDef && selectedCardInHand ? (
@@ -1215,20 +1365,69 @@ export function CardRealmsMatch({
         <section className="card-realms-hand-dock" aria-label="Grimório Completo do Vertical Slice">
           <div className="card-realms-hand-dock__header">
             <strong>
-              📖 GRIMÓRIO FOLCLÓRICO — 🇧🇷 BRASIL VS 🇯🇵 JAPÃO ({ALL_CARD_REALMS_CARDS.length} Cartas
-              Autorais)
+              📖 GRIMÓRIO FOLCLÓRICO — 🇧🇷 BRASIL VS 🇯🇵 JAPÃO (22 Cartas Autorais) — Expansão Mundial ({ALL_CARD_REALMS_CARDS.length} Total)
             </strong>
-            <button type="button" onClick={() => setGrimoireOpen(false)}>
-              <X size={14} aria-hidden="true" /> Fechar Grimório
-            </button>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                type="button"
+                className={cn(grimoireTab === "vertical" && "is-active")}
+                onClick={() => setGrimoireTab("vertical")}
+              >
+                Vertical Slice (22 Cartas)
+              </button>
+              <button
+                type="button"
+                className={cn(grimoireTab === "all" && "is-active")}
+                onClick={() => setGrimoireTab("all")}
+              >
+                Todas as Lendas ({ALL_CARD_REALMS_CARDS.length})
+              </button>
+              <button type="button" onClick={() => setGrimoireOpen(false)}>
+                <X size={14} aria-hidden="true" /> Fechar Grimório
+              </button>
+            </div>
           </div>
           <div className="card-realms-hand-grid">
-            {ALL_CARD_REALMS_CARDS.map((card) => (
+            {(grimoireTab === "vertical" ? VERTICAL_SLICE_CARDS : ALL_CARD_REALMS_CARDS).map((card) => (
               <CardRealmsCardButton key={card.id} card={card} />
             ))}
           </div>
         </section>
       ) : null}
+
+      {/* Forja do Reino — Construtor de Baralhos Modal */}
+      {deckBuilderOpen && (
+        <CardRealmsDeckBuilder
+          initialCulture={playerCulture}
+          onClose={() => setDeckBuilderOpen(false)}
+          onPlayWithDeck={(culture, cardIds) => {
+            setDeckBuilderOpen(false);
+            setPlayerCulture(culture);
+            setMode("vs-ai");
+            startNewMatch("vs-ai", culture, {
+              playerDeckCardIds: cardIds,
+            });
+          }}
+        />
+      )}
+
+      {/* Crônicas de Aurória — Campanha Folclórica Modal */}
+      {campaignOpen && (
+        <CardRealmsCampaign
+          onClose={() => setCampaignOpen(false)}
+          onStartChapterBattle={(chapter) => {
+            setCampaignOpen(false);
+            setMode("campaign-chronicles");
+            setPlayerCulture(playerCulture);
+            setAiProfile(chapter.aiProfile);
+            startNewMatch("campaign-chronicles", playerCulture, {
+              opponentCulture: chapter.opponentCulture,
+              weather: chapter.initialWeather,
+              campaignChapter: chapter.chapterIndex,
+            });
+          }}
+        />
+      )}
     </section>
   );
 }

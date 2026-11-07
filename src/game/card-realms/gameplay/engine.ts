@@ -1,4 +1,5 @@
 import { appendMatchLog, createInitialBoardLanes } from "../board/board-state";
+import { executeMoveCreature, executeSacrificeSlot } from "../board/movement";
 import {
   buildStructureCardOnBoard,
   placeTerritoryCardOnBoard,
@@ -26,7 +27,9 @@ import type {
   MatchMode,
   MatchState,
   MatchVisualEvent,
+  WeatherEffectId,
 } from "../domain/types";
+import { getWeatherDefinition } from "../domain/weather";
 import { executeCreatureDespertar } from "./abilities";
 import { type AiProfile, chooseNextAiAction } from "./ai-strategist";
 import { executeCreatureInvestida } from "./combat";
@@ -41,12 +44,17 @@ export function createInitialMatchState(options?: {
   opponentCulture?: CultureId;
   playerName?: string;
   opponentName?: string;
+  weather?: WeatherEffectId;
+  campaignChapter?: number;
+  playerDeckCardIds?: readonly string[];
+  opponentDeckCardIds?: readonly string[];
 }): MatchState {
   const seed = options?.seed ?? "card-realms-vertical-slice-seed";
   const mode: MatchMode = options?.mode ?? "demo-guided";
   const playerCulture: CultureId = options?.playerCulture ?? "brasil";
   const opponentCulture: CultureId =
     options?.opponentCulture ?? (playerCulture === "brasil" ? "japao" : "brasil");
+  const weather: WeatherEffectId = options?.weather ?? "clima-sereno";
 
   const rng0 = hashSeedToUint32(seed);
   const playerSetup = createPlayerMatchState({
@@ -56,6 +64,7 @@ export function createInitialMatchState(options?: {
     mode,
     rngState: rng0,
     initialBreath: INITIAL_MAX_BREATH,
+    customDeckCardIds: options?.playerDeckCardIds,
   });
 
   const opponentSetup = createPlayerMatchState({
@@ -64,11 +73,12 @@ export function createInitialMatchState(options?: {
       options?.opponentName ??
       (mode === "local-pass-and-play"
         ? `Jogador 2 (${getCulture(opponentCulture).countryLabel})`
-        : `Guardião Yōkai (${getCulture(opponentCulture).countryLabel})`),
+        : `Guardião das Lendas (${getCulture(opponentCulture).countryLabel})`),
     culture: opponentCulture,
     mode,
     rngState: playerSetup.nextRngState,
     initialBreath: INITIAL_MAX_BREATH,
+    customDeckCardIds: options?.opponentDeckCardIds,
   });
 
   const lanes = createInitialBoardLanes(playerCulture, opponentCulture);
@@ -82,6 +92,8 @@ export function createInitialMatchState(options?: {
     activeSide: "player",
     winner: null,
     winReason: null,
+    weather,
+    campaignChapter: options?.campaignChapter,
     players: {
       player: playerSetup.player,
       opponent: opponentSetup.player,
@@ -133,7 +145,7 @@ export function applyMatchAction(
     };
   }
 
-  if (action.side !== state.activeSide) {
+  if (action.side && action.side !== state.activeSide) {
     return {
       ok: false,
       error: "Aguarde a vez do seu reino.",
@@ -261,6 +273,46 @@ export function applyMatchAction(
         ...result,
         state: advanceGuidedStepIfApplicable(result.state, action),
       };
+    }
+
+    case "creature-move": {
+      const result = executeMoveCreature(state, action.side, action.fromLane, action.toLane);
+      if (!result.ok) return result;
+      return {
+        ...result,
+        state: advanceGuidedStepIfApplicable(result.state, action),
+      };
+    }
+
+    case "sacrifice-slot": {
+      const result = executeSacrificeSlot(state, action.side, action.lane);
+      if (!result.ok) return result;
+      return {
+        ...result,
+        state: advanceGuidedStepIfApplicable(result.state, action),
+      };
+    }
+
+    case "set-weather": {
+      const weatherDef = getWeatherDefinition(action.weather);
+      let nextState: MatchState = {
+        ...state,
+        weather: action.weather,
+      };
+      nextState = appendMatchLog(nextState, {
+        side: state.activeSide,
+        kind: "weather",
+        title: "Fenômeno Climático Ativado",
+        detail: `${weatherDef.icon} ${weatherDef.name}: ${weatherDef.description}`,
+      });
+      const events: MatchVisualEvent[] = [
+        {
+          kind: "weather-changed",
+          weather: action.weather,
+          weatherName: weatherDef.name,
+        },
+      ];
+      return { ok: true, state: nextState, events };
     }
 
     case "end-turn": {

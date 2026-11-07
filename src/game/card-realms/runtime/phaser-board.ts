@@ -56,7 +56,11 @@ import {
   getLaneBoardCoordinates,
   type LaneBoardCoordinates,
 } from "./camera";
-import { LivingBoardAmbientController, spawnElementalBurst } from "./effects";
+import {
+  LivingBoardAmbientController,
+  spawnElementalBurst,
+  spawnFloatingBannerText,
+} from "./effects";
 import { resolveBoardPointerTarget } from "./input";
 
 const BESTIARY_SHEETS_TO_LOAD = [
@@ -1447,6 +1451,44 @@ export function createCardRealmsBoardScene(
           case "card-drawn":
             audio?.play("card-draw");
             break;
+          case "creature-moved": {
+            audio?.play("creature-move");
+            const targetCoords = getLaneBoardCoordinates(event.side, event.toLane);
+            spawnFloatingBannerText(
+              this,
+              targetCoords.centerX,
+              targetCoords.centerY - 28,
+              `↳ ${event.creatureName} deslocou-se!`,
+              "#a8e4a0",
+              1200,
+            );
+            break;
+          }
+          case "slot-sacrificed": {
+            audio?.play("sacrifice");
+            const coords = getLaneBoardCoordinates(event.side, event.lane);
+            spawnFloatingBannerText(
+              this,
+              coords.centerX,
+              coords.centerY - 28,
+              `✨ Sacrifício (+${event.refundBreath} Sopro)`,
+              "#ffe082",
+              1300,
+            );
+            break;
+          }
+          case "weather-changed": {
+            audio?.play("weather-change");
+            spawnFloatingBannerText(
+              this,
+              480,
+              120,
+              `🌪️ Clima: ${event.weatherName}`,
+              "#81d4fa",
+              1800,
+            );
+            break;
+          }
           case "turn-started":
             audio?.play("turn-change");
             break;

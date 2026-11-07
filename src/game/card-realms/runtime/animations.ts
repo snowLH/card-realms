@@ -75,6 +75,86 @@ function spawnFolkloreSummonSignature(
       ringFrame = FX_ART.lightningImpact;
       tint = 0xffee77;
       break;
+    case "legend-boto":
+      accentFrame = FX_ART.waterDrop;
+      ringFrame = FX_ART.waterCircleWarning;
+      tint = 0x44ddff;
+      break;
+    case "legend-caipora":
+      accentFrame = FX_ART.leaf;
+      ringFrame = FX_ART.forestCircleWarning;
+      tint = 0x55ee88;
+      break;
+    case "legend-mula-sem-cabeca":
+      accentFrame = FX_ART.ember;
+      ringFrame = FX_ART.circleDanger;
+      tint = 0xff5511;
+      shakeCameraForImpact(scene.cameras?.main, 0.005, 150, reducedMotion);
+      break;
+    case "legend-yamata-no-orochi":
+      accentFrame = FX_ART.corruptionSmoke;
+      ringFrame = FX_ART.corruptionBurst;
+      tint = 0x9933cc;
+      shakeCameraForImpact(scene.cameras?.main, 0.007, 220, reducedMotion);
+      break;
+    case "legend-yuki-onna":
+      accentFrame = FX_ART.snow;
+      ringFrame = FX_ART.iceImpact;
+      tint = 0xaaeeff;
+      break;
+    case "legend-ratatoskr":
+      accentFrame = FX_ART.leaf;
+      ringFrame = FX_ART.wardPulse;
+      tint = 0x77eeaa;
+      break;
+    case "legend-amarok":
+      accentFrame = FX_ART.dust;
+      ringFrame = FX_ART.wardAppear;
+      tint = 0x88ccff;
+      break;
+    case "legend-yeti":
+      accentFrame = FX_ART.snow;
+      ringFrame = FX_ART.iceImpact;
+      tint = 0xbbffff;
+      shakeCameraForImpact(scene.cameras?.main, 0.006, 180, reducedMotion);
+      break;
+    case "legend-kelpie":
+      accentFrame = FX_ART.waterDrop;
+      ringFrame = FX_ART.waterZone;
+      tint = 0x44ddbb;
+      break;
+    case "legend-minotauro":
+      accentFrame = FX_ART.dust;
+      ringFrame = FX_ART.circleDanger;
+      tint = 0xddaa55;
+      shakeCameraForImpact(scene.cameras?.main, 0.006, 170, reducedMotion);
+      break;
+    case "legend-medusa":
+      accentFrame = FX_ART.magicStar;
+      ringFrame = FX_ART.wardAppear;
+      tint = 0x88bb66;
+      break;
+    case "legend-fenix":
+      accentFrame = FX_ART.ember;
+      ringFrame = FX_ART.purificationRing;
+      tint = 0xffaa22;
+      break;
+    case "legend-esfinge":
+      accentFrame = FX_ART.magicStar;
+      ringFrame = FX_ART.purificationRing;
+      tint = 0xeed866;
+      break;
+    case "legend-ammit":
+      accentFrame = FX_ART.corruptionSmoke;
+      ringFrame = FX_ART.corruptionBurst;
+      tint = 0xaa3344;
+      shakeCameraForImpact(scene.cameras?.main, 0.005, 160, reducedMotion);
+      break;
+    case "legend-ahuizotl":
+      accentFrame = FX_ART.waterDrop;
+      ringFrame = FX_ART.waterCircleWarning;
+      tint = 0x3399aa;
+      break;
   }
 
   const signatureRing = authoredImage(scene, x, y + 8, "fx", ringFrame, 96, 62)

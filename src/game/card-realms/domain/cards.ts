@@ -62,6 +62,30 @@ export function isEventCard(card: CardDefinition): card is EventCardDefinition {
   return card.category === "event";
 }
 
+export function getStructureCardDefinition(cardId: string): StructureCardDefinition {
+  const card = getCardDefinition(cardId);
+  if (!isStructureCard(card)) {
+    throw new Error(`Carta não é uma estrutura: ${cardId}`);
+  }
+  return card;
+}
+
+export function getTerritoryCardDefinition(cardId: string): TerritoryCardDefinition {
+  const card = getCardDefinition(cardId);
+  if (!isTerritoryCard(card)) {
+    throw new Error(`Carta não é um território: ${cardId}`);
+  }
+  return card;
+}
+
+export function getEventCardDefinition(cardId: string): EventCardDefinition {
+  const card = getCardDefinition(cardId);
+  if (!isEventCard(card)) {
+    throw new Error(`Carta não é um evento: ${cardId}`);
+  }
+  return card;
+}
+
 export function listAllCards(): readonly CardDefinition[] {
   return ALL_CARD_REALMS_CARDS;
 }

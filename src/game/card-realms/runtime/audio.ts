@@ -6,6 +6,9 @@ export type CardRealmsSoundCue =
   | "card-place"
   | "summon-ritual"
   | "creature-materialize"
+  | "creature-move"
+  | "sacrifice"
+  | "weather-change"
   | "territory-shift"
   | "structure-build"
   | "structure-destroy"
@@ -34,6 +37,18 @@ const CULTURE_THEME_NOTES: Readonly<Record<CultureId, readonly number[]>> = {
     329.63, 349.23, 440, 0, 493.88, 440, 349.23, 0,
     329.63, 293.66, 220, 0, 293.66, 329.63, 349.23, 329.63,
   ],
+  nordico: [
+    220, 261.63, 293.66, 0, 329.63, 349.23, 392, 0,
+    349.23, 329.63, 293.66, 220, 0, 196, 220, 220,
+  ],
+  grecia: [
+    261.63, 277.18, 329.63, 0, 349.23, 392, 415.3, 0,
+    392, 349.23, 329.63, 277.18, 0, 261.63, 329.63, 261.63,
+  ],
+  egito: [
+    220, 233.08, 277.18, 293.66, 329.63, 349.23, 415.3, 0,
+    415.3, 349.23, 329.63, 293.66, 277.18, 233.08, 220, 0,
+  ],
 };
 
 const CUE_PATTERNS: Readonly<Record<CardRealmsSoundCue, SoundPattern>> = {
@@ -45,6 +60,25 @@ const CUE_PATTERNS: Readonly<Record<CardRealmsSoundCue, SoundPattern>> = {
   },
   "card-select": { notes: [523.25, 659.25], duration: 0.09, waveform: "sine", volume: 0.025 },
   "card-place": { notes: [220, 330], duration: 0.14, waveform: "triangle", volume: 0.035 },
+  "creature-move": {
+    notes: [329.63, 440, 493.88],
+    duration: 0.18,
+    waveform: "sine",
+    volume: 0.032,
+  },
+  sacrifice: {
+    notes: [392, 293.66, 196],
+    duration: 0.28,
+    waveform: "triangle",
+    volume: 0.038,
+    slide: -30,
+  },
+  "weather-change": {
+    notes: [261.63, 392, 523.25, 659.25],
+    duration: 0.35,
+    waveform: "sine",
+    volume: 0.035,
+  },
   "summon-ritual": { notes: [293.66, 440, 587.33], duration: 0.28, waveform: "sine", volume: 0.038 },
   "creature-materialize": {
     notes: [392, 523.25, 659.25, 783.99],

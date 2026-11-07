@@ -1,7 +1,23 @@
 import type { Element, SpriteDefinition } from "@/game/types";
 
-export const CULTURE_IDS = ["brasil", "japao"] as const;
+export const CULTURE_IDS = [
+  "brasil",
+  "japao",
+  "nordico",
+  "grecia",
+  "egito",
+] as const;
 export type CultureId = (typeof CULTURE_IDS)[number];
+
+export const WEATHER_EFFECT_IDS = [
+  "clima-sereno",
+  "chuva-ancestral",
+  "nevasca-glacial",
+  "sol-escaldante",
+  "brumas-espirituais",
+  "tempestade-de-raios",
+] as const;
+export type WeatherEffectId = (typeof WEATHER_EFFECT_IDS)[number];
 
 export const TERRITORY_BIOME_IDS = [
   "campos-ancestrais",
@@ -58,11 +74,26 @@ export type AwakeningPowerEffectId =
   | "saci-redemoinho-de-vento"
   | "boitata-circulo-incandescente"
   | "mapinguari-rugido-da-terra"
+  | "boto-danca-das-aguas"
+  | "caipora-chamado-da-mata"
+  | "mula-relincho-de-fogo"
   | "kitsune-miragem-kitsunebi"
   | "kappa-desafio-prato-dagua"
   | "tengu-vendaval-yamabushi"
   | "oni-clava-ferro-ardente"
-  | "raiju-salto-entre-nuvens";
+  | "raiju-salto-entre-nuvens"
+  | "yamata-oito-calamidades"
+  | "yuki-onna-sopro-congelante"
+  | "ratatoskr-fofoca-de-yggdrasil"
+  | "amarok-uivo-do-gelo-eterno"
+  | "yeti-pisada-de-avalanche"
+  | "kelpie-afogamento-ilusorio"
+  | "minotauro-furia-do-labirinto"
+  | "medusa-olhar-petrificante"
+  | "fenix-cinzas-do-renascimento"
+  | "esfinge-enigma-mortal"
+  | "ammit-devoracao-do-coracao"
+  | "ahuizotl-bote-das-profundezas";
 
 export type AwakeningPowerDefinition = {
   id: AwakeningPowerEffectId;
@@ -119,7 +150,13 @@ export type StructureEffectId =
   | "altar-clareira-viva"
   | "fonte-aguas-doces"
   | "portao-torii-espiritual"
-  | "torre-vigia-montanha";
+  | "torre-vigia-montanha"
+  | "monolito-runico-nordico"
+  | "barreira-gelo-eterno"
+  | "templo-olimpico-marmore"
+  | "colunata-de-atena"
+  | "obelisco-solar-kemet"
+  | "piramide-das-almas";
 
 export type StructureCardDefinition = BaseCardDefinition & {
   category: "structure";
@@ -138,7 +175,13 @@ export type EventEffectId =
   | "enchente-pororoca"
   | "incendio-brasa-viva"
   | "eclipse-das-lendas"
-  | "neblina-dos-espiritos";
+  | "neblina-dos-espiritos"
+  | "fimbulwinter-glacial"
+  | "furia-de-thor"
+  | "ira-dos-titas"
+  | "raio-de-zeus"
+  | "tempestade-khamsin"
+  | "pesagem-das-almas";
 
 export type EventCardDefinition = BaseCardDefinition & {
   category: "event";
@@ -222,7 +265,14 @@ export type PlayerMatchState = {
   empowerPowerBonusThisTurn: number;
 };
 
-export type MatchMode = "demo-guided" | "vs-ai" | "local-pass-and-play";
+export const MATCH_MODES = [
+  "demo-guided",
+  "vs-ai",
+  "local-pass-and-play",
+  "campaign-chronicles",
+] as const;
+
+export type MatchMode = (typeof MATCH_MODES)[number];
 
 export type MatchLogEntry = {
   id: string;
@@ -230,7 +280,7 @@ export type MatchLogEntry = {
   side: PlayerSide;
   title: string;
   detail: string;
-  kind: "summon" | "territory" | "structure" | "event" | "attack" | "power" | "heart" | "turn" | "victory";
+  kind: "summon" | "territory" | "structure" | "event" | "attack" | "power" | "heart" | "turn" | "victory" | "move" | "sacrifice" | "weather";
 };
 
 export type GuidedStepHint = {
@@ -251,6 +301,8 @@ export type MatchState = {
   activeSide: PlayerSide;
   winner: PlayerSide | null;
   winReason: string | null;
+  weather?: WeatherEffectId;
+  campaignChapter?: number;
   players: {
     player: PlayerMatchState;
     opponent: PlayerMatchState;
@@ -281,6 +333,22 @@ export type MatchAction =
       side: PlayerSide;
       lane: LaneIndex;
       targetLane?: LaneIndex;
+    }
+  | {
+      type: "creature-move";
+      side: PlayerSide;
+      fromLane: LaneIndex;
+      toLane: LaneIndex;
+    }
+  | {
+      type: "sacrifice-slot";
+      side: PlayerSide;
+      lane: LaneIndex;
+    }
+  | {
+      type: "set-weather";
+      side?: PlayerSide;
+      weather: WeatherEffectId;
     }
   | {
       type: "end-turn";
@@ -350,6 +418,25 @@ export type MatchVisualEvent =
       creatureName: string;
       powerName: string;
       element: Element;
+    }
+  | {
+      kind: "creature-moved";
+      side: PlayerSide;
+      fromLane: LaneIndex;
+      toLane: LaneIndex;
+      creatureName: string;
+    }
+  | {
+      kind: "slot-sacrificed";
+      side: PlayerSide;
+      lane: LaneIndex;
+      targetKind: "creature" | "structure";
+      refundBreath: number;
+    }
+  | {
+      kind: "weather-changed";
+      weather: WeatherEffectId;
+      weatherName: string;
     }
   | {
       kind: "event-triggered";

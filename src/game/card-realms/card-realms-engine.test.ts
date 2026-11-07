@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ALL_CARD_REALMS_CARDS, CREATURE_CARDS } from "./content/cards";
+import { ALL_CARD_REALMS_CARDS, CREATURE_CARDS, VERTICAL_SLICE_CARDS } from "./content/cards";
 import {
   applyDamageToCreature,
   computeEffectiveCreatureStats,
@@ -224,8 +224,9 @@ describe("Card Realms — Tabuleiro Vivo, Territórios, Cartas e Batalha de Lend
     );
   });
 
-  it("mantém todas as 22 cartas da Vertical Slice com retratos v5/autorais válidos, raridades e afinidades elementais", () => {
-    expect(ALL_CARD_REALMS_CARDS).toHaveLength(22);
+  it("mantém todas as 22 cartas da Vertical Slice e expande a coleção para 52+ lendas mundiais com retratos autorais", () => {
+    expect(VERTICAL_SLICE_CARDS).toHaveLength(22);
+    expect(ALL_CARD_REALMS_CARDS.length).toBeGreaterThanOrEqual(22);
     for (const card of ALL_CARD_REALMS_CARDS) {
       expect(card.portrait.sheet).toMatch(/^\/art\//);
       expect(card.cost).toBeGreaterThanOrEqual(1);
@@ -236,6 +237,104 @@ describe("Card Realms — Tabuleiro Vivo, Territórios, Cartas e Batalha de Lend
       expect(creature.resistances?.length).toBeGreaterThanOrEqual(1);
       expect(creature.weaknesses?.length).toBeGreaterThanOrEqual(1);
     }
+  });
+
+  it("suporta as 5 culturas mundiais (Brasil, Japão, Nórdico, Grécia, Egito) com Corações do Reino únicos", () => {
+    const cultures = ["brasil", "japao", "nordico", "grecia", "egito"] as const;
+    for (const culture of cultures) {
+      const state = createInitialMatchState({
+        mode: "vs-ai",
+        playerCulture: culture,
+      });
+      expect(state.players.player.heart.culture).toBe(culture);
+      expect(state.players.player.heart.currentHp).toBe(20);
+      expect(state.players.player.heart.name).toBeTruthy();
+    }
+  });
+
+  it("permite movimentação tática entre faixas adjacentes (creature-move) e sacrifício ritual (sacrifice-slot)", () => {
+    let state = createInitialMatchState({ mode: "demo-guided" });
+    const curupiraHand = state.players.player.hand.find((c) => c.cardId === "legend-curupira")!;
+    const summonRes = applyMatchAction(state, {
+      type: "play-card",
+      side: "player",
+      handInstanceId: curupiraHand.instanceId,
+      lane: 0,
+    });
+    expect(summonRes.ok).toBe(true);
+    state = summonRes.state;
+
+    expect(state.lanes.player[0].creature?.cardId).toBe("legend-curupira");
+    expect(state.lanes.player[1].creature).toBeNull();
+
+    // Ensure player has breath for tactical movement
+    state = {
+      ...state,
+      players: {
+        ...state.players,
+        player: {
+          ...state.players.player,
+          breath: 3,
+        },
+      },
+    };
+
+    // Move Curupira from lane 0 to lane 1 (costs 1 fôlego)
+    const moveRes = applyMatchAction(state, {
+      type: "creature-move",
+      side: "player",
+      fromLane: 0,
+      toLane: 1,
+    });
+    expect(moveRes.ok).toBe(true);
+    expect(moveRes.state.lanes.player[0].creature).toBeNull();
+    expect(moveRes.state.lanes.player[1].creature?.cardId).toBe("legend-curupira");
+    expect(moveRes.state.players.player.breath).toBe(2);
+    expect(moveRes.events).toContainEqual(
+      expect.objectContaining({
+        kind: "creature-moved",
+        side: "player",
+        fromLane: 0,
+        toLane: 1,
+      }),
+    );
+
+    // Sacrifice slot on lane 1 (refunds 1 fôlego)
+    const curBreath = moveRes.state.players.player.breath;
+    const sacrificeRes = applyMatchAction(moveRes.state, {
+      type: "sacrifice-slot",
+      side: "player",
+      lane: 1,
+    });
+    expect(sacrificeRes.ok).toBe(true);
+    expect(sacrificeRes.state.lanes.player[1].creature).toBeNull();
+    expect(sacrificeRes.state.players.player.breath).toBe(curBreath + 1);
+    expect(sacrificeRes.events).toContainEqual(
+      expect.objectContaining({
+        kind: "slot-sacrificed",
+        side: "player",
+        lane: 1,
+      }),
+    );
+  });
+
+  it("permite alterar dinamicamente o clima cósmico da arena (set-weather)", () => {
+    const initial = createInitialMatchState({ mode: "local-pass-and-play" });
+    expect(initial.weather).toBe("clima-sereno");
+
+    const weatherRes = applyMatchAction(initial, {
+      type: "set-weather",
+      side: "player",
+      weather: "chuva-ancestral",
+    });
+    expect(weatherRes.ok).toBe(true);
+    expect(weatherRes.state.weather).toBe("chuva-ancestral");
+    expect(weatherRes.events).toContainEqual(
+      expect.objectContaining({
+        kind: "weather-changed",
+        weather: "chuva-ancestral",
+      }),
+    );
   });
 
   it("aplica fraquezas (+1 dano) e resistências (-1 dano) elementais entre criaturas folclóricas", () => {

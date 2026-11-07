@@ -201,6 +201,134 @@ export function executeEventCardOnBoard(
       }
       break;
     }
+
+    case "fimbulwinter-glacial": {
+      for (const targetLane of BOARD_LANES) {
+        const terrain = transformLaneBiome(
+          nextState,
+          side,
+          targetLane,
+          "reino-congelado",
+          `${card.name} congelou as terras do reino!`,
+        );
+        nextState = terrain.state;
+        events.push(...terrain.events);
+
+        nextState = updateLaneSlot(nextState, enemySide, targetLane, (slot) => ({
+          ...slot,
+          creature: slot.creature
+            ? { ...slot.creature, baseAttack: Math.max(1, slot.creature.baseAttack - 1) }
+            : null,
+        }));
+        nextState = updateLaneSlot(nextState, side, targetLane, (slot) => ({
+          ...slot,
+          creature: slot.creature ? { ...slot.creature, shield: slot.creature.shield + 1 } : null,
+        }));
+      }
+      break;
+    }
+
+    case "furia-de-thor":
+    case "raio-de-zeus": {
+      const enemySlot = getLaneSlot(nextState, enemySide, lane);
+      if (enemySlot.creature) {
+        const hit = applyDamageToCreature(enemySlot.creature, 4);
+        nextState = updateLaneSlot(nextState, enemySide, lane, (slot) => ({
+          ...slot,
+          creature: hit.creature,
+        }));
+        if (hit.defeated) {
+          const enemyDef = getCreatureCardDefinition(enemySlot.creature.cardId);
+          events.push({
+            kind: "creature-defeated",
+            side: enemySide,
+            lane,
+            creatureName: enemyDef.name,
+          });
+        }
+      }
+      break;
+    }
+
+    case "ira-dos-titas": {
+      for (const targetLane of BOARD_LANES) {
+        const enemySlot = getLaneSlot(nextState, enemySide, targetLane);
+        if (enemySlot.creature) {
+          const hit = applyDamageToCreature(enemySlot.creature, 2);
+          nextState = updateLaneSlot(nextState, enemySide, targetLane, (slot) => ({
+            ...slot,
+            creature: hit.creature,
+          }));
+          if (hit.defeated) {
+            const enemyDef = getCreatureCardDefinition(enemySlot.creature.cardId);
+            events.push({
+              kind: "creature-defeated",
+              side: enemySide,
+              lane: targetLane,
+              creatureName: enemyDef.name,
+            });
+          }
+        }
+        if (enemySlot.structure) {
+          const structDef = getCardDefinition(enemySlot.structure.cardId);
+          nextState = updateLaneSlot(nextState, enemySide, targetLane, (slot) => ({
+            ...slot,
+            structure: null,
+          }));
+          events.push({
+            kind: "structure-destroyed",
+            side: enemySide,
+            lane: targetLane,
+            structureName: structDef.name,
+          });
+        }
+      }
+      break;
+    }
+
+    case "tempestade-khamsin": {
+      for (const targetLane of BOARD_LANES) {
+        if (getLaneSlot(nextState, side, targetLane).biomeId === "campos-ancestrais") {
+          const terrain = transformLaneBiome(
+            nextState,
+            side,
+            targetLane,
+            "deserto-sagrado",
+            "A tempestade de Khamsin cobriu os campos em Deserto Sagrado!",
+          );
+          nextState = terrain.state;
+          events.push(...terrain.events);
+        }
+        nextState = updateLaneSlot(nextState, enemySide, targetLane, (slot) => ({
+          ...slot,
+          creature: slot.creature ? addCreatureStatus(slot.creature, "confused") : null,
+        }));
+      }
+      break;
+    }
+
+    case "pesagem-das-almas": {
+      const enemyHandCount = nextState.players[enemySide].hand.length;
+      const damage = Math.max(2, enemyHandCount);
+      const enemySlot = getLaneSlot(nextState, enemySide, lane);
+      if (enemySlot.creature) {
+        const hit = applyDamageToCreature(enemySlot.creature, damage);
+        nextState = updateLaneSlot(nextState, enemySide, lane, (slot) => ({
+          ...slot,
+          creature: hit.creature,
+        }));
+        if (hit.defeated) {
+          const enemyDef = getCreatureCardDefinition(enemySlot.creature.cardId);
+          events.push({
+            kind: "creature-defeated",
+            side: enemySide,
+            lane,
+            creatureName: enemyDef.name,
+          });
+        }
+      }
+      break;
+    }
   }
 
   nextState = appendMatchLog(nextState, {
