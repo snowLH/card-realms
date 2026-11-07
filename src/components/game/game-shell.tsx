@@ -686,6 +686,8 @@ export function GameShell({ bootstrap, offlineMode = false }: { bootstrap: Playe
           signedIn={Boolean(bootstrap.identity)}
           offlineMode={offlineMode}
           onPlay={() => beginTitleMode("card-realms")}
+          onCollection={() => beginTitleMode("collection")}
+          onProfile={() => beginTitleMode("profile")}
           onCooperative={offlineMode ? undefined : () => beginTitleMode("raid")}
         />
       ) : null}

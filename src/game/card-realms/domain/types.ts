@@ -25,6 +25,15 @@ export const CARD_CATEGORIES = [
 
 export type CardCategory = (typeof CARD_CATEGORIES)[number];
 
+export const CARD_RARITIES = [
+  "common",
+  "rare",
+  "epic",
+  "legendary",
+] as const;
+
+export type CardRarity = (typeof CARD_RARITIES)[number];
+
 export type PlayerSide = "player" | "opponent";
 
 export type LaneIndex = 0 | 1 | 2 | 3;
@@ -69,6 +78,7 @@ export type BaseCardDefinition = {
   subtitle: string;
   culture: CultureId | "neutral";
   category: CardCategory;
+  rarity: CardRarity;
   cost: number;
   element: Element;
   description: string;
@@ -96,6 +106,12 @@ export type CreatureCardDefinition = BaseCardDefinition & {
   biomeShieldBonus?: number;
   swiftArrival?: boolean;
   actorId?: string;
+  resistances?: readonly Element[];
+  weaknesses?: readonly Element[];
+  passiveTrait?: {
+    name: string;
+    description: string;
+  };
   awakeningPower: AwakeningPowerDefinition;
 };
 
@@ -319,6 +335,12 @@ export type MatchVisualEvent =
       redirectedByConfusion?: boolean;
       blockedByVeil?: boolean;
       hitHeart?: boolean;
+      elementalRelation?: "weakness" | "resistance" | "neutral";
+    }
+  | {
+      kind: "card-drawn";
+      side: PlayerSide;
+      count: number;
     }
   | {
       kind: "creature-awakening";

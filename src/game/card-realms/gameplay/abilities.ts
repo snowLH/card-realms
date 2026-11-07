@@ -210,6 +210,13 @@ export function executeCreatureDespertar(
           [side]: drawn.player,
         },
       };
+      if (drawn.drawn.length > 0) {
+        events.push({
+          kind: "card-drawn",
+          side,
+          count: drawn.drawn.length,
+        });
+      }
       break;
     }
 

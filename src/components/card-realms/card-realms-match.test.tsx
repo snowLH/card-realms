@@ -27,6 +27,7 @@ describe("CardRealmsMatch — Vertical Slice no Tabuleiro Vivo", () => {
     // Curupira is now materialized on Lane 1 with native Mata Encantada synergy (3 base + 2 biome = 5 ATQ / 5 PV)
     expect(bottomSlot0).toHaveTextContent(/Curupira/i);
     expect(bottomSlot0).toHaveTextContent(/⚔️ 5 · ❤️ 5\/5/i);
+    expect(screen.getByText(/Passos Invertidos/i)).toBeInTheDocument();
 
     // Guided banner automatically advances to Step 2
     expect(screen.getByText(/Passo 2 — Expanda Seu Território Vivo/i)).toBeInTheDocument();

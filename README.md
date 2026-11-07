@@ -1,15 +1,19 @@
-# Folklard — Crônicas de Aurória
+# Card Realms — Crônicas das Lendas (Folklard)
 
-**Roguelite de ação 2D para navegador e celulares**, com heróis e criaturas de folclores do mundo. Desenvolvido em **Next.js + React + Phaser + TypeScript**, com autenticação, salvamento online e modos cooperativos apoiados por Supabase.
+**Jogo digital de estratégia, cartas e campo de batalha vivo em Pixel Art 2D** para navegador, tablet e celular, onde folclores e mitologias de diferentes culturas entram em conflito. Desenvolvido em **Next.js + React + Phaser 3 + TypeScript**, com suporte a persistência local e Supabase.
 
-O projeto surgiu como Card Realms (cartas por turnos), mas **o gameplay atual é o ARPG em tempo real**. Os modos TCG/PvP clássicos e a loja de energias antigas foram retirados da navegação; módulos internos de compatibilidade permanecem até que a migração dos dados históricos seja segura.
+A experiência principal é **Card Realms: O Tabuleiro Vivo** (`src/game/card-realms` e `src/components/card-realms`): dois reinos frente a frente em uma arena viva de 4 territórios conectados, invocando lendas folclóricas materializadas, erguendo estruturas, transformando terrenos e escolhendo a cada turno entre **Investida (Ataque)** ou **Despertar Ancestral (Poder)** para destruir o **Coração do Reino** adversário. O módulo `src/game/arpg` permanece congelado para compatibilidade histórica com snapshots e expedições legadas.
 
-## Como jogar
-- Comece na Guilda, selecione uma lenda folclórica e equipe **dois poderes de assinatura**.
-- Entre numa expedição; dungeons de **8 a 12 salas** são montadas por seed com caminhos, encontros, salas especiais, baús, elites e boss final.
-- Use WASD/mouse, gamepad ou touch landscape para **mover, mirar, atacar, desviar e trocar armas**. Em botões móveis a mira prioriza inimigos visíveis, nunca através de obstáculos.
-- Encontre armas e melhorias na run, vença o chefe e atravesse o portal de extração.
-- Progresso de visitante é salvo no navegador. Com conta, recompensas e inventário permanentes exigem confirmação do servidor.
+## Como jogar Card Realms — Crônicas das Lendas
+- Na Tela Inicial, clique em **JOGAR** para abrir a arena do **Tabuleiro Vivo** (ou acesse **COLEÇÃO** / **PERFIL** / **CONFIGURAÇÕES**).
+- Escolha entre **Jornada Guiada**, **Duelo vs IA** (4 perfis táticos determinísticos: *Estratégica*, *Agressiva*, *Defensiva* e *Adaptativa*) ou **2 Estrategistas (Local)**, e alterne entre os reinos **Brasil (Guardiões de Pindorama)** e **Japão (Império dos Espíritos Yōkai)**.
+- Posicione cartas da mão (clique ou arraste com pré-visualização em tempo real) sobre os **4 Territórios conectados**:
+  - **Cartas de Lenda (Criaturas)**: Materializam-se fisicamente sobre a carta no território com ritual elemental em 10 etapas, animações v5 de 24 poses (`idle`, `attack`, `awakening`, `damage`), raridades (*Comum*, *Rara*, *Épica*, *Lendária*), traços passivos, resistências e fraquezas elementais.
+  - **Cartas de Território**: Transformam o bioma da faixa (*Mata Encantada*, *Rio dos Espíritos*, *Montanha Antiga*, *Terra Vulcânica*, *Reino Espiritual*, etc.) e ativam reações ambientais.
+  - **Cartas de Estrutura**: Erguem santuários e torres físicas (*Altar da Clareira Viva*, *Fonte das Águas Doces*, *Portão Torii Espiritual*, *Torre de Vigia da Montanha*) que protegem a faixa e concedem auras.
+  - **Cartas de Evento**: Desencadeiam fenômenos climáticos e astrais (*Enchente da Pororoca*, *Incêndio de Brasa Viva*, *Eclipse das Lendas*, *Neblina dos Espíritos*).
+- A cada turno, cada criatura pronta realiza **1 ação principal**: **Investida** (ataque direto contra a faixa oposta ou Coração do Reino) ou **Despertar Ancestral** (habilidade folclórica única).
+- Vença reduzindo o **Coração do Reino** adversário de 20 PV a 0 PV através dos 6 estágios visuais de deterioração.
 
 ## Conteúdo atualmente estruturado
 - **13 lendas jogáveis**, incluindo Curupira, Iara, Kappa, Raijū, Amarok, Kelpie e Yeti, com poderes únicos.

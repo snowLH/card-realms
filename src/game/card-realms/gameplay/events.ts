@@ -177,6 +177,13 @@ export function executeEventCardOnBoard(
           },
         },
       };
+      if (drawn.drawn.length > 0) {
+        events.push({
+          kind: "card-drawn",
+          side,
+          count: drawn.drawn.length,
+        });
+      }
       break;
     }
 

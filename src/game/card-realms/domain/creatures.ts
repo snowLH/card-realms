@@ -1,3 +1,4 @@
+import type { Element } from "@/game/types";
 import { getCardDefinition, isCreatureCard, isStructureCard } from "./cards";
 import { getTerritoryBiome } from "./territories";
 import type {
@@ -122,22 +123,49 @@ export function removeCreatureStatus(
   };
 }
 
+export function computeElementalDamageModifier(
+  sourceElement: Element | undefined,
+  defenderDef: CreatureCardDefinition,
+): { delta: number; relation: "weakness" | "resistance" | "neutral" } {
+  if (!sourceElement) {
+    return { delta: 0, relation: "neutral" };
+  }
+  if (defenderDef.weaknesses?.includes(sourceElement)) {
+    return { delta: 1, relation: "weakness" };
+  }
+  if (defenderDef.resistances?.includes(sourceElement)) {
+    return { delta: -1, relation: "resistance" };
+  }
+  return { delta: 0, relation: "neutral" };
+}
+
 /**
- * Applies damage to a materialized creature, respecting Véu de Ilusão (`veiled`) and Shield (`shield`).
+ * Applies damage to a materialized creature, respecting Véu de Ilusão (`veiled`), elemental resistance/weakness, and Shield (`shield`).
  */
 export function applyDamageToCreature(
   creature: BoardCreatureInstance,
   rawDamage: number,
-  options?: { ignoreVeil?: boolean },
+  options?: { ignoreVeil?: boolean; sourceElement?: Element },
 ): {
   creature: BoardCreatureInstance | null;
   damageDealt: number;
   blockedByVeil: boolean;
   defeated: boolean;
+  elementalRelation: "weakness" | "resistance" | "neutral";
 } {
   if (rawDamage <= 0) {
-    return { creature, damageDealt: 0, blockedByVeil: false, defeated: false };
+    return {
+      creature,
+      damageDealt: 0,
+      blockedByVeil: false,
+      defeated: false,
+      elementalRelation: "neutral",
+    };
   }
+
+  const defenderDef = getCreatureCardDefinition(creature.cardId);
+  const mod = computeElementalDamageModifier(options?.sourceElement, defenderDef);
+  const adjustedDamage = Math.max(1, rawDamage + mod.delta);
 
   if (!options?.ignoreVeil && creature.statuses.includes("veiled")) {
     const unveiled = removeCreatureStatus(creature, "veiled");
@@ -146,11 +174,12 @@ export function applyDamageToCreature(
       damageDealt: 0,
       blockedByVeil: true,
       defeated: false,
+      elementalRelation: mod.relation,
     };
   }
 
-  const absorbedByShield = Math.min(creature.shield, rawDamage);
-  const remainingDamage = rawDamage - absorbedByShield;
+  const absorbedByShield = Math.min(creature.shield, adjustedDamage);
+  const remainingDamage = adjustedDamage - absorbedByShield;
   const nextShield = creature.shield - absorbedByShield;
   const nextHp = creature.currentHp - remainingDamage;
 
@@ -160,6 +189,7 @@ export function applyDamageToCreature(
       damageDealt: remainingDamage,
       blockedByVeil: false,
       defeated: true,
+      elementalRelation: mod.relation,
     };
   }
 
@@ -172,6 +202,7 @@ export function applyDamageToCreature(
     damageDealt: remainingDamage,
     blockedByVeil: false,
     defeated: false,
+    elementalRelation: mod.relation,
   };
 }
 

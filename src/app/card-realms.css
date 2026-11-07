@@ -138,7 +138,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  max-height: 460px;
+  max-height: 540px;
   overflow: hidden;
   border: 0;
   border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch;
@@ -160,7 +160,7 @@
 .card-realms-tactical-lanes {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 @media (max-width: 720px) {
@@ -172,8 +172,8 @@
 .card-realms-lane-column {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
+  gap: 4px;
+  padding: 6px;
   border: 0;
   border-image: var(--art-panel-dark) 16 fill / 6px / 0 stretch;
 }
@@ -191,10 +191,10 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: 3px;
   width: 100%;
-  min-height: 82px;
-  padding: 8px;
+  min-height: 68px;
+  padding: 6px 8px;
   text-align: left;
   border: 0 !important;
   border-image: var(--art-slot-empty) 16 fill / 8px / 0 stretch !important;
@@ -294,8 +294,24 @@
 
 .card-realms-hand-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(208px, 1fr));
   gap: 10px;
+}
+
+@media (max-width: 768px) {
+  .card-realms-hand-grid {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 10px;
+    padding-bottom: 6px;
+  }
+
+  .card-realms-hand-grid > .card-realms-card {
+    min-width: 224px;
+    flex: 0 0 224px;
+    scroll-snap-align: center;
+  }
 }
 
 .card-realms-card {
@@ -304,11 +320,27 @@
   justify-content: space-between;
   gap: 6px;
   padding: 10px;
-  min-height: 196px;
+  min-height: 212px;
   text-align: left;
   border: 0 !important;
   border-image: var(--art-panel-parchment) 16 fill / 8px / 0 stretch !important;
   color: #2b1f14 !important;
+}
+
+.card-realms-card--rarity-legendary .card-realms-card__top {
+  color: #7c3800;
+}
+
+.card-realms-card--rarity-epic .card-realms-card__top {
+  color: #4f1d6b;
+}
+
+.card-realms-card--rarity-rare .card-realms-card__top {
+  color: #164863;
+}
+
+.card-realms-card.is-selected .card-realms-card__top {
+  color: #ffe89e;
 }
 
 .card-realms-card.is-selected {

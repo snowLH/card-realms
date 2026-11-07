@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { ALL_CARD_REALMS_CARDS } from "./content/cards";
-import { computeEffectiveCreatureStats } from "./domain/creatures";
+import { ALL_CARD_REALMS_CARDS, CREATURE_CARDS } from "./content/cards";
+import {
+  applyDamageToCreature,
+  computeEffectiveCreatureStats,
+  computeElementalDamageModifier,
+  getCreatureCardDefinition,
+} from "./domain/creatures";
 import { getKingdomHeartVisualState } from "./domain/cultures";
 import { resolveElementalBiomeReaction } from "./domain/territories";
 import {
@@ -219,12 +224,66 @@ describe("Card Realms — Tabuleiro Vivo, Territórios, Cartas e Batalha de Lend
     );
   });
 
-  it("mantém todas as 22 cartas da Vertical Slice com retratos v5/autorais válidos", () => {
+  it("mantém todas as 22 cartas da Vertical Slice com retratos v5/autorais válidos, raridades e afinidades elementais", () => {
     expect(ALL_CARD_REALMS_CARDS).toHaveLength(22);
     for (const card of ALL_CARD_REALMS_CARDS) {
       expect(card.portrait.sheet).toMatch(/^\/art\//);
       expect(card.cost).toBeGreaterThanOrEqual(1);
+      expect(["common", "rare", "epic", "legendary"]).toContain(card.rarity);
     }
+    for (const creature of CREATURE_CARDS) {
+      expect(creature.passiveTrait?.name).toBeTruthy();
+      expect(creature.resistances?.length).toBeGreaterThanOrEqual(1);
+      expect(creature.weaknesses?.length).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("aplica fraquezas (+1 dano) e resistências (-1 dano) elementais entre criaturas folclóricas", () => {
+    const curupiraDef = getCreatureCardDefinition("legend-curupira");
+    expect(computeElementalDamageModifier("fire", curupiraDef)).toEqual({
+      delta: 1,
+      relation: "weakness",
+    });
+    expect(computeElementalDamageModifier("water", curupiraDef)).toEqual({
+      delta: -1,
+      relation: "resistance",
+    });
+
+    const dummyCurupira = {
+      instanceId: "c1",
+      cardId: "legend-curupira",
+      owner: "player" as const,
+      lane: 0 as const,
+      baseAttack: 3,
+      currentHp: 5,
+      maxHp: 5,
+      shield: 0,
+      canAct: true,
+      summonedTurn: 1,
+      usedPowerCount: 0,
+      statuses: [],
+    };
+
+    const fireHit = applyDamageToCreature(dummyCurupira, 3, { sourceElement: "fire" });
+    expect(fireHit.damageDealt).toBe(4);
+    expect(fireHit.elementalRelation).toBe("weakness");
+
+    const waterHit = applyDamageToCreature(dummyCurupira, 3, { sourceElement: "water" });
+    expect(waterHit.damageDealt).toBe(2);
+    expect(waterHit.elementalRelation).toBe("resistance");
+  });
+
+  it("emite evento card-drawn ao comprar cartas na passagem de turno", () => {
+    const initial = createInitialMatchState({ mode: "local-pass-and-play" });
+    const endTurnRes = applyMatchAction(initial, { type: "end-turn", side: "player" });
+    expect(endTurnRes.ok).toBe(true);
+    expect(endTurnRes.events).toContainEqual(
+      expect.objectContaining({
+        kind: "card-drawn",
+        side: "opponent",
+        count: 1,
+      }),
+    );
   });
 
   it("resolve coordenadas 2.5D do tabuleiro, cliques em faixas/Coração e eventos da CardRealmsBridge", () => {

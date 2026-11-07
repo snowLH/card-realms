@@ -1,10 +1,12 @@
 "use client";
 import {ArtSprite} from '@/components/ui/art-sprite';
 import {UI_ART} from '@/game/arpg/art/manifest';
+import { CHARACTER_PORTRAITS } from "@/game/content/character-portraits";
+import { PixelCreature } from "./pixel-creature";
 
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { ArrowRight, BookOpen, Download, Play, Settings, ShieldCheck, UsersRound } from "@/components/ui/pixel-icon";
+import { ArrowRight, BookOpen, Crown, Download, Play, Settings, ShieldCheck, Sparkles, UsersRound } from "@/components/ui/pixel-icon";
 import Link from "next/link";
 import { LoginDialog } from "@/components/auth/login-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -22,12 +24,16 @@ export function TitleScreen({
   signedIn,
   onPlay,
   onCooperative,
+  onCollection,
+  onProfile,
   offlineMode = false,
 }: {
   loginEnabled: boolean;
   signedIn: boolean;
   onPlay: () => void;
   onCooperative?: () => void;
+  onCollection?: () => void;
+  onProfile?: () => void;
   offlineMode?: boolean;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -77,17 +83,24 @@ export function TitleScreen({
 
       <div className={styles.content}>
         <div className={styles.brand}>
-          <span className={styles.kicker}><ArtSprite pack="ui" frame={UI_ART.star.frame} style={{width:16,height:16}}/> Uma jornada de folclore</span>
+          <span className={styles.kicker}><ArtSprite pack="ui" frame={UI_ART.star.frame} style={{width:16,height:16}}/> Card Realms · Crônicas das Lendas</span>
           <h1 id="title-screen-heading">
             <span className={styles.logoMark} aria-hidden="true">
               <ArtSprite pack="ui" frame={UI_ART.hero.frame} style={{width:48,height:48}}/>
             </span>
             Folklard
           </h1>
-          <p>Crônicas de Aurória</p>
+          <p>Card Realms · Crônicas de Aurória</p>
         </div>
 
-        <p className={styles.description}>Explore masmorras, encontre armas e enfrente criaturas do folclore. Sua jornada começa na Guilda.</p>
+        <p className={styles.description}>Lidere lendas do folclore mundial em um campo de batalha vivo de estratégia e cartas, ou explore a Guilda e expedições.</p>
+
+        <div aria-label="Lendas em destaque" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <PixelCreature sprite={CHARACTER_PORTRAITS["curupira"]} label="Curupira" />
+          <PixelCreature sprite={CHARACTER_PORTRAITS["iara"]} label="Iara" />
+          <PixelCreature sprite={CHARACTER_PORTRAITS["kitsune"]} label="Kitsune" />
+          <PixelCreature sprite={CHARACTER_PORTRAITS["oni"]} label="Oni" />
+        </div>
 
         <nav className={styles.menu} aria-label="Escolher modo de jogo">
           <button type="button" className={`${styles.action} ${styles.play}`} onClick={onPlay}>
@@ -98,6 +111,18 @@ export function TitleScreen({
             </span>
             <span className={styles.playArrow} aria-hidden="true"><ArrowRight /></span>
           </button>
+          {onCollection ? (
+            <button type="button" className={styles.action} onClick={onCollection}>
+              <Sparkles aria-hidden="true" />
+              <span className={styles.buttonCopy}><strong>COLEÇÃO</strong>{" "}<small>Bestiário e Cartas</small></span>
+            </button>
+          ) : null}
+          {onProfile ? (
+            <button type="button" className={styles.action} onClick={onProfile}>
+              <Crown aria-hidden="true" />
+              <span className={styles.buttonCopy}><strong>PERFIL</strong>{" "}<small>Reino e Progresso</small></span>
+            </button>
+          ) : null}
           {!offlineMode ? <button type="button" className={`${styles.action} ${styles.cooperative}`} onClick={onCooperative} disabled={!onCooperative}>
             <UsersRound aria-hidden="true" />
             <span className={styles.buttonCopy}><strong>COOPERATIVO</strong>{" "}<small>Dungeons com amigos</small></span>

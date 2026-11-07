@@ -84,7 +84,9 @@ export function executeCreatureInvestida(
     const defenderDef = getCreatureCardDefinition(defender.cardId);
     const defenderStats = computeEffectiveCreatureStats(enemySlot)!;
 
-    const hitResult = applyDamageToCreature(defender, attackDamage);
+    const hitResult = applyDamageToCreature(defender, attackDamage, {
+      sourceElement: attackerDef.element,
+    });
     nextState = updateLaneSlot(nextState, enemySide, targetLane, (slot) => ({
       ...slot,
       creature: hitResult.creature,
@@ -100,6 +102,7 @@ export function executeCreatureInvestida(
       redirectedByConfusion,
       blockedByVeil: hitResult.blockedByVeil,
       hitHeart: false,
+      elementalRelation: hitResult.elementalRelation,
     });
 
     if (hitResult.blockedByVeil) {

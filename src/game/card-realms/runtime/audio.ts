@@ -1,12 +1,14 @@
 import type { CultureId } from "../domain/types";
 
 export type CardRealmsSoundCue =
+  | "card-draw"
   | "card-select"
   | "card-place"
   | "summon-ritual"
   | "creature-materialize"
   | "territory-shift"
   | "structure-build"
+  | "structure-destroy"
   | "attack-clash"
   | "awakening-power"
   | "event-cast"
@@ -35,6 +37,12 @@ const CULTURE_THEME_NOTES: Readonly<Record<CultureId, readonly number[]>> = {
 };
 
 const CUE_PATTERNS: Readonly<Record<CardRealmsSoundCue, SoundPattern>> = {
+  "card-draw": {
+    notes: [440, 587.33, 659.25],
+    duration: 0.14,
+    waveform: "sine",
+    volume: 0.026,
+  },
   "card-select": { notes: [523.25, 659.25], duration: 0.09, waveform: "sine", volume: 0.025 },
   "card-place": { notes: [220, 330], duration: 0.14, waveform: "triangle", volume: 0.035 },
   "summon-ritual": { notes: [293.66, 440, 587.33], duration: 0.28, waveform: "sine", volume: 0.038 },
@@ -55,6 +63,13 @@ const CUE_PATTERNS: Readonly<Record<CardRealmsSoundCue, SoundPattern>> = {
     duration: 0.24,
     waveform: "triangle",
     volume: 0.038,
+  },
+  "structure-destroy": {
+    notes: [220, 146.83, 98],
+    duration: 0.28,
+    waveform: "sawtooth",
+    volume: 0.046,
+    slide: -45,
   },
   "attack-clash": {
     notes: [360, 180],

@@ -94,6 +94,14 @@ export function executeEndTurn(
     },
   };
 
+  if (drawn.drawn.length > 0) {
+    events.push({
+      kind: "card-drawn",
+      side: nextSide,
+      count: drawn.drawn.length,
+    });
+  }
+
   // 4. Resolve start-of-turn field effects (healing, shields, creature readiness)
   const startField = applyTurnStartFieldEffects(nextState, nextSide);
   nextState = startField.state;

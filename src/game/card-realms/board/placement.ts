@@ -76,6 +76,13 @@ export function placeTerritoryCardOnBoard(
         [side]: drawnResult.player,
       },
     };
+    if (drawnResult.drawn.length > 0) {
+      events.push({
+        kind: "card-drawn",
+        side,
+        count: drawnResult.drawn.length,
+      });
+    }
   }
 
   return { state: nextState, events };

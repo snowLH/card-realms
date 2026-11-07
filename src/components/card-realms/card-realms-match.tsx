@@ -17,7 +17,11 @@ import {
   X,
 } from "@/components/ui/pixel-icon";
 import { ALL_CARD_REALMS_CARDS } from "@/game/card-realms/content/cards";
-import { getCardDefinition } from "@/game/card-realms/domain/cards";
+import {
+  CARD_RARITY_LABELS,
+  ELEMENT_LABELS,
+  getCardDefinition,
+} from "@/game/card-realms/domain/cards";
 import {
   computeEffectiveCreatureStats,
   getCreatureCardDefinition,
@@ -501,7 +505,7 @@ export function CardRealmsMatch({
         <div className="card-realms-topbar__brand">
           <Crown size={24} aria-hidden="true" />
           <div>
-            <h1>CARD REALMS · TABULEIRO VIVO</h1>
+            <h1>CARD REALMS · TABULEIRO VIVO — CRÔNICAS DAS LENDAS</h1>
             <small>
               Estrategista {playerName} · Lendas do Folclore Mundial em Territórios Vivos
             </small>
@@ -1083,12 +1087,14 @@ export function CardRealmsMatch({
                     affordable={affordable}
                     disabled={!affordable || Boolean(state.winner)}
                     onClick={() => {
+                      audioRef.current?.play("card-select");
                       setSelectedCreatureSlot(null);
                       setSelectedCardInstanceId((prev) =>
                         prev === handItem.instanceId ? null : handItem.instanceId,
                       );
                     }}
                     onDragStartCard={(_card, instId) => {
+                      audioRef.current?.play("card-select");
                       setSelectedCreatureSlot(null);
                       setSelectedCardInstanceId(instId);
                     }}
@@ -1134,8 +1140,51 @@ export function CardRealmsMatch({
               <div>
                 <strong>
                   👹 {getCreatureCardDefinition(inspectedBoardSlot.creature.cardId).name} (
-                  {getCreatureCardDefinition(inspectedBoardSlot.creature.cardId).subtitle})
+                  {getCreatureCardDefinition(inspectedBoardSlot.creature.cardId).subtitle}) ·{" "}
+                  {
+                    CARD_RARITY_LABELS[
+                      getCreatureCardDefinition(inspectedBoardSlot.creature.cardId).rarity
+                    ].name
+                  }
                 </strong>
+                {getCreatureCardDefinition(inspectedBoardSlot.creature.cardId).passiveTrait ? (
+                  <p>
+                    <small>
+                      <strong>
+                        🛡️{" "}
+                        {
+                          getCreatureCardDefinition(inspectedBoardSlot.creature.cardId)
+                            .passiveTrait?.name
+                        }
+                        :
+                      </strong>{" "}
+                      {
+                        getCreatureCardDefinition(inspectedBoardSlot.creature.cardId)
+                          .passiveTrait?.description
+                      }
+                    </small>
+                  </p>
+                ) : null}
+                <p>
+                  <small>
+                    {getCreatureCardDefinition(inspectedBoardSlot.creature.cardId).resistances
+                      ?.length
+                      ? `Resistências: ${getCreatureCardDefinition(
+                          inspectedBoardSlot.creature.cardId,
+                        )
+                          .resistances?.map((e) => ELEMENT_LABELS[e])
+                          .join(", ")} · `
+                      : ""}
+                    {getCreatureCardDefinition(inspectedBoardSlot.creature.cardId).weaknesses
+                      ?.length
+                      ? `Fraquezas: ${getCreatureCardDefinition(
+                          inspectedBoardSlot.creature.cardId,
+                        )
+                          .weaknesses?.map((e) => ELEMENT_LABELS[e])
+                          .join(", ")}`
+                      : ""}
+                  </small>
+                </p>
                 <p>
                   <small>
                     {getCreatureCardDefinition(inspectedBoardSlot.creature.cardId).folkloreNote}

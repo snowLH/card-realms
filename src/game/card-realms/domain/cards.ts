@@ -1,7 +1,9 @@
+import type { Element } from "@/game/types";
 import { ALL_CARD_REALMS_CARDS, CARD_BY_ID } from "../content/cards";
 import type {
   CardCategory,
   CardDefinition,
+  CardRarity,
   CreatureCardDefinition,
   EventCardDefinition,
   StructureCardDefinition,
@@ -13,6 +15,23 @@ export const CARD_CATEGORY_LABELS: Readonly<Record<CardCategory, string>> = {
   creature: "Lenda",
   structure: "Estrutura",
   event: "Evento",
+};
+
+export const CARD_RARITY_LABELS: Readonly<
+  Record<CardRarity, { name: string; shortLabel: string }>
+> = {
+  common: { name: "Comum", shortLabel: "COMUM" },
+  rare: { name: "Rara", shortLabel: "RARA" },
+  epic: { name: "Épica", shortLabel: "ÉPICA" },
+  legendary: { name: "Lendária", shortLabel: "LENDÁRIA" },
+};
+
+export const ELEMENT_LABELS: Readonly<Record<Element, string>> = {
+  nature: "Natureza",
+  water: "Água",
+  fire: "Fogo",
+  storm: "Tempestade",
+  spirit: "Espírito",
 };
 
 export function getCardDefinition(cardId: string): CardDefinition {

@@ -98,6 +98,16 @@ export function createCardRealmsBoardScene(
     private selectedSlot: SelectedBoardSlot = null;
     private previewSlot: PreviewBoardSlot = null;
     private unsubscribers: Array<() => void> = [];
+    private actorActionState = new Map<
+      string,
+      {
+        mode: "attack" | "awakening" | "damage";
+        startedAt: number;
+        duration: number;
+        targetX?: number;
+        targetY?: number;
+      }
+    >();
 
     constructor() {
       super("card-realms-board-scene");
@@ -105,6 +115,9 @@ export function createCardRealmsBoardScene(
 
     preload() {
       queueAuthoredArt(this, "mata-encantada");
+      if (!this.textures.exists("card-realms-arena-backdrop")) {
+        this.load.image("card-realms-arena-backdrop", "/art/forest-sanctuary-arena-v2.webp");
+      }
       for (const biomeArt of Object.values(DUNGEON_ART)) {
         if (!this.textures.exists(biomeArt.key)) {
           this.load.spritesheet(biomeArt.key, biomeArt.path, {
@@ -225,7 +238,14 @@ export function createCardRealmsBoardScene(
       authoredImage(this, 30, 510, "props", PROP_ART.rubble, 36, 36).setDepth(2).setAlpha(0.7);
       authoredImage(this, 930, 510, "props", PROP_ART.rubble, 36, 36).setDepth(2).setAlpha(0.7);
 
-      // 3. Inner Cartographer War Table Surface (tilted 2.5D board)
+      // 3. Inner Cartographer War Table Surface (tilted 2.5D board) + Pixel Art Arena Backdrop
+      if (this.textures.exists("card-realms-arena-backdrop")) {
+        this.add
+          .image(CARD_REALMS_BOARD_VIEWPORT.width / 2, 268, "card-realms-arena-backdrop")
+          .setDisplaySize(882, 370)
+          .setDepth(2)
+          .setAlpha(0.54);
+      }
       authoredPanel(
         this,
         CARD_REALMS_BOARD_VIEWPORT.width / 2,
@@ -235,7 +255,7 @@ export function createCardRealmsBoardScene(
         370,
       )
         .setDepth(2)
-        .setAlpha(0.26);
+        .setAlpha(0.24);
 
       // 4. Corner Sanctuary Braziers & Lanterns giving physical tabletop presence
       authoredImage(this, 62, 92, "props", PROP_ART.brazier, 44, 44).setDepth(4);
@@ -296,6 +316,7 @@ export function createCardRealmsBoardScene(
 
       this.renderKingdomHeart("opponent", state);
       this.renderKingdomHeart("player", state);
+      this.renderConnectedTerrainBridges(state);
 
       for (const side of ["opponent", "player"] as const) {
         for (const lane of BOARD_LANES) {
@@ -304,6 +325,97 @@ export function createCardRealmsBoardScene(
       }
 
       this.dynamicLayer.end();
+    }
+
+    /**
+     * Visually connects the 4 strategic lanes horizontally and across the central frontier
+     * so the battlefield feels like a continuous natural landscape rather than isolated boxes.
+     */
+    private renderConnectedTerrainBridges(state: MatchState) {
+      for (const side of ["opponent", "player"] as const) {
+        for (let idx = 0; idx < 3; idx += 1) {
+          const leftLane = idx as LaneIndex;
+          const rightLane = (idx + 1) as LaneIndex;
+          const leftCoords = getLaneBoardCoordinates(side, leftLane);
+          const rightCoords = getLaneBoardCoordinates(side, rightLane);
+          const leftBiome = getTerritoryBiome(state.lanes[side][leftLane].biomeId);
+          const rightBiome = getTerritoryBiome(state.lanes[side][rightLane].biomeId);
+
+          const midX = Math.round((leftCoords.centerX + rightCoords.centerX) / 2);
+          const midY = leftCoords.centerY;
+          const scale = leftCoords.perspectiveScale;
+
+          this.dynamicLayer
+            .image(
+              `terrain-bridge-left-${side}-${idx}`,
+              "props",
+              leftBiome.visual.groundOverlayPropFrame,
+              midX - 14 * scale,
+              midY,
+              46 * scale,
+              leftCoords.tileHeight * 0.76,
+              0.68,
+            )
+            .setTint(leftBiome.visual.tintHex);
+
+          this.dynamicLayer
+            .image(
+              `terrain-bridge-right-${side}-${idx}`,
+              "props",
+              rightBiome.visual.groundOverlayPropFrame,
+              midX + 14 * scale,
+              midY,
+              46 * scale,
+              rightCoords.tileHeight * 0.76,
+              0.68,
+            )
+            .setTint(rightBiome.visual.tintHex);
+
+          this.dynamicLayer.image(
+            `terrain-bridge-prop-${side}-${idx}`,
+            "props",
+            idx % 2 === 0 ? leftBiome.visual.tertiaryPropFrame : rightBiome.visual.secondaryPropFrame,
+            midX,
+            midY - 12 * scale,
+            28 * scale,
+            28 * scale,
+            0.84,
+          );
+        }
+      }
+
+      // Natural crossings across the central battleline connecting Opponent and Player territories
+      for (const lane of BOARD_LANES) {
+        const topCoords = getLaneBoardCoordinates("opponent", lane);
+        const bottomCoords = getLaneBoardCoordinates("player", lane);
+        const crossX = Math.round((topCoords.centerX + bottomCoords.centerX) / 2);
+        const crossY = 268;
+        const playerBiome = getTerritoryBiome(state.lanes.player[lane].biomeId);
+
+        this.dynamicLayer
+          .image(
+            `frontier-crossing-ground-${lane}`,
+            "props",
+            playerBiome.visual.groundOverlayPropFrame,
+            crossX,
+            crossY,
+            64,
+            42,
+            0.62,
+          )
+          .setTint(playerBiome.visual.tintHex);
+
+        this.dynamicLayer.image(
+          `frontier-crossing-marker-${lane}`,
+          "props",
+          lane % 2 === 0 ? PROP_ART.table : PROP_ART.ruin,
+          crossX,
+          crossY,
+          32,
+          24,
+          0.78,
+        );
+      }
     }
 
     private renderKingdomHeart(side: PlayerSide, state: MatchState) {
@@ -327,12 +439,43 @@ export function createCardRealmsBoardScene(
         PROP_ART.shadowLarge,
         coords.x,
         coords.y + 16 * coords.scale,
-        140 * coords.scale,
-        32 * coords.scale,
-        0.75,
+        180 * coords.scale,
+        34 * coords.scale,
+        0.78,
       );
 
-      // Left and right monuments representing the Kingdom Heart
+      // Central Sanctuary Citadel Monument + Left and Right Guardians
+      this.dynamicLayer.image(
+        `heart-monument-center-${side}`,
+        "props",
+        propFrame,
+        coords.x,
+        coords.y + (side === "opponent" ? -2 : 2),
+        56 * coords.scale,
+        56 * coords.scale,
+        visualState === "destroyed" ? 0.85 : 0.96,
+      );
+      this.dynamicLayer.image(
+        `heart-banner-left-${side}`,
+        "props",
+        PROP_ART.banner,
+        coords.x - 168 * coords.scale,
+        coords.y + 2 * coords.scale,
+        32 * coords.scale,
+        32 * coords.scale,
+        0.88,
+      );
+      this.dynamicLayer.image(
+        `heart-banner-right-${side}`,
+        "props",
+        PROP_ART.banner,
+        coords.x + 168 * coords.scale,
+        coords.y + 2 * coords.scale,
+        32 * coords.scale,
+        32 * coords.scale,
+        0.88,
+      );
+
       if (visualState === "destroyed") {
         this.dynamicLayer.image(
           `heart-monument-left-${side}`,
@@ -1159,12 +1302,29 @@ export function createCardRealmsBoardScene(
       timeMs: number,
     ) {
       const spriteId = `actor-${side}-${lane}`;
+      const activeAction = this.actorActionState.get(spriteId);
+      const isActionActive =
+        activeAction && timeMs >= activeAction.startedAt && timeMs <= activeAction.startedAt + activeAction.duration;
+      const actionProgress = isActionActive
+        ? Math.max(0, Math.min(1, (timeMs - activeAction.startedAt) / activeAction.duration))
+        : 0;
+
       let textureKey: string = FOLKLARD_ART_MANIFEST.missingActor.key;
       let frameIndex = 0;
 
       if (actorId && this.textures.exists(actorTextureKey(actorId))) {
         textureKey = actorTextureKey(actorId);
-        frameIndex = Math.floor(timeMs / 220 + lane) % 4;
+        const actionRow = !isActionActive
+          ? 0
+          : activeAction.mode === "attack"
+            ? 2
+            : activeAction.mode === "awakening"
+              ? 3
+              : 4;
+        const subFrame = isActionActive
+          ? Math.min(3, Math.floor(actionProgress * 4))
+          : Math.floor(timeMs / 220 + lane) % 4;
+        frameIndex = actionRow * 4 + subFrame;
       } else if (this.textures.exists(bestiaryTextureKey(sheetPath))) {
         textureKey = bestiaryTextureKey(sheetPath);
         frameIndex = row * columns + column;
@@ -1180,11 +1340,34 @@ export function createCardRealmsBoardScene(
 
       const isVictor = this.currentState?.winner === side;
       const victoryHop = isVictor ? Math.abs(Math.sin(timeMs * 0.012 + lane)) * -14 : 0;
-      const breatheScaleX = (1 - Math.sin(timeMs * 0.005 + lane) * 0.025) * size;
-      const breatheScaleY = (1 + Math.sin(timeMs * 0.005 + lane) * 0.035) * size;
+      const actionImpulse = isActionActive ? Math.sin(actionProgress * Math.PI) : 0;
+
+      let offsetX = 0;
+      let offsetY = victoryHop;
+      let extraScale = 1;
+
+      if (isActionActive && activeAction.mode === "attack") {
+        offsetY += (side === "player" ? -26 : 26) * actionImpulse;
+        extraScale = 1 + 0.14 * actionImpulse;
+      } else if (isActionActive && activeAction.mode === "awakening") {
+        offsetY -= 16 * actionImpulse;
+        extraScale = 1 + 0.18 * actionImpulse;
+      } else if (isActionActive && activeAction.mode === "damage") {
+        offsetX = Math.sin(actionProgress * Math.PI * 6) * 7;
+        offsetY += (side === "player" ? 8 : -8) * actionImpulse;
+      }
+
+      const breatheScaleX = (1 - Math.sin(timeMs * 0.005 + lane) * 0.025) * size * extraScale;
+      const breatheScaleY = (1 + Math.sin(timeMs * 0.005 + lane) * 0.035) * size * extraScale;
+
+      if (isActionActive && activeAction.mode === "damage") {
+        image.setTint(0xff8888);
+      } else {
+        image.clearTint();
+      }
 
       image
-        .setPosition(Math.round(x), Math.round(y + victoryHop))
+        .setPosition(Math.round(x + offsetX), Math.round(y + offsetY))
         .setDisplaySize(Math.round(breatheScaleX), Math.round(breatheScaleY))
         .setFlipX(side === "opponent")
         .setVisible(true);
@@ -1204,15 +1387,36 @@ export function createCardRealmsBoardScene(
         }
       }
 
+      const now = this.time?.now ?? 0;
+
       for (const event of events) {
         switch (event.kind) {
           case "creature-summoned":
             playSummonChoreography(this, event, audio, false);
             break;
-          case "creature-attack":
+          case "creature-attack": {
+            const enemySide = event.attackerSide === "player" ? "opponent" : "player";
+            this.actorActionState.set(`actor-${event.attackerSide}-${event.lane}`, {
+              mode: "attack",
+              startedAt: now,
+              duration: 460,
+            });
+            if (!event.hitHeart && !event.blockedByVeil) {
+              this.actorActionState.set(`actor-${enemySide}-${event.targetLane}`, {
+                mode: "damage",
+                startedAt: now + 120,
+                duration: 380,
+              });
+            }
             playAttackChoreography(this, event, audio, false);
             break;
+          }
           case "creature-awakening":
+            this.actorActionState.set(`actor-${event.side}-${event.lane}`, {
+              mode: "awakening",
+              startedAt: now,
+              duration: 600,
+            });
             playAwakeningChoreography(this, event, audio, false);
             break;
           case "creature-defeated":
@@ -1240,6 +1444,9 @@ export function createCardRealmsBoardScene(
             spawnElementalBurst(this, coords.centerX, coords.centerY, "spirit", 72, false);
             break;
           }
+          case "card-drawn":
+            audio?.play("card-draw");
+            break;
           case "turn-started":
             audio?.play("turn-change");
             break;

@@ -18,6 +18,93 @@ import {
   spawnFloatingBannerText,
 } from "./effects";
 
+function spawnFolkloreSummonSignature(
+  scene: Scene,
+  cardId: string,
+  x: number,
+  y: number,
+  reducedMotion: boolean,
+) {
+  if (reducedMotion) return;
+  let accentFrame: number = FX_ART.leaf;
+  let ringFrame: number = FX_ART.purificationRing;
+  let tint = 0xffffff;
+
+  switch (cardId) {
+    case "legend-curupira":
+      accentFrame = FX_ART.leaf;
+      ringFrame = FX_ART.forestCircleWarning;
+      tint = 0x7fd878;
+      break;
+    case "legend-iara":
+    case "legend-kappa":
+      accentFrame = FX_ART.waterDrop;
+      ringFrame = FX_ART.waterCircleWarning;
+      tint = 0x6fd2ff;
+      break;
+    case "legend-boitata":
+      accentFrame = FX_ART.ember;
+      ringFrame = FX_ART.corruptionBurst;
+      tint = 0xff7722;
+      break;
+    case "legend-saci":
+    case "legend-tengu":
+      accentFrame = FX_ART.dust;
+      ringFrame = FX_ART.wardPulse;
+      tint = 0xc8e8ff;
+      break;
+    case "legend-kitsune":
+      accentFrame = FX_ART.magicStar;
+      ringFrame = FX_ART.wardAppear;
+      tint = 0x99eeff;
+      break;
+    case "legend-oni":
+      accentFrame = FX_ART.corruptionSmoke;
+      ringFrame = FX_ART.circleDanger;
+      tint = 0xff4444;
+      shakeCameraForImpact(scene.cameras?.main, 0.006, 180, reducedMotion);
+      break;
+    case "legend-mapinguari":
+      accentFrame = FX_ART.dust;
+      ringFrame = FX_ART.rootZone;
+      tint = 0xa8d672;
+      shakeCameraForImpact(scene.cameras?.main, 0.005, 160, reducedMotion);
+      break;
+    case "legend-raiju":
+      accentFrame = FX_ART.lightningFragment;
+      ringFrame = FX_ART.lightningImpact;
+      tint = 0xffee77;
+      break;
+  }
+
+  const signatureRing = authoredImage(scene, x, y + 8, "fx", ringFrame, 96, 62)
+    .setDepth(37)
+    .setTint(tint)
+    .setAlpha(0.88);
+
+  const leftOrb = authoredImage(scene, x - 26, y, "fx", accentFrame, 24, 24)
+    .setDepth(43)
+    .setTint(tint);
+  const rightOrb = authoredImage(scene, x + 26, y, "fx", accentFrame, 24, 24)
+    .setDepth(43)
+    .setTint(tint);
+
+  scene.tweens.add({
+    targets: [signatureRing, leftOrb, rightOrb],
+    y: "-=18",
+    scaleX: 1.28,
+    scaleY: 1.28,
+    alpha: 0,
+    duration: 480,
+    ease: "Cubic.easeOut",
+    onComplete: () => {
+      signatureRing.destroy();
+      leftOrb.destroy();
+      rightOrb.destroy();
+    },
+  });
+}
+
 /**
  * Choreographs the 10-step Creature Summon Sequence (Section 7):
  * 1. Card flight from hand edge toward chosen territory
@@ -78,13 +165,20 @@ export function playSummonChoreography(
         .setDepth(35)
         .setAlpha(0.92);
 
-      // Step 4: Environment reacts with biome aura & elemental particles
+      // Step 4: Environment reacts with biome aura & elemental particles + creature signature
       spawnElementalBurst(
         scene,
         coords.creatureX,
         coords.creatureY,
         event.element,
         56,
+        reducedMotion,
+      );
+      spawnFolkloreSummonSignature(
+        scene,
+        event.cardId,
+        coords.creatureX,
+        coords.creatureY,
         reducedMotion,
       );
 
@@ -197,18 +291,29 @@ export function playAttackChoreography(
       const intensity = Math.min(0.012, 0.003 + event.damage * 0.002);
       shakeCameraForImpact(scene.cameras?.main, intensity, 160, reducedMotion);
 
+      const relationTag =
+        event.elementalRelation === "weakness"
+          ? " · FRAQUEZA ELEMENTAL!"
+          : event.elementalRelation === "resistance"
+            ? " · RESISTÊNCIA!"
+            : "";
+
       const label = event.blockedByVeil
         ? "ILUSÃO DESFEITA (0 DANO)"
         : event.redirectedByConfusion
-          ? `CONFUSO! -${event.damage} PV`
-          : `-${event.damage} PV`;
+          ? `CONFUSO! -${event.damage} PV${relationTag}`
+          : `-${event.damage} PV${relationTag}`;
 
       spawnFloatingBannerText(
         scene,
         targetX,
         targetY - 22,
         label,
-        event.blockedByVeil ? "#c8b6ff" : "#ff9b85",
+        event.blockedByVeil
+          ? "#c8b6ff"
+          : event.elementalRelation === "weakness"
+            ? "#ffdf6b"
+            : "#ff9b85",
         950,
       );
 
@@ -409,7 +514,7 @@ export function playStructureDestroyedChoreography(
   reducedMotion = false,
 ) {
   const coords = getLaneBoardCoordinates(event.side, event.lane);
-  audio?.play("attack-clash");
+  audio?.play("structure-destroy");
   shakeCameraForImpact(scene.cameras?.main, 0.005, 160, reducedMotion);
 
   const rubble = authoredImage(

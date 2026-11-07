@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { PixelCreature } from "@/components/game/pixel-creature";
 import { Gem, Heart, Shield, Sparkles, Swords } from "@/components/ui/pixel-icon";
-import { CARD_CATEGORY_LABELS } from "@/game/card-realms/domain/cards";
+import {
+  CARD_CATEGORY_LABELS,
+  CARD_RARITY_LABELS,
+  ELEMENT_LABELS,
+} from "@/game/card-realms/domain/cards";
 import { getCulture } from "@/game/card-realms/domain/cultures";
 import { getTerritoryBiome } from "@/game/card-realms/domain/territories";
 import type { CardCategory, CardDefinition } from "@/game/card-realms/domain/types";
@@ -51,6 +55,7 @@ export function CardRealmsCardButton({
 
   const categoryLabel = CARD_CATEGORY_LABELS[card.category];
   const categoryEmoji = CATEGORY_EMOJI[card.category];
+  const rarityInfo = CARD_RARITY_LABELS[card.rarity];
   const cultureBadge =
     card.culture === "neutral"
       ? "🌍 Ancestral"
@@ -86,6 +91,7 @@ export function CardRealmsCardButton({
       className={cn(
         "card-realms-card",
         `card-realms-card--${card.category}`,
+        `card-realms-card--rarity-${card.rarity}`,
         selected && "is-selected",
         !affordable && "is-unaffordable",
       )}
@@ -97,7 +103,7 @@ export function CardRealmsCardButton({
     >
       <div className="card-realms-card__top">
         <span>
-          {categoryEmoji} {categoryLabel} · {cultureBadge}
+          {categoryEmoji} {categoryLabel} · {cultureBadge} · {rarityInfo.shortLabel}
         </span>
         <span
           title="Custo de Sopro Ancestral"
@@ -122,6 +128,12 @@ export function CardRealmsCardButton({
             {card.favoredBiomes.map((b) => getTerritoryBiome(b).shortName).join("/")})
             <br />
             <strong>🔮 {card.awakeningPower.name}:</strong> {card.awakeningPower.description}
+            {card.passiveTrait ? (
+              <>
+                <br />
+                <strong>🛡️ {card.passiveTrait.name}:</strong> {card.passiveTrait.description}
+              </>
+            ) : null}
           </p>
           <div className="card-realms-card__footer">
             <span>
@@ -129,8 +141,9 @@ export function CardRealmsCardButton({
               <Heart size={13} aria-hidden="true" /> {card.maxHp}
             </span>
             <span>
-              Bioma:{" "}
-              {card.favoredBiomes.map((b) => getTerritoryBiome(b).shortName).join(" / ")}
+              {card.weaknesses?.length
+                ? `Fraq: ${card.weaknesses.map((e) => ELEMENT_LABELS[e]).join("/")}`
+                : `Bioma: ${card.favoredBiomes.map((b) => getTerritoryBiome(b).shortName).join("/")}`}
             </span>
           </div>
         </>
