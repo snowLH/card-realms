@@ -2,6 +2,14 @@
 
 import { useEffect } from "react";
 
+export function isFolklardWorker(scriptURL: string | undefined, origin: string) {
+  if (!scriptURL) return false;
+  try {
+    const url = new URL(scriptURL);
+    return url.origin === origin && url.pathname === "/sw.js";
+  } catch { return false; }
+}
+
 export function ServiceWorkerRegistration() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -10,11 +18,11 @@ export function ServiceWorkerRegistration() {
       let cancelled = false;
       const releaseDevelopmentCache = async () => {
         try {
-          const hadController = navigator.serviceWorker.controller?.scriptURL === new URL("/sw.js", window.location.origin).href;
+          const hadController = isFolklardWorker(navigator.serviceWorker.controller?.scriptURL, window.location.origin);
           const registrations = await navigator.serviceWorker.getRegistrations();
           await Promise.all(registrations
             .filter((registration) => [registration.active, registration.waiting, registration.installing]
-              .some((worker) => worker?.scriptURL === new URL("/sw.js", window.location.origin).href))
+              .some((worker) => isFolklardWorker(worker?.scriptURL, window.location.origin)))
             .map((registration) => registration.unregister()));
           if ("caches" in window) {
             const keys = await caches.keys();
@@ -32,7 +40,10 @@ export function ServiceWorkerRegistration() {
 
     const register = async () => {
       try {
-        const registration = await navigator.serviceWorker.register("/sw.js", {
+        // Production builds on loopback need real offline QA. Development still
+        // unregisters our workers/caches, including this explicit opt-in URL.
+        const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+        const registration = await navigator.serviceWorker.register(loopback ? "/sw.js?offline=1" : "/sw.js", {
           scope: "/",
           updateViaCache: "none",
         });

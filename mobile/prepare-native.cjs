@@ -7,6 +7,8 @@ const path = require("node:path");
 const { version } = require("./package.json");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { computeNativeBuildNumber } = require("./native-version.cjs");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { registerAndroidAuth, registerIosAuth } = require("./native-auth-config.cjs");
 const target = process.argv[2];
 const buildNumber = computeNativeBuildNumber(version, process.env.GITHUB_RUN_NUMBER ?? 1);
 const root = __dirname;
@@ -22,6 +24,7 @@ if (target === "android") {
     .replace(/versionCode \d+/, `versionCode ${buildNumber}`)
     .replace(/versionName "[^"]+"/, `versionName "${version}"`));
   edit(path.join(native, "variables.gradle"), (source) => source.replace(/minSdkVersion = \d+/, "minSdkVersion = 24"));
+  edit(path.join(native, "app", "src", "main", "AndroidManifest.xml"), registerAndroidAuth);
   edit(path.join(res, "values", "styles.xml"), (source) => source.replace(
     /<style name="AppTheme.NoActionBarLaunch"[\s\S]*?<\/style>/,
     `<style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
@@ -43,4 +46,5 @@ if (target === "android") {
     .replace(/CURRENT_PROJECT_VERSION = [^;]+;/g, `CURRENT_PROJECT_VERSION = ${buildNumber};`));
   edit(path.join(native, "App", "Info.plist"), (source) => source.includes("<key>UIRequiresFullScreen</key>")
     ? source : source.replace(/<\/dict>\s*<\/plist>/, "<key>UIRequiresFullScreen</key><true/>\n</dict>\n</plist>"));
+  edit(path.join(native, "App", "Info.plist"), registerIosAuth);
 } else { throw new Error("Select android or ios"); }

@@ -1,5 +1,7 @@
 "use strict";
-const GAME_URL = "https://card-realms.vercel.app/";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { resolveAppConfig } = require("./app-config.cjs");
+const GAME_URL = resolveAppConfig().gameUrl;
 const GAME_ORIGIN = new URL(GAME_URL).origin;
 
 function isGameUrl(url) {
@@ -32,7 +34,9 @@ function bindGameWindow(window, shell, offlinePath) {
   });
   window.webContents.on("will-navigate", (event, legacyUrl) => {
     const url = event.url || legacyUrl;
-    if (offline && isGameUrl(url)) {
+    // The bundled recovery page has the release URL. QA must retry its own
+    // configured origin, rather than opening the production game externally.
+    if (offline && (isGameUrl(url) || url === "https://card-realms.vercel.app/")) {
       event.preventDefault();
       void loadGame();
     } else if (!isGameUrl(url)) {

@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
 import { AuthoredCssAssets } from "@/components/ui/authored-css-assets";
+import { AuthProvider } from "@/components/auth/auth-provider";
 import "./globals.css";
 import "./game-ui.css";
 import "./medieval-theme.css";
@@ -48,7 +49,7 @@ export default function RootLayout({
       className={`${GeistSans.variable} ${GeistMono.variable}`}
     >
       <body>
-        {children}
+        <AuthProvider>{children}</AuthProvider>
         <ServiceWorkerRegistration />
         <AuthoredCssAssets />
       </body>

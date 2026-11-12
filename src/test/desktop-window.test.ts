@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { createRequire } from "node:module";
 import { EventEmitter } from "node:events";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 
 const require = createRequire(import.meta.url);
 const { bindGameWindow, isGameUrl } = require("../../desktop/window-controller.cjs");
-function fixture() {
+function fixture(bind = bindGameWindow) {
   const contents = Object.assign(new EventEmitter(), { setWindowOpenHandler: vi.fn() });
   const window = {
     webContents: contents, isDestroyed: vi.fn(() => false), loadURL: vi.fn().mockResolvedValue(undefined),
@@ -12,11 +14,23 @@ function fixture() {
     isFullScreen: vi.fn(() => false), setFullScreen: vi.fn(),
   };
   const shell = { openExternal: vi.fn().mockResolvedValue(undefined) };
-  const controller = bindGameWindow(window, shell, "offline.html");
+  const controller = bind(window, shell, "offline.html");
   return { window, contents, shell, controller };
 }
 
 describe("desktop game window", () => {
+  it("retries the configured QA origin from the bundled recovery page", async () => {
+    const exports = { exports: {} as { bindGameWindow: typeof bindGameWindow } };
+    runInNewContext(readFileSync("desktop/window-controller.cjs", "utf8"), {
+      module: exports, URL, require: () => ({ resolveAppConfig: () => ({ gameUrl: "http://127.0.0.1:3000/" }) }),
+    });
+    const { window, contents, shell, controller } = fixture(exports.exports.bindGameWindow);
+    window.loadURL.mockRejectedValueOnce(new Error("local server unavailable"));
+    await controller.loadGame();
+    contents.emit("will-navigate", { preventDefault: vi.fn() }, "https://card-realms.vercel.app/");
+    expect(window.loadURL).toHaveBeenLastCalledWith("http://127.0.0.1:3000/");
+    expect(shell.openExternal).not.toHaveBeenCalled();
+  });
   it("shows a local recovery screen when the initial network request fails", async () => {
     const { window, controller } = fixture();
     window.loadURL.mockRejectedValueOnce(new Error("offline"));

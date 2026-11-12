@@ -5,7 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 const origin = "https://folklard.test";
 const source = readFileSync("public/sw.js", "utf8");
 
-function worker() {
+function worker(workerOrigin = origin, offlineOptIn = false) {
+  const origin = workerOrigin;
   const handlers = new Map<string, (event: Record<string, unknown>) => void>();
   const stores = new Map<string, Map<string, Response>>();
   const key = (request: string | { url: string }) => new URL(typeof request === "string" ? request : request.url, origin).href;
@@ -27,7 +28,7 @@ function worker() {
   };
   const fetch = vi.fn<(path: string) => Promise<Response>>().mockImplementation(async () => new Response("network"));
   runInNewContext(source, { caches, fetch, URL, Response, Promise, Set, Error,
-    self: { location: new URL(origin), addEventListener: (name: string, handler: (event: Record<string, unknown>) => void) => handlers.set(name, handler), skipWaiting: async () => {}, clients: { claim: async () => {} } },
+    self: { location: new URL(`/sw.js${offlineOptIn ? "?offline=1" : ""}`, origin), addEventListener: (name: string, handler: (event: Record<string, unknown>) => void) => handlers.set(name, handler), skipWaiting: async () => {}, clients: { claim: async () => {} } },
   });
   const prepare = async () => {
     const messages: Array<{ ready: boolean; error?: string }> = [];
@@ -50,6 +51,19 @@ function worker() {
 }
 
 describe("offline game pack and fast immutable cache", () => {
+  it("keeps development uncached while explicit loopback production QA can reopen offline", async () => {
+    const localOrigin = "http://127.0.0.1:3000";
+    const dev = worker(localOrigin);
+    expect(await dev.request("/offline", true)).toBeUndefined();
+    const qa = worker(localOrigin, true);
+    qa.fetch.mockImplementation(async (path) => String(path) === "/offline-pack.json"
+      ? Response.json({ version: "qa", files: ["/offline", "/art/hero.webp"] }) : new Response("cached solo"));
+    expect((await qa.prepare()).at(-1)?.ready).toBe(true);
+    qa.fetch.mockRejectedValue(new TypeError("server stopped"));
+    expect(await (await qa.request("/offline", true))?.text()).toBe("cached solo");
+    expect(await (await qa.request("/art/hero.webp"))?.text()).toBe("cached solo");
+    expect(await qa.request("/api/player/progress")).toBeUndefined();
+  });
   it("reopens offline through the public solo shell and never caches account pages or APIs", async () => {
     const w = worker();
     w.fetch.mockImplementation(async (path) => String(path) === "/offline-pack.json"
