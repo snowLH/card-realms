@@ -238,3 +238,78 @@ button:hover:not(:disabled)>:is(strong,span,small),button:focus-visible>:is(stro
 }
 @supports(-moz-appearance:none){* {scrollbar-width:none;}}
 @media(prefers-reduced-motion:reduce){.pixel-icon,.authored-telegraph,.authored-purification {animation:none !important;}}
+
+/* Gear cards need a full panel, not the transparent pressed action-button
+   slice. Keep this scoped exception after the shared button states. */
+.arpg-loadout-view .arpg-loadout-grid button {
+  border-image: var(--art-panel-dark) 16 fill / 8px / 0 stretch !important;
+  color: var(--folklard-text) !important;
+  transform: none;
+  filter: none;
+  opacity: 1;
+}
+
+.arpg-loadout-view .arpg-loadout-grid button:is(.is-selected, :hover:not(:disabled), :focus-visible) {
+  border-image: var(--art-slot-active) 32 fill / 8px / 0 stretch !important;
+}
+
+.arpg-loadout-view .arpg-loadout-grid button:disabled { cursor: not-allowed; }
+.arpg-loadout-view .arpg-loadout-grid button small { color: var(--folklard-gold); }
+.arpg-loadout-view .arpg-loadout-grid button strong { color: var(--folklard-text); }
+.arpg-loadout-view .arpg-loadout-grid button :is(span, em) {
+  color: #e1ddc4;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.arpg-loadout-view .arpg-loadout-grid button small { font-size: 10px; }
+.arpg-loadout-view .arpg-loadout-grid button strong { font-size: 16px; }
+
+.arpg-loadout-view .arpg-loadout-summary > span {
+  min-width: 0;
+  align-content: center;
+  padding: 14px;
+  border-image-source: var(--art-panel-dark);
+  color: var(--folklard-text);
+}
+.arpg-loadout-view .arpg-loadout-summary small {
+  color: #e1ddc4;
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 1;
+}
+.arpg-loadout-view .arpg-loadout-summary b { font-size: 14px; }
+.arpg-loadout-view .arpg-loadout-summary :is(b, small),
+.arpg-loadout-view .arpg-loadout-grid button :is(strong, span, em) { overflow-wrap: anywhere; }
+
+.arpg-loadout-view .arpg-ability-collection { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.arpg-loadout-view .arpg-ability-collection article { padding: 14px; }
+.arpg-loadout-view .arpg-ability-collection article small { font-size: 10px; line-height: 1.5; }
+.arpg-loadout-view .arpg-ability-collection article strong { font-size: 16px; }
+.arpg-loadout-view .arpg-ability-collection article :is(span, em) { font-size: 13px; line-height: 1.5; }
+.arpg-power-portrait { display: block; overflow: hidden; }
+.arpg-power-portrait > .character-avatar-2d {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  transform: none;
+}
+
+@media (max-width: 430px) {
+  .arpg-loadout-view .arpg-ability-collection { grid-template-columns: 1fr; }
+  .arpg-loadout-view .arpg-loadout-summary > span { padding: 10px; }
+}
+
+@media (forced-colors: active) {
+  .arpg-loadout-view .arpg-loadout-grid button {
+    border-image: none !important;
+    border: 2px solid transparent !important;
+    color: ButtonText !important;
+    forced-color-adjust: auto;
+  }
+  .arpg-loadout-view .arpg-loadout-grid button:is(.is-selected, :focus-visible) {
+    border-image-source: none !important;
+    outline: 2px solid transparent;
+  }
+  .arpg-loadout-view .arpg-loadout-grid button:disabled { color: GrayText !important; }
+  .arpg-loadout-view .arpg-loadout-grid button :is(small, strong, span, em) { color: inherit; }
+}
